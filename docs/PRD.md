@@ -154,8 +154,8 @@ Either `open_duration` or `max_players` must be set. If both are set, the season
 - **Test Mode**: A special mode that allows administrators to create and control test players, with shorter timeouts and relaxed requirements for faster testing
 - **Announcement Channel**: The channel where new games/seasons are announced
 - **Completed Channel**: The channel where the bot posts the full sequence of a completed season (defaults to same as announcement channel)
-- **Admin Channel**: The private channel where the bot posts flagged turns and admin-related messages
-- **Uncensored Channel**: A private channel where uncensored games can be played
+- **Admin Channel**: The private channel where the bot posts flagged turns and admin-related messages. If this is not set, turns cannot be flagged and admin messages will be sent to the announcement channel.
+- **Uncensored Channel**: An optional private channel where uncensored games can be played
 
 ## Moderation Terminology
 
@@ -170,3 +170,7 @@ Either `open_duration` or `max_players` must be set. If both are set, the season
   - `12h`
   - `30m`
   - `30s`
+
+# Example Flows
+
+See [FLOWS.md](FLOWS.md)

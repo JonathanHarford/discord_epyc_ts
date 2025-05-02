@@ -34,4 +34,4 @@ alwaysApply: true
 - Use markdown in your responses.
 
 # Specs & Project Docs  
-- Use the files in `/specs/` for project analysis; update them whenever they’re inaccurate.
+- Use the files in `/docs/` for project analysis; update them whenever they’re inaccurate.
