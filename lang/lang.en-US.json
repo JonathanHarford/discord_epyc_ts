@@ -217,7 +217,13 @@
         "argDescs": {
             "devCommand": "Command.",
             "helpOption": "Option.",
-            "infoOption": "Option."
+            "infoOption": "Option.",
+            "configChannels": "Configure server channels for announcements and notifications.",
+            "configChannelAnnouncement": "Channel for game announcements.",
+            "configChannelCompleted": "Set to 'None' to disable the completed games channel.",
+            "configChannelCompletedChannel": "Channel where completed games will be posted.",
+            "configChannelAdmin": "Set to 'None' to disable the admin notifications channel.",
+            "configChannelAdminChannel": "Channel for admin notifications."
         },
         "fields": {
             "commands": "Commands",

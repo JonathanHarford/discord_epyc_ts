@@ -116,6 +116,8 @@ export class ServerService {
                 data: {
                     id: serverId,
                     announcementChannelId: defaultChannelId,
+                    completedChannelId: defaultChannelId,
+                    adminChannelId: defaultChannelId,
                     defaultGameSettingsId: defaultGameSettings.id,
                     defaultSeasonSettingsId: defaultSeasonSettings.id
                 }

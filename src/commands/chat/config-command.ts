@@ -76,11 +76,16 @@ export class ConfigCommand implements Command {
     private async handleChannelsConfig(intr: ChatInputCommandInteraction): Promise<void> {
         // Get channel options
         const announcementChannel = intr.options.getChannel('announcement');
-        const completedChannel = intr.options.getChannel('completed');
-        const adminChannel = intr.options.getChannel('admin');
+        const completedChannel = intr.options.getChannel('completed_channel');
+        const adminChannel = intr.options.getChannel('admin_channel');
         
-        // If no channels were provided, show current configuration
-        if (!announcementChannel && !completedChannel && !adminChannel) {
+        // Get string options
+        const completedOption = intr.options.getString('completed');
+        const adminOption = intr.options.getString('admin');
+        
+        // If no options were provided, show current configuration
+        if (!announcementChannel && !completedChannel && !adminChannel && 
+            !completedOption && !adminOption) {
             await this.showCurrentChannelConfig(intr);
             return;
         }
@@ -118,7 +123,7 @@ export class ConfigCommand implements Command {
         // Get server settings or initialize if they don't exist
         let server = await this.dbService.servers.getServer(intr.guild.id);
         if (!server) {
-            // Create default server settings
+            // Initialize with default server settings
             await this.dbService.servers.initializeServerSettings(
                 intr.guild.id,
                 intr.guild.name,
@@ -134,22 +139,30 @@ export class ConfigCommand implements Command {
         // Prepare channel config update
         const channelConfig: any = {};
         
-        if (announcementChannel) {
-            channelConfig.announcementChannelId = announcementChannel.id;
-        }
+        // Handle announcement channel
+        const announcementChannelId = announcementChannel?.id || serverSettings.announcementChannelId || intr.channelId;
+        channelConfig.announcementChannelId = announcementChannelId;
         
+        // Handle completed channel - explicit 'none' sets to null, an explicit channel value sets to that value,
+        // otherwise use the announcement channel as default
         if (completedChannel) {
             channelConfig.completedChannelId = completedChannel.id;
-        } else if (completedChannel === null && intr.options.get('completed')?.value === 'none') {
-            // Handle explicit "none" value to remove the channel
+        } else if (completedOption === 'none') {
             channelConfig.completedChannelId = null;
+        } else if (!serverSettings.completedChannelId) {
+            // Only set default if no previous value exists
+            channelConfig.completedChannelId = announcementChannelId;
         }
         
+        // Handle admin channel - explicit 'none' sets to null, an explicit channel value sets to that value,
+        // otherwise use the announcement channel as default
         if (adminChannel) {
             channelConfig.adminChannelId = adminChannel.id;
-        } else if (adminChannel === null && intr.options.get('admin')?.value === 'none') {
-            // Handle explicit "none" value to remove the channel
+        } else if (adminOption === 'none') {
             channelConfig.adminChannelId = null;
+        } else if (!serverSettings.adminChannelId) {
+            // Only set default if no previous value exists
+            channelConfig.adminChannelId = announcementChannelId;
         }
         
         // Update server settings
@@ -185,23 +198,18 @@ export class ConfigCommand implements Command {
         responseMessage += `**Announcement Channel**: ${announcementChannel ? `<#${announcementChannel.id}>` : 'Not set'}\n`;
         
         // Add completed channel info
-        if (serverSettings.completedChannelId) {
-            const completedChannel = intr.guild!.channels.cache.get(serverSettings.completedChannelId);
-            responseMessage += `**Completed Games Channel**: ${completedChannel ? `<#${completedChannel.id}>` : 'Not set'}\n`;
-        } else {
-            responseMessage += '**Completed Games Channel**: Not set\n';
-        }
+        const completedChannel = serverSettings.completedChannelId ? 
+            intr.guild!.channels.cache.get(serverSettings.completedChannelId) : null;
+        responseMessage += `**Completed Games Channel**: ${completedChannel ? `<#${completedChannel.id}>` : 'Not set'}\n`;
         
         // Add admin channel info
-        if (serverSettings.adminChannelId) {
-            const adminChannel = intr.guild!.channels.cache.get(serverSettings.adminChannelId);
-            responseMessage += `**Admin Notifications Channel**: ${adminChannel ? `<#${adminChannel.id}>` : 'Not set'}\n`;
-        } else {
-            responseMessage += '**Admin Notifications Channel**: Not set\n';
-        }
+        const adminChannel = serverSettings.adminChannelId ? 
+            intr.guild!.channels.cache.get(serverSettings.adminChannelId) : null;
+        responseMessage += `**Admin Notifications Channel**: ${adminChannel ? `<#${adminChannel.id}>` : 'Not set'}\n`;
         
         // Add usage help
         responseMessage += '\nUse `/config channels` with channel options to update configuration.';
+        responseMessage += '\nTo remove an optional channel, use the "None" option.';
         
         await InteractionUtils.send(intr, responseMessage);
     }

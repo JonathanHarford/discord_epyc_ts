@@ -104,16 +104,40 @@ export const ChatCommandMetadata: {
                         channel_types: [ChannelType.GuildText]
                     },
                     {
-                        type: ApplicationCommandOptionType.Channel,
+                        type: ApplicationCommandOptionType.String,
                         name: 'completed',
                         description: 'Channel for completed games',
+                        required: false,
+                        choices: [
+                            {
+                                name: 'None (Disable)',
+                                value: 'none'
+                            }
+                        ]
+                    },
+                    {
+                        type: ApplicationCommandOptionType.Channel,
+                        name: 'completed_channel',
+                        description: 'Select a channel for completed games',
                         required: false,
                         channel_types: [ChannelType.GuildText]
                     },
                     {
-                        type: ApplicationCommandOptionType.Channel,
+                        type: ApplicationCommandOptionType.String,
                         name: 'admin',
                         description: 'Channel for admin notifications',
+                        required: false,
+                        choices: [
+                            {
+                                name: 'None (Disable)',
+                                value: 'none'
+                            }
+                        ]
+                    },
+                    {
+                        type: ApplicationCommandOptionType.Channel,
+                        name: 'admin_channel',
+                        description: 'Select a channel for admin notifications',
                         required: false,
                         channel_types: [ChannelType.GuildText]
                     }
