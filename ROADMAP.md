@@ -1,11 +1,14 @@
 ROADMAP.md
 
 [x] Functional bot
-[ ] Add Prisma
+[x] Add Prisma
 [x] Switch to Discord.js?
   https://github.com/KevinNovak/Discord-Bot-TypeScript-Template
 [x] Figure out how to use guild ID
-[ ] Initial schema
-[ ] Add /start command
-  [ ] Should create game and write to database
-
+[x] Initial schema
+[x] Add /start command
+  [x] Should create game and write to database
+[ ] Add initial message to show when added to server
+[ ] Add command to configure channels
+[ ] Add command to configure server default game settings
+[ ] Add command to configure server default season settings

@@ -192,6 +192,7 @@
             "dev": "dev",
             "help": "help",
             "info": "info",
+            "start": "start",
             "test": "test"
         },
         "userCommands": {
@@ -205,10 +206,11 @@
             "option": "option"
         },
         "commandDescs": {
-            "dev": "Developer use only.",
-            "help": "Find help or contact support.",
-            "info": "View bot info.",
-            "test": "Run the test command."
+            "dev": "Developer commands.",
+            "help": "Get help with using this bot.",
+            "info": "Get information about this bot.",
+            "start": "Create a new game.",
+            "test": "Run a test command."
         },
         "argDescs": {
             "devCommand": "Command.",
