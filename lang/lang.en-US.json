@@ -193,7 +193,8 @@
             "help": "help",
             "info": "info",
             "start": "start",
-            "test": "test"
+            "test": "test",
+            "config": "config"
         },
         "userCommands": {
             "viewDateJoined": "View Date Joined"
@@ -210,7 +211,8 @@
             "help": "Get help with using this bot.",
             "info": "Get information about this bot.",
             "start": "Create a new game.",
-            "test": "Run a test command."
+            "test": "Run a test command.",
+            "config": "Configure server settings."
         },
         "argDescs": {
             "devCommand": "Command.",

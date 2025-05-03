@@ -8,7 +8,8 @@ ROADMAP.md
 [x] Initial schema
 [x] Add /start command
   [x] Should create game and write to database
-[ ] Add initial message to show when added to server
-[ ] Add command to configure channels
+[x] Add initial message to show when added to server
+[x] Add command to configure channels
 [ ] Add command to configure server default game settings
 [ ] Add command to configure server default season settings
+[ ] Add command to initiate test mode

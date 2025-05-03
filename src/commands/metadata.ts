@@ -4,6 +4,8 @@ import {
     PermissionsBitField,
     RESTPostAPIChatInputApplicationCommandsJSONBody,
     RESTPostAPIContextMenuApplicationCommandsJSONBody,
+    ApplicationCommandOptionType,
+    ChannelType,
 } from 'discord.js';
 
 import { Args } from './index.js';
@@ -77,6 +79,47 @@ export const ChatCommandMetadata: {
         description_localizations: Lang.getRefLocalizationMap('commandDescs.test'),
         dm_permission: true,
         default_member_permissions: undefined,
+    },
+    CONFIG: {
+        type: ApplicationCommandType.ChatInput,
+        name: Lang.getRef('chatCommands.config', Language.Default),
+        name_localizations: Lang.getRefLocalizationMap('chatCommands.config'),
+        description: Lang.getRef('commandDescs.config', Language.Default),
+        description_localizations: Lang.getRefLocalizationMap('commandDescs.config'),
+        dm_permission: false,
+        default_member_permissions: PermissionsBitField.resolve([
+            PermissionFlagsBits.Administrator,
+        ]).toString(),
+        options: [
+            {
+                type: ApplicationCommandOptionType.Subcommand,
+                name: 'channels',
+                description: 'Configure server channels for announcements and notifications',
+                options: [
+                    {
+                        type: ApplicationCommandOptionType.Channel,
+                        name: 'announcement',
+                        description: 'Channel for game announcements',
+                        required: false,
+                        channel_types: [ChannelType.GuildText]
+                    },
+                    {
+                        type: ApplicationCommandOptionType.Channel,
+                        name: 'completed',
+                        description: 'Channel for completed games',
+                        required: false,
+                        channel_types: [ChannelType.GuildText]
+                    },
+                    {
+                        type: ApplicationCommandOptionType.Channel,
+                        name: 'admin',
+                        description: 'Channel for admin notifications',
+                        required: false,
+                        channel_types: [ChannelType.GuildText]
+                    }
+                ]
+            }
+        ],
     },
 };
 
