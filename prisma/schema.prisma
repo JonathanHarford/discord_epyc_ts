@@ -1,0 +1,212 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+// Looking for ways to speed up your queries, or scale easily with your serverless or edge functions?
+// Try Prisma Accelerate: https://pris.ly/cli/accelerate-init
+
+generator client {
+  provider = "prisma-client-js"
+  output   = "../prisma/generated"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+// User model represents Discord users
+model User {
+  id        String    @id // Discord user ID
+  createdAt DateTime  @default(now())
+  updatedAt DateTime  @updatedAt
+  bannedAt  DateTime?
+
+  // Relations
+  player         Player?
+  flags          Flag[] // Flags submitted by this user
+  createdGames   Game[] // Games created by this user
+  createdSeasons Season[] // Seasons created by this user
+
+  @@map("users")
+}
+
+// Player model represents Users who participate in games
+model Player {
+  id        String   @id // Same as User ID
+  user      User     @relation(fields: [id], references: [id])
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  // Relations
+  turns   Turn[] // Player's turns in games
+  seasons SeasonsPlayers[] // Seasons this player has participated in
+
+  @@map("players")
+}
+
+// Server model represents Discord servers where games are played
+model Server {
+  id        String   @id // Discord server ID
+  name      String
+  icon      String?
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  // Relations
+  settings ServerSettings?
+  games    Game[] // Games played in this server
+  seasons  Season[] // Seasons run in this server
+
+  @@map("servers")
+}
+
+model ServerSettings {
+  id                    String  @id
+  server                Server? @relation(fields: [id], references: [id])
+  maxConcurrentGames    Int     @default(10)
+  announcementChannelId String
+  completedChannelId    String?
+  adminChannelId        String?
+  testMode              Boolean @default(false)
+
+  defaultGameSettingsId String
+  defaultGameSettings   GameSettings @relation(fields: [defaultGameSettingsId], references: [id])
+
+  defaultSeasonSettingsId String
+  defaultSeasonSettings   SeasonSettings @relation(fields: [defaultSeasonSettingsId], references: [id])
+
+  @@map("server_settings")
+}
+
+model GameSettings {
+  id             String  @id
+  turnPattern    String  @default("drawing,writing")
+  returns        String? // <number of returns>/<turn gap>
+  writingTimeout String  @default("1d")
+  writingWarning String  @default("1m")
+  drawingTimeout String  @default("1d")
+  drawingWarning String  @default("10m")
+  staleTimeout   String  @default("7d")
+  minTurns       Int     @default(6)
+  maxTurns       Int?
+
+  // Relations
+  games          Game[]
+  serverSettings ServerSettings[]
+
+  @@map("game_settings")
+}
+
+model SeasonSettings {
+  id           String @id
+  // Default season settings for this server
+  openDuration String @default("7d")
+  minPlayers   Int    @default(2)
+  maxPlayers   Int?
+
+  // Relations
+  seasons        Season[]
+  serverSettings ServerSettings[]
+
+  @@map("season_settings")
+}
+
+model Game {
+  id          String    @id
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+  completedAt DateTime?
+
+  // Game state
+  status String @default("setup") // setup, active, paused, completed, canceled
+
+  // Relations
+  settings   GameSettings @relation(fields: [settingsId], references: [id])
+  settingsId String
+
+  server    Server  @relation(fields: [serverId], references: [id])
+  serverId  String
+  creator   User    @relation(fields: [creatorId], references: [id])
+  creatorId String
+  turns     Turn[]
+  season    Season? @relation(fields: [seasonId], references: [id])
+  seasonId  String?
+
+  @@map("games")
+}
+
+// Turn model for individual contributions to a game
+model Turn {
+  id          String    @id
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+  completedAt DateTime?
+
+  // Turn details
+  turnType String // "writing" or "drawing"
+  content  String? // The text prompt or drawing URL
+
+  // Turn state
+  status   String    @default("pending") // pending, active, completed, skipped
+  deadline DateTime? // When this turn needs to be completed
+
+  // Relations
+  game     Game   @relation(fields: [gameId], references: [id])
+  gameId   String
+  player   Player @relation(fields: [playerId], references: [id])
+  playerId String
+  flags    Flag[] // Flags/reports associated with this turn
+
+  @@map("turns")
+}
+
+// Season model for grouping games and tracking player performance
+model Season {
+  id        String   @id
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  // Season state
+  status String @default("open") // open, active, completed
+
+  // Relations
+  seasonSettings   SeasonSettings @relation(fields: [seasonSettingsId], references: [id])
+  seasonSettingsId String
+
+  server    Server           @relation(fields: [serverId], references: [id])
+  serverId  String
+  creator   User             @relation(fields: [creatorId], references: [id])
+  creatorId String
+  games     Game[] // Games in this season
+  players   SeasonsPlayers[] // Players participating in this season
+
+  @@map("seasons")
+}
+
+// Season-Player relationship model
+model SeasonsPlayers {
+  // Relations
+  season   Season @relation(fields: [seasonId], references: [id])
+  seasonId String
+  player   Player @relation(fields: [playerId], references: [id])
+  playerId String
+
+  @@id([seasonId, playerId])
+  @@map("seasons_players")
+}
+
+// Flag model for moderation
+model Flag {
+  id         String    @id @default(cuid())
+  createdAt  DateTime  @default(now())
+  reason     String // "offensive", "spam", "other"
+  resolvedAt DateTime?
+
+  // Relations
+  reporter   User   @relation(fields: [reporterId], references: [id])
+  reporterId String
+  turn       Turn   @relation(fields: [turnId], references: [id])
+  turnId     String
+
+  @@map("flags")
+}

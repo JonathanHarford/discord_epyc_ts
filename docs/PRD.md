@@ -41,7 +41,6 @@ In the Discord implementation:
      2. the game has reached a maximum number (configurable) of turns, then
    - The bot posts the complete sequence in the "completed" channel (see below)
       - Users can react and comment on the results
-   - The game state is archived for future reference
 
 ## Special Considerations
 - **Time Limits**: Each player has a configurable amount of time to complete their turn
@@ -130,7 +129,6 @@ Either `open_duration` or `max_players` must be set. If both are set, the season
 - **Paused**: Game is temporarily halted due to flagged content or admin action
 - **Completed**: Game has finished normally
 - **Terminated**: Game was ended prematurely by an admin
-- **Archived**: Game data has been archived (final state)
 - **Stale**: Not a formal state, but a condition where a game has been inactive for longer than the stale timeout
 
 ### Turn States
