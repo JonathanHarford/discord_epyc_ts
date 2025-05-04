@@ -79,7 +79,7 @@ export class ConfigCommand implements Command {
         const completedChannel = intr.options.getChannel('completed_channel');
         const adminChannel = intr.options.getChannel('admin_channel');
         
-        // Get string options
+        // Get string options - these are the "None" options
         const completedOption = intr.options.getString('completed');
         const adminOption = intr.options.getString('admin');
         
