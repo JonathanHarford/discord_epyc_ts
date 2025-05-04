@@ -33,7 +33,7 @@ Add a `/config games` command that allows server administrators to configure def
 4. Stale game timeout
 5. Minimum and maximum turn counts
 6. Returns policy (players replay frequency)
-
+p
 ## Requirements
 - Command should be restricted to server administrators only
 - Command should allow setting each game parameter individually
