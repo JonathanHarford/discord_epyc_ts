@@ -7,6 +7,7 @@ import {
     TextChannel
 } from 'discord.js';
 import { RateLimiter } from 'discord.js-rate-limiter';
+import { z } from 'zod';
 
 import { DatabaseService } from '../../database/index.js';
 import { Language } from '../../models/enum-helpers/index.js';
@@ -18,11 +19,6 @@ import {
     durationStringSchema,
     turnPatternSchema,
     returnsSchema,
-    createStringValidator,
-    validateOptions,
-    ParsedDuration,
-    isSuccessResult,
-    isErrorResult,
     DurationUtils
 } from '../../utils/index.js';
 import { Command, CommandDeferType } from '../index.js';
@@ -131,121 +127,128 @@ export class ConfigCommand implements Command {
             return;
         }
         
-        // Define types for the validator result
-        interface ValidatedOptions {
-            turnPattern?: string;
-            writingTimeout?: ParsedDuration;
-            writingWarning?: ParsedDuration;
-            drawingTimeout?: ParsedDuration;
-            drawingWarning?: ParsedDuration;
-            staleTimeout?: ParsedDuration;
-            returns?: string;
-        }
+        // Create a Zod schema for validating all game settings
+        const gameSettingsSchema = z.object({
+            turnPattern: turnPatternSchema.optional(),
+            writingTimeout: durationStringSchema.optional(),
+            writingWarning: durationStringSchema.optional(),
+            drawingTimeout: durationStringSchema.optional(),
+            drawingWarning: durationStringSchema.optional(),
+            staleTimeout: durationStringSchema.optional(),
+            returns: returnsSchema.optional(),
+            minTurns: z.number().int().min(4, { message: 'Minimum turns must be at least 4.' }).optional(),
+            maxTurns: z.number().int().optional()
+        }).refine(data => {
+            // Skip validation if both are undefined
+            if (data.minTurns === undefined || data.maxTurns === undefined) {
+                return true;
+            }
+            return data.maxTurns > data.minTurns;
+        }, {
+            message: 'Maximum turns must be greater than minimum turns.',
+            path: ['maxTurns']
+        });
         
-        // Create validators for each option
-        const validators = {
-            turnPattern: createStringValidator('turn_pattern', turnPatternSchema, {
-                errorMessage: 'Turn pattern must include both "writing" and "drawing" terms separated by commas.'
-            }),
-            writingTimeout: createStringValidator('writing_timeout', durationStringSchema, {
-                errorMessage: 'Writing timeout must be in the format "1d", "12h", "30m", etc.'
-            }),
-            writingWarning: createStringValidator('writing_warning', durationStringSchema, {
-                errorMessage: 'Writing warning must be in the format "1d", "12h", "30m", etc.'
-            }),
-            drawingTimeout: createStringValidator('drawing_timeout', durationStringSchema, {
-                errorMessage: 'Drawing timeout must be in the format "1d", "12h", "30m", etc.'
-            }),
-            drawingWarning: createStringValidator('drawing_warning', durationStringSchema, {
-                errorMessage: 'Drawing warning must be in the format "1d", "12h", "30m", etc.'
-            }),
-            staleTimeout: createStringValidator('stale_timeout', durationStringSchema, {
-                errorMessage: 'Stale timeout must be in the format "1d", "12h", "30m", etc.'
-            }),
-            returns: createStringValidator('returns', returnsSchema, {
-                errorMessage: 'Returns must be in the format "N/M" (e.g., "2/3") or "none".'
-            })
-        };
+        // Create an input object from the command options
+        const input: Record<string, any> = {};
         
-        // Validate all options
-        const validationResult = validateOptions<ValidatedOptions>(intr, validators);
+        if (turnPattern) input.turnPattern = turnPattern;
+        if (writingTimeout) input.writingTimeout = writingTimeout;
+        if (writingWarning) input.writingWarning = writingWarning;
+        if (drawingTimeout) input.drawingTimeout = drawingTimeout;
+        if (drawingWarning) input.drawingWarning = drawingWarning;
+        if (staleTimeout) input.staleTimeout = staleTimeout;
+        if (returns) input.returns = returns;
+        if (minTurns !== null) input.minTurns = minTurns;
+        if (maxTurns !== null) input.maxTurns = maxTurns;
         
-        // Additional validations
-        const additionalErrors: string[] = [];
+        // Validate all inputs with Zod
+        const validationResult = gameSettingsSchema.safeParse(input);
         
-        // Validate min/max turns
-        if (minTurns !== null && minTurns < 4) {
-            additionalErrors.push('Minimum turns must be at least 4.');
-        }
-        
-        if (maxTurns !== null && minTurns !== null && maxTurns <= minTurns) {
-            additionalErrors.push('Maximum turns must be greater than minimum turns.');
-        }
-        
-        // Handle validation result
+        // Handle validation failures
         if (!validationResult.success) {
-            const errors = (validationResult as { errors: string[] }).errors;
-            const allErrors = [...errors, ...additionalErrors];
+            const errors = validationResult.error.format();
+            const errorMessages: string[] = [];
+            
+            // Extract error messages
+            for (const [key, value] of Object.entries(errors)) {
+                if (key === '_errors') continue;
+                
+                // Add the specific field error
+                if (value && typeof value === 'object' && '_errors' in value && Array.isArray(value._errors) && value._errors.length > 0) {
+                    let fieldName = key;
+                    
+                    // Format field names for display
+                    switch (key) {
+                        case 'turnPattern': fieldName = 'Turn pattern'; break;
+                        case 'writingTimeout': fieldName = 'Writing timeout'; break;
+                        case 'writingWarning': fieldName = 'Writing warning'; break;
+                        case 'drawingTimeout': fieldName = 'Drawing timeout'; break;
+                        case 'drawingWarning': fieldName = 'Drawing warning'; break;
+                        case 'staleTimeout': fieldName = 'Stale timeout'; break;
+                        case 'returns': fieldName = 'Returns'; break;
+                        case 'minTurns': fieldName = 'Minimum turns'; break;
+                        case 'maxTurns': fieldName = 'Maximum turns'; break;
+                    }
+                    
+                    errorMessages.push(`${fieldName}: ${value._errors.join(', ')}`);
+                }
+            }
+            
+            // Add any top-level refinement errors
+            if ('_errors' in errors && Array.isArray(errors._errors) && errors._errors.length > 0) {
+                errorMessages.push(...errors._errors);
+            }
+            
             await InteractionUtils.send(
                 intr,
-                `❌ Validation failed:\n${allErrors.map(error => `• ${error}`).join('\n')}`
+                `❌ Validation failed:\n${errorMessages.map(error => `• ${error}`).join('\n')}`
             );
             return;
         }
         
-        // Check if there are additional errors even though validation passed
-        if (additionalErrors.length > 0) {
-            await InteractionUtils.send(
-                intr,
-                `❌ Validation failed:\n${additionalErrors.map(error => `• ${error}`).join('\n')}`
-            );
-            return;
-        }
-        
-        // At this point validation has passed and there are no additional errors
+        // At this point validation has passed
         // Prepare game settings update
         const gameSettings: any = {};
-        
-        // Get the validated values from the success result
-        const validatedValues = validationResult.values;
+        const validatedData = validationResult.data;
         
         // Add validated values to game settings
-        if (validatedValues.turnPattern) {
-            gameSettings.turnPattern = validatedValues.turnPattern;
+        if (validatedData.turnPattern) {
+            gameSettings.turnPattern = validatedData.turnPattern;
         }
         
-        if (validatedValues.writingTimeout) {
-            gameSettings.writingTimeout = validatedValues.writingTimeout.value;
+        if (validatedData.writingTimeout) {
+            gameSettings.writingTimeout = validatedData.writingTimeout.value;
         }
         
-        if (validatedValues.writingWarning) {
-            gameSettings.writingWarning = validatedValues.writingWarning.value;
+        if (validatedData.writingWarning) {
+            gameSettings.writingWarning = validatedData.writingWarning.value;
         }
         
-        if (validatedValues.drawingTimeout) {
-            gameSettings.drawingTimeout = validatedValues.drawingTimeout.value;
+        if (validatedData.drawingTimeout) {
+            gameSettings.drawingTimeout = validatedData.drawingTimeout.value;
         }
         
-        if (validatedValues.drawingWarning) {
-            gameSettings.drawingWarning = validatedValues.drawingWarning.value;
+        if (validatedData.drawingWarning) {
+            gameSettings.drawingWarning = validatedData.drawingWarning.value;
         }
         
-        if (validatedValues.staleTimeout) {
-            gameSettings.staleTimeout = validatedValues.staleTimeout.value;
+        if (validatedData.staleTimeout) {
+            gameSettings.staleTimeout = validatedData.staleTimeout.value;
         }
         
         // Add integer values
-        if (minTurns !== null) {
-            gameSettings.minTurns = minTurns;
+        if (validatedData.minTurns !== undefined) {
+            gameSettings.minTurns = validatedData.minTurns;
         }
         
-        if (maxTurns !== null) {
-            gameSettings.maxTurns = maxTurns;
+        if (validatedData.maxTurns !== undefined) {
+            gameSettings.maxTurns = validatedData.maxTurns;
         }
         
         // Handle returns - convert "none" to null
-        if (validatedValues.returns) {
-            gameSettings.returns = validatedValues.returns.toLowerCase() === 'none' ? null : validatedValues.returns;
+        if (validatedData.returns) {
+            gameSettings.returns = validatedData.returns.toLowerCase() === 'none' ? null : validatedData.returns;
         }
         
         // Update game settings

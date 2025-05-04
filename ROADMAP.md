@@ -10,10 +10,10 @@ ROADMAP.md
   [x] Should create game and write to database
 [x] Add initial message to show when added to server
 [x] Add command to configure channels
-[ ] Add command to configure server default game settings
+[x] Durationstring <-> ms conversion
+[x] Zod for commands?
+[x] Add command to configure server default game settings
 [ ] Add command to configure server default season settings
 [ ] Add command to toggle test mode
 [ ] Add command to create test players
 
-[ ] Durationstring <-> ms conversion
-[ ] Zod for commands?
