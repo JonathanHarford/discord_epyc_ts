@@ -1,0 +1,37 @@
+{
+  "Climb": "6a25",
+  "moves": [
+    {
+      "status": "complete",
+      "description": "Update the START command metadata with game parameter options",
+      "details": "Add parameter options to the START command in src/commands/metadata.ts, similar to what's already in the CONFIG command for games."
+    },
+    {
+      "status": "complete",
+      "description": "Update the GameService to handle custom game settings",
+      "details": "Modify the createGame method in GameService to accept optional custom settings and create a GameSettings record when provided."
+    },
+    {
+      "status": "complete",
+      "description": "Implement parameter handling in StartCommand",
+      "details": "Update the StartCommand class to extract, validate, and use custom parameters from the interaction.",
+      "rest": true
+    },
+    {
+      "status": "complete",
+      "description": "Add validation schemas for input parameters",
+      "details": "Reuse validation schemas from ConfigCommand or create new ones for the StartCommand parameters."
+    },
+    {
+      "status": "complete",
+      "description": "Improve success message with custom settings summary",
+      "details": "Update the success message to include a summary of custom settings when they differ from server defaults."
+    },
+    {
+      "status": "climbing",
+      "description": "Test the command with various parameter combinations",
+      "details": "Test with no parameters, some parameters, all parameters, and invalid values to ensure proper handling.",
+      "rest": true
+    }
+  ]
+} 

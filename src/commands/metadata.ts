@@ -84,6 +84,56 @@ export const ChatCommandMetadata: {
         description_localizations: Lang.getRefLocalizationMap('commandDescs.start'),
         dm_permission: false,
         default_member_permissions: undefined,
+        options: [
+            {
+                type: ApplicationCommandOptionType.String,
+                name: 'turn_pattern',
+                description: 'Order of writing and drawing turns',
+                required: false,
+                choices: [
+                    {
+                        name: 'Drawing → Writing',
+                        value: 'drawing,writing'
+                    },
+                    {
+                        name: 'Writing → Drawing',
+                        value: 'writing,drawing'
+                    }
+                ]
+            },
+            {
+                type: ApplicationCommandOptionType.String,
+                name: 'writing_timeout',
+                description: 'Time allowed for writing turns (format: 1d, 12h, 30m)',
+                required: false
+            },
+            {
+                type: ApplicationCommandOptionType.String,
+                name: 'drawing_timeout',
+                description: 'Time allowed for drawing turns (format: 1d, 12h, 30m)',
+                required: false
+            },
+            {
+                type: ApplicationCommandOptionType.Integer,
+                name: 'min_turns',
+                description: 'Minimum number of turns required for a game',
+                required: false,
+                min_value: 4
+            },
+            {
+                type: ApplicationCommandOptionType.Integer,
+                name: 'max_turns',
+                description: 'Maximum number of turns allowed for a game',
+                required: false,
+                min_value: 6
+            },
+            {
+                type: ApplicationCommandOptionType.String,
+                name: 'returns',
+                description: 'Player returns policy (format: N/M or "none")',
+                required: false
+            }
+        ],
     },
     TEST: {
         type: ApplicationCommandType.ChatInput,

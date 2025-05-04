@@ -14,11 +14,7 @@ ROADMAP.md
 [x] Zod for commands?
 [x] Add command to configure server default game settings
 [x] Add command to configure server default season settings
-[ ] Add /dev command:testmode to toggle test mode
-[ ] Add /dev command:testplayer to create a test player on server (players w/o corresponding discord users)
-[ ] Add /test player:playerId commands
-  [ ] /test player:playerId command:start (always use default)
-  [ ] /test player:playerId command:play (always use default)
+
 
 Post MVP
 [ ] Multiple languages
