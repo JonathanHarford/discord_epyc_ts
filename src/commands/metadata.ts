@@ -142,6 +142,79 @@ export const ChatCommandMetadata: {
                         ]
                     }
                 ]
+            },
+            {
+                type: ApplicationCommandOptionType.Subcommand,
+                name: 'games',
+                description: 'Configure default game settings for this server',
+                options: [
+                    {
+                        type: ApplicationCommandOptionType.String,
+                        name: 'turn_pattern',
+                        description: 'Order of writing and drawing turns',
+                        required: false,
+                        choices: [
+                            {
+                                name: 'Drawing → Writing',
+                                value: 'drawing,writing'
+                            },
+                            {
+                                name: 'Writing → Drawing',
+                                value: 'writing,drawing'
+                            }
+                        ]
+                    },
+                    {
+                        type: ApplicationCommandOptionType.String,
+                        name: 'writing_timeout',
+                        description: 'Time allowed for writing turns (format: 1d, 12h, 30m)',
+                        required: false
+                    },
+                    {
+                        type: ApplicationCommandOptionType.String,
+                        name: 'writing_warning',
+                        description: 'Warning time before writing turn expires (format: 1d, 12h, 30m)',
+                        required: false
+                    },
+                    {
+                        type: ApplicationCommandOptionType.String,
+                        name: 'drawing_timeout',
+                        description: 'Time allowed for drawing turns (format: 1d, 12h, 30m)',
+                        required: false
+                    },
+                    {
+                        type: ApplicationCommandOptionType.String,
+                        name: 'drawing_warning',
+                        description: 'Warning time before drawing turn expires (format: 1d, 12h, 30m)',
+                        required: false
+                    },
+                    {
+                        type: ApplicationCommandOptionType.String,
+                        name: 'stale_timeout',
+                        description: 'Time before a game is considered stale (format: 7d, 14d, 30d)',
+                        required: false
+                    },
+                    {
+                        type: ApplicationCommandOptionType.Integer,
+                        name: 'min_turns',
+                        description: 'Minimum number of turns required for a game',
+                        required: false,
+                        min_value: 4
+                    },
+                    {
+                        type: ApplicationCommandOptionType.Integer,
+                        name: 'max_turns',
+                        description: 'Maximum number of turns allowed for a game',
+                        required: false,
+                        min_value: 6
+                    },
+                    {
+                        type: ApplicationCommandOptionType.String,
+                        name: 'returns',
+                        description: 'Player returns policy (format: N/M or "none")',
+                        required: false
+                    }
+                ]
             }
         ],
     },

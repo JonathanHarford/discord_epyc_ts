@@ -220,10 +220,18 @@
             "infoOption": "Option.",
             "configChannels": "Configure server channels for announcements and notifications.",
             "configChannelAnnouncement": "Channel for game announcements.",
-            "configChannelCompleted": "Set to 'None' to disable the completed games channel.",
             "configChannelCompletedChannel": "Channel where completed games will be posted.",
-            "configChannelAdmin": "Set to 'None' to disable the admin notifications channel.",
-            "configChannelAdminChannel": "Channel for admin notifications."
+            "configChannelAdminChannel": "Channel for admin notifications.",
+            "configGames": "Configure default game settings for the server.",
+            "configGamesTurnPattern": "Set the order of writing and drawing turns.",
+            "configGamesWritingTimeout": "Set the time allowed for writing turns.",
+            "configGamesWritingWarning": "Set the warning time before a writing turn expires.",
+            "configGamesDrawingTimeout": "Set the time allowed for drawing turns.",
+            "configGamesDrawingWarning": "Set the warning time before a drawing turn expires.",
+            "configGamesStaleTimeout": "Set the time before a game is considered stale.",
+            "configGamesMinTurns": "Set the minimum number of turns required for a game.",
+            "configGamesMaxTurns": "Set the maximum number of turns allowed for a game.",
+            "configGamesReturns": "Set the player returns policy."
         },
         "fields": {
             "commands": "Commands",

@@ -27,6 +27,10 @@ export class ServerService {
         try {
             return await this.prisma.serverSettings.findUnique({
                 where: { id: serverId },
+                include: {
+                    defaultGameSettings: true,
+                    defaultSeasonSettings: true
+                }
             });
         } catch (error) {
             console.error('Error getting server settings:', error);
@@ -61,6 +65,67 @@ export class ServerService {
             });
         } catch (error) {
             console.error('Error updating server channel config:', error);
+            throw error;
+        }
+    }
+
+    /**
+     * Update default game settings for a server
+     * @param serverId - Server ID
+     * @param gameSettings - Game settings to update
+     * @returns Updated game settings
+     */
+    public async updateDefaultGameSettings(
+        serverId: string,
+        gameSettings: {
+            turnPattern?: string;
+            returns?: string | null;
+            writingTimeout?: string;
+            writingWarning?: string;
+            drawingTimeout?: string;
+            drawingWarning?: string;
+            staleTimeout?: string;
+            minTurns?: number;
+            maxTurns?: number | null;
+        }
+    ): Promise<any> {
+        try {
+            // Get current server settings
+            const serverSettings = await this.getServerSettings(serverId);
+            
+            if (!serverSettings) {
+                throw new Error(`Server settings not found for server ID ${serverId}`);
+            }
+            
+            // Update game settings
+            return await this.prisma.gameSettings.update({
+                where: { id: serverSettings.defaultGameSettingsId },
+                data: {
+                    ...gameSettings
+                }
+            });
+        } catch (error) {
+            console.error('Error updating default game settings:', error);
+            throw error;
+        }
+    }
+
+    /**
+     * Get default game settings for a server
+     * @param serverId - Server ID
+     * @returns Default game settings or null if not found
+     */
+    public async getDefaultGameSettings(serverId: string): Promise<any> {
+        try {
+            const serverSettings = await this.getServerSettings(serverId);
+            
+            if (!serverSettings) {
+                return null;
+            }
+            
+            return serverSettings.defaultGameSettings;
+        } catch (error) {
+            console.error('Error getting default game settings:', error);
             throw error;
         }
     }

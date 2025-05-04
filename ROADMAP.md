@@ -12,4 +12,8 @@ ROADMAP.md
 [x] Add command to configure channels
 [ ] Add command to configure server default game settings
 [ ] Add command to configure server default season settings
-[ ] Add command to initiate test mode
+[ ] Add command to toggle test mode
+[ ] Add command to create test players
+
+[ ] Durationstring <-> ms conversion
+[ ] Zod for commands?

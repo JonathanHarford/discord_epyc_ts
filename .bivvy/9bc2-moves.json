@@ -1,0 +1,49 @@
+{
+  "Climb": "9bc2",
+  "moves": [
+    {
+      "status": "complete",
+      "description": "Update metadata.ts to add game settings subcommand",
+      "details": "Add a new games subcommand to the CONFIG command in the metadata.ts file with options for all game settings"
+    },
+    {
+      "status": "complete",
+      "description": "Update lang files with new command references",
+      "details": "Add translations for the new subcommand and its options in the language files"
+    },
+    {
+      "status": "complete",
+      "description": "Add updateDefaultGameSettings method to server-service.ts",
+      "details": "Create a method to update the default game settings for a server",
+      "rest": "true"
+    },
+    {
+      "status": "complete",
+      "description": "Add utility functions for validation",
+      "details": "Create utility functions for validating duration formats, returns format, and turn patterns"
+    },
+    {
+      "status": "complete",
+      "description": "Update config-command.ts to handle games subcommand",
+      "details": "Add handling for the games subcommand in the config command with parameter validation",
+      "rest": "true"
+    },
+    {
+      "status": "complete",
+      "description": "Implement showCurrentGameSettings method",
+      "details": "Add a method to display the current game settings when no parameters are provided"
+    },
+    {
+      "status": "todo",
+      "description": "Write tests for the new functionality",
+      "details": "Test the command with different parameters and validate the results",
+      "skip": "true"
+    },
+    {
+      "status": "complete",
+      "description": "Manual testing and updates",
+      "details": "Test the command in Discord and make any necessary adjustments",
+      "rest": "true"
+    }
+  ]
+} 

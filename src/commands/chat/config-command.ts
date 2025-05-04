@@ -12,7 +12,14 @@ import { DatabaseService } from '../../database/index.js';
 import { Language } from '../../models/enum-helpers/index.js';
 import { EventData } from '../../models/internal-models.js';
 import { Lang, Logger } from '../../services/index.js';
-import { InteractionUtils } from '../../utils/index.js';
+import { 
+    InteractionUtils, 
+    validateDuration, 
+    validateReturns, 
+    validateTurnPattern,
+    formatReturnsForDisplay,
+    formatDurationForDisplay
+} from '../../utils/index.js';
 import { Command, CommandDeferType } from '../index.js';
 
 export class ConfigCommand implements Command {
@@ -52,9 +59,12 @@ export class ConfigCommand implements Command {
             // Get the subcommand
             const subcommand = intr.options.getSubcommand();
             Logger.info(`Subcommand: ${subcommand}`);
-            // Handle the 'channels' subcommand
+            
+            // Handle the subcommands
             if (subcommand === 'channels') {
                 await this.handleChannelsConfig(intr);
+            } else if (subcommand === 'games') {
+                await this.handleGamesConfig(intr);
             } else {
                 await InteractionUtils.send(
                     intr,
@@ -68,6 +78,176 @@ export class ConfigCommand implements Command {
             );
             console.error('Error in ConfigCommand:', error);
         }
+    }
+
+    /**
+     * Handle the games configuration subcommand
+     */
+    private async handleGamesConfig(intr: ChatInputCommandInteraction): Promise<void> {
+        // Get game settings options
+        const turnPattern = intr.options.getString('turn_pattern');
+        const writingTimeout = intr.options.getString('writing_timeout');
+        const writingWarning = intr.options.getString('writing_warning');
+        const drawingTimeout = intr.options.getString('drawing_timeout');
+        const drawingWarning = intr.options.getString('drawing_warning');
+        const staleTimeout = intr.options.getString('stale_timeout');
+        const minTurns = intr.options.getInteger('min_turns');
+        const maxTurns = intr.options.getInteger('max_turns');
+        const returns = intr.options.getString('returns');
+        
+        // If no options were provided, show current configuration
+        if (!turnPattern && !writingTimeout && !writingWarning && !drawingTimeout && 
+            !drawingWarning && !staleTimeout && minTurns === null && maxTurns === null && !returns) {
+            await this.showCurrentGameSettings(intr);
+            return;
+        }
+        
+        // Get server settings or initialize if they don't exist
+        let server = await this.dbService.servers.getServer(intr.guild.id);
+        if (!server) {
+            // Initialize with default server settings
+            await this.dbService.servers.initializeServerSettings(
+                intr.guild.id,
+                intr.guild.name,
+                intr.channelId
+            );
+            
+            server = await this.dbService.servers.getServer(intr.guild.id);
+        }
+        
+        // Get current server settings
+        const serverSettings = await this.dbService.servers.getServerSettings(intr.guild.id);
+        
+        if (!serverSettings) {
+            await InteractionUtils.send(
+                intr,
+                'Server settings not found. Please try again later.'
+            );
+            return;
+        }
+        
+        // Validate game settings
+        let validationErrors = [];
+        
+        // Validate turn pattern
+        if (turnPattern && !validateTurnPattern(turnPattern)) {
+            validationErrors.push('Turn pattern must include both "writing" and "drawing" terms separated by commas.');
+        }
+        
+        // Validate timeouts and warnings
+        if (writingTimeout && !validateDuration(writingTimeout)) {
+            validationErrors.push('Writing timeout must be in the format "1d", "12h", or "30m".');
+        }
+        
+        if (writingWarning && !validateDuration(writingWarning)) {
+            validationErrors.push('Writing warning must be in the format "1d", "12h", or "30m".');
+        }
+        
+        if (drawingTimeout && !validateDuration(drawingTimeout)) {
+            validationErrors.push('Drawing timeout must be in the format "1d", "12h", or "30m".');
+        }
+        
+        if (drawingWarning && !validateDuration(drawingWarning)) {
+            validationErrors.push('Drawing warning must be in the format "1d", "12h", or "30m".');
+        }
+        
+        if (staleTimeout && !validateDuration(staleTimeout)) {
+            validationErrors.push('Stale timeout must be in the format "1d", "12h", or "30m".');
+        }
+        
+        // Validate min/max turns
+        if (minTurns !== null && minTurns < 4) {
+            validationErrors.push('Minimum turns must be at least 4.');
+        }
+        
+        if (maxTurns !== null && minTurns !== null && maxTurns <= minTurns) {
+            validationErrors.push('Maximum turns must be greater than minimum turns.');
+        }
+        
+        // Validate returns
+        if (returns && returns.toLowerCase() !== 'none' && !validateReturns(returns)) {
+            validationErrors.push('Returns must be in the format "N/M" (e.g., "2/3") or "none".');
+        }
+        
+        // If validation failed, return errors
+        if (validationErrors.length > 0) {
+            await InteractionUtils.send(
+                intr,
+                `❌ Validation failed:\n${validationErrors.map(error => `• ${error}`).join('\n')}`
+            );
+            return;
+        }
+        
+        // Prepare game settings update
+        const gameSettings: any = {};
+        
+        if (turnPattern) gameSettings.turnPattern = turnPattern;
+        if (writingTimeout) gameSettings.writingTimeout = writingTimeout;
+        if (writingWarning) gameSettings.writingWarning = writingWarning;
+        if (drawingTimeout) gameSettings.drawingTimeout = drawingTimeout;
+        if (drawingWarning) gameSettings.drawingWarning = drawingWarning;
+        if (staleTimeout) gameSettings.staleTimeout = staleTimeout;
+        if (minTurns !== null) gameSettings.minTurns = minTurns;
+        if (maxTurns !== null) gameSettings.maxTurns = maxTurns;
+        
+        // Handle returns - convert "none" to null
+        if (returns) {
+            gameSettings.returns = returns.toLowerCase() === 'none' ? null : returns;
+        }
+        
+        // Update game settings
+        await this.dbService.servers.updateDefaultGameSettings(intr.guild.id, gameSettings);
+        
+        // Show updated settings
+        await InteractionUtils.send(
+            intr,
+            '✅ Default game settings updated successfully! Use `/config games` to see the current configuration.'
+        );
+    }
+
+    /**
+     * Show the current game settings
+     */
+    private async showCurrentGameSettings(intr: ChatInputCommandInteraction): Promise<void> {
+        // Get server settings
+        const serverSettings = await this.dbService.servers.getServerSettings(intr.guild!.id);
+        
+        if (!serverSettings || !serverSettings.defaultGameSettings) {
+            await InteractionUtils.send(
+                intr,
+                'Server game settings have not been configured yet. Use `/config games` with parameters to set up game configuration.'
+            );
+            return;
+        }
+        
+        const gameSettings = serverSettings.defaultGameSettings;
+        
+        // Build the response message
+        let responseMessage = '**Default Game Settings**\n\n';
+        
+        // Format turn pattern
+        const turnPatternDisplay = gameSettings.turnPattern === 'drawing,writing' ? 
+            'Drawing → Writing' : 'Writing → Drawing';
+        responseMessage += `**Turn Pattern**: ${turnPatternDisplay}\n`;
+        
+        // Format timeouts and warnings
+        responseMessage += `**Writing Timeout**: ${formatDurationForDisplay(gameSettings.writingTimeout)}\n`;
+        responseMessage += `**Writing Warning**: ${formatDurationForDisplay(gameSettings.writingWarning)}\n`;
+        responseMessage += `**Drawing Timeout**: ${formatDurationForDisplay(gameSettings.drawingTimeout)}\n`;
+        responseMessage += `**Drawing Warning**: ${formatDurationForDisplay(gameSettings.drawingWarning)}\n`;
+        responseMessage += `**Stale Timeout**: ${formatDurationForDisplay(gameSettings.staleTimeout)}\n`;
+        
+        // Format turn limits
+        responseMessage += `**Minimum Turns**: ${gameSettings.minTurns}\n`;
+        responseMessage += `**Maximum Turns**: ${gameSettings.maxTurns || 'No limit'}\n`;
+        
+        // Format returns policy
+        responseMessage += `**Returns Policy**: ${formatReturnsForDisplay(gameSettings.returns)}\n`;
+        
+        // Add usage help
+        responseMessage += '\nUse `/config games` with parameters to update game settings.';
+        
+        await InteractionUtils.send(intr, responseMessage);
     }
 
     /**
