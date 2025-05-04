@@ -15,7 +15,6 @@ import { Lang, Logger } from '../../services/index.js';
 import { 
     InteractionUtils, 
     formatReturnsForDisplay,
-    formatDurationForDisplay,
     durationStringSchema,
     turnPatternSchema,
     returnsSchema,
@@ -23,10 +22,10 @@ import {
     validateOptions,
     ParsedDuration,
     isSuccessResult,
-    isErrorResult
+    isErrorResult,
+    DurationUtils
 } from '../../utils/index.js';
 import { Command, CommandDeferType } from '../index.js';
-import { z } from 'zod';
 
 export class ConfigCommand implements Command {
     
@@ -285,11 +284,11 @@ export class ConfigCommand implements Command {
         responseMessage += `**Turn Pattern**: ${turnPatternDisplay}\n`;
         
         // Format timeouts and warnings
-        responseMessage += `**Writing Timeout**: ${formatDurationForDisplay(gameSettings.writingTimeout)}\n`;
-        responseMessage += `**Writing Warning**: ${formatDurationForDisplay(gameSettings.writingWarning)}\n`;
-        responseMessage += `**Drawing Timeout**: ${formatDurationForDisplay(gameSettings.drawingTimeout)}\n`;
-        responseMessage += `**Drawing Warning**: ${formatDurationForDisplay(gameSettings.drawingWarning)}\n`;
-        responseMessage += `**Stale Timeout**: ${formatDurationForDisplay(gameSettings.staleTimeout)}\n`;
+        responseMessage += `**Writing Timeout**: ${DurationUtils.generateDurationString(gameSettings.writingTimeout)}\n`;
+        responseMessage += `**Writing Warning**: ${DurationUtils.generateDurationString(gameSettings.writingWarning)}\n`;
+        responseMessage += `**Drawing Timeout**: ${DurationUtils.generateDurationString(gameSettings.drawingTimeout)}\n`;
+        responseMessage += `**Drawing Warning**: ${DurationUtils.generateDurationString(gameSettings.drawingWarning)}\n`;
+        responseMessage += `**Stale Timeout**: ${DurationUtils.generateDurationString(gameSettings.staleTimeout)}\n`;
         
         // Format turn limits
         responseMessage += `**Minimum Turns**: ${gameSettings.minTurns}\n`;

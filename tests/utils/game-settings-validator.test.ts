@@ -1,8 +1,6 @@
 import { describe, expect, test } from 'vitest';
 import {
-    formatReturnsForDisplay,
-    parseDurationToMs,
-    formatDurationForDisplay
+    formatReturnsForDisplay
 } from '../../src/utils/game-settings-validator.js';
 import {
     durationStringSchema,
@@ -79,46 +77,3 @@ describe('formatReturnsForDisplay', () => {
         expect(formatReturnsForDisplay('invalid')).toBe('Invalid returns policy');
     });
 });
-
-describe('parseDurationToMs', () => {
-    test('should parse duration strings to milliseconds', () => {
-        expect(parseDurationToMs('1d')).toBe(86400000); // 1 day
-        expect(parseDurationToMs('2h')).toBe(7200000); // 2 hours
-        expect(parseDurationToMs('30m')).toBe(1800000); // 30 minutes
-        expect(parseDurationToMs('45s')).toBe(45000); // 45 seconds
-    });
-
-    test('should parse combined duration strings', () => {
-        expect(parseDurationToMs('1d12h')).toBe(86400000 + 43200000); // 1 day 12 hours
-        expect(parseDurationToMs('2h30m')).toBe(7200000 + 1800000); // 2 hours 30 minutes
-    });
-
-    test('should throw for invalid duration strings', () => {
-        expect(() => parseDurationToMs('')).toThrow();
-        expect(() => parseDurationToMs('invalid')).toThrow();
-    });
-});
-
-describe('formatDurationForDisplay', () => {
-    test('should format duration strings for display', () => {
-        expect(formatDurationForDisplay('1d')).toBe('1 day');
-        expect(formatDurationForDisplay('2d')).toBe('2 days');
-        expect(formatDurationForDisplay('1h')).toBe('1 hour');
-        expect(formatDurationForDisplay('5h')).toBe('5 hours');
-        expect(formatDurationForDisplay('1m')).toBe('1 minute');
-        expect(formatDurationForDisplay('30m')).toBe('30 minutes');
-        expect(formatDurationForDisplay('1s')).toBe('1 second');
-        expect(formatDurationForDisplay('45s')).toBe('45 seconds');
-    });
-
-    test('should format combined duration strings', () => {
-        expect(formatDurationForDisplay('1d12h')).toBe('1 day, 12 hours');
-        expect(formatDurationForDisplay('2h30m')).toBe('2 hours, 30 minutes');
-        expect(formatDurationForDisplay('1d2h3m4s')).toBe('1 day, 2 hours, 3 minutes, 4 seconds');
-    });
-
-    test('should return original string for invalid durations', () => {
-        expect(formatDurationForDisplay('invalid')).toBe('invalid');
-        expect(formatDurationForDisplay('')).toBe('');
-    });
-}); 

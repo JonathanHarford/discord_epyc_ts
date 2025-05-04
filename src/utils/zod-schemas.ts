@@ -52,29 +52,6 @@ export const durationStringSchema = z
 export type ParsedDuration = z.infer<typeof durationStringSchema>;
 
 /**
- * Helper function to validate and parse a duration string
- * 
- * @param durationStr - The duration string to validate and parse
- * @returns A validated and parsed duration object or throws a ZodError
- */
-export function parseDuration(durationStr: string): ParsedDuration {
-  return durationStringSchema.parse(durationStr);
-}
-
-/**
- * Helper function to safely validate and parse a duration string
- * 
- * @param durationStr - The duration string to validate and parse
- * @returns Result containing either the parsed duration or an error
- */
-export function safeParseDuration(durationStr: string) {
-  // We'll simplify this by directly calling safeParse and using its results
-  // If there are any issues, they'll be properly handled by zod's safeParse
-  const result = durationStringSchema.safeParse(durationStr);
-  return result;
-}
-
-/**
  * Zod schema for validating turn patterns
  * Valid patterns include "writing,drawing" or "drawing,writing"
  */

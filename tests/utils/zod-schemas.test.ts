@@ -1,11 +1,8 @@
 import { describe, expect, test, vi } from 'vitest';
-import { z } from 'zod';
 import { 
     durationStringSchema, 
     turnPatternSchema, 
     returnsSchema,
-    parseDuration,
-    safeParseDuration,
     durationToMilliseconds,
     millisecondsToDuration
 } from '../../src/utils/index.js';
@@ -48,58 +45,6 @@ describe('durationStringSchema', () => {
         expect(result).toHaveProperty('value', '1d12h');
         expect(result).toHaveProperty('milliseconds');
         expect(result.milliseconds).toBe(86400000 + 43200000); // 1 day + 12 hours in ms
-    });
-});
-
-describe('parseDuration function', () => {
-    test('should parse valid duration strings', () => {
-        const result = parseDuration('2h30m');
-        expect(result.value).toBe('2h30m');
-        expect(result.milliseconds).toBe(9000000); // 2.5 hours in ms
-    });
-
-    test('should throw on invalid duration strings', () => {
-        expect(() => parseDuration('invalid')).toThrow();
-        expect(() => parseDuration('')).toThrow();
-    });
-});
-
-describe('safeParseDuration function', () => {
-    test('should return success result for valid duration strings', () => {
-        const result = safeParseDuration('3d');
-        expect(result.success).toBe(true);
-        if (result.success) {
-            expect(result.data.value).toBe('3d');
-            expect(result.data.milliseconds).toBe(259200000); // 3 days in ms
-        }
-    });
-
-    test('should return error result for invalid duration strings', () => {
-        // Mock the durationStringSchema's safeParse method for this test only
-        const mockParse = vi.fn().mockImplementation(() => ({
-            success: false,
-            error: new Error('Mock error')
-        }));
-        
-        // Save the original method to restore it later
-        const originalSafeParse = durationStringSchema.safeParse;
-        
-        try {
-            // Replace the method with our mock
-            durationStringSchema.safeParse = mockParse;
-            
-            // Now call our function which should use the mock
-            const result = safeParseDuration('invalid');
-            
-            // Verify the mock was called
-            expect(mockParse).toHaveBeenCalledWith('invalid');
-            
-            // Verify the result
-            expect(result.success).toBe(false);
-        } finally {
-            // Restore the original method
-            durationStringSchema.safeParse = originalSafeParse;
-        }
     });
 });
 
