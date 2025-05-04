@@ -29,11 +29,22 @@ export const durationStringSchema = z
       message: 'Invalid duration format. Use format like "3d", "2d5m", "1h30m", etc.'
     }
   )
-  .transform((value) => ({
-    // Return both the original string and parsed milliseconds
-    value,
-    milliseconds: DurationUtils.parseDurationString(value)
-  }));
+  .transform((value) => {
+    try {
+      // Don't attempt transformation if the value didn't pass refinement
+      // This should never happen due to the refine above, but adding as a safeguard
+      return {
+        value,
+        milliseconds: DurationUtils.parseDurationString(value)
+      };
+    } catch (error) {
+      // If we somehow get here with an invalid value, return a default
+      return {
+        value,
+        milliseconds: 0
+      };
+    }
+  });
 
 /**
  * Type for the parsed duration result

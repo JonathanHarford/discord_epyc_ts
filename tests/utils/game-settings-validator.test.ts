@@ -1,62 +1,65 @@
 import { describe, expect, test } from 'vitest';
 import {
-    validateDuration,
-    validateReturns,
-    validateTurnPattern,
     formatReturnsForDisplay,
     parseDurationToMs,
     formatDurationForDisplay
 } from '../../src/utils/game-settings-validator.js';
+import {
+    durationStringSchema,
+    returnsSchema,
+    turnPatternSchema
+} from '../../src/utils/zod-schemas.js';
 
-describe('validateDuration', () => {
+describe('durationStringSchema', () => {
     test('should validate valid duration strings', () => {
-        expect(validateDuration('1d')).toBe(true);
-        expect(validateDuration('12h')).toBe(true);
-        expect(validateDuration('30m')).toBe(true);
-        expect(validateDuration('45s')).toBe(true);
-        expect(validateDuration('2d5h')).toBe(true);
-        expect(validateDuration('1h30m')).toBe(true);
+        expect(durationStringSchema.safeParse('1d').success).toBe(true);
+        expect(durationStringSchema.safeParse('12h').success).toBe(true);
+        expect(durationStringSchema.safeParse('30m').success).toBe(true);
+        expect(durationStringSchema.safeParse('45s').success).toBe(true);
+        expect(durationStringSchema.safeParse('2d5h').success).toBe(true);
+        expect(durationStringSchema.safeParse('1h30m').success).toBe(true);
     });
 
     test('should reject invalid duration strings', () => {
-        // The empty string will throw an error in the DurationUtils class,
-        // but our safeParseDuration function should handle this and return false
-        expect(validateDuration('')).toBe(false);
-        expect(validateDuration('invalid')).toBe(false);
-        expect(validateDuration('1d 2h')).toBe(false); // Spaces not allowed
-        expect(validateDuration('1m30h')).toBe(false); // Wrong order
+        // Invalid but non-empty strings - these get caught by the refine() in the schema
+        expect(durationStringSchema.safeParse('invalid').success).toBe(false);
+        expect(durationStringSchema.safeParse('1d 2h').success).toBe(false); // Spaces not allowed
+        expect(durationStringSchema.safeParse('1m30h').success).toBe(false); // Wrong order
+        
+        // Empty string - this gets caught by the min(1) validator
+        expect(durationStringSchema.safeParse('').success).toBe(false);
     });
 });
 
-describe('validateReturns', () => {
+describe('returnsSchema', () => {
     test('should validate valid returns policies', () => {
-        expect(validateReturns('2/3')).toBe(true);
-        expect(validateReturns('1/5')).toBe(true);
-        expect(validateReturns('none')).toBe(true);
-        expect(validateReturns('None')).toBe(true);
+        expect(returnsSchema.safeParse('2/3').success).toBe(true);
+        expect(returnsSchema.safeParse('1/5').success).toBe(true);
+        expect(returnsSchema.safeParse('none').success).toBe(true);
+        expect(returnsSchema.safeParse('None').success).toBe(true);
     });
 
     test('should reject invalid returns policies', () => {
-        expect(validateReturns('')).toBe(false);
-        expect(validateReturns('2')).toBe(false);
-        expect(validateReturns('2/')).toBe(false);
-        expect(validateReturns('/3')).toBe(false);
-        expect(validateReturns('0/3')).toBe(false); // Zero not allowed
-        expect(validateReturns('abc')).toBe(false);
+        expect(returnsSchema.safeParse('').success).toBe(false);
+        expect(returnsSchema.safeParse('2').success).toBe(false);
+        expect(returnsSchema.safeParse('2/').success).toBe(false);
+        expect(returnsSchema.safeParse('/3').success).toBe(false);
+        expect(returnsSchema.safeParse('0/3').success).toBe(false); // Zero not allowed
+        expect(returnsSchema.safeParse('abc').success).toBe(false);
     });
 });
 
-describe('validateTurnPattern', () => {
+describe('turnPatternSchema', () => {
     test('should validate valid turn patterns', () => {
-        expect(validateTurnPattern('writing,drawing')).toBe(true);
-        expect(validateTurnPattern('drawing,writing')).toBe(true);
+        expect(turnPatternSchema.safeParse('writing,drawing').success).toBe(true);
+        expect(turnPatternSchema.safeParse('drawing,writing').success).toBe(true);
     });
 
     test('should reject invalid turn patterns', () => {
-        expect(validateTurnPattern('')).toBe(false);
-        expect(validateTurnPattern('writing')).toBe(false);
-        expect(validateTurnPattern('drawing')).toBe(false);
-        expect(validateTurnPattern('writing,reading')).toBe(false);
+        expect(turnPatternSchema.safeParse('').success).toBe(false);
+        expect(turnPatternSchema.safeParse('writing').success).toBe(false);
+        expect(turnPatternSchema.safeParse('drawing').success).toBe(false);
+        expect(turnPatternSchema.safeParse('writing,reading').success).toBe(false);
     });
 });
 

@@ -1,50 +1,12 @@
 /**
- * Utility functions for validating game settings
- * Uses Zod schemas for validation
+ * Utility functions for formatting game settings
+ * Uses Zod schemas for validation when needed
  */
 import { 
-    durationStringSchema, 
     returnsSchema, 
-    turnPatternSchema,
-    durationToMilliseconds,
-    safeParseDuration
+    durationToMilliseconds
 } from './zod-schemas.js';
 import { DurationUtils } from './duration-utils.js';
-
-/**
- * Validates a duration string (like "1d", "12h", "30m")
- * @param duration - Duration string to validate
- * @returns Whether the duration is valid
- */
-export const validateDuration = (duration: string): boolean => {
-    try {
-        const result = safeParseDuration(duration);
-        return result.success;
-    } catch (error) {
-        // In case of any error (including empty string), return false
-        return false;
-    }
-};
-
-/**
- * Validates a returns policy string (like "2/3" or "none")
- * @param returns - Returns string to validate
- * @returns Whether the returns policy is valid
- */
-export const validateReturns = (returns: string): boolean => {
-    const result = returnsSchema.safeParse(returns);
-    return result.success;
-};
-
-/**
- * Validates a turn pattern string
- * @param pattern - Turn pattern to validate
- * @returns Whether the turn pattern is valid
- */
-export const validateTurnPattern = (pattern: string): boolean => {
-    const result = turnPatternSchema.safeParse(pattern);
-    return result.success;
-};
 
 /**
  * Formats a returns policy string for display
@@ -57,7 +19,8 @@ export const formatReturnsForDisplay = (returns: string | null): string => {
     }
     
     // Validate the format first
-    if (!validateReturns(returns)) {
+    const result = returnsSchema.safeParse(returns);
+    if (!result.success) {
         return 'Invalid returns policy';
     }
     
@@ -81,11 +44,6 @@ export const parseDurationToMs = (duration: string): number => {
  */
 export const formatDurationForDisplay = (duration: string): string => {
     try {
-        // Try to validate the duration first
-        if (!validateDuration(duration)) {
-            return duration; // Return original if invalid
-        }
-        
         // Use DurationUtils to parse the duration string
         const ms = DurationUtils.parseDurationString(duration);
         

@@ -14,8 +14,6 @@ import { EventData } from '../../models/internal-models.js';
 import { Lang, Logger } from '../../services/index.js';
 import { 
     InteractionUtils, 
-    validateReturns, 
-    validateTurnPattern,
     formatReturnsForDisplay,
     formatDurationForDisplay,
     durationStringSchema,
