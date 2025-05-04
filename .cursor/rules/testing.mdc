@@ -27,6 +27,7 @@ alwaysApply: false
 - ALWAYS verify test output before considering a task done
 
 ## Common Pitfalls
+- AVOID mocks in unit tests. Use them only in integration tests.
 - Don't assume tests passed just because some passing results appear
 - Don't proceed with commits or further changes until test completion
 - Be wary of partial test results in large test suites
