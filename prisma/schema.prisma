@@ -27,6 +27,7 @@ model User {
   createdGames   Game[] // Games created by this user
   createdSeasons Season[] // Seasons created by this user
 
+  testPlayers   Player[] @relation("testPlayers")
   @@map("users")
 }
 
@@ -40,6 +41,9 @@ model Player {
   // Relations
   turns   Turn[] // Player's turns in games
   seasons SeasonsPlayers[] // Seasons this player has participated in
+
+  testCreatorId String?
+  testCreator   User? @relation(name: "testPlayers", fields: [testCreatorId], references: [id]) 
 
   @@map("players")
 }
