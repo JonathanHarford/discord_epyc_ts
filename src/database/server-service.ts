@@ -247,4 +247,34 @@ export class ServerService {
             throw error;
         }
     }
+
+    /**
+     * Toggle test mode for a server
+     * @param serverId - Server ID
+     * @returns Updated server settings with new test mode state
+     */
+    public async updateTestMode(serverId: string): Promise<any> {
+        try {
+            // Get current server settings
+            const serverSettings = await this.getServerSettings(serverId);
+            
+            if (!serverSettings) {
+                throw new Error(`Server settings not found for server ID ${serverId}`);
+            }
+            
+            // Toggle test mode (flip current value)
+            const newTestMode = !serverSettings.testMode;
+            
+            // Update server settings
+            return await this.prisma.serverSettings.update({
+                where: { id: serverId },
+                data: {
+                    testMode: newTestMode
+                }
+            });
+        } catch (error) {
+            console.error('Error updating test mode:', error);
+            throw error;
+        }
+    }
 } 

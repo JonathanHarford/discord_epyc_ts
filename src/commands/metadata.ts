@@ -11,6 +11,7 @@ import {
 import { Args } from './index.js';
 import { Language } from '../models/enum-helpers/index.js';
 import { Lang } from '../services/index.js';
+import { DevCommandName } from '../enums/index.js';
 
 export const ChatCommandMetadata: {
     [command: string]: RESTPostAPIChatInputApplicationCommandsJSONBody;
@@ -27,9 +28,22 @@ export const ChatCommandMetadata: {
         ]).toString(),
         options: [
             {
-                ...Args.DEV_COMMAND,
-                required: true,
+                type: ApplicationCommandOptionType.Subcommand,
+                name: Lang.getRef('devCommandNames.info', Language.Default).toLowerCase(),
+                name_localizations: Lang.getRefLocalizationMap('devCommandNames.info'),
+                description: 'Get developer information about the bot'
             },
+            {
+                type: ApplicationCommandOptionType.Subcommand,
+                name: Lang.getRef('devCommandNames.testmode', Language.Default).toLowerCase(),
+                name_localizations: Lang.getRefLocalizationMap('devCommandNames.testmode'),
+                description: 'Toggle test mode for a server',
+                options: [
+                    {
+                        ...Args.DEV_SERVER_ID
+                    }
+                ]
+            }
         ],
     },
     HELP: {

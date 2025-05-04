@@ -233,7 +233,8 @@
             "configGamesStaleTimeout": "Set the time before a game is considered stale.",
             "configGamesMinTurns": "Set the minimum number of turns required for a game.",
             "configGamesMaxTurns": "Set the maximum number of turns allowed for a game.",
-            "configGamesReturns": "Set the player returns policy."
+            "configGamesReturns": "Set the player returns policy.",
+            "devServerID": "Server ID to toggle test mode for."
         },
         "fields": {
             "commands": "Commands",
@@ -292,7 +293,8 @@
             "ViewGuildInsights": "View Server Insights"
         },
         "devCommandNames": {
-            "info": "info"
+            "info": "info",
+            "testmode": "testmode"
         },
         "helpOptions": {
             "contactSupport": "Contact Support",

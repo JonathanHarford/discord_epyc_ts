@@ -17,8 +17,22 @@ export class Args {
                 name_localizations: Lang.getRefLocalizationMap('devCommandNames.info'),
                 value: DevCommandName.INFO,
             },
+            {
+                name: Lang.getRef('devCommandNames.testmode', Language.Default),
+                name_localizations: Lang.getRefLocalizationMap('devCommandNames.testmode'),
+                value: DevCommandName.TESTMODE,
+            },
         ],
     };
+
+    public static readonly DEV_SERVER_ID: APIApplicationCommandBasicOption = {
+        name: 'server_id',
+        description: Lang.getRef('argDescs.devServerID', Language.Default),
+        description_localizations: Lang.getRefLocalizationMap('argDescs.devServerID'),
+        type: ApplicationCommandOptionType.String,
+        required: true,
+    };
+
     public static readonly HELP_OPTION: APIApplicationCommandBasicOption = {
         name: Lang.getRef('arguments.option', Language.Default),
         name_localizations: Lang.getRefLocalizationMap('arguments.option'),
