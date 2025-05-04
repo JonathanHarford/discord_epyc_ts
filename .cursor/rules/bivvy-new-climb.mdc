@@ -17,10 +17,7 @@ REQUIRED_CONTEXT: bivvy-base.mdc
 - After PRD and moves are approved, BEGIN tracking with: "/|\ Bivvy Climb [id]"
 
 ## Generating an ID
-- Use any available system command to generate a random ID (exactly 4 characters [A-z][0-9])
-- Choose a command that is likely to be available on most systems
-- The ID should be unique enough to avoid collisions with normal usage
-- If the first attempt fails, try alternative system commands
+- Use `tr -dc A-Za-z0-9 </dev/urandom | head -c 13; echo`
 
 ## Creating the PRD
 - THIS NEEDS TO BE ITERATIVE!
