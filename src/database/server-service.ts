@@ -192,4 +192,59 @@ export class ServerService {
             throw error;
         }
     }
+
+    /**
+     * Update default season settings for a server
+     * @param serverId - Server ID
+     * @param seasonSettings - Season settings to update
+     * @returns Updated season settings
+     */
+    public async updateDefaultSeasonSettings(
+        serverId: string,
+        seasonSettings: {
+            openDuration?: string;
+            minPlayers?: number;
+            maxPlayers?: number | null;
+        }
+    ): Promise<any> {
+        try {
+            // Get current server settings
+            const serverSettings = await this.getServerSettings(serverId);
+            
+            if (!serverSettings) {
+                throw new Error(`Server settings not found for server ID ${serverId}`);
+            }
+            
+            // Update season settings
+            return await this.prisma.seasonSettings.update({
+                where: { id: serverSettings.defaultSeasonSettingsId },
+                data: {
+                    ...seasonSettings
+                }
+            });
+        } catch (error) {
+            console.error('Error updating default season settings:', error);
+            throw error;
+        }
+    }
+
+    /**
+     * Get default season settings for a server
+     * @param serverId - Server ID
+     * @returns Default season settings or null if not found
+     */
+    public async getDefaultSeasonSettings(serverId: string): Promise<any> {
+        try {
+            const serverSettings = await this.getServerSettings(serverId);
+            
+            if (!serverSettings) {
+                return null;
+            }
+            
+            return serverSettings.defaultSeasonSettings;
+        } catch (error) {
+            console.error('Error getting default season settings:', error);
+            throw error;
+        }
+    }
 } 

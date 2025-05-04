@@ -66,6 +66,8 @@ export class ConfigCommand implements Command {
                 await this.handleChannelsConfig(intr);
             } else if (subcommand === 'games') {
                 await this.handleGamesConfig(intr);
+            } else if (subcommand === 'seasons') {
+                await this.handleSeasonsConfig(intr);
             } else {
                 await InteractionUtils.send(
                     intr,
@@ -468,5 +470,213 @@ export class ConfigCommand implements Command {
         }
         
         return missingPermissions;
+    }
+
+    /**
+     * Handle the seasons configuration subcommand
+     */
+    private async handleSeasonsConfig(intr: ChatInputCommandInteraction): Promise<void> {
+        // Get season settings options
+        const openDuration = intr.options.getString('open_duration');
+        const minPlayers = intr.options.getInteger('min_players');
+        const maxPlayers = intr.options.getInteger('max_players');
+        
+        // If no options were provided, show current configuration
+        if (!openDuration && minPlayers === null && maxPlayers === null) {
+            await this.showCurrentSeasonSettings(intr);
+            return;
+        }
+        
+        // Get server settings or initialize if they don't exist
+        let server = await this.dbService.servers.getServer(intr.guild.id);
+        if (!server) {
+            // Initialize with default server settings
+            await this.dbService.servers.initializeServerSettings(
+                intr.guild.id,
+                intr.guild.name,
+                intr.channelId
+            );
+            
+            server = await this.dbService.servers.getServer(intr.guild.id);
+        }
+        
+        // Get current server settings
+        const serverSettings = await this.dbService.servers.getServerSettings(intr.guild.id);
+        
+        if (!serverSettings) {
+            await InteractionUtils.send(
+                intr,
+                'Server settings not found. Please try again later.'
+            );
+            return;
+        }
+        
+        // Create a Zod schema for validating all season settings
+        const seasonSettingsSchema = z.object({
+            openDuration: durationStringSchema.optional(),
+            minPlayers: z.number().int().min(2, { message: 'Minimum players must be at least 2.' }).optional(),
+            maxPlayers: z.number().int().optional()
+        }).refine(data => {
+            // Skip validation if both are undefined
+            if (data.minPlayers === undefined || data.maxPlayers === undefined) {
+                return true;
+            }
+            return data.maxPlayers > data.minPlayers;
+        }, {
+            message: 'Maximum players must be greater than minimum players.',
+            path: ['maxPlayers']
+        });
+        
+        // Create an input object from the command options
+        const input: Record<string, any> = {};
+        
+        if (openDuration) input.openDuration = openDuration;
+        if (minPlayers !== null) input.minPlayers = minPlayers;
+        if (maxPlayers !== null) input.maxPlayers = maxPlayers;
+        
+        // Validate all inputs with Zod
+        const validationResult = seasonSettingsSchema.safeParse(input);
+        
+        // Handle validation failures
+        if (!validationResult.success) {
+            const errors = validationResult.error.format();
+            const errorMessages: string[] = [];
+            
+            // Extract error messages
+            for (const [key, value] of Object.entries(errors)) {
+                if (key === '_errors') continue;
+                
+                // Add the specific field error
+                if (value && typeof value === 'object' && '_errors' in value && Array.isArray(value._errors) && value._errors.length > 0) {
+                    let fieldName = key;
+                    
+                    // Format field names for display
+                    switch (key) {
+                        case 'openDuration': fieldName = 'Open duration'; break;
+                        case 'minPlayers': fieldName = 'Minimum players'; break;
+                        case 'maxPlayers': fieldName = 'Maximum players'; break;
+                    }
+                    
+                    errorMessages.push(`${fieldName}: ${value._errors.join(', ')}`);
+                }
+            }
+            
+            // Add any top-level refinement errors
+            if ('_errors' in errors && Array.isArray(errors._errors) && errors._errors.length > 0) {
+                errorMessages.push(...errors._errors);
+            }
+            
+            await InteractionUtils.send(
+                intr,
+                `❌ Validation failed:\n${errorMessages.map(error => `• ${error}`).join('\n')}`
+            );
+            return;
+        }
+        
+        // At this point validation has passed
+        // Prepare season settings update
+        const seasonSettings: any = {};
+        const validatedData = validationResult.data;
+        
+        // Add validated values to season settings
+        if (validatedData.openDuration) {
+            seasonSettings.openDuration = validatedData.openDuration.value;
+        }
+        
+        // Add integer values
+        if (validatedData.minPlayers !== undefined) {
+            seasonSettings.minPlayers = validatedData.minPlayers;
+        }
+        
+        if (validatedData.maxPlayers !== undefined) {
+            seasonSettings.maxPlayers = validatedData.maxPlayers;
+        }
+        
+        try {
+            // Update season settings in the database
+            const updatedSettings = await this.dbService.servers.updateDefaultSeasonSettings(
+                intr.guild.id,
+                seasonSettings
+            );
+            
+            if (!updatedSettings) {
+                await InteractionUtils.send(
+                    intr,
+                    'Failed to update season settings. Please try again later.'
+                );
+                return;
+            }
+            
+            // Success message with updated settings
+            const formattedSettings = this.formatSeasonSettings(updatedSettings);
+            await InteractionUtils.send(
+                intr,
+                `✅ Server default season settings updated!\n\n${formattedSettings}`
+            );
+            
+        } catch (error) {
+            console.error('Error updating season settings:', error);
+            await InteractionUtils.send(
+                intr,
+                'An error occurred while updating season settings. Please try again later.'
+            );
+        }
+    }
+
+    /**
+     * Format season settings for display
+     */
+    private formatSeasonSettings(settings: any): string {
+        let formattedSettings = '**Default season settings:**\n';
+        
+        if (settings.openDuration) {
+            formattedSettings += `open_duration: ${settings.openDuration}\n`;
+        }
+        
+        if (settings.minPlayers !== undefined) {
+            formattedSettings += `min_players: ${settings.minPlayers}\n`;
+        }
+        
+        if (settings.maxPlayers !== undefined && settings.maxPlayers !== null) {
+            formattedSettings += `max_players: ${settings.maxPlayers}\n`;
+        } else {
+            formattedSettings += `max_players: none\n`;
+        }
+        
+        return formattedSettings;
+    }
+
+    /**
+     * Show current season settings
+     */
+    private async showCurrentSeasonSettings(intr: ChatInputCommandInteraction): Promise<void> {
+        try {
+            // Get server settings
+            const serverSettings = await this.dbService.servers.getServerSettings(intr.guild.id);
+            
+            if (!serverSettings || !serverSettings.defaultSeasonSettings) {
+                await InteractionUtils.send(
+                    intr,
+                    'No server settings found. Please configure your server first.'
+                );
+                return;
+            }
+            
+            // Format settings for display
+            const formattedSettings = this.formatSeasonSettings(serverSettings.defaultSeasonSettings);
+            
+            // Send the formatted settings
+            await InteractionUtils.send(
+                intr,
+                formattedSettings
+            );
+            
+        } catch (error) {
+            console.error('Error showing current season settings:', error);
+            await InteractionUtils.send(
+                intr,
+                'An error occurred while retrieving season settings. Please try again later.'
+            );
+        }
     }
 } 

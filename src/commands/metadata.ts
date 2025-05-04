@@ -215,6 +215,33 @@ export const ChatCommandMetadata: {
                         required: false
                     }
                 ]
+            },
+            {
+                type: ApplicationCommandOptionType.Subcommand,
+                name: 'seasons',
+                description: 'Configure default season settings for this server',
+                options: [
+                    {
+                        type: ApplicationCommandOptionType.String,
+                        name: 'open_duration',
+                        description: 'Time a season stays open for registration (format: 1d, 12h, 30m)',
+                        required: false
+                    },
+                    {
+                        type: ApplicationCommandOptionType.Integer,
+                        name: 'min_players',
+                        description: 'Minimum number of players required for a season',
+                        required: false,
+                        min_value: 2
+                    },
+                    {
+                        type: ApplicationCommandOptionType.Integer,
+                        name: 'max_players',
+                        description: 'Maximum number of players allowed for a season',
+                        required: false,
+                        min_value: 3
+                    }
+                ]
             }
         ],
     },
