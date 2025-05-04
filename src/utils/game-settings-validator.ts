@@ -1,6 +1,15 @@
 /**
  * Utility functions for validating game settings
+ * Uses Zod schemas for validation
  */
+import { 
+    durationStringSchema, 
+    returnsSchema, 
+    turnPatternSchema,
+    durationToMilliseconds,
+    safeParseDuration
+} from './zod-schemas.js';
+import { DurationUtils } from './duration-utils.js';
 
 /**
  * Validates a duration string (like "1d", "12h", "30m")
@@ -8,9 +17,13 @@
  * @returns Whether the duration is valid
  */
 export const validateDuration = (duration: string): boolean => {
-    // Valid patterns: Nd (days), Nh (hours), Nm (minutes)
-    const durationRegex = /^(\d+)(d|h|m)$/;
-    return durationRegex.test(duration);
+    try {
+        const result = safeParseDuration(duration);
+        return result.success;
+    } catch (error) {
+        // In case of any error (including empty string), return false
+        return false;
+    }
 };
 
 /**
@@ -19,20 +32,8 @@ export const validateDuration = (duration: string): boolean => {
  * @returns Whether the returns policy is valid
  */
 export const validateReturns = (returns: string): boolean => {
-    if (returns.toLowerCase() === 'none') {
-        return true;
-    }
-    
-    // Valid pattern: N/M where N and M are positive integers
-    const returnsRegex = /^(\d+)\/(\d+)$/;
-    if (!returnsRegex.test(returns)) {
-        return false;
-    }
-    
-    const [plays, gap] = returns.split('/').map(num => parseInt(num, 10));
-    
-    // Ensure both numbers are positive
-    return plays > 0 && gap > 0;
+    const result = returnsSchema.safeParse(returns);
+    return result.success;
 };
 
 /**
@@ -41,12 +42,8 @@ export const validateReturns = (returns: string): boolean => {
  * @returns Whether the turn pattern is valid
  */
 export const validateTurnPattern = (pattern: string): boolean => {
-    // Valid patterns must include at least one "writing" and one "drawing"
-    return (
-        pattern.includes('writing') && 
-        pattern.includes('drawing') && 
-        pattern.split(',').every(turn => ['writing', 'drawing'].includes(turn.trim()))
-    );
+    const result = turnPatternSchema.safeParse(pattern);
+    return result.success;
 };
 
 /**
@@ -59,6 +56,11 @@ export const formatReturnsForDisplay = (returns: string | null): string => {
         return 'Players can only play once per game';
     }
     
+    // Validate the format first
+    if (!validateReturns(returns)) {
+        return 'Invalid returns policy';
+    }
+    
     const [plays, gap] = returns.split('/').map(num => parseInt(num, 10));
     return `Players can play ${plays} times per game, as long as ${gap} turns have passed in between`;
 };
@@ -69,48 +71,50 @@ export const formatReturnsForDisplay = (returns: string | null): string => {
  * @returns Duration in milliseconds
  */
 export const parseDurationToMs = (duration: string): number => {
-    const durationRegex = /^(\d+)(d|h|m)$/;
-    const match = duration.match(durationRegex);
-    
-    if (!match) {
-        throw new Error(`Invalid duration format: ${duration}`);
-    }
-    
-    const value = parseInt(match[1], 10);
-    const unit = match[2];
-    
-    const MS_PER_MINUTE = 60 * 1000;
-    const MS_PER_HOUR = 60 * MS_PER_MINUTE;
-    const MS_PER_DAY = 24 * MS_PER_HOUR;
-    
-    switch (unit) {
-        case 'd': return value * MS_PER_DAY;
-        case 'h': return value * MS_PER_HOUR;
-        case 'm': return value * MS_PER_MINUTE;
-        default: throw new Error(`Invalid duration unit: ${unit}`);
-    }
+    return durationToMilliseconds(duration);
 };
 
 /**
  * Formats a duration string for display
- * @param duration - Duration string (like "1d", "12h", "30m")
+ * @param duration - Duration string (like "1d", "12h", "30m", "2d5h")
  * @returns Human-readable duration string
  */
 export const formatDurationForDisplay = (duration: string): string => {
-    const durationRegex = /^(\d+)(d|h|m)$/;
-    const match = duration.match(durationRegex);
-    
-    if (!match) {
-        return duration; // Return original if invalid
-    }
-    
-    const value = match[1];
-    const unit = match[2];
-    
-    switch (unit) {
-        case 'd': return `${value} day${value === '1' ? '' : 's'}`;
-        case 'h': return `${value} hour${value === '1' ? '' : 's'}`;
-        case 'm': return `${value} minute${value === '1' ? '' : 's'}`;
-        default: return duration;
+    try {
+        // Try to validate the duration first
+        if (!validateDuration(duration)) {
+            return duration; // Return original if invalid
+        }
+        
+        // Use DurationUtils to parse the duration string
+        const ms = DurationUtils.parseDurationString(duration);
+        
+        // Manual formatting for human-readable output
+        const days = Math.floor(ms / (24 * 60 * 60 * 1000));
+        const hours = Math.floor((ms % (24 * 60 * 60 * 1000)) / (60 * 60 * 1000));
+        const minutes = Math.floor((ms % (60 * 60 * 1000)) / (60 * 1000));
+        const seconds = Math.floor((ms % (60 * 1000)) / 1000);
+        
+        const parts: string[] = [];
+        
+        if (days > 0) {
+            parts.push(`${days} day${days !== 1 ? 's' : ''}`);
+        }
+        
+        if (hours > 0) {
+            parts.push(`${hours} hour${hours !== 1 ? 's' : ''}`);
+        }
+        
+        if (minutes > 0) {
+            parts.push(`${minutes} minute${minutes !== 1 ? 's' : ''}`);
+        }
+        
+        if (seconds > 0) {
+            parts.push(`${seconds} second${seconds !== 1 ? 's' : ''}`);
+        }
+        
+        return parts.join(', ');
+    } catch (error) {
+        return duration; // Return original if any error occurs
     }
 }; 

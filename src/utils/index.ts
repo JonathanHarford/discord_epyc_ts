@@ -13,3 +13,5 @@ export { ShardUtils } from './shard-utils.js';
 export { StringUtils } from './string-utils.js';
 export { ThreadUtils } from './thread-utils.js';
 export * from './game-settings-validator.js';
+export * from './zod-schemas.js';
+export * from './command-validator.js';

@@ -2,29 +2,29 @@
   "Climb": "pfVQ",
   "moves": [
     {
-      "status": "todo",
+      "status": "complete",
       "description": "Create Zod schema for duration strings",
       "details": "Create the durationStringSchema in a new zod-schemas.ts file that validates duration strings and integrates with DurationUtils"
     },
     {
-      "status": "todo",
+      "status": "complete",
       "description": "Create command validation utilities",
       "details": "Create helper functions to validate command arguments using zod schemas",
       "rest": true
     },
     {
-      "status": "todo",
+      "status": "complete",
       "description": "Update config-command.ts to use Zod validation",
       "details": "Refactor config-command.ts to use the new Zod validation for duration strings"
     },
     {
-      "status": "todo",
+      "status": "complete",
       "description": "Write unit tests for zod schemas",
       "details": "Create unit tests for the zod schemas to ensure proper validation behavior",
       "rest": true
     },
     {
-      "status": "todo",
+      "status": "complete",
       "description": "Check for other commands that can use zod validation",
       "details": "Identify and list other commands that could benefit from zod validation"
     }
