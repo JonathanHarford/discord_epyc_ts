@@ -5,4 +5,4 @@ alwaysApply: true
 ---
 - [pnpm](mdc:https:/pnpm.io)
   - Use `pnpm` for package management and running scripts.
-- [SvelteKit](mdc:https:/svelte.dev/llms-full.txt)
+- [nanoid](mdc:https://github.com/ai/nanoid) Prefer nanoid to uuid
