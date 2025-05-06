@@ -8,5 +8,9 @@ export default defineConfig({
         typecheck: {
             tsconfig: './tsconfig.test.json',
         },
+        setupFiles: ['./tests/setup.ts'],
+        deps: {
+            interopDefault: true,
+        },
     },
 });

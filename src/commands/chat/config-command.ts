@@ -7,18 +7,14 @@ import {
     TextChannel
 } from 'discord.js';
 import { RateLimiter } from 'discord.js-rate-limiter';
-import { z } from 'zod';
 
 import { DatabaseService } from '../../database/index.js';
 import { Language } from '../../models/enum-helpers/index.js';
 import { EventData } from '../../models/internal-models.js';
-import { Lang, Logger } from '../../services/index.js';
+import { ConfigService, Lang, Logger } from '../../services/index.js';
 import { 
     InteractionUtils, 
     formatReturnsForDisplay,
-    durationStringSchema,
-    turnPatternSchema,
-    returnsSchema,
     DurationUtils
 } from '../../utils/index.js';
 import { Command, CommandDeferType } from '../index.js';
@@ -31,9 +27,11 @@ export class ConfigCommand implements Command {
     public requireClientPerms: PermissionsString[] = [];
     
     private dbService: DatabaseService;
+    private configService: ConfigService;
 
     constructor() {
         this.dbService = new DatabaseService();
+        this.configService = new ConfigService();
     }
 
     public async execute(intr: ChatInputCommandInteraction, data: EventData): Promise<void> {
@@ -105,158 +103,51 @@ export class ConfigCommand implements Command {
             return;
         }
         
-        // Get server settings or initialize if they don't exist
-        let server = await this.dbService.servers.getServer(intr.guild.id);
-        if (!server) {
-            // Initialize with default server settings
-            await this.dbService.servers.initializeServerSettings(
-                intr.guild.id,
-                intr.guild.name,
-                intr.channelId
-            );
-            
-            server = await this.dbService.servers.getServer(intr.guild.id);
-        }
+        // Create an input object with game settings
+        const gameSettings = {
+            turnPattern,
+            writingTimeout,
+            writingWarning,
+            drawingTimeout,
+            drawingWarning,
+            staleTimeout,
+            minTurns: minTurns !== null ? minTurns : undefined,
+            maxTurns: maxTurns !== null ? maxTurns : undefined,
+            returns
+        };
         
-        // Get current server settings
-        const serverSettings = await this.dbService.servers.getServerSettings(intr.guild.id);
+        // Use ConfigService to get or initialize server settings
+        await this.configService.getOrInitializeServerSettings(
+            intr.guild.id,
+            intr.guild.name,
+            intr.channelId,
+            this.dbService
+        );
         
-        if (!serverSettings) {
-            await InteractionUtils.send(
-                intr,
-                'Server settings not found. Please try again later.'
-            );
+        // Update game settings using ConfigService
+        const result = await this.configService.updateGameSettings(
+            intr.guild.id,
+            gameSettings,
+            this.dbService
+        );
+        
+        // Handle result
+        if (!result.success) {
+            if (result.validationErrors) {
+                await InteractionUtils.send(
+                    intr,
+                    `❌ Validation failed:\n${result.validationErrors.map(error => `• ${error}`).join('\n')}`
+                );
+            } else {
+                await InteractionUtils.send(
+                    intr,
+                    `❌ ${result.error || 'An error occurred while updating game settings.'}`
+                );
+            }
             return;
         }
         
-        // Create a Zod schema for validating all game settings
-        const gameSettingsSchema = z.object({
-            turnPattern: turnPatternSchema.optional(),
-            writingTimeout: durationStringSchema.optional(),
-            writingWarning: durationStringSchema.optional(),
-            drawingTimeout: durationStringSchema.optional(),
-            drawingWarning: durationStringSchema.optional(),
-            staleTimeout: durationStringSchema.optional(),
-            returns: returnsSchema.optional(),
-            minTurns: z.number().int().min(4, { message: 'Minimum turns must be at least 4.' }).optional(),
-            maxTurns: z.number().int().optional()
-        }).refine(data => {
-            // Skip validation if both are undefined
-            if (data.minTurns === undefined || data.maxTurns === undefined) {
-                return true;
-            }
-            return data.maxTurns > data.minTurns;
-        }, {
-            message: 'Maximum turns must be greater than minimum turns.',
-            path: ['maxTurns']
-        });
-        
-        // Create an input object from the command options
-        const input: Record<string, any> = {};
-        
-        if (turnPattern) input.turnPattern = turnPattern;
-        if (writingTimeout) input.writingTimeout = writingTimeout;
-        if (writingWarning) input.writingWarning = writingWarning;
-        if (drawingTimeout) input.drawingTimeout = drawingTimeout;
-        if (drawingWarning) input.drawingWarning = drawingWarning;
-        if (staleTimeout) input.staleTimeout = staleTimeout;
-        if (returns) input.returns = returns;
-        if (minTurns !== null) input.minTurns = minTurns;
-        if (maxTurns !== null) input.maxTurns = maxTurns;
-        
-        // Validate all inputs with Zod
-        const validationResult = gameSettingsSchema.safeParse(input);
-        
-        // Handle validation failures
-        if (!validationResult.success) {
-            const errors = validationResult.error.format();
-            const errorMessages: string[] = [];
-            
-            // Extract error messages
-            for (const [key, value] of Object.entries(errors)) {
-                if (key === '_errors') continue;
-                
-                // Add the specific field error
-                if (value && typeof value === 'object' && '_errors' in value && Array.isArray(value._errors) && value._errors.length > 0) {
-                    let fieldName = key;
-                    
-                    // Format field names for display
-                    switch (key) {
-                        case 'turnPattern': fieldName = 'Turn pattern'; break;
-                        case 'writingTimeout': fieldName = 'Writing timeout'; break;
-                        case 'writingWarning': fieldName = 'Writing warning'; break;
-                        case 'drawingTimeout': fieldName = 'Drawing timeout'; break;
-                        case 'drawingWarning': fieldName = 'Drawing warning'; break;
-                        case 'staleTimeout': fieldName = 'Stale timeout'; break;
-                        case 'returns': fieldName = 'Returns'; break;
-                        case 'minTurns': fieldName = 'Minimum turns'; break;
-                        case 'maxTurns': fieldName = 'Maximum turns'; break;
-                    }
-                    
-                    errorMessages.push(`${fieldName}: ${value._errors.join(', ')}`);
-                }
-            }
-            
-            // Add any top-level refinement errors
-            if ('_errors' in errors && Array.isArray(errors._errors) && errors._errors.length > 0) {
-                errorMessages.push(...errors._errors);
-            }
-            
-            await InteractionUtils.send(
-                intr,
-                `❌ Validation failed:\n${errorMessages.map(error => `• ${error}`).join('\n')}`
-            );
-            return;
-        }
-        
-        // At this point validation has passed
-        // Prepare game settings update
-        const gameSettings: any = {};
-        const validatedData = validationResult.data;
-        
-        // Add validated values to game settings
-        if (validatedData.turnPattern) {
-            gameSettings.turnPattern = validatedData.turnPattern;
-        }
-        
-        if (validatedData.writingTimeout) {
-            gameSettings.writingTimeout = validatedData.writingTimeout.value;
-        }
-        
-        if (validatedData.writingWarning) {
-            gameSettings.writingWarning = validatedData.writingWarning.value;
-        }
-        
-        if (validatedData.drawingTimeout) {
-            gameSettings.drawingTimeout = validatedData.drawingTimeout.value;
-        }
-        
-        if (validatedData.drawingWarning) {
-            gameSettings.drawingWarning = validatedData.drawingWarning.value;
-        }
-        
-        if (validatedData.staleTimeout) {
-            gameSettings.staleTimeout = validatedData.staleTimeout.value;
-        }
-        
-        // Add integer values
-        if (validatedData.minTurns !== undefined) {
-            gameSettings.minTurns = validatedData.minTurns;
-        }
-        
-        if (validatedData.maxTurns !== undefined) {
-            gameSettings.maxTurns = validatedData.maxTurns;
-        }
-        
-        // Handle returns - convert "none" to null
-        if (validatedData.returns) {
-            gameSettings.returns = validatedData.returns.toLowerCase() === 'none' ? null : validatedData.returns;
-        }
-        
-        // Update game settings
-        await this.dbService.servers.updateDefaultGameSettings(intr.guild.id, gameSettings);
-        
-        // Show updated settings
+        // Success message
         await InteractionUtils.send(
             intr,
             '✅ Default game settings updated successfully! Use `/config games` to see the current configuration.'
@@ -267,10 +158,10 @@ export class ConfigCommand implements Command {
      * Show the current game settings
      */
     private async showCurrentGameSettings(intr: ChatInputCommandInteraction): Promise<void> {
-        // Get server settings
-        const serverSettings = await this.dbService.servers.getServerSettings(intr.guild!.id);
+        // Get game settings using ConfigService
+        const result = await this.configService.getGameSettings(intr.guild!.id, this.dbService);
         
-        if (!serverSettings || !serverSettings.defaultGameSettings) {
+        if (!result.success || !result.settings) {
             await InteractionUtils.send(
                 intr,
                 'Server game settings have not been configured yet. Use `/config games` with parameters to set up game configuration.'
@@ -278,7 +169,7 @@ export class ConfigCommand implements Command {
             return;
         }
         
-        const gameSettings = serverSettings.defaultGameSettings;
+        const gameSettings = result.settings;
         
         // Build the response message
         let responseMessage = '**Default Game Settings**\n\n';
@@ -288,12 +179,20 @@ export class ConfigCommand implements Command {
             'Drawing → Writing' : 'Writing → Drawing';
         responseMessage += `**Turn Pattern**: ${turnPatternDisplay}\n`;
         
-        // Format timeouts and warnings
-        responseMessage += `**Writing Timeout**: ${DurationUtils.generateDurationString(gameSettings.writingTimeout)}\n`;
-        responseMessage += `**Writing Warning**: ${DurationUtils.generateDurationString(gameSettings.writingWarning)}\n`;
-        responseMessage += `**Drawing Timeout**: ${DurationUtils.generateDurationString(gameSettings.drawingTimeout)}\n`;
-        responseMessage += `**Drawing Warning**: ${DurationUtils.generateDurationString(gameSettings.drawingWarning)}\n`;
-        responseMessage += `**Stale Timeout**: ${DurationUtils.generateDurationString(gameSettings.staleTimeout)}\n`;
+        // Helper function to get string or default
+        const getStringOrDefault = (value: any): string => {
+            if (value === undefined || value === null) {
+                return '0s';
+            }
+            return value;
+        };
+        
+        // Format timeouts and warnings - these are already strings in the correct format
+        responseMessage += `**Writing Timeout**: ${getStringOrDefault(gameSettings.writingTimeout)}\n`;
+        responseMessage += `**Writing Warning**: ${getStringOrDefault(gameSettings.writingWarning)}\n`;
+        responseMessage += `**Drawing Timeout**: ${getStringOrDefault(gameSettings.drawingTimeout)}\n`;
+        responseMessage += `**Drawing Warning**: ${getStringOrDefault(gameSettings.drawingWarning)}\n`;
+        responseMessage += `**Stale Timeout**: ${getStringOrDefault(gameSettings.staleTimeout)}\n`;
         
         // Format turn limits
         responseMessage += `**Minimum Turns**: ${gameSettings.minTurns}\n`;
@@ -328,83 +227,65 @@ export class ConfigCommand implements Command {
             return;
         }
         
-        // Validate channels are text channels
-        if (
-            (announcementChannel && announcementChannel.type !== ChannelType.GuildText) ||
-            (completedChannel && completedChannel.type !== ChannelType.GuildText) ||
-            (adminChannel && adminChannel.type !== ChannelType.GuildText)
-        ) {
-            await InteractionUtils.send(
-                intr,
-                'All channels must be text channels.'
-            );
-            return;
-        }
+        // Create map of guild channels with their types for validation
+        const guildChannels = new Map<string, { type: number }>();
+        intr.guild!.channels.cache.forEach(channel => {
+            guildChannels.set(channel.id, { type: channel.type });
+        });
         
-        // Validate bot permissions in channels
-        const channelsToCheck = [
-            announcementChannel, 
-            completedChannel, 
-            adminChannel
-        ].filter(channel => channel !== null) as GuildChannel[];
-        
-        const missingPermissions = await this.checkBotPermissions(channelsToCheck, intr);
-        if (missingPermissions.length > 0) {
-            await InteractionUtils.send(
-                intr,
-                `I don't have the required permissions in ${missingPermissions.join(', ')}. ` +
-                'Please make sure I have "View Channel" and "Send Messages" permissions in these channels.'
-            );
-            return;
-        }
-        
-        // Get server settings or initialize if they don't exist
-        let server = await this.dbService.servers.getServer(intr.guild.id);
-        if (!server) {
-            // Initialize with default server settings
-            await this.dbService.servers.initializeServerSettings(
-                intr.guild.id,
-                intr.guild.name,
-                announcementChannel?.id || intr.channelId
-            );
-            
-            server = await this.dbService.servers.getServer(intr.guild.id);
-        }
-        
-        // Get current server settings
-        const serverSettings = await this.dbService.servers.getServerSettings(intr.guild.id);
-        
-        // Prepare channel config update
+        // Prepare channel config to update
         const channelConfig: any = {};
         
         // Handle announcement channel
-        const announcementChannelId = announcementChannel?.id || serverSettings.announcementChannelId || intr.channelId;
-        channelConfig.announcementChannelId = announcementChannelId;
+        if (announcementChannel) {
+            channelConfig.announcementChannelId = announcementChannel.id;
+        }
         
-        // Handle completed channel - explicit 'none' sets to null, an explicit channel value sets to that value,
-        // otherwise use the announcement channel as default
+        // Handle completed channel - explicit 'none' sets to null, an explicit channel value sets to that value
         if (completedChannel) {
             channelConfig.completedChannelId = completedChannel.id;
         } else if (completedOption === 'none') {
             channelConfig.completedChannelId = null;
-        } else if (!serverSettings.completedChannelId) {
-            // Only set default if no previous value exists
-            channelConfig.completedChannelId = announcementChannelId;
         }
         
-        // Handle admin channel - explicit 'none' sets to null, an explicit channel value sets to that value,
-        // otherwise use the announcement channel as default
+        // Handle admin channel - explicit 'none' sets to null, an explicit channel value sets to that value
         if (adminChannel) {
             channelConfig.adminChannelId = adminChannel.id;
         } else if (adminOption === 'none') {
             channelConfig.adminChannelId = null;
-        } else if (!serverSettings.adminChannelId) {
-            // Only set default if no previous value exists
-            channelConfig.adminChannelId = announcementChannelId;
         }
         
-        // Update server settings
-        await this.dbService.servers.updateChannelConfig(intr.guild.id, channelConfig);
+        // Use ConfigService to get or initialize server settings
+        await this.configService.getOrInitializeServerSettings(
+            intr.guild!.id,
+            intr.guild!.name,
+            announcementChannel?.id || intr.channelId,
+            this.dbService
+        );
+        
+        // Validate and update channel configuration
+        const result = await this.configService.updateChannelConfig(
+            intr.guild!.id,
+            channelConfig,
+            guildChannels,
+            this.dbService
+        );
+        
+        // Handle result
+        if (!result.success) {
+            if (result.validationErrors) {
+                await InteractionUtils.send(
+                    intr,
+                    `❌ Validation failed:\n${result.validationErrors.map(error => `• ${error}`).join('\n')}`
+                );
+            } else {
+                await InteractionUtils.send(
+                    intr,
+                    `❌ ${result.error || 'An error occurred while updating channel configuration.'}`
+                );
+            }
+            return;
+        }
         
         // Respond with success message
         await InteractionUtils.send(
@@ -418,15 +299,17 @@ export class ConfigCommand implements Command {
      */
     private async showCurrentChannelConfig(intr: ChatInputCommandInteraction): Promise<void> {
         // Get server settings
-        const serverSettings = await this.dbService.servers.getServerSettings(intr.guild!.id);
+        const result = await this.configService.getServerSettings(intr.guild!.id, this.dbService);
         
-        if (!serverSettings) {
+        if (!result.success || !result.settings) {
             await InteractionUtils.send(
                 intr,
                 'Server settings have not been configured yet. Use `/config channels` to set up channel configuration.'
             );
             return;
         }
+        
+        const serverSettings = result.settings;
         
         // Build the response message
         let responseMessage = '**Current Channel Configuration**\n\n';
@@ -487,140 +370,50 @@ export class ConfigCommand implements Command {
             return;
         }
         
-        // Get server settings or initialize if they don't exist
-        let server = await this.dbService.servers.getServer(intr.guild.id);
-        if (!server) {
-            // Initialize with default server settings
-            await this.dbService.servers.initializeServerSettings(
-                intr.guild.id,
-                intr.guild.name,
-                intr.channelId
-            );
-            
-            server = await this.dbService.servers.getServer(intr.guild.id);
-        }
+        // Create an input object with season settings
+        const seasonSettings = {
+            openDuration,
+            minPlayers: minPlayers !== null ? minPlayers : undefined,
+            maxPlayers: maxPlayers !== null ? maxPlayers : undefined
+        };
         
-        // Get current server settings
-        const serverSettings = await this.dbService.servers.getServerSettings(intr.guild.id);
+        // Use ConfigService to get or initialize server settings
+        await this.configService.getOrInitializeServerSettings(
+            intr.guild!.id,
+            intr.guild!.name,
+            intr.channelId,
+            this.dbService
+        );
         
-        if (!serverSettings) {
-            await InteractionUtils.send(
-                intr,
-                'Server settings not found. Please try again later.'
-            );
-            return;
-        }
+        // Update season settings using ConfigService
+        const result = await this.configService.updateSeasonSettings(
+            intr.guild!.id,
+            seasonSettings,
+            this.dbService
+        );
         
-        // Create a Zod schema for validating all season settings
-        const seasonSettingsSchema = z.object({
-            openDuration: durationStringSchema.optional(),
-            minPlayers: z.number().int().min(2, { message: 'Minimum players must be at least 2.' }).optional(),
-            maxPlayers: z.number().int().optional()
-        }).refine(data => {
-            // Skip validation if both are undefined
-            if (data.minPlayers === undefined || data.maxPlayers === undefined) {
-                return true;
-            }
-            return data.maxPlayers > data.minPlayers;
-        }, {
-            message: 'Maximum players must be greater than minimum players.',
-            path: ['maxPlayers']
-        });
-        
-        // Create an input object from the command options
-        const input: Record<string, any> = {};
-        
-        if (openDuration) input.openDuration = openDuration;
-        if (minPlayers !== null) input.minPlayers = minPlayers;
-        if (maxPlayers !== null) input.maxPlayers = maxPlayers;
-        
-        // Validate all inputs with Zod
-        const validationResult = seasonSettingsSchema.safeParse(input);
-        
-        // Handle validation failures
-        if (!validationResult.success) {
-            const errors = validationResult.error.format();
-            const errorMessages: string[] = [];
-            
-            // Extract error messages
-            for (const [key, value] of Object.entries(errors)) {
-                if (key === '_errors') continue;
-                
-                // Add the specific field error
-                if (value && typeof value === 'object' && '_errors' in value && Array.isArray(value._errors) && value._errors.length > 0) {
-                    let fieldName = key;
-                    
-                    // Format field names for display
-                    switch (key) {
-                        case 'openDuration': fieldName = 'Open duration'; break;
-                        case 'minPlayers': fieldName = 'Minimum players'; break;
-                        case 'maxPlayers': fieldName = 'Maximum players'; break;
-                    }
-                    
-                    errorMessages.push(`${fieldName}: ${value._errors.join(', ')}`);
-                }
-            }
-            
-            // Add any top-level refinement errors
-            if ('_errors' in errors && Array.isArray(errors._errors) && errors._errors.length > 0) {
-                errorMessages.push(...errors._errors);
-            }
-            
-            await InteractionUtils.send(
-                intr,
-                `❌ Validation failed:\n${errorMessages.map(error => `• ${error}`).join('\n')}`
-            );
-            return;
-        }
-        
-        // At this point validation has passed
-        // Prepare season settings update
-        const seasonSettings: any = {};
-        const validatedData = validationResult.data;
-        
-        // Add validated values to season settings
-        if (validatedData.openDuration) {
-            seasonSettings.openDuration = validatedData.openDuration.value;
-        }
-        
-        // Add integer values
-        if (validatedData.minPlayers !== undefined) {
-            seasonSettings.minPlayers = validatedData.minPlayers;
-        }
-        
-        if (validatedData.maxPlayers !== undefined) {
-            seasonSettings.maxPlayers = validatedData.maxPlayers;
-        }
-        
-        try {
-            // Update season settings in the database
-            const updatedSettings = await this.dbService.servers.updateDefaultSeasonSettings(
-                intr.guild.id,
-                seasonSettings
-            );
-            
-            if (!updatedSettings) {
+        // Handle result
+        if (!result.success) {
+            if (result.validationErrors) {
                 await InteractionUtils.send(
                     intr,
-                    'Failed to update season settings. Please try again later.'
+                    `❌ Validation failed:\n${result.validationErrors.map(error => `• ${error}`).join('\n')}`
                 );
-                return;
+            } else {
+                await InteractionUtils.send(
+                    intr,
+                    `❌ ${result.error || 'An error occurred while updating season settings.'}`
+                );
             }
-            
-            // Success message with updated settings
-            const formattedSettings = this.formatSeasonSettings(updatedSettings);
-            await InteractionUtils.send(
-                intr,
-                `✅ Server default season settings updated!\n\n${formattedSettings}`
-            );
-            
-        } catch (error) {
-            console.error('Error updating season settings:', error);
-            await InteractionUtils.send(
-                intr,
-                'An error occurred while updating season settings. Please try again later.'
-            );
+            return;
         }
+        
+        // Success message with updated settings
+        const formattedSettings = this.formatSeasonSettings(result.settings);
+        await InteractionUtils.send(
+            intr,
+            `✅ Server default season settings updated!\n\n${formattedSettings}`
+        );
     }
 
     /**
@@ -650,33 +443,24 @@ export class ConfigCommand implements Command {
      * Show current season settings
      */
     private async showCurrentSeasonSettings(intr: ChatInputCommandInteraction): Promise<void> {
-        try {
-            // Get server settings
-            const serverSettings = await this.dbService.servers.getServerSettings(intr.guild.id);
-            
-            if (!serverSettings || !serverSettings.defaultSeasonSettings) {
-                await InteractionUtils.send(
-                    intr,
-                    'No server settings found. Please configure your server first.'
-                );
-                return;
-            }
-            
-            // Format settings for display
-            const formattedSettings = this.formatSeasonSettings(serverSettings.defaultSeasonSettings);
-            
-            // Send the formatted settings
+        // Get season settings using ConfigService
+        const result = await this.configService.getSeasonSettings(intr.guild!.id, this.dbService);
+        
+        if (!result.success || !result.settings) {
             await InteractionUtils.send(
                 intr,
-                formattedSettings
+                'No server settings found. Please configure your server first.'
             );
-            
-        } catch (error) {
-            console.error('Error showing current season settings:', error);
-            await InteractionUtils.send(
-                intr,
-                'An error occurred while retrieving season settings. Please try again later.'
-            );
+            return;
         }
+        
+        // Format settings for display
+        const formattedSettings = this.formatSeasonSettings(result.settings);
+        
+        // Send the formatted settings
+        await InteractionUtils.send(
+            intr,
+            formattedSettings
+        );
     }
 } 
