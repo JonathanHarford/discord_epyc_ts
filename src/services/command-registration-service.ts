@@ -9,7 +9,7 @@ import {
 import { createRequire } from 'node:module';
 // Load environment variables from .env file
 // This is mocked in tests via tests/setup.ts
-import 'dotenv/config';
+
 
 import { Logger } from './logger.js';
 

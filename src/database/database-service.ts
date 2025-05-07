@@ -15,8 +15,8 @@ export class DatabaseService {
     public servers: ServerService;
     public utils: UtilityService;
 
-    constructor() {
-        this.prisma = new PrismaClient();
+    constructor(client?: PrismaClient) {
+        this.prisma = client || new PrismaClient();
         
         // Initialize services
         this.games = new GameService(this.prisma);
