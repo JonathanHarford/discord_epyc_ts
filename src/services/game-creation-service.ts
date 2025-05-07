@@ -147,7 +147,7 @@ export class GameCreationService {
             minTurns: z.number().int().min(4, { message: 'Minimum turns must be at least 4.' }).optional(),
             maxTurns: z.number().int().optional()
         }).refine(data => {
-            // Skip validation if both are undefined
+            // Skip validation if either minTurns or maxTurns is undefined
             if (data.minTurns === undefined || data.maxTurns === undefined) {
                 return true;
             }
@@ -165,7 +165,7 @@ export class GameCreationService {
             const errors = validationResult.error.format();
             const errorMessages: string[] = [];
             
-            // Extract error messages
+            // Extract error messages from field errors
             for (const [key, value] of Object.entries(errors)) {
                 if (key === '_errors') continue;
                 
@@ -187,9 +187,34 @@ export class GameCreationService {
                 }
             }
             
-            // Add any top-level refinement errors
-            if ('_errors' in errors && Array.isArray(errors._errors) && errors._errors.length > 0) {
-                errorMessages.push(...errors._errors);
+            // Extract and add any refinement errors from the error object itself
+            const formattedError = validationResult.error.format();
+            if (formattedError._errors && formattedError._errors.length > 0) {
+                // Handle refinement errors specifically based on the path
+                const refinementErrors = validationResult.error.issues.filter(err => err.code === 'custom');
+                
+                for (const err of refinementErrors) {
+                    // Get the field path and format it nicely
+                    if (err.path && err.path.length > 0) {
+                        const fieldPath = err.path[0].toString();
+                        let fieldName = fieldPath;
+                        
+                        // Format field name for display
+                        switch (fieldPath) {
+                            case 'turnPattern': fieldName = 'Turn pattern'; break;
+                            case 'writingTimeout': fieldName = 'Writing timeout'; break;
+                            case 'drawingTimeout': fieldName = 'Drawing timeout'; break;
+                            case 'returns': fieldName = 'Returns'; break;
+                            case 'minTurns': fieldName = 'Minimum turns'; break;
+                            case 'maxTurns': fieldName = 'Maximum turns'; break;
+                        }
+                        
+                        errorMessages.push(`${fieldName}: ${err.message}`);
+                    } else {
+                        // For errors without a path, just add the message
+                        errorMessages.push(err.message);
+                    }
+                }
             }
             
             return {
