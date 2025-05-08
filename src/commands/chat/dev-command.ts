@@ -34,38 +34,7 @@ export class DevCommand implements Command {
 
         const subcommand = intr.options.getSubcommand();
         
-        if (subcommand === 'testmode') {
-            const serverId = intr.options.getString('server_id', true);
-            
-            try {
-                // Check if server exists in database
-                const server = await this.dbService.servers.getServer(serverId);
-                if (!server) {
-                    await InteractionUtils.send(
-                        intr,
-                        `❌ Server with ID \`${serverId}\` not found in database.`
-                    );
-                    return;
-                }
-                
-                // Toggle test mode
-                const updatedSettings = await this.dbService.servers.updateTestMode(serverId);
-                
-                // Display success message
-                await InteractionUtils.send(
-                    intr,
-                    `✅ Test mode ${updatedSettings.testMode ? 'enabled' : 'disabled'} for server \`${serverId}\` (${server.name}).`
-                );
-            } catch (error) {
-                console.error('Error toggling test mode:', error);
-                await InteractionUtils.send(
-                    intr,
-                    `❌ Failed to toggle test mode: ${error.message}`
-                );
-            }
-            return;
-        }
-        else if (subcommand === 'info') {
+        if (subcommand === 'info') {
             let shardCount = intr.client.shard?.count ?? 1;
             let serverCount: number;
             if (intr.client.shard) {

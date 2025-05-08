@@ -27,7 +27,6 @@ model User {
   createdGames   Game[] // Games created by this user
   createdSeasons Season[] // Seasons created by this user
 
-  testPlayers   Player[] @relation("testPlayers")
   @@map("users")
 }
 
@@ -41,9 +40,6 @@ model Player {
   // Relations
   turns   Turn[] // Player's turns in games
   seasons SeasonsPlayers[] // Seasons this player has participated in
-
-  testCreatorId String?
-  testCreator   User? @relation(name: "testPlayers", fields: [testCreatorId], references: [id]) 
 
   @@map("players")
 }
@@ -71,13 +67,12 @@ model ServerSettings {
   announcementChannelId String
   completedChannelId    String?
   adminChannelId        String?
-  testMode              Boolean @default(false)
 
   defaultGameSettingsId String
-  defaultGameSettings   GameSettings @relation(fields: [defaultGameSettingsId], references: [id])
+  defaultGameSettings   GameSettings @relation(fields: [defaultGameSettingsId], references: [id], onDelete: Cascade)
 
   defaultSeasonSettingsId String
-  defaultSeasonSettings   SeasonSettings @relation(fields: [defaultSeasonSettingsId], references: [id])
+  defaultSeasonSettings   SeasonSettings @relation(fields: [defaultSeasonSettingsId], references: [id], onDelete: Cascade)
 
   @@map("server_settings")
 }
@@ -125,7 +120,7 @@ model Game {
   status String @default("setup") // setup, active, paused, completed, canceled
 
   // Relations
-  settings   GameSettings @relation(fields: [settingsId], references: [id])
+  settings   GameSettings @relation(fields: [settingsId], references: [id], onDelete: Cascade)
   settingsId String
 
   server    Server  @relation(fields: [serverId], references: [id], onDelete: Cascade)
@@ -174,7 +169,7 @@ model Season {
   status String @default("open") // open, active, completed
 
   // Relations
-  seasonSettings   SeasonSettings @relation(fields: [seasonSettingsId], references: [id])
+  seasonSettings   SeasonSettings @relation(fields: [seasonSettingsId], references: [id], onDelete: Cascade)
   seasonSettingsId String
 
   server    Server           @relation(fields: [serverId], references: [id], onDelete: Cascade)
