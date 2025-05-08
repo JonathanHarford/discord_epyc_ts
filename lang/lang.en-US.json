@@ -291,8 +291,7 @@
             "ViewGuildInsights": "View Server Insights"
         },
         "devCommandNames": {
-            "info": "info",
-            "testmode": "testmode"
+            "info": "info"
         },
         "helpOptions": {
             "contactSupport": "Contact Support",
