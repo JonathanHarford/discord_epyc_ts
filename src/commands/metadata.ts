@@ -32,17 +32,6 @@ export const ChatCommandMetadata: {
                 name: Lang.getRef('devCommandNames.info', Language.Default).toLowerCase(),
                 name_localizations: Lang.getRefLocalizationMap('devCommandNames.info'),
                 description: 'Get developer information about the bot'
-            },
-            {
-                type: ApplicationCommandOptionType.Subcommand,
-                name: Lang.getRef('devCommandNames.testmode', Language.Default).toLowerCase(),
-                name_localizations: Lang.getRefLocalizationMap('devCommandNames.testmode'),
-                description: 'Toggle test mode for a server',
-                options: [
-                    {
-                        ...Args.DEV_SERVER_ID
-                    }
-                ]
             }
         ],
     },
