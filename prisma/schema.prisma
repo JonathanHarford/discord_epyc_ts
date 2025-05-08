@@ -34,7 +34,7 @@ model User {
 // Player model represents Users who participate in games
 model Player {
   id        String   @id // Same as User ID
-  user      User     @relation(fields: [id], references: [id])
+  user      User     @relation(fields: [id], references: [id], onDelete: Cascade)
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
@@ -66,7 +66,7 @@ model Server {
 
 model ServerSettings {
   id                    String  @id
-  server                Server? @relation(fields: [id], references: [id])
+  server                Server? @relation(fields: [id], references: [id], onDelete: Cascade)
   maxConcurrentGames    Int     @default(10)
   announcementChannelId String
   completedChannelId    String?
@@ -128,12 +128,12 @@ model Game {
   settings   GameSettings @relation(fields: [settingsId], references: [id])
   settingsId String
 
-  server    Server  @relation(fields: [serverId], references: [id])
+  server    Server  @relation(fields: [serverId], references: [id], onDelete: Cascade)
   serverId  String
-  creator   User    @relation(fields: [creatorId], references: [id])
+  creator   User    @relation(fields: [creatorId], references: [id], onDelete: Cascade)
   creatorId String
   turns     Turn[]
-  season    Season? @relation(fields: [seasonId], references: [id])
+  season    Season? @relation(fields: [seasonId], references: [id], onDelete: SetNull)
   seasonId  String?
 
   @@map("games")
@@ -155,9 +155,9 @@ model Turn {
   deadline DateTime? // When this turn needs to be completed
 
   // Relations
-  game     Game   @relation(fields: [gameId], references: [id])
+  game     Game   @relation(fields: [gameId], references: [id], onDelete: Cascade)
   gameId   String
-  player   Player @relation(fields: [playerId], references: [id])
+  player   Player @relation(fields: [playerId], references: [id], onDelete: Cascade)
   playerId String
   flags    Flag[] // Flags/reports associated with this turn
 
@@ -177,9 +177,9 @@ model Season {
   seasonSettings   SeasonSettings @relation(fields: [seasonSettingsId], references: [id])
   seasonSettingsId String
 
-  server    Server           @relation(fields: [serverId], references: [id])
+  server    Server           @relation(fields: [serverId], references: [id], onDelete: Cascade)
   serverId  String
-  creator   User             @relation(fields: [creatorId], references: [id])
+  creator   User             @relation(fields: [creatorId], references: [id], onDelete: Cascade)
   creatorId String
   games     Game[] // Games in this season
   players   SeasonsPlayers[] // Players participating in this season
@@ -190,9 +190,9 @@ model Season {
 // Season-Player relationship model
 model SeasonsPlayers {
   // Relations
-  season   Season @relation(fields: [seasonId], references: [id])
+  season   Season @relation(fields: [seasonId], references: [id], onDelete: Cascade)
   seasonId String
-  player   Player @relation(fields: [playerId], references: [id])
+  player   Player @relation(fields: [playerId], references: [id], onDelete: Cascade)
   playerId String
 
   @@id([seasonId, playerId])
@@ -207,9 +207,9 @@ model Flag {
   resolvedAt DateTime?
 
   // Relations
-  reporter   User   @relation(fields: [reporterId], references: [id])
+  reporter   User   @relation(fields: [reporterId], references: [id], onDelete: Cascade)
   reporterId String
-  turn       Turn   @relation(fields: [turnId], references: [id])
+  turn       Turn   @relation(fields: [turnId], references: [id], onDelete: Cascade)
   turnId     String
 
   @@map("flags")
