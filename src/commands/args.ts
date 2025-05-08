@@ -16,12 +16,7 @@ export class Args {
                 name: Lang.getRef('devCommandNames.info', Language.Default),
                 name_localizations: Lang.getRefLocalizationMap('devCommandNames.info'),
                 value: DevCommandName.INFO,
-            },
-            {
-                name: Lang.getRef('devCommandNames.testmode', Language.Default),
-                name_localizations: Lang.getRefLocalizationMap('devCommandNames.testmode'),
-                value: DevCommandName.TESTMODE,
-            },
+            }
         ],
     };
 

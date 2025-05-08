@@ -202,6 +202,10 @@
         "messageCommands": {
             "viewDateSent": "View Date Sent"
         },
+        "devCommandNames": {
+            "testmode": "testmode",
+            "info": "info"
+        },
         "arguments": {
             "command": "command",
             "option": "option"
@@ -291,9 +295,6 @@
             "ViewChannel": "View Channel(s)",
             "ViewCreatorMonetizationAnalytics": "View Server Subscription Insights",
             "ViewGuildInsights": "View Server Insights"
-        },
-        "devCommandNames": {
-            "info": "info"
         },
         "helpOptions": {
             "contactSupport": "Contact Support",

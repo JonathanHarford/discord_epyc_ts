@@ -8,10 +8,5 @@ export default defineConfig({
         typecheck: {
             tsconfig: './tsconfig.test.json',
         },
-        globalSetup: ['./vitest.global-setup.ts'],
-        deps: {
-            interopDefault: true,
-        },
     },
 });
-   
