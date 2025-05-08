@@ -114,6 +114,9 @@ describe('ConfigService Integration Tests', () => {
     };
 
     const updateResult = await configService.updateGameSettings(serverId, gameSettingsInput, dbService);
+    if (!updateResult.success) {
+      console.log('updateGameSettings failed. Result:', JSON.stringify(updateResult, null, 2));
+    }
     expect(updateResult.success).toBe(true);
     expect(updateResult.settings).toBeDefined();
     if (!updateResult.settings) throw new Error('updateResult.settings is undefined');
