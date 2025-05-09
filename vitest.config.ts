@@ -8,5 +8,6 @@ export default defineConfig({
         typecheck: {
             tsconfig: './tsconfig.test.json',
         },
+        setupFiles: ['./tests/setup/integration-test-setup.ts'],
     },
 });

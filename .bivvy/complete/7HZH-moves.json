@@ -1,0 +1,43 @@
+{
+  "Climb": "7HZH",
+  "moves": [
+    {
+      "status": "complete",
+      "description": "Setup Test Environment Configuration",
+      "details": "Ensure `TEST_DATABASE_URL` is in .env. Decide on Vitest configuration (adapt existing `vitest.config.ts` or create `vitest.integration.config.ts`). Create/identify a test setup file (e.g., `tests/setup/integration.ts` or `vitest.setup.ts`)."
+    },
+    {
+      "status": "complete",
+      "description": "Implement Database Preparation Utilities in Test Setup",
+      "details": "In the test setup file: Create a function to init Prisma Client for the test DB (using `TEST_DATABASE_URL`). Create a function/script to run Prisma migrations (e.g., `npx prisma migrate deploy` or `npx prisma db push --accept-data-loss`). Create a function to truncate all tables using Prisma (fetch table names dynamically and use `prisma.$executeRawUnsafe` or similar for each)."
+    },
+    {
+      "status": "complete",
+      "description": "Integrate Database Preparation into Vitest Lifecycle",
+      "details": "Use Vitest's global setup/teardown or `beforeAll`/`beforeEach`/`afterAll`/`afterEach` in the test setup file or test files. Ensure migrations run once before the suite, and table truncation runs before each test/file for isolation.",
+      "rest": true
+    },
+    {
+      "status": "complete",
+      "description": "Write Integration Tests for GameCreationService - Success Cases",
+      "details": "Test 1: Successful game creation with default server settings (verify DB state, player creation). Test 2: Successful game creation with valid custom settings (verify DB state for game and custom settings)."
+    },
+    {
+      "status": "complete",
+      "description": "Write Integration Tests for GameCreationService - Failure/Edge Cases",
+      "details": "Test 1: Server does not exist in DB (check error message). Test 2: Default server game settings not configured (check error message).",
+      "rest": true
+    },
+    {
+      "status": "complete",
+      "description": "Write Integration Tests for GameCreationService - Validation Error Cases",
+      "details": "Cover invalid `turnPattern`, `writingTimeout`, `drawingTimeout`, `maxTurns` < `minTurns`, `minTurns` < 4. Verify `success: false` and specific `validationErrors` for each."
+    },
+    {
+      "status": "complete",
+      "description": "Review and Refine Tests",
+      "details": "Ensure all PRD requirements are covered. Check for test clarity, maintainability, and efficiency. Verify test database cleanup is effective.",
+      "rest": true
+    }
+  ]
+} 
