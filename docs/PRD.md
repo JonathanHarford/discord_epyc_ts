@@ -163,7 +163,7 @@ Either `open_duration` or `max_players` must be set. If both are set, the season
 
 ## Implementation Notes
 
-Discord Commands are defined in `src/commands/chat`. Discord Interactions that are game-oriented all call Database Service methods (`src/services`) that do the actual work, and are what are tested with integration tests. The Database Service methods depend on pure logic functions that are tested with unit tests (no mocking).
+Discord Commands are defined in `src/commands/chat`. Discord Interactions that are game-oriented (e.g., starting a game, submitting a turn) primarily call methods within the service layer (`src/services/*-service.ts`, such as `GameService`, `PlayerService`, etc.). These service methods encapsulate the core business logic and database interactions. To enhance integration testing fidelity and centralize message formatting, these service methods are responsible for constructing the complete, user-facing strings for all bot replies. This includes the text for DMs, public channel messages, and ephemeral messages. Consequently, command handlers in `src/commands/chat` should receive these pre-formatted strings (or structured message objects) from the services and focus on sending them to Discord with minimal additional processing. This approach ensures that integration tests for the service layer can assert the exact messages users will see, providing a more robust parallel to the live Discord experience. The Database Service methods, in turn, depend on pure logic functions (e.g., in `src/utils/`) which are unit-tested without mocking external dependencies.
 
 # Also
 
