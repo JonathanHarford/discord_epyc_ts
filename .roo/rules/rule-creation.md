@@ -1,0 +1,65 @@
+---
+description: Placing and organizing Roo Code rule files
+globs: *.md
+alwaysApply: false
+---
+actions:
+  - type: suggest
+    message: |
+      When creating Roo Code rules:
+
+      1. Always place rule files in PROJECT_ROOT/.roo/rules/:
+         ```
+         .roo/rules/
+         ├── your-rule-name.md
+         ├── another-rule.md
+         └── ...
+         ```
+
+      2. Follow the naming convention:
+         - Use kebab-case for filenames
+         - Always use .md extension
+         - Make names descriptive of the rule's purpose
+
+      3. Directory structure:
+         ```
+         PROJECT_ROOT/
+         ├── .roo/
+         │   └── rules/
+         │       ├── your-rule-name.md
+         │       └── ...
+         └── ...
+         ```
+
+      4. Never place rule files:
+         - In the project root
+         - In subdirectories outside .roo/rules
+         - In any other location
+
+      5. Follow MDC header syntax:
+         - First line three hyphens: `---`
+         - Second line a `description`, e.g.: `description: Placing and organizing...`
+         - Third line filename `globs` to determine when to apply rules, e.g.: `globs: **/*.rs`
+         - Fourth line flags whether we should `alwaysApply` the rule, e.g.: `alwaysApply: false`
+         - Fifth line three hyphens: `---`
+
+      6. Be concise:
+         - Don't cover anything that's not specific to the rule you're creating
+         - One-sentence rules are fine if you think they will be effective
+         - When appropriate, add to existing MDC files rather than creating a new one
+
+examples:
+  - input: |
+      # Bad: Rule file in wrong location
+      rules/my-rule.md
+      my-rule.md
+      .rules/my-rule.md
+	  .cursorrules/my-rule.md
+
+      # Good: Rule file in correct location
+      .roo/rules/my-rule.md
+    output: "Correctly placed Roo Code rule file"
+
+metadata:
+  priority: high
+  version: 1.0

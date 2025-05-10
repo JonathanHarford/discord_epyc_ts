@@ -161,6 +161,10 @@ Either `open_duration` or `max_players` must be set. If both are set, the season
 - **Ban**: Banning a user from playing on a server
 - **Admin Commands**: Special commands only available to server administrators or bot administrators 
 
+## Implementation Notes
+
+Discord Commands are defined in `src/commands/chat`. Discord Interactions that are game-oriented all call Database Service methods (`src/services`) that do the actual work, and are what are tested with integration tests. The Database Service methods depend on pure logic functions that are tested with unit tests (no mocking).
+
 # Also
 
 - Time durations are stored as human-readable strings, e.g.
