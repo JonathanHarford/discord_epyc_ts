@@ -95,8 +95,12 @@ A season is a collection of games played by one group of players concurrently on
 - `turn_pattern`: The pattern of turn types in a game.
   - Possible values: `drawing,writing` or `writing,drawing`
   - Default: `writing,drawing` (Starts with a writing turn, alternates between writing and drawing turns)
-- `returns`: Overrides the "one turn per player per game" rule. The number of times a player can return to a game, and the number of turns that must pass before a player can return. Syntax: `returns:<number of returns>/<turn gap>`
-  - Default: undefined (no returning)
+- `return_count`: The number of additional times a player can take a turn in the same game after their initial turn.
+  - Integer value.
+  - Default: `0` (meaning a player takes only one turn per game).
+- `return_cooldown`: The number of turns that must be completed by other players before a player who has already played can take another turn (applicable if `return_count` is greater than 0).
+  - Integer value.
+  - Default: `null` (meaning if `return_count` > 0, the player can return as soon as it's a valid turn for them without a specific cooldown period of intervening turns, though game flow would still naturally create a gap). If set to a positive integer (e.g., `3`), three other turns must pass before the player can play again.
 - `writing_timeout`: The time limit for a player to write a description.
   - Default: 1d
 - `writing_warning`: The amount of time before a writing turn times out that a warning is posted to the player.
