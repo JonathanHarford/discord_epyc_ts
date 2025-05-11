@@ -41,19 +41,6 @@ Bot(reply):
 	max_turns: none
 	returns: Players can play 2 times per game, as long as three turns have passed in between.
 
-Alice→#general:
-	/config seasons
-
-Bot(reply):
-	**Default season rules:**
-	turn_pattern: writing,drawing
-	writing_timeout: 1d
-	writing_warning: 3h
-	drawing_timeout: 3d
-	drawing_warning: 6h
-	min_players: 6
-	max_players: none
-
 # Creating a game
 
 Alice→#games:
@@ -157,102 +144,7 @@ Bot→#epyc:
 	Final turn (@Emma): "The martial artist chopped the vegetable with one swift motion."
 	
 	Thanks for playing!
-
-# Creating a season
-
-Alice→#games:
-	/season open_duration:1d
-
-Bot→#games:
-	@Alice has started a new season with ID: **blue-happy-fox**
-	Season will remain open for joining for 1 day.
-	Use `/season join id:blue-happy-fox` to join!
-
-Bob→#games:
-	/season join id:blue-happy-fox
-
-Bot→#games:
-	@Bob has joined the season **blue-happy-fox**!
-	Current players: @Alice, @Bob
-
-[After open duration passes]
-
-Bot→#games:
-	Season **blue-happy-fox** is now active with 8 players x 8 games = 64 turns in all!
-
-# Playing a season
-
-Bot→Alice(DM): (Initiation occurs simultaneously for all players/games)
-	It's your turn to start **Game 1** for season **blue-happy-fox**! 
-	Please write a starting sentence or phrase.
-
-Alice→Bot(DM):
-	The astronaut discovered a tiny alien in his spacesuit pocket.
-
-Bot→Alice(DM):
-	Thanks! Your turn has been recorded.
-
---
-
-Bot→Bob(DM):
-	It's your turn to start **Game 2** for season **blue-happy-fox**!
-	Please write a starting sentence or phrase.
-
-Bob→Bot(DM):
-	Three cats wearing sunglasses drove a convertible down the highway.
-
-Bot→Bob(DM):
-	Thanks! Your turn has been recorded.
-
---
-
-Bot→Bob(DM):
-	It's your turn in **Game 1** for season **blue-happy-fox**!
-	Draw an illustration based on this sentence:
-	"The astronaut discovered a tiny alien in his spacesuit pocket."
 	
-	[Attach your drawing as an image file in this DM]
-
-Bob→Bot(DM):
-	[Uploads drawing of astronaut with alien]
-
-Bot→Alice(DM):
-	Thanks! Your turn has been recorded.
-
---
-
-Bot→Alice(DM):
-	It's your turn in **Game 2** for season **blue-happy-fox**! Draw an illustration based on this sentence:
-	"Three cats wearing sunglasses drove a convertible down the highway."
-	
-	[Attach your drawing as an image file in this DM]
-
-Alice→Bot(DM):
-	[Uploads drawing of cats in convertible]
-
-Bot→Alice(DM):
-	Thanks! Your turn has been recorded.
-
-
-# Finishing a season
-
-[After all games in season completed]
-
-Bot→#epyc:
-	**Season Complete!** 🎉
-	Season **blue-happy-fox** with @Alice, @Bob
-	
-	**Game 1 (Started by @Alice):**
-	Turn 1 (@Alice): "The astronaut discovered a tiny alien in his spacesuit pocket."
-	Turn 2 (@Bob): [Image of astronaut with alien]
-    ...
-
-	
-	**Game 2 (Started by @Bob):**
-	Turn 1 (@Bob): "Three cats wearing sunglasses drove a convertible down the highway."
-	Turn 2 (@Alice): [Image of cats in convertible]
-    ...
-
 # Admin commands
 
 Admin→#games:

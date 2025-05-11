@@ -1,165 +1,292 @@
-<context>
 # Overview
 Eat Poop You Cat (EPYC) is a party game that combines elements of the classic games "Telephone" and "Pictionary." The name comes from a memorable example of how the game can produce humorous results. It's also known by other names such as "Telestrations" or "Telephone Pictionary." This document outlines the requirements for a Discord bot implementation of EPYC.
 
+The bot will support two main modes of play: **Season Games** and **OnDemand Games**. **Season Games are the primary focus for the Minimum Viable Product (MVP).**
+
 # Core Features
 
-## Basic Gameplay
+## Basic Gameplay (Applicable to both Game Types)
 1.  **Initial Turn**: The first player writes a sentence or phrase.
 2.  **Drawing Turn**: The second player draws an illustration based solely on that sentence.
 3.  **Describing Turn**: The third player writes a sentence based solely on the drawing (without seeing the original sentence).
-4.  **Alternating Turns**: This pattern of alternating between writing and drawing continues. Each player takes one and only one turn per game (unless `return_count` is configured).
+4.  **Alternating Turns**: This pattern of alternating between writing and drawing continues. Each player typically takes one turn per game.
 5.  **Reveal**: At the end, the final results are revealed to everyone, showing how the original sentence evolved through the game.
 
-## Discord Bot Implementation
-* **Game Start**: A game is initiated on a Discord server by the first player using the `/start` command. This player is immediately DM'd a request for an initiating turn.
+## Discord Bot Implementation (MVP focuses on Seasons)
+
+### Season Games (MVP)
+* **Game Start**: Seasons are initiated on a Discord server in a specific channel or via DM using the `/new season` command. 
+* **Joining a Season**: Players use `/join season:<id>`.
+* **Turn Assignment & Submission (DM)**:
+    * When a turn becomes available in a season game (it is **AVAILABLE**), the bot determines the next player based on specific logic (detailed below). The turn is then **OFFERED** to this player via DM.
+    * The player uses `/ready` in DM to claim the turn, making it **PENDING** (the turn is now **ASSIGNED**).
+    * If the previous turn was writing, the player responds to the DM directly with an uploaded image.
+    * If the previous turn was a drawing, the player responds to the DM directly with a sentence or phrase.
+* **Next Player Logic for Season Turns**:
+    * When a turn is AVAILABLE, the bot selects the next player to be OFFERED the turn based on a set of rules designed to ensure players play in every game once, avoid multiple pending turns, and balance turn types and playing order. The detailed logic is described in the [Next Player Logic](mdc:docs/NEXT_PLAYER_LOGIC.md) document.
+* **Turn Visibility**: Players can only see the immediately preceding completed turn that was OFFERED/ASSIGNED to them.
+* **Time Limits**: The bot enforces configurable time limits for claiming (`claim_timeout`) and submitting (`writing_timeout`, `drawing_timeout`) turns in season games.
+    * **Unclaimed Turns**: If a player does not use `/ready` to claim an OFFERED turn within the `claim_timeout`, the assignment is dismissed. The turn becomes AVAILABLE again to be OFFERED to another eligible player. The original player can still be assigned turns in that game later.
+    * **Claimed (PENDING) but Untaken Turns**: If a player claims a turn with `/ready` but fails to submit it within the `writing_timeout` or `drawing_timeout`, they are skipped for that specific turn in that game. The turn becomes AVAILABLE again to be OFFERED to another eligible player, and the player who failed to submit receives a message indicating they were skipped.
+* **Season/Game Conclusion**:
+    * A game within a season concludes when every player in the season has played in it (or been skipped due to timeout).
+    * A season concludes when every game within that season has been completed. A completed season with N players contains N games, each aiming for N turns (though some may have fewer if players are skipped).
+    * When a season is completed, the full sequence for *each* game in the season is revealed.
+    * The reveal occurs in the channel where the season was initiated. If initiated via DM, the completed season sequences are DM'd to each player in the season.
+
+### OnDemand Games (Future Enhancement)
+* **Game Start**: A game is initiated on a Discord server by the first player using the `/new game` command. This player is immediately DM'd a request for an initiating turn.
 * **Joining a Game**: When another player uses the `/play` command, they are assigned to the active game they have not yet played in that will become stale soonest (based on its last update time and stale timeout setting). They are then DM'd the previous turn.
 * **Submitting Turns (DM)**:
     * If the previous turn was writing, the player responds to the DM directly with an uploaded image.
     * If the previous turn was a drawing, the player responds to the DM directly with a sentence or phrase.
 * **Turn Visibility**: Players can only see the immediately preceding completed turn.
 * **Time Limits**: The bot enforces configurable time limits for each turn.
-
-## Game Flow
-1.  **Game Initialization**:
-    * A player uses the `/start` command to initiate a game, setting optional rules/parameters.
-    * The bot immediately DMs the first player for a starting sentence.
-2.  **Turn Sequence**:
-    * Players signal their intent to play using the `/play` command.
-    * They are assigned to a game, and the bot DMs them the previous player's completed turn.
-        * If no game is available, they are told to `/start` a new game if they wish to play.
-    * The player responds to the DM with their turn.
-3.  **Game Conclusion**:
+* **Game Conclusion**:
     * A game concludes when:
         1.  A minimum number (configurable) of turns have been completed AND the game has reached a certain level of staleness (configurable), OR
         2.  The game has reached a maximum number (configurable) of turns.
-    * The bot posts the complete sequence in the "completed" channel.
+    * The bot posts the complete sequence in the "completed" channel (defaults to announcement channel).
         * Users can react and comment on the results.
 
-## Seasons
-A season is a collection of games played by one group of players concurrently on one server.
-* **Creation**: A player uses the `/season open_duration:<duration>` command. A three-word ID is generated for sharing.
-* **Joining**: Other players join using `/season join id:<id>`.
-* **Activation**: Once the `open_duration` has passed (or `max_players` is reached):
-    * The season becomes active; no more players can join.
-    * One game is created per player, and that player is DM'd for an initiating turn.
-* **Season Gameplay**:
-    * A game is not completed until every player in the season has played in it (or been skipped due to timeout).
-    * The season is not completed until every game has been completed. (A completed season with N players contains N games, each with N turns).
-    * Turns in a season cannot be flagged.
-    * `min_turns`, `max_turns`, `returns`, and `stale_timeout` are ignored for season games.
-    * Pending turns are distributed to ensure variety in player order and turn type (writing/drawing).
+## Game Flow (MVP focuses on Seasons)
 
-# User Experience
+### Season Game Flow
+1.  **Season Initialization**:
+    * A player uses the `/new season` command in a channel or DM, setting optional rules/parameters (like `open_duration`, `min_players`, `max_players`). The channel/DM context determines where the completed season is announced/sent.
+    * Other players join using `/join season:<id>`.
+    * Once the `open_duration` has passed or `max_players` is reached, the season becomes active; no more players can join.
+    * One game is created per player in the season (N players = N games).
+    * Each player is immediately OFFERED the initiating turn for one of the season's games via DM.
+2.  **Turn Sequence within a Season**:
+    * Players use `/ready` in DM to claim an OFFERED turn (making it PENDING/ASSIGNED).
+    * The player responds to the DM with their turn (text or image).
+    * Upon completion, the bot processes the turn. If there are more turns needed in that game and eligible players, the next turn becomes AVAILABLE and is then OFFERED to the selected player based on the Next Player Logic (detailed in Core Features and [Next Player Logic](mdc:docs/NEXT_PLAYER_LOGIC.md)).
+    * This continues until all turns in all games are completed (or skipped).
+3.  **Season Conclusion**:
+    * When all games in a season are completed (each player has played their assigned turns in each game, or been skipped), the season concludes.
+    * The bot posts or DMs the full sequence of all games in the season.
 
-## Key User Flows
-* **Starting a Game**: User initiates `/start`, receives DM, submits first turn.
-* **Playing a Turn**: User initiates `/play`, receives DM with previous turn, submits their turn (text or image).
-* **Viewing Completed Games**: Users view the full chain of a completed game in a designated channel.
-* **Joining/Playing a Season**: Users create or join a season, then play through multiple games within that season.
+### OnDemand Game Flow (Future Enhancement)
+1.  **Game Initialization**:
+    * A player uses the `/new game` command to initiate a game, setting optional rules/parameters.
+    * The bot immediately DMs the first player for a starting sentence.
+2.  **Turn Sequence**:
+    * Players signal their intent to play using the `/play` command.
+    * They are assigned to an active game, and the bot DMs them the previous player's completed turn.
+        * If no game is available, they are told to `/new game` if they wish to play.
+    * The player responds to the DM with their turn.
+3.  **Game Conclusion**:
+    * (See Core Features -> OnDemand Games -> Game Conclusion)
 
-## UI/UX Considerations
-* **Direct Messages (DMs)**: Core gameplay (receiving turns, submitting turns) happens via DMs with the bot.
-* **Slash Commands**: Users interact with the bot using Discord slash commands (`/start`, `/play`, `/season`, etc.).
+## User Experience (MVP focuses on Seasons)
+
+## Key User Flows (MVP focuses on Seasons)
+* **Starting a Season**: User initiates `/new season` in a channel or DM, receives DM for their first turn OFFER, submits their turn.
+* **Joining/Playing a Season**: User joins a season via `/join season:<id>`, then repeatedly plays turns (using `/ready` to CLAIM OFFERED turns and responding via DM with text/image) as they are assigned.
+* **Viewing Completed Seasons/Games**: Users view the full chains of all games in a completed season in the designated channel or via DM.
+* **Checking Season Status**: Users use `/status season:<name>` to see the progress of games within a season (e.g., how many turns left per game).
+
+## UI/UX Considerations (MVP focuses on Seasons)
+* **Direct Messages (DMs)**: Core gameplay (receiving turn OFFERs, CLAIMING turns with `/ready`, submitting turns) happens via DMs with the bot.
+* **Slash Commands**: Users interact with the bot using Discord slash commands (`/new season`, `/join season`, `/status season`, `/ready`, `/config seasons`, etc.). `/new game` and `/play` are lower priority (OnDemand).
 * **Notifications**:
-    * Players receive DM notifications for turn timeouts.
-    * All players receive a notification when a game they participated in is completed.
-* **Clarity**: Instructions and prompts from the bot should be clear and concise.
-* **Error Handling**: Users should receive informative messages if a command fails or an action cannot be performed (e.g., trying to `/play` with an already pending turn).
+    * Players receive DM notifications when a turn is OFFERED to them.
+    * Players receive DM notifications for turn timeout warnings.
+    * Players receive DM notifications if they are skipped for failing to submit a claimed turn.
+    * All players in a season receive a notification in the season channel (or via DM if season started in DM) when the season is completed.
+* **Clarity**: Instructions and prompts from the bot should be clear and concise, especially regarding the difference between a turn being AVAILABLE, OFFERED, CLAIMED (PENDING), and ASSIGNED.
+* **Error Handling**: Users should receive informative messages if a command fails or an action cannot be performed (e.g., trying to `/ready` when no turn is OFFERED, trying to `/join season` that doesn't exist or is closed).
 
 ## User Terminology
-* **Game Creator**: The player who initiated the game with the `/start` command.
-* **Player**: A Discord user participating in an EPYC game.
-* **Admin**: A server administrator with additional privileges for game moderation.
+* **Season Creator**: The player who initiated the season with the `/new season` command.
+* **Player**: A Discord user participating in an EPYC season/game.
+* **Admin**: A server administrator with additional privileges for moderation (flagging, banning, terminating).
 * **Test Player**: A virtual player created for testing purposes.
-</context>
-<PRD>
+
 # Technical Architecture
 
 ## System Components
-* **Discord Bot**: The primary application interacting with users on Discord.
-* **Service Layer**: Encapsulates core business logic (game management, player management, turn processing). (e.g., `GameService`, `PlayerService` in `src/services/*.ts`).
-* **Database**: Stores game state, player information, turns, season data, etc.
+* **Discord Bot**: The primary application interacting with users on Discord. Based on Kevin Novak's TypeScript Discord.js Bot Template.
+* **Service Layer**: Encapsulates core business logic (season management, game management within seasons, player management, turn processing, **next player selection logic for seasons**). (e.g., `SeasonService`, `GameService`, `PlayerService`, `TurnService` in `src/services/*.ts`).
+* **Database**: Stores game state, player information, turns, season data, etc. Prisma on top of PostgreSQL.
 * **Command Handlers**: Process Discord slash commands and interactions, call service layer methods, and format responses. (Located in `src/commands/chat`).
+* **Task Scheduler**: Component responsible for monitoring claim and submission timeouts and triggering the necessary actions (dismissing offers, skipping players, offering turn to next eligible player).
 
 ## Implementation Notes
 * Discord Commands are defined in `src/commands/chat`.
-* Discord Interactions that are game-oriented primarily call methods within the service layer.
-* Service methods return structured data (e.g., game objects, status updates, error details).
+* Discord Interactions that are game/season-oriented primarily call methods within the service layer.
+* Service methods return structured data (e.g., season/game objects, status updates, error details), **including structured data payloads for any required messages or notifications.**
 * The responsibility for constructing complete, user-facing strings for all bot replies (DMs, public channel messages, ephemeral messages) lies within the command handler files in `src/commands/chat`.
 * The command's `execute` method acts as a thin shell: it calls service method(s), receives structured data, passes this data to its local message generation function(s), and then sends the resulting string(s) to Discord.
 * This architecture decouples presentation logic from core service responsibilities and centralizes message formatting logic.
-* Service methods depend on pure logic functions (e.g., in `src/game/`) which are unit-tested without mocking external dependencies.
+* Service methods depend on pure logic functions (e.g., in `src/game/`) which should be unit-tested without mocking external dependencies.
 
 ```mermaid
 sequenceDiagram
     participant Discord
-    participant CommandHandler as Command Handler<br/>(commands/chat/*)
-    participant MessageGenerator
-    participant ServiceLayer as Service Layer<br/>(services/*)
+    participant CommandHandler as Command Handler<br/>(src/commands/chat/*)
+    participant MessageLayer as Message Generation<br/>(src/messaging/*) # this layer formats messages based on structured data
+    participant ServiceLayer as Service Layer<br/>(Orchestration Logic) # returns structured data AND message instructions
     participant Database
-    participant PureLogic as Game Pure Functions<br/>(game/*)
-    
+    participant PureLogic as Game Pure Functions<br/>(Core State Transitions)
+    participant i18n
+    participant TaskScheduler as Task Scheduler
 
-    Discord->>CommandHandler: Command / Message
+    Discord->>CommandHandler: Command / Message Event
     activate CommandHandler
-    CommandHandler->>ServiceLayer: Call
-    activate ServiceLayer
-    ServiceLayer->>Database: Query
+    CommandHandler->>Database: Fetch Current State
     activate Database
-    Database-->>ServiceLayer: Results
+    Database-->>CommandHandler: Current State
     deactivate Database
-    ServiceLayer->>PureLogic: Call
+
+    Note over CommandHandler,ServiceLayer: Call Service Method<br/>(Current State, Input Data)
+    CommandHandler->>ServiceLayer: Call Service Method
+    activate ServiceLayer
+
+    ServiceLayer->>PureLogic: Call Pure Function(s)
     activate PureLogic
-    PureLogic-->>ServiceLayer: Results
+    PureLogic-->>ServiceLayer: New State Slice / Results
     deactivate PureLogic
-    ServiceLayer-->>MessageGenerator: Results
+
+    ServiceLayer-->>CommandHandler: Results<br/>(New State Data, Message Instructions)
     deactivate ServiceLayer
 
-    activate MessageGenerator
-    MessageGenerator-->>CommandHandler: Messages
-    deactivate MessageGenerator
-    
-    CommandHandler->>Discord: Messages
+    CommandHandler->>Database: Save New State / Apply Updates
+    activate Database
+    Database-->>CommandHandler: Confirmation
+    deactivate Database
+
+    Note over CommandHandler,MessageLayer: Generate Formatted Messages<br/>(Using Message Instructions)
+    CommandHandler->>MessageLayer: Generate Messages
+    activate MessageLayer
+    MessageLayer->>i18n: Get Localized Strings
+    activate i18n
+    i18n-->>MessageLayer: Strings
+    deactivate i18n
+    MessageLayer-->>CommandHandler: Formatted Messages
+    deactivate MessageLayer
+
+    Note over CommandHandler,Discord: Send Messages via Discord API
+    CommandHandler->>Discord: Send Messages
     deactivate CommandHandler
+
+    Note over CommandHandler,TaskScheduler: Schedule/Cancel Timers<br/>(Based on Service Results)
+    CommandHandler->>TaskScheduler: Schedule/Cancel
+    activate TaskScheduler
+    TaskScheduler-->>CommandHandler: Confirmation
+    deactivate TaskScheduler
+
+    TaskScheduler->>CommandHandler: Timeout Event
+    activate CommandHandler
+    Note over CommandHandler,Database: (Similar flow for Timeout Events)<br/>Fetch State, Call Service, Save State, Generate/Send Messages, Schedule Tasks
+    CommandHandler->>Database: Fetch State
+    activate Database
+    Database-->>CommandHandler: State
+    deactivate Database
+    CommandHandler->>ServiceLayer: Call Service Method
+    activate ServiceLayer
+    ServiceLayer-->>CommandHandler: Results
+    deactivate ServiceLayer
+    CommandHandler->>Database: Save State
+    activate Database
+    Database-->>CommandHandler: Confirmation
+    deactivate Database
+    CommandHandler->>MessageLayer: Generate Messages
+    activate MessageLayer
+    MessageLayer-->>CommandHandler: Formatted Messages
+    deactivate MessageLayer
+    CommandHandler->>Discord: Send Messages
+    deactivate CommandHandler
+    CommandHandler->>TaskScheduler: Schedule/Cancel
+    activate TaskScheduler
+    TaskScheduler-->>CommandHandler: Confirmation
+    deactivate TaskScheduler
+
+
 ```
 
 ## System Terminology
-* **Announcement Channel**: Channel for new game/season announcements.
-* **Completed Channel**: Channel where completed game sequences are posted (defaults to announcement channel).
-* **Admin Channel**: Private channel for flagged turns and admin messages. If not set, turns cannot be flagged, and admin messages go to the announcement channel.
-* **Uncensored Channel**: Optional private channel for uncensored games.
+* **Announcement Channel**: Channel for new season announcements (defaults to where `/new season` is used if in a channel).
+* **Completed Channel**: Channel where completed game sequences are posted (defaults to announcement channel if season started in a channel; otherwise DM'd).
+* **Admin Channel**: Private channel for flagged turns and admin messages. For the MVP (Seasons), turn flagging is disabled, so this is less critical initially but still needed for admin commands like ban/unban.
+* **Uncensored Channel**: Optional private channel for uncensored games (less relevant for MVP Seasons where flagging is off).
 
 # Development Roadmap
-[Break down the development process into phases:
-- MVP requirements
-- Future enhancements
-- Do not think about timelines whatsoever -- all that matters is scope and detailing exactly what needs to be build in each phase so it can later be cut up into tasks]
 
-# Logical Dependency Chain
-[Define the logical order of development:
-- Which features need to be built first (foundation)
-- Getting as quickly as possible to something usable/visible front end that works
-- Properly pacing and scoping each feature so it is atomic but can also be built upon and improved as development approaches]
+The MVP focuses exclusively on the **Season Game** type. OnDemand Games are a future enhancement.
+
+## MVP Requirements (Season Games)
+- Season creation (`/new season` in channel or DM).
+- Joining a season (`/join season`).
+- Season activation based on `open_duration` or `max_players`.
+- Automatic game creation (N games for N players).
+- Initial turn OFFER assignment for all players in a new season.
+- DM-based turn OFFERs to players.
+- `/ready` command in DM to CLAIM a turn (making it PENDING/ASSIGNED).
+- DM-based turn submission (image for drawing, text for writing).
+- Implementation of the Next Player Logic for Season Turns (MUSTs and SHOULDs).
+- Handling of `claim_timeout` (dismissing offer).
+- Handling of `writing_timeout` and `drawing_timeout` (skipping player, sending skipped message).
+- Season and game completion detection.
+- Automated posting of completed season game sequences to the originating channel or DMing to players.
+- `/status season:<name>` command showing turns left per game in the season.
+- Basic configuration for seasons (`/config seasons`).
+- Admin commands: `terminate season`, `ban`, `unban`, `list seasons`, `list players`.
+- Player states: Not Banned, Banned.
+- Turn states: AVAILABLE, OFFERED, PENDING, COMPLETED, SKIPPED (replaces Removed for timeouts in seasons). Flagged/Removed states are less critical for MVP seasons where flagging is off, but the fields should exist.
+- Game states: Setup, Pending (waiting for players to join season), Active (season open/in progress), Paused (less relevant for MVP seasons), Completed, Terminated, Stale (less relevant for MVP seasons).
+- **Development Commands:** Implement commands for registering and clearing guild-specific Discord commands for development purposes.
+    - `pnpm run commands:register:guild`: Registers commands for the guild specified in `config/config.json` (`client.guildId`).
+    - `pnpm run commands:clear:guild`: Clears guild-specific commands for the guild specified in `config/config.json` (`client.guildId`).
+
+## Future Enhancements
+- OnDemand Game type (`/new game`, `/play`).
+- OnDemand Game rules (`min_turns`, `max_turns`, `returns`, `return_cooldown`, `stale_timeout`).
+- OnDemand Game flow (assigning players to the 'soonest stale' game).
+- Turn Flagging and Admin Channel workflow.
+- Uncensored Channel functionality.
+- More sophisticated end-of-season logic for handling edge cases with few remaining turns/players.
+- Additional reporting/status commands.
+
+# Logical Dependency Chain (MVP Focus)
+
+1.  **Database Schema**: Define tables for Seasons, Games, Players (in season/game context), Turns, and configurations. Ensure relationships support the season structure (Season has Players, Season has Games, Game is in Season, Game has Turns, Turn belongs to Player).
+2.  **Basic Bot Infrastructure**: Discord connection, command handling framework, DM capabilities.
+3.  **Configuration Loading/Saving**: Implement reading/writing of `.taskmasterconfig` or similar for season defaults, and loading `config/config.json` for guild ID.
+4.  **Season Core Logic**:|
+    *   `/new season` command handler: Create season entry in DB, generate ID, set initial state, DM creator for first turn offer.
+    *   `/join season` command handler: Add player to season in DB, validate season state (open).
+    *   Season Activation Logic: Background task or triggered on join/timeout to check `open_duration`/`max_players` and transition season state, create N games, and OFFER initial turns.
+5.  **Turn Core Logic (Season Specific)**:|
+    *   DM handling for `/ready`: Mark turn as PENDING/ASSIGNED, cancel claim timer, set submission timer.
+    *   DM handling for turn submission (image/text): Validate input, mark turn as COMPLETED, record content, cancel submission timer.
+    *   Next Player Selection Logic: Implement the specified algorithm (`MUSTs` and `SHOULDs`) to select the next player for a game when a turn is completed or a player is skipped. This is complex and core to season flow.
+    *   Turn OFFERing Mechanism: Logic to send the DM notification to the selected player when a turn is OFFERED.
+6.  **Timeout Handling**:|
+    *   Task Scheduler integration: Schedule claim and submission timers.
+    *   Timeout Event Handlers: Implement logic for `claim_timeout` (dismiss offer, find next player) and `writing_timeout`/`drawing_timeout` (skip player, send message, find next player).
+7.  **Completion Logic**:|
+    *   Game Completion Check: Logic triggered after a turn is completed/skipped to check if the game is finished (all players played or skipped).
+    *   Season Completion Check: Logic triggered after a game is completed to check if the season is finished (all games completed).
+    *   Completion Announcement/DM: Logic to format and send the full game sequences when a season finishes.
+8.  **`/status season` Command**: Query DB for season/game/turn states and format readable output (turns left per game).
+9.  **Admin Commands**: Implement the specified admin functionalities interacting with the DB (ban/unban players, terminate season, list seasons/players).
+10. **Development Commands**: Implement `pnpm run commands:register:guild` and `pnpm run commands:clear:guild` using the guild ID from `config/config.json`.
 
 # Risks and Mitigations
 
 ## Potential Risks
-* **Scope Creep**: Adding too many features beyond the core EPYC gameplay.
-* **Scalability**: Ensuring the bot can handle many concurrent games and users on large servers.
-* **Abuse/Spam**: Users submitting inappropriate content or exploiting game mechanics.
-* **User Churn**: Players losing interest if games take too long or are hard to join.
+* **Complexity of Next Player Logic**: Implementing the intricate logic for selecting the next player in Season Games while adhering to all constraints (`MUSTs` and `SHOULDs`) and handling edge cases (like the end-of-season scenario described) could be challenging.
+* **Scalability of Turn Distribution**: Ensuring the Task Scheduler and turn assignment logic efficiently handle many concurrent seasons and turns for potentially large numbers of players.
+* **Handling End-of-Season Edge Cases**: The scenario with few turns/players left where balancing turn types becomes difficult might require specific handling beyond the general logic.
+* **User Confusion**: Players might be confused by the different turn states (AVAILABLE, OFFERED, PENDING, ASSIGNED) and the rules around claiming vs. submitting turns.
 
 ## Mitigations
-* **Phased Development**: Focus on core MVP features first, then iterate.
-* **Efficient Database Design & Queries**: Optimize for performance.
-* **Moderation Tools**:
-    * **Turn Flags**: Players can flag turns as spam, low-effort, or offensive. Flagged games are paused and posted to an "admin" channel. Admins can delete the turn, remove the flag, or ban the player.
-    * **Admin Commands**: Server administrators can end games prematurely.
-    * **Banning**: Admins can ban users.
-* **Configurable Timeouts**: `writing_timeout`, `drawing_timeout`, `stale_timeout` help keep games moving.
-* **Clear Game Discovery**: `/play` command assigns users to active games efficiently.
-* **Turn Timeouts**: If a player doesn't respond within the time limit, they are skipped, and the game becomes available to other players.
+* **Incremental Development & Testing**: Build and test the next player logic iteratively, focusing on one rule at a time. Create specific test cases for edge scenarios like the end-of-season state.
+* **Optimize Database Queries**: Ensure efficient queries for retrieving player and turn data needed for the next player logic and status checks. Consider indexing relevant fields.
+* **Refine Next Player Logic**: If standard logic struggles with end-of-season, analyze remaining turns and players and potentially use a modified or simpler assignment rule for the last few turns.
+* **Clear Bot Messaging**: Provide very clear explanations in DMs regarding turn status, timeouts, and what is expected from the player (claim vs. submit). The `/status season` command will also help users understand progress.
 
 # Appendix
 
@@ -170,53 +297,60 @@ sequenceDiagram
 * **Writing Turn**: A turn where a player writes a text description.
 * **Drawing Turn**: A turn where a player creates and submits an image.
 * **Chain**: The sequence of turns in a game.
-* **Game**: An instance of an EPYC game, containing one chain.
+* **Game**: An instance of an EPYC game, containing one chain. In a season, each player has a game initiated by them.
 * **Game ID**: Unique identifier for a game instance.
 * **Turn ID**: Unique identifier for a specific turn in a game.
 * **Season**: A collection of games played by one group of players concurrently on one server.
-* **Standard Game**: A game with `turn_pattern: writing,drawing` and no returns.
-* **Flash Game**: (Informal) A game with short timeouts (e.g., writing <= 2 min, drawing <= 10 min, stale <= 15 min).
+* **Season Game**: A game that is part of a larger season, where turns are distributed among season players.
+* **OnDemand Game**: A standalone game joined by players using the `/play` command (Future Enhancement).
 
-## Game Rules (Configurable Parameters)
-* `turn_pattern`: `drawing,writing` or `writing,drawing`. Default: `writing,drawing`.
-* `return_count`: Number of additional times a player can take a turn in the same game. Default: `0`.
-* `return_cooldown`: Number of turns by others before a player can return (if `return_count > 0`). Default: `null`.
-* `writing_timeout`: Time limit for a writing turn. Default: `1d`.
-* `writing_warning`: Time before writing turn timeout for a warning. Default: `1m`.
-* `drawing_timeout`: Time limit for a drawing turn. Default: `1d`.
-* `drawing_warning`: Time before drawing turn timeout for a warning. Default: `10m`.
-* `stale_timeout`: Time limit for a game to be considered stale. Default: `7d`.
-* `min_turns`: Minimum completed turns for game completion. Default: `6`.
-* `max_turns`: Maximum completed turns. Default: `undefined` (no maximum).
+## Turn States (Updated for Seasons)
+* **CREATED**: Turn initially created (instantly becomes AVAILABLE).
+* **AVAILABLE**: The turn exists but is not currently assigned or offered to a specific player. Eligible to be OFFERED.
+* **OFFERED**: The bot has selected a specific player for this turn and notified them via DM, waiting for them to CLAIM it with `/ready`.
+* **PENDING**: The player has claimed the OFFERED turn using `/ready` and is currently working on it. (This turn is now considered ASSIGNED).
+* **COMPLETED**: The player has submitted their response for the turn.
+* **SKIPPED**: The player failed to submit a PENDING turn within the time limit. (Specific to Season Games).
+* **FLAGGED**: Turn flagged for review (less relevant for MVP Seasons).
+* **REMOVED**: Turn removed by admin action (less relevant for MVP Seasons).
+
+## Player Status within a Season
+* **ASSIGNED**: A player is considered ASSIGNED to a turn if it is currently PENDING for them, or if they have already COMPLETED or been SKIPPED for that turn in that game.
 
 ## Season Rules (Configurable Parameters)
+* `turn_pattern`: `drawing,writing` or `writing,drawing`. Default: `writing,drawing`. (Determines the sequence of turn types within each game in the season).
+* `claim_timeout`: Time limit for a player to claim an OFFERED turn using `/ready`. Default: `1d`.
+* `writing_timeout`: Time limit for a player to submit a PENDING writing turn after claiming it. Default: `1d`.
+* `writing_warning`: Time before writing turn timeout for a warning. Default: `1m`.
+* `drawing_timeout`: Time limit for a player to submit a PENDING drawing turn after claiming it. Default: `1d`.
+* `drawing_warning`: Time before drawing turn timeout for a warning. Default: `10m`.
 * `open_duration`: Time a season is open for users to join. Default: `7d`.
-* `min_players`: Minimum players to start a season. Default: `2`.
+* `min_players`: Minimum players required to start a season once the `open_duration` passes. Default: `2`.
 * `max_players`: Maximum players in a season. Default: `undefined`.
-    * _Either `open_duration` or `max_players` must be set. If both, the season closes when the first condition is met._
+    * _Either `open_duration` or `max_players` must be set for a season to become active. If both, the season closes when the first condition is met._
 
-## Game States
-* **Setup**: Game being created (instantly becomes pending).
-* **Pending**: Waiting for a specific player's turn.
-* **Active**: In progress, not waiting for a specific player.
-* **Paused**: Halted due to flagged content or admin action.
-* **Completed**: Game finished normally.
-* **Terminated**: Ended prematurely by an admin.
-* **Stale**: (Condition) Inactive longer than `stale_timeout`.
+## OnDemand Game Rules (Future Enhancement)
+* `return_count`: Number of additional times a player can take a turn in the same game. Default: `0`.
+* `return_cooldown`: Number of turns by others before a player can return (if `return_count > 0`). Default: `null`.
+* `stale_timeout`: Time limit for an OnDemand game to be considered stale. Default: `7d`.
+* `min_turns`: Minimum completed turns for an OnDemand game completion. Default: `6`.
+* `max_turns`: Maximum completed turns for an OnDemand game. Default: `undefined` (no maximum).
 
-## Turn States
-* **Created**: Turn initially created (instantly becomes pending).
-* **Pending**: Assigned to a player who is working on it.
-* **Completed**: Turn has been submitted.
-* **Flagged**: Turn flagged for review.
-* **Removed**: Turn removed due to timeout or admin action.
+## Game States (Updated)
+* **SETUP**: Game being created (instantly becomes PENDING or ACTIVE depending on type).
+* **PENDING**: (Season) Waiting for players to join the season. (OnDemand - Future) Waiting for a specific player's turn.
+* **ACTIVE**: (Season) Season is open for joining or games are in progress. (OnDemand - Future) Game is in progress, not waiting for a specific player.
+* **PAUSED**: Halted due to flagged content or admin action (less relevant for MVP Seasons).
+* **COMPLETED**: Game or Season finished normally.
+* **TERMINATED**: Ended prematurely by an admin.
+* **STALE**: (Condition, OnDemand only - Future) Inactive longer than `stale_timeout`.
 
 ## Player States
-* **Not Banned**: Player not banned by an admin.
-* **Banned**: Player banned by an admin.
+* **NOT_BANNED**: Player not banned by an admin.
+* **BANNED**: Player banned by an admin.
 
-## Moderation Terminology
-* **Flag**: Marking a turn as inappropriate, pausing the game.
+## Moderation Terminology (MVP focus on Admin Commands)
+* **Flag**: Marking a turn as inappropriate, pausing the game (less relevant for MVP Seasons).
 * **Ban**: Banning a user from playing on a server.
 * **Admin Commands**: Special commands for server/bot administrators.
 
@@ -227,6 +361,24 @@ Time durations are stored as human-readable strings, e.g.:
 * `30m`
 * `30s`
 
+## Command Reference (MVP Focus)
+* `/new season [options]`: Start a new season.
+* `/join season:<id>`: Join an existing season.
+* `/status season:<name>`: Show the status of games in a season.
+* `/ready`: Claim an OFFERED turn in DM.
+* `/config seasons [options]`: View or set default season rules.
+* `/admin terminate season:<id>`: End a season prematurely (Admin).
+* `/admin ban user:@user`: Ban a user from playing (Admin).
+* `/admin unban user:@user`: Unban a user (Admin).
+* `/admin list seasons`: List active seasons (Admin).
+* `/admin list players`: List players in seasons (Admin).
+* `/new game [options]`: Start an OnDemand game (Future Enhancement).
+* `/play`: Join an active OnDemand game (Future Enhancement).
+* `/config game [options]`: View or set default OnDemand game rules (Future Enhancement).
+* `/admin flag turn:<id>`: Flag a turn (Future Enhancement).
+* `/admin remove turn:<id>`: Remove a turn (Future Enhancement).
+
+
 ## Example Flows
-See `FLOWS.md` (Referenced from original PRD)
-</PRD>
+See `SEASON_FLOWS.md` (MVP focus)
+See `ONDEMAND_FLOWS.md` (Future Enhancement - requires creation)
