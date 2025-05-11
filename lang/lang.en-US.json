@@ -192,9 +192,7 @@
             "dev": "dev",
             "help": "help",
             "info": "info",
-            "start": "start",
-            "test": "test",
-            "config": "config"
+            "test": "test"
         },
         "userCommands": {
             "viewDateJoined": "View Date Joined"
@@ -202,40 +200,20 @@
         "messageCommands": {
             "viewDateSent": "View Date Sent"
         },
-        "devCommandNames": {
-            "info": "info"
-        },
         "arguments": {
             "command": "command",
             "option": "option"
         },
         "commandDescs": {
-            "dev": "Developer commands.",
-            "help": "Get help with using this bot.",
-            "info": "Get information about this bot.",
-            "start": "Create a new game.",
-            "test": "Run a test command.",
-            "config": "Configure server settings."
+            "dev": "Developer use only.",
+            "help": "Find help or contact support.",
+            "info": "View bot info.",
+            "test": "Run the test command."
         },
         "argDescs": {
             "devCommand": "Command.",
             "helpOption": "Option.",
-            "infoOption": "Option.",
-            "configChannels": "Configure server channels for announcements and notifications.",
-            "configChannelAnnouncement": "Channel for game announcements.",
-            "configChannelCompletedChannel": "Channel where completed games will be posted.",
-            "configChannelAdminChannel": "Channel for admin notifications.",
-            "configGames": "Configure default game settings for the server.",
-            "configGamesTurnPattern": "Set the order of writing and drawing turns.",
-            "configGamesWritingTimeout": "Set the time allowed for writing turns.",
-            "configGamesWritingWarning": "Set the warning time before a writing turn expires.",
-            "configGamesDrawingTimeout": "Set the time allowed for drawing turns.",
-            "configGamesDrawingWarning": "Set the warning time before a drawing turn expires.",
-            "configGamesStaleTimeout": "Set the time before a game is considered stale.",
-            "configGamesMinTurns": "Set the minimum number of turns required for a game.",
-            "configGamesMaxTurns": "Set the maximum number of turns allowed for a game.",
-            "configGamesReturns": "Set the player returns policy.",
-            "devServerID": "Server ID to toggle test mode for."
+            "infoOption": "Option."
         },
         "fields": {
             "commands": "Commands",
@@ -292,6 +270,9 @@
             "ViewChannel": "View Channel(s)",
             "ViewCreatorMonetizationAnalytics": "View Server Subscription Insights",
             "ViewGuildInsights": "View Server Insights"
+        },
+        "devCommandNames": {
+            "info": "info"
         },
         "helpOptions": {
             "contactSupport": "Contact Support",
