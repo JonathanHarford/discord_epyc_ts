@@ -87,7 +87,7 @@
       "testStrategy": "Create sample config files. Run the application and verify that the configuration values are loaded correctly and are accessible in relevant parts of the code.",
       "priority": "medium",
       "dependencies": [],
-      "status": "pending",
+      "status": "done",
       "subtasks": []
     },
     {
@@ -101,7 +101,7 @@
         2,
         3
       ],
-      "status": "pending",
+      "status": "done",
       "subtasks": []
     },
     {
