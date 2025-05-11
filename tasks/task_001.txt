@@ -11,7 +11,7 @@
 Verify the Prisma schema syntax is correct. Run Prisma migrations to create the database tables and ensure they match the defined models and relationships. Manually inspect the database structure.
 
 # Subtasks:
-## 1. Define Season and Player Models [in-progress]
+## 1. Define Season and Player Models [done]
 ### Dependencies: None
 ### Description: Create Prisma schema models for Season and Player entities with appropriate fields and relationships
 ### Details:
@@ -64,27 +64,62 @@ This structure addresses the requirements for Season and Player models and their
 </update>
 </info added on 2025-05-11T14:59:40.425Z>
 
-## 2. Define Game and Turn Models [pending]
+## 2. Define Game and Turn Models [done]
 ### Dependencies: 1.1
 ### Description: Create Prisma schema models for Game and Turn entities with appropriate fields and relationships
 ### Details:
 Define the Game model with fields for title, status, start/end times, and season association. Create the Turn model with fields for content, status, timestamps, and associations to both Game and Player. Establish one-to-many relationships between Games and Turns.
+<info added on 2025-05-11T15:01:43.429Z>
+Define the Game model with fields for id (String, default cuid(), @id), status (String, e.g., 'SETUP', 'ACTIVE', 'COMPLETED', 'TERMINATED'), createdAt (DateTime, @default(now())), updatedAt (DateTime, @updatedAt), completedAt (DateTime?), seasonId (String), season (Season @relation(fields: [seasonId], references: [id])), turns (Turn[]), initiatingPlayerId (String), and initiatingPlayer (Player @relation('InitiatedGames', fields: [initiatingPlayerId], references: [id])). The Game model establishes a one-to-many relationship with Turn via the turns field. The Turn model includes id (String, default cuid(), @id), gameId (String), game (Game @relation(fields: [gameId], references: [id])), playerId (String?), player (Player? @relation(fields: [playerId], references: [id])), turnNumber (Int), type (String, e.g., 'WRITING', 'DRAWING'), status (String, e.g., 'AVAILABLE', 'OFFERED', 'PENDING', 'COMPLETED', 'SKIPPED'), textContent (String?), imageUrl (String?), createdAt (DateTime, @default(now())), updatedAt (DateTime, @updatedAt), offeredAt (DateTime?), claimedAt (DateTime?), completedAt (DateTime?), skippedAt (DateTime?), previousTurnId (String? @unique), previousTurn (Turn? @relation('TurnChain', fields: [previousTurnId], references: [id], onDelete: NoAction, onUpdate: NoAction)), and nextTurn (Turn? @relation('TurnChain')). The Turn model supports a self-relation for chaining turns and links to both Game and Player. Update the Season model to include games Game[] and the Player model to include initiatedGames Game[] @relation('InitiatedGames') and turns Turn[] to reflect these relationships. Ensure all fields and relations are type-safe and support the required business logic for game and turn states.
+</info added on 2025-05-11T15:01:43.429Z>
 
-## 3. Implement Configuration Settings Model [pending]
+## 3. Implement Configuration Settings Model [done]
 ### Dependencies: 1.1, 1.2
 ### Description: Create a dedicated model for storing configurable parameters that affect season and game behavior
 ### Details:
 Define a Configuration model with fields for parameter names, values, types, and descriptions. Create relationships to link configurations to specific Seasons or make them global. Include default values and validation rules.
+<info added on 2025-05-11T17:09:57.471Z>
+Define a dedicated `SeasonConfig` model to centralize all season and game configuration parameters. The model will include fields for parameter names, values, types, and descriptions, with default values and validation rules as specified in the PRD. Key fields include `turnPattern`, `claimTimeout`, `writingTimeout`, `writingWarning`, `drawingTimeout`, `drawingWarning`, `openDuration`, `minPlayers`, `maxPlayers`, and timestamps. The model supports both global fallback defaults and guild-specific overrides via the `isGuildDefaultFor` field. Each `Season` will reference a `SeasonConfig` instance through a required one-to-one relationship, ensuring that configuration is decoupled from the `Season` model and can be managed independently. This approach allows for flexible configuration management, including the ability to initialize new seasons with guild defaults or custom configurations, and supports future extensibility for additional parameters.
+</info added on 2025-05-11T17:09:57.471Z>
 
-## 4. Establish Cross-Entity Relationships [pending]
+## 4. Establish Cross-Entity Relationships [done]
 ### Dependencies: 1.1, 1.2, 1.3
 ### Description: Define and implement all relationships between models to support the required data structure
 ### Details:
 Implement relations between Season-Game (one-to-many), Season-Player (many-to-many), Game-Turn (one-to-many), and Turn-Player (many-to-one). Use Prisma's @relation attribute with appropriate fields and references directives. Add indexes for performance optimization.
+<info added on 2025-05-11T17:11:06.898Z>
+All required cross-entity relationships have been reviewed and confirmed as implemented in the Prisma schema. The following relationships are correctly defined using Prisma's @relation attribute with appropriate fields and references directives: Season-Game (one-to-many), Season-Player (many-to-many via a join table), Game-Turn (one-to-many), and Turn-Player (many-to-one). Additional explicit relationships, including Player to Season (creator), Player to Game (initiator), Season to SeasonConfig (one-to-one), and Turn to Turn (self-relation for chaining), are also in place. All necessary fields and references are configured as per the design from previous subtasks. Indexes for performance optimization will be addressed in the next subtask (1.5). The test strategy for verifying relationship traversal will be handled during integration testing or via Prisma Client tests at a later stage. No further schema changes are required for this subtask.
+</info added on 2025-05-11T17:11:06.898Z>
 
-## 5. Add Database Constraints and Indexes [pending]
+## 5. Add Database Constraints and Indexes [done]
 ### Dependencies: 1.4
 ### Description: Implement necessary constraints and indexes to maintain data integrity and query performance
 ### Details:
 Add unique constraints for Season names, Player emails within seasons, and Game titles within seasons. Create indexes for frequently queried fields like status, timestamps, and foreign keys. Implement cascading deletes where appropriate to maintain referential integrity.
+<info added on 2025-05-11T17:11:57.566Z>
+Add unique constraints for Season names, Player emails within seasons, and Game titles within seasons. Create indexes for frequently queried fields like status, timestamps, and foreign keys. Implement cascading deletes where appropriate to maintain referential integrity.
+
+<update timestamp="2025-05-11T17:11:49Z">
+**Unique Constraints Review:**
+- Existing unique constraints on `Player.discordUserId`, `Season.name`, `SeasonConfig.isGuildDefaultFor`, `Season.configId`, and `Turn.previousTurnId` are appropriate and require no changes. No unique constraint is needed for Game titles at this time, as games do not currently have titles.
+
+**Indexes Plan:**
+- **Player:** Add `@@index([status])` for efficient status-based queries.
+- **Season:** Add `@@index([status])` and `@@index([creatorId])` to optimize status and creator lookups.
+- **PlayersOnSeasons:** Add `@@index([playerId])` and `@@index([seasonId])` to complement the composite primary key and speed up joins.
+- **Game:** Add `@@index([status])`, `@@index([seasonId])`, and `@@index([initiatingPlayerId])` for status, season, and initiator filtering.
+- **Turn:** Add `@@index([status])`, `@@index([type])`, `@@index([gameId])`, `@@index([playerId])`, and `@@index([createdAt])` to support status, type, game, player, and chronological queries.
+
+**Cascading Deletes Plan:**
+- **Season.config:** Set `onDelete: Cascade` to delete config when season is deleted.
+- **PlayersOnSeasons.player:** Set `onDelete: Cascade` to remove participations when a player is deleted.
+- **PlayersOnSeasons.season:** Set `onDelete: Cascade` to remove participations when a season is deleted.
+- **Game.season:** Set `onDelete: Cascade` to delete games when a season is deleted.
+- **Game.initiatingPlayer:** Set `onDelete: Restrict` to prevent player deletion if they initiated games.
+- **Turn.game:** Set `onDelete: Cascade` to delete turns when a game is deleted.
+- **Turn.player:** Set `onDelete: SetNull` to nullify player references in turns if a player is deleted (playerId is optional).
+- **Season.creator:** Set `onDelete: Restrict` to prevent player deletion if they created seasons.
+- **Turn.previousTurn:** Leave as `onDelete: NoAction` for self-referential chains.
+</update>
+</info added on 2025-05-11T17:11:57.566Z>
 

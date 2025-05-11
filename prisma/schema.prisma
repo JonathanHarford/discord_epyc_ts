@@ -1,0 +1,120 @@
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+generator client {
+  provider = "prisma-client-js"
+  output   = "../prisma/generated"
+}
+
+model Player {
+  id              String   @id @default(nanoid())
+  discordUserId   String   @unique
+  name            String
+  bannedAt        DateTime? // nullable, indicates if and when a player was banned
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  seasons         PlayersOnSeasons[]
+  createdSeasons  Season[]           @relation("CreatedSeasons")
+  turns           Turn[] // Relation for turns taken by player
+
+}
+
+model Season {
+  id              String   @id @default(nanoid())
+  name            String   @unique
+  status          String   // e.g., "SETUP", "PENDING", "ACTIVE", "COMPLETED", "TERMINATED"
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  configId        String   @unique
+  config          SeasonConfig @relation("SeasonToConfig", fields: [configId], references: [id], onDelete: Cascade)
+
+  games           Game[] // Games belonging to this season
+  players         PlayersOnSeasons[]
+
+  creatorId       String
+  creator         Player   @relation("CreatedSeasons", fields: [creatorId], references: [id], onDelete: Restrict)
+
+  @@index([status])
+  @@index([creatorId])
+}
+
+model PlayersOnSeasons {
+  player     Player   @relation(fields: [playerId], references: [id], onDelete: Cascade)
+  playerId   String
+  season     Season   @relation(fields: [seasonId], references: [id], onDelete: Cascade)
+  seasonId   String
+  joinedAt   DateTime @default(now())
+
+  @@id([playerId, seasonId])
+  @@index([playerId])
+  @@index([seasonId])
+}
+
+model Game {
+  id                 String    @id @default(nanoid())
+  status             String    // e.g., "SETUP", "ACTIVE", "COMPLETED", "TERMINATED"
+  createdAt          DateTime  @default(now())
+  updatedAt          DateTime  @updatedAt
+  completedAt        DateTime? // When the game status becomes "COMPLETED"
+
+  seasonId           String
+  season             Season    @relation(fields: [seasonId], references: [id], onDelete: Cascade)
+
+  turns              Turn[]    // One-to-many with Turn
+
+  @@index([status])
+  @@index([seasonId])
+}
+
+model Turn {
+  id            String    @id @default(nanoid())
+  turnNumber    Int       // Sequential number of the turn within the game
+  type          String    // e.g., "WRITING", "DRAWING"
+  status        String    // e.g., "AVAILABLE", "OFFERED", "PENDING", "COMPLETED", "SKIPPED"
+  textContent   String?
+  imageUrl      String?
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
+  offeredAt     DateTime? // When the turn was offered
+  claimedAt     DateTime? // When /ready was used
+  completedAt   DateTime? // When the turn was submitted
+  skippedAt     DateTime? // When the player was skipped for this turn
+
+  gameId        String
+  game          Game      @relation(fields: [gameId], references: [id], onDelete: Cascade)
+
+  playerId      String?   // Player who took/is taking the turn. Optional if turn is just "AVAILABLE"
+  player        Player?   @relation(fields: [playerId], references: [id], onDelete: SetNull)
+
+  previousTurnId String?   @unique // Self-relation for turn chain
+  previousTurn  Turn?     @relation("TurnChain", fields: [previousTurnId], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  nextTurn      Turn?     @relation("TurnChain")
+
+  @@index([status])
+  @@index([type])
+  @@index([gameId])
+  @@index([playerId])
+  @@index([createdAt])
+}
+
+model SeasonConfig {
+  id                 String    @id @default(nanoid())
+  turnPattern        String    @default("writing,drawing")
+  claimTimeout       String    @default("1d")
+  writingTimeout     String    @default("1d")
+  writingWarning     String    @default("1m")
+  drawingTimeout     String    @default("1d")
+  drawingWarning     String    @default("10m")
+  openDuration       String    @default("7d")
+  minPlayers         Int       @default(6)
+  maxPlayers         Int       @default(20)
+  createdAt          DateTime  @default(now())
+  updatedAt          DateTime  @updatedAt
+
+  isGuildDefaultFor  String?   @unique // Discord Guild ID for which this config is the default
+  season             Season?   @relation("SeasonToConfig") // Relation name must match the one in Season model
+} 
