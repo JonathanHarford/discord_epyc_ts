@@ -1,0 +1,11 @@
+# Task ID: 16
+# Title: Implement Claim Timeout Handler
+# Status: pending
+# Dependencies: 5, 9, 14, 15
+# Priority: medium
+# Description: Implement the handler logic that is triggered by the Task Scheduler when a `claim_timeout` occurs for an OFFERED turn. This handler should call `TurnService.dismissOffer` to revert the turn state to AVAILABLE and then trigger the Turn Offering Mechanism (Task 14) to find and offer the turn to another eligible player.
+# Details:
+
+
+# Test Strategy:
+Offer a turn to a test player but do not have them use `/ready`. Set a short `claim_timeout`. Verify that after the timeout, the turn state reverts to AVAILABLE and the Turn Offering Mechanism attempts to find another player.

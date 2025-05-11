@@ -1,0 +1,11 @@
+# Task ID: 12
+# Title: Implement Turn Submission Handling (DM)
+# Status: pending
+# Dependencies: 5, 9, 10
+# Priority: medium
+# Description: Implement the logic within the DM handling framework to process turn submissions (text for writing turns, image for drawing turns). This logic should validate that the user has a turn currently in the PENDING state. If valid, call `TurnService.submitTurn` to update the turn state to COMPLETED, save the submitted content (text or image URL), cancel the submission timeout timer via the Task Scheduler, and trigger the process to find and offer the next turn in that game.
+# Details:
+
+
+# Test Strategy:
+Have a test player claim a turn (PENDING). Have them submit text (for writing) or an image (for drawing) in DM. Verify the turn state changes to COMPLETED, content is saved in the DB, the submission timer is cancelled, and the next turn is offered (if applicable).

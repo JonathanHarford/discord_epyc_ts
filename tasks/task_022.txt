@@ -1,0 +1,11 @@
+# Task ID: 22
+# Title: Implement Admin Command: Terminate Season
+# Status: pending
+# Dependencies: 2, 5
+# Priority: medium
+# Description: Implement the `/admin terminate season:<id>` slash command handler in `src/commands/chat`. This handler should include permission checks to ensure only authorized users can use it. It should call the `SeasonService` to mark the specified season as TERMINATED in the database and potentially clean up or mark related games/turns appropriately.
+# Details:
+
+
+# Test Strategy:
+Use the `/admin terminate season` command with a test season as an admin. Verify the season state changes to TERMINATED in the database. Test using the command without admin permissions and verify it is rejected.

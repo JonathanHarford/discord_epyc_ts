@@ -1,0 +1,11 @@
+# Task ID: 6
+# Title: Implement '/new season' Command
+# Status: pending
+# Dependencies: 2, 5
+# Priority: medium
+# Description: Implement the `/new season` slash command handler in `src/commands/chat`. This handler should parse command options, call the `SeasonService` to create a new season entry in the database, generate a unique season ID, and send a Direct Message to the season creator requesting their initial turn.
+# Details:
+
+
+# Test Strategy:
+Use the `/new season` command in a channel and via DM. Verify a new season is created in the database with the correct initial state and parameters. Confirm the season creator receives a DM requesting their first turn.

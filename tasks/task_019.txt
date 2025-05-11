@@ -1,0 +1,11 @@
+# Task ID: 19
+# Title: Implement Season Completion Check
+# Status: pending
+# Dependencies: 5, 18
+# Priority: medium
+# Description: Implement the logic to check if a season is completed. This check should be performed after a game within the season is marked as COMPLETED. A season is completed when all games within that season are completed.
+# Details:
+
+
+# Test Strategy:
+Set up a test season with multiple games. Play through all games, ensuring they become COMPLETED. Verify the season state correctly transitions to COMPLETED when all games are finished.

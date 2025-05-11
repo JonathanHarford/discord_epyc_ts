@@ -1,0 +1,472 @@
+{
+  "tasks": [
+    {
+      "id": 1,
+      "title": "Define Database Schema (Prisma/PostgreSQL)",
+      "description": "Define the database schema using Prisma for PostgreSQL, including tables for Seasons, Games, Players (within a season context), Turns, and configuration settings. Establish relationships between these entities to support the season structure (Season has Players, Season has Games, Game is in Season, Game has Turns, Turn belongs to Player). Include necessary fields for states, content, timestamps, and configurable parameters.",
+      "details": "",
+      "testStrategy": "Verify the Prisma schema syntax is correct. Run Prisma migrations to create the database tables and ensure they match the defined models and relationships. Manually inspect the database structure.",
+      "priority": "medium",
+      "dependencies": [],
+      "status": "pending",
+      "subtasks": [
+        {
+          "id": 1,
+          "title": "Define Season and Player Models",
+          "description": "Create Prisma schema models for Season and Player entities with appropriate fields and relationships",
+          "dependencies": [],
+          "details": "Define the Season model with fields for name, start/end dates, status, and configuration settings. Create the Player model with fields for name, email, status, and season association. Establish a many-to-many relationship between Seasons and Players using a join table.\n<info added on 2025-05-11T14:59:40.425Z>\n<update timestamp=\"2025-05-11T14:59:26Z\">\nThe Prisma schema models for Season and Player will be defined as follows:\n\n**Player Model**\n- **id**: String, default cuid(), @id (unique identifier)\n- **discordUserId**: String, @unique (links to Discord user ID)\n- **name**: String (stores Discord username)\n- **email**: String? (optional, as per PRD)\n- **status**: String (e.g., \"NOT_BANNED\", \"BANNED\" based on PRD Player States)\n- **createdAt**: DateTime, @default(now())\n- **updatedAt**: DateTime, @updatedAt\n- **seasons**: PlayersOnSeasons[] (for M2M with Season)\n- **createdSeasons**: Season[] @relation(\"CreatedSeasons\") (tracks seasons created by this player)\n- **turns**: Turn[] (for 12M with Turn, to be defined later)\n\n**Season Model**\n- **id**: String, default cuid(), @id\n- **name**: String, @unique (PRD implies unique names for seasons)\n- **status**: String (e.g., \"SETUP\", \"PENDING\", \"ACTIVE\", \"COMPLETED\", \"TERMINATED\" - from PRD Game States, adapted for Season)\n- **openDuration**: String? (e.g., \"7d\", from PRD Season Rules)\n- **minPlayers**: Int?, default 2 (from PRD Season Rules)\n- **maxPlayers**: Int? (from PRD Season Rules)\n- **turnPattern**: String, default \"writing,drawing\" (from PRD Season Rules)\n- **claimTimeout**: String, default \"1d\" (from PRD Season Rules)\n- **writingTimeout**: String, default \"1d\" (from PRD Season Rules)\n- **writingWarning**: String, default \"1m\" (from PRD Season Rules)\n- **drawingTimeout**: String, default \"1d\" (from PRD Season Rules)\n- **drawingWarning**: String, default \"10m\" (from PRD Season Rules)\n- **createdAt**: DateTime, @default(now())\n- **updatedAt**: DateTime, @updatedAt\n- **games**: Game[] (for 12M with Game, to be defined later)\n- **players**: PlayersOnSeasons[] (for M2M with Player)\n- **creatorId**: String (Foreign key to Player who created the season)\n- **creator**: Player @relation(\"CreatedSeasons\", fields: [creatorId], references: [id])\n\n**Join Table for Player-Season M2M (PlayersOnSeasons)**\n- **player**: Player @relation(fields: [playerId], references: [id])\n- **playerId**: String\n- **season**: Season @relation(fields: [seasonId], references: [id])\n- **seasonId**: String\n- **assignedAt**: DateTime, @default(now())\n- **@@id([playerId, seasonId])** (Composite primary key)\n\nThis structure addresses the requirements for Season and Player models and their M2M relationship. Configuration settings are included as fields in the Season model as per PRD Season Rules. Fields for Game and Turn relationships are noted as placeholders for subsequent subtasks. Using String for IDs with cuid() as Prisma/PostgreSQL doesn't have a native UUID type that auto-increments in the same way as uuid() with uuid_generate_v4() without extensions, and cuid() is a good Prisma-recommended default. Player status from PRD: \"NOT_BANNED\", \"BANNED\". Season status derived from PRD \"Game States\": \"SETUP\", \"PENDING\", \"ACTIVE\", \"COMPLETED\", \"TERMINATED\". The PRD mentions \"name, email, status, and season association\" for Player. discordUserId is added for a reliable link to the Discord entity. name can store the Discord username. The PRD mentions \"name, start/end dates, status, and configuration settings\" for Season. Start/end dates are covered by createdAt/updatedAt and game/turn progression. Configuration settings from PRD \"Season Rules\" are added as fields directly to the Season model. The creator relation links a Season back to the Player who initiated it.\n</update>\n</info added on 2025-05-11T14:59:40.425Z>",
+          "status": "in-progress",
+          "testStrategy": "Validate schema using Prisma CLI and ensure relationships are properly defined with correct field types and constraints"
+        },
+        {
+          "id": 2,
+          "title": "Define Game and Turn Models",
+          "description": "Create Prisma schema models for Game and Turn entities with appropriate fields and relationships",
+          "dependencies": [
+            1
+          ],
+          "details": "Define the Game model with fields for title, status, start/end times, and season association. Create the Turn model with fields for content, status, timestamps, and associations to both Game and Player. Establish one-to-many relationships between Games and Turns.",
+          "status": "pending",
+          "testStrategy": "Verify schema integrity with Prisma CLI and test relationship queries to ensure proper data access patterns"
+        },
+        {
+          "id": 3,
+          "title": "Implement Configuration Settings Model",
+          "description": "Create a dedicated model for storing configurable parameters that affect season and game behavior",
+          "dependencies": [
+            1,
+            2
+          ],
+          "details": "Define a Configuration model with fields for parameter names, values, types, and descriptions. Create relationships to link configurations to specific Seasons or make them global. Include default values and validation rules.",
+          "status": "pending",
+          "testStrategy": "Test configuration retrieval and application to ensure parameters correctly influence system behavior"
+        },
+        {
+          "id": 4,
+          "title": "Establish Cross-Entity Relationships",
+          "description": "Define and implement all relationships between models to support the required data structure",
+          "dependencies": [
+            1,
+            2,
+            3
+          ],
+          "details": "Implement relations between Season-Game (one-to-many), Season-Player (many-to-many), Game-Turn (one-to-many), and Turn-Player (many-to-one). Use Prisma's @relation attribute with appropriate fields and references directives. Add indexes for performance optimization.",
+          "status": "pending",
+          "testStrategy": "Create test data and verify that all relationships can be traversed in both directions with Prisma Client queries"
+        },
+        {
+          "id": 5,
+          "title": "Add Database Constraints and Indexes",
+          "description": "Implement necessary constraints and indexes to maintain data integrity and query performance",
+          "dependencies": [
+            4
+          ],
+          "details": "Add unique constraints for Season names, Player emails within seasons, and Game titles within seasons. Create indexes for frequently queried fields like status, timestamps, and foreign keys. Implement cascading deletes where appropriate to maintain referential integrity.",
+          "status": "pending",
+          "testStrategy": "Test constraint enforcement by attempting to violate constraints and measure query performance with and without indexes"
+        }
+      ]
+    },
+    {
+      "id": 2,
+      "title": "Setup Basic Discord Bot Infrastructure",
+      "description": "Set up the basic Discord bot infrastructure using Discord.js. This includes initializing the client, connecting to Discord, setting up event listeners (e.g., 'ready', 'interactionCreate', 'messageCreate' for DMs), and integrating a framework for handling slash commands.",
+      "details": "",
+      "testStrategy": "Run the bot application. Verify it connects successfully to Discord and logs in. Confirm that basic event listeners are active.",
+      "priority": "medium",
+      "dependencies": [],
+      "status": "pending",
+      "subtasks": []
+    },
+    {
+      "id": 3,
+      "title": "Implement Configuration Loading",
+      "description": "Implement the logic to load configuration settings from `config/config.json` (specifically for the guild ID) and potentially a separate file like `.taskmasterconfig` for default season parameters as mentioned in the PRD. Ensure configuration is accessible throughout the application.",
+      "details": "",
+      "testStrategy": "Create sample config files. Run the application and verify that the configuration values are loaded correctly and are accessible in relevant parts of the code.",
+      "priority": "medium",
+      "dependencies": [],
+      "status": "pending",
+      "subtasks": []
+    },
+    {
+      "id": 4,
+      "title": "Implement Development Commands (Register/Clear Guild Commands)",
+      "description": "Implement the development commands `pnpm run commands:register:guild` and `pnpm run commands:clear:guild`. These commands should use the Discord.js API to register and clear slash commands specifically for the guild ID specified in `config/config.json` as required for development workflow.",
+      "details": "",
+      "testStrategy": "Run `pnpm run commands:register:guild` and verify commands appear in the target guild. Run `pnpm run commands:clear:guild` and verify commands are removed from the target guild.",
+      "priority": "medium",
+      "dependencies": [
+        2,
+        3
+      ],
+      "status": "pending",
+      "subtasks": []
+    },
+    {
+      "id": 5,
+      "title": "Establish Core Service and Pure Logic Structure",
+      "description": "Create the initial structure for the service layer (`src/services/`) and pure game logic functions (`src/game/`). Define placeholder classes/files for `SeasonService`, `GameService`, `PlayerService`, `TurnService` and basic function signatures based on the required operations (create season, add player, claim turn, submit turn, etc.).",
+      "details": "",
+      "testStrategy": "Verify that the required directories and files are created with basic class/function definitions. Ensure they can be imported without errors.",
+      "priority": "medium",
+      "dependencies": [
+        1
+      ],
+      "status": "pending",
+      "subtasks": []
+    },
+    {
+      "id": 6,
+      "title": "Implement '/new season' Command",
+      "description": "Implement the `/new season` slash command handler in `src/commands/chat`. This handler should parse command options, call the `SeasonService` to create a new season entry in the database, generate a unique season ID, and send a Direct Message to the season creator requesting their initial turn.",
+      "details": "",
+      "testStrategy": "Use the `/new season` command in a channel and via DM. Verify a new season is created in the database with the correct initial state and parameters. Confirm the season creator receives a DM requesting their first turn.",
+      "priority": "medium",
+      "dependencies": [
+        2,
+        5
+      ],
+      "status": "pending",
+      "subtasks": []
+    },
+    {
+      "id": 7,
+      "title": "Implement '/join season' Command",
+      "description": "Implement the `/join season:<id>` slash command handler in `src/commands/chat`. This handler should parse the season ID, call the `SeasonService` to add the user as a player to the specified season in the database, and validate that the season is in a state allowing players to join (e.g., not closed or active). Provide informative feedback to the user.",
+      "details": "",
+      "testStrategy": "Use the `/join season` command with valid and invalid season IDs. Verify players are added to the season in the database when valid. Test joining a season that is closed or doesn't exist and verify appropriate error messages are returned.",
+      "priority": "medium",
+      "dependencies": [
+        2,
+        5
+      ],
+      "status": "pending",
+      "subtasks": []
+    },
+    {
+      "id": 8,
+      "title": "Implement Season Activation Logic",
+      "description": "Implement the logic responsible for transitioning a season from PENDING (waiting for players) to ACTIVE. This logic should be triggered either when the `max_players` limit is reached or when the `open_duration` timeout expires (requires Task Scheduler). Upon activation, create N games for N players in the season and trigger the initial turn OFFERs for each player via DM.",
+      "details": "",
+      "testStrategy": "Create a season with `min_players` and `max_players` set. Join players until `max_players` is reached and verify the season activates, games are created, and initial turns are offered. Create a season with `open_duration` and verify it activates after the duration passes if `min_players` is met. Verify initial turns are offered.",
+      "priority": "medium",
+      "dependencies": [
+        5
+      ],
+      "status": "pending",
+      "subtasks": []
+    },
+    {
+      "id": 9,
+      "title": "Implement Turn State Management",
+      "description": "Implement the state management logic for turns within the `TurnService`. This involves methods to update the state of a turn in the database, transitioning between CREATED, AVAILABLE, OFFERED, PENDING, COMPLETED, and SKIPPED states as defined in the PRD. Ensure atomic updates where necessary.",
+      "details": "",
+      "testStrategy": "Write unit tests for the `TurnService` methods that update turn states. Verify that state transitions are correctly recorded in the database for various scenarios.",
+      "priority": "medium",
+      "dependencies": [
+        1,
+        5
+      ],
+      "status": "pending",
+      "subtasks": []
+    },
+    {
+      "id": 10,
+      "title": "Setup Direct Message Handling Framework",
+      "description": "Set up the Discord.js listener to handle Direct Messages sent to the bot. Implement logic to identify the context of the DM (e.g., is the user expected to send a `/ready` command, or are they submitting a turn for a specific game/turn?). Route the DM content to the appropriate handling logic.",
+      "details": "",
+      "testStrategy": "Send various types of DMs to the bot (plain text, image, slash command). Verify the bot receives the DMs and the framework correctly identifies the sender and message type, routing it to a placeholder handler.",
+      "priority": "medium",
+      "dependencies": [
+        2
+      ],
+      "status": "pending",
+      "subtasks": []
+    },
+    {
+      "id": 11,
+      "title": "Implement '/ready' Command Handling (DM)",
+      "description": "Implement the handler for the `/ready` command when used in a Direct Message. This handler should validate that the user has a turn currently in the OFFERED state. If valid, call `TurnService.claimTurn` to update the turn state to PENDING (ASSIGNED), cancel the associated claim timeout timer via the Task Scheduler, and schedule the appropriate submission timeout timer (writing or drawing). Send a confirmation DM to the player.",
+      "details": "",
+      "testStrategy": "Offer a turn to a test player. Have the player use `/ready` in DM. Verify the turn state changes to PENDING in the DB. Verify the claim timer is cancelled and a submission timer is scheduled via the Task Scheduler. Test using `/ready` when no turn is offered and verify an error message is returned.",
+      "priority": "medium",
+      "dependencies": [
+        5,
+        9,
+        10
+      ],
+      "status": "pending",
+      "subtasks": []
+    },
+    {
+      "id": 12,
+      "title": "Implement Turn Submission Handling (DM)",
+      "description": "Implement the logic within the DM handling framework to process turn submissions (text for writing turns, image for drawing turns). This logic should validate that the user has a turn currently in the PENDING state. If valid, call `TurnService.submitTurn` to update the turn state to COMPLETED, save the submitted content (text or image URL), cancel the submission timeout timer via the Task Scheduler, and trigger the process to find and offer the next turn in that game.",
+      "details": "",
+      "testStrategy": "Have a test player claim a turn (PENDING). Have them submit text (for writing) or an image (for drawing) in DM. Verify the turn state changes to COMPLETED, content is saved in the DB, the submission timer is cancelled, and the next turn is offered (if applicable).",
+      "priority": "medium",
+      "dependencies": [
+        5,
+        9,
+        10
+      ],
+      "status": "pending",
+      "subtasks": []
+    },
+    {
+      "id": 13,
+      "title": "Implement Season Next Player Logic",
+      "description": "Implement the core Next Player Logic algorithm for Season Games as detailed in the PRD (`MUSTs` and `SHOULDs`). This logic, likely residing in `src/game/` or `GameService`, determines which player should be OFFERED the next AVAILABLE turn in a specific game, considering who has played, turn types, and avoiding multiple pending turns for one player.",
+      "details": "",
+      "testStrategy": "Write comprehensive unit tests for the next player selection function with various scenarios: a new game, mid-game with players available, end-game with few players left, scenarios where players have pending turns, scenarios after a player is skipped. Verify the correct player is selected according to the PRD rules.",
+      "priority": "medium",
+      "dependencies": [
+        5,
+        9
+      ],
+      "status": "pending",
+      "subtasks": []
+    },
+    {
+      "id": 14,
+      "title": "Implement Turn Offering Mechanism",
+      "description": "Implement the mechanism that triggers the selection and offering of the next turn. This should be called after a turn is COMPLETED or SKIPPED, or when a season is activated. It uses the Next Player Logic (Task 13) to find the next player, calls `TurnService.offerTurn` to update the state, sends the DM notification to the selected player, and schedules the claim timeout timer via the Task Scheduler.",
+      "details": "",
+      "testStrategy": "Complete or skip a turn in a test game. Verify the Turn Offering Mechanism is triggered. Verify the correct next player is selected (using Task 13), the turn state becomes OFFERED, the player receives a DM notification, and the claim timer is scheduled.",
+      "priority": "medium",
+      "dependencies": [
+        5,
+        9,
+        13
+      ],
+      "status": "pending",
+      "subtasks": []
+    },
+    {
+      "id": 15,
+      "title": "Integrate Task Scheduler",
+      "description": "Integrate a Task Scheduler component into the bot architecture. This component is responsible for scheduling and triggering events based on time limits, specifically for claim timeouts (`claim_timeout`) and submission timeouts (`writing_timeout`, `drawing_timeout`) as defined in the season rules. It should be reliable and ideally persist scheduled tasks across bot restarts.",
+      "details": "",
+      "testStrategy": "Implement basic scheduling and triggering. Schedule a simple task for a short duration. Verify the task is executed at the correct time. Test scheduling multiple tasks.",
+      "priority": "medium",
+      "dependencies": [
+        2
+      ],
+      "status": "pending",
+      "subtasks": []
+    },
+    {
+      "id": 16,
+      "title": "Implement Claim Timeout Handler",
+      "description": "Implement the handler logic that is triggered by the Task Scheduler when a `claim_timeout` occurs for an OFFERED turn. This handler should call `TurnService.dismissOffer` to revert the turn state to AVAILABLE and then trigger the Turn Offering Mechanism (Task 14) to find and offer the turn to another eligible player.",
+      "details": "",
+      "testStrategy": "Offer a turn to a test player but do not have them use `/ready`. Set a short `claim_timeout`. Verify that after the timeout, the turn state reverts to AVAILABLE and the Turn Offering Mechanism attempts to find another player.",
+      "priority": "medium",
+      "dependencies": [
+        5,
+        9,
+        14,
+        15
+      ],
+      "status": "pending",
+      "subtasks": []
+    },
+    {
+      "id": 17,
+      "title": "Implement Submission Timeout Handler",
+      "description": "Implement the handler logic that is triggered by the Task Scheduler when a `writing_timeout` or `drawing_timeout` occurs for a PENDING turn. This handler should call `TurnService.skipTurn` to update the turn state to SKIPPED, send a DM notification to the player informing them they were skipped, and then trigger the Turn Offering Mechanism (Task 14) to find and offer the turn to another eligible player.",
+      "details": "",
+      "testStrategy": "Have a test player claim a turn (PENDING) but do not have them submit content. Set a short submission timeout. Verify that after the timeout, the turn state changes to SKIPPED, the player receives a skipped message DM, and the Turn Offering Mechanism attempts to find another player.",
+      "priority": "medium",
+      "dependencies": [
+        5,
+        9,
+        14,
+        15
+      ],
+      "status": "pending",
+      "subtasks": []
+    },
+    {
+      "id": 18,
+      "title": "Implement Game Completion Check (Season)",
+      "description": "Implement the logic to check if a game within a season is completed. This check should be performed after a turn is successfully COMPLETED or SKIPPED. A game is completed when every player in the season has either COMPLETED or been SKIPPED for their turn in that specific game.",
+      "details": "",
+      "testStrategy": "Set up a test season with a few players and games. Play through a game, ensuring all players either complete or are skipped for their turn. Verify the game state correctly transitions to COMPLETED when the criteria are met.",
+      "priority": "medium",
+      "dependencies": [
+        5,
+        9
+      ],
+      "status": "pending",
+      "subtasks": []
+    },
+    {
+      "id": 19,
+      "title": "Implement Season Completion Check",
+      "description": "Implement the logic to check if a season is completed. This check should be performed after a game within the season is marked as COMPLETED. A season is completed when all games within that season are completed.",
+      "details": "",
+      "testStrategy": "Set up a test season with multiple games. Play through all games, ensuring they become COMPLETED. Verify the season state correctly transitions to COMPLETED when all games are finished.",
+      "priority": "medium",
+      "dependencies": [
+        5,
+        18
+      ],
+      "status": "pending",
+      "subtasks": []
+    },
+    {
+      "id": 20,
+      "title": "Implement Season Completion Announcement/DM",
+      "description": "Implement the logic to format and deliver the results when a season is completed. This involves retrieving the full sequence of turns and content for each game in the season from the database, formatting it into a readable output, and posting it in the channel where the season was initiated (or DMing it to players if initiated via DM). This should utilize the messaging layer (Task 27).",
+      "details": "",
+      "testStrategy": "Complete a test season. Verify that the full sequences for all games are retrieved, formatted correctly, and posted in the designated channel or DM'd to players.",
+      "priority": "medium",
+      "dependencies": [
+        5,
+        18,
+        19
+      ],
+      "status": "pending",
+      "subtasks": []
+    },
+    {
+      "id": 21,
+      "title": "Implement '/status season' Command",
+      "description": "Implement the `/status season:<name>` slash command handler in `src/commands/chat`. This handler should parse the season identifier, query the database via the `SeasonService` to get the current state of the season and its games (e.g., how many turns are left per game, which turns are pending/offered), format this information using the messaging layer (Task 27), and send it as a response.",
+      "details": "",
+      "testStrategy": "Use the `/status season` command for active and completed seasons. Verify the command returns accurate information about the season's progress, including the state of games and turns.",
+      "priority": "medium",
+      "dependencies": [
+        2,
+        5
+      ],
+      "status": "pending",
+      "subtasks": []
+    },
+    {
+      "id": 22,
+      "title": "Implement Admin Command: Terminate Season",
+      "description": "Implement the `/admin terminate season:<id>` slash command handler in `src/commands/chat`. This handler should include permission checks to ensure only authorized users can use it. It should call the `SeasonService` to mark the specified season as TERMINATED in the database and potentially clean up or mark related games/turns appropriately.",
+      "details": "",
+      "testStrategy": "Use the `/admin terminate season` command with a test season as an admin. Verify the season state changes to TERMINATED in the database. Test using the command without admin permissions and verify it is rejected.",
+      "priority": "medium",
+      "dependencies": [
+        2,
+        5
+      ],
+      "status": "pending",
+      "subtasks": []
+    },
+    {
+      "id": 23,
+      "title": "Implement Admin Commands: Ban/Unban Player",
+      "description": "Implement the `/admin ban user:@user` and `/admin unban user:@user` slash command handlers in `src/commands/chat`. These handlers should include permission checks. They should call the `PlayerService` to update the player's state (BANNED/NOT_BANNED) in the database. Banned players should not be able to join new seasons or be offered turns.",
+      "details": "",
+      "testStrategy": "Use the `/admin ban` command on a test user as an admin. Verify the user's state changes to BANNED. Attempt to join a season or be offered a turn with the banned user and verify it fails. Use `/admin unban` and verify the user can then participate.",
+      "priority": "medium",
+      "dependencies": [
+        2,
+        5
+      ],
+      "status": "pending",
+      "subtasks": []
+    },
+    {
+      "id": 24,
+      "title": "Implement Admin Commands: List Seasons/Players",
+      "description": "Implement the `/admin list seasons` and `/admin list players` slash command handlers in `src/commands/chat`. These handlers should include permission checks. They should query the database via the service layer to retrieve lists of active seasons and players (potentially filtered by season or status) and display this information.",
+      "details": "",
+      "testStrategy": "Use the `/admin list seasons` and `/admin list players` commands as an admin. Verify the commands return lists of seasons and players currently in the database.",
+      "priority": "medium",
+      "dependencies": [
+        2,
+        5
+      ],
+      "status": "pending",
+      "subtasks": []
+    },
+    {
+      "id": 25,
+      "title": "Implement Basic Configuration Command ('/config seasons')",
+      "description": "Implement the `/config seasons [options]` slash command handler in `src/commands/chat`. This handler should allow administrators or authorized users to view the current default configuration settings for seasons (e.g., timeouts, min/max players). Optionally, allow setting these defaults, which would require persisting them (e.g., in the database or a config file).",
+      "details": "",
+      "testStrategy": "Use the `/config seasons` command to view current settings. If setting is implemented, test updating a setting and verifying the change is reflected.",
+      "priority": "medium",
+      "dependencies": [
+        2,
+        5
+      ],
+      "status": "pending",
+      "subtasks": []
+    },
+    {
+      "id": 26,
+      "title": "Implement Comprehensive Error Handling and User Feedback",
+      "description": "Implement robust error handling across all command handlers and DM processing logic. Ensure that invalid user input, command failures, service layer errors, or database issues are caught and result in clear, informative error messages being sent back to the user via the messaging layer (Task 27).",
+      "details": "",
+      "testStrategy": "Intentionally trigger errors in various user flows (e.g., invalid command options, trying to join a non-existent season, submitting the wrong content type). Verify that the bot does not crash and provides helpful error messages to the user.",
+      "priority": "medium",
+      "dependencies": [
+        2,
+        10
+      ],
+      "status": "pending",
+      "subtasks": []
+    },
+    {
+      "id": 27,
+      "title": "Refine and Integrate Messaging Layer",
+      "description": "Refine and fully implement the messaging layer (`src/messaging/`) as described in the architecture. This layer is responsible for taking structured data payloads and message instructions from the service layer and generating the final, user-facing strings for all bot replies (DMs, public channel messages, ephemeral messages). Integrate i18n if planned, otherwise use simple string formatting. Ensure all command handlers and DM processing logic use this layer for output.",
+      "details": "",
+      "testStrategy": "Review all user-facing messages generated by the bot. Verify they are consistently formatted and generated via the messaging layer. Test messages with different data payloads to ensure correct formatting.",
+      "priority": "medium",
+      "dependencies": [
+        5
+      ],
+      "status": "pending",
+      "subtasks": []
+    },
+    {
+      "id": 28,
+      "title": "Comprehensive Testing and Refinement (MVP)",
+      "description": "Conduct comprehensive testing of all implemented MVP features. This includes writing unit tests for pure logic functions (`src/game/`), integration tests for services and command handlers, and manual end-to-end testing of the full season game flow, including season creation, joining, turn taking (writing/drawing), `/ready` command, timeouts (claim and submission), skipping players, game completion, season completion, and the completion announcement/DM. Test admin commands and status command. Refactor code based on testing feedback.",
+      "details": "",
+      "testStrategy": "Execute all unit and integration tests. Perform manual testing following the Season Game Flow and Key User Flows described in the PRD. Create test scenarios specifically for risks identified (Next Player Logic complexity, Timeout handling, End-of-Season edge cases). Document test results and bugs.",
+      "priority": "medium",
+      "dependencies": [
+        1,
+        2,
+        3,
+        4,
+        5,
+        6,
+        7,
+        8,
+        9,
+        10,
+        11,
+        12,
+        13,
+        14,
+        15,
+        16,
+        17,
+        18,
+        19,
+        20,
+        21,
+        22,
+        23,
+        24,
+        25,
+        26,
+        27
+      ],
+      "status": "pending",
+      "subtasks": []
+    }
+  ]
+}

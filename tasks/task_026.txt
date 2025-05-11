@@ -1,0 +1,11 @@
+# Task ID: 26
+# Title: Implement Comprehensive Error Handling and User Feedback
+# Status: pending
+# Dependencies: 2, 10
+# Priority: medium
+# Description: Implement robust error handling across all command handlers and DM processing logic. Ensure that invalid user input, command failures, service layer errors, or database issues are caught and result in clear, informative error messages being sent back to the user via the messaging layer (Task 27).
+# Details:
+
+
+# Test Strategy:
+Intentionally trigger errors in various user flows (e.g., invalid command options, trying to join a non-existent season, submitting the wrong content type). Verify that the bot does not crash and provides helpful error messages to the user.

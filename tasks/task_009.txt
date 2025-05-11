@@ -1,0 +1,11 @@
+# Task ID: 9
+# Title: Implement Turn State Management
+# Status: pending
+# Dependencies: 1, 5
+# Priority: medium
+# Description: Implement the state management logic for turns within the `TurnService`. This involves methods to update the state of a turn in the database, transitioning between CREATED, AVAILABLE, OFFERED, PENDING, COMPLETED, and SKIPPED states as defined in the PRD. Ensure atomic updates where necessary.
+# Details:
+
+
+# Test Strategy:
+Write unit tests for the `TurnService` methods that update turn states. Verify that state transitions are correctly recorded in the database for various scenarios.

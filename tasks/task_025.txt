@@ -1,0 +1,11 @@
+# Task ID: 25
+# Title: Implement Basic Configuration Command ('/config seasons')
+# Status: pending
+# Dependencies: 2, 5
+# Priority: medium
+# Description: Implement the `/config seasons [options]` slash command handler in `src/commands/chat`. This handler should allow administrators or authorized users to view the current default configuration settings for seasons (e.g., timeouts, min/max players). Optionally, allow setting these defaults, which would require persisting them (e.g., in the database or a config file).
+# Details:
+
+
+# Test Strategy:
+Use the `/config seasons` command to view current settings. If setting is implemented, test updating a setting and verifying the change is reflected.

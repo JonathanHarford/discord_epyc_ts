@@ -1,0 +1,11 @@
+# Task ID: 5
+# Title: Establish Core Service and Pure Logic Structure
+# Status: pending
+# Dependencies: 1
+# Priority: medium
+# Description: Create the initial structure for the service layer (`src/services/`) and pure game logic functions (`src/game/`). Define placeholder classes/files for `SeasonService`, `GameService`, `PlayerService`, `TurnService` and basic function signatures based on the required operations (create season, add player, claim turn, submit turn, etc.).
+# Details:
+
+
+# Test Strategy:
+Verify that the required directories and files are created with basic class/function definitions. Ensure they can be imported without errors.

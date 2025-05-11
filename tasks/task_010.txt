@@ -1,0 +1,11 @@
+# Task ID: 10
+# Title: Setup Direct Message Handling Framework
+# Status: pending
+# Dependencies: 2
+# Priority: medium
+# Description: Set up the Discord.js listener to handle Direct Messages sent to the bot. Implement logic to identify the context of the DM (e.g., is the user expected to send a `/ready` command, or are they submitting a turn for a specific game/turn?). Route the DM content to the appropriate handling logic.
+# Details:
+
+
+# Test Strategy:
+Send various types of DMs to the bot (plain text, image, slash command). Verify the bot receives the DMs and the framework correctly identifies the sender and message type, routing it to a placeholder handler.

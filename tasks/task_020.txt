@@ -1,0 +1,11 @@
+# Task ID: 20
+# Title: Implement Season Completion Announcement/DM
+# Status: pending
+# Dependencies: 5, 18, 19
+# Priority: medium
+# Description: Implement the logic to format and deliver the results when a season is completed. This involves retrieving the full sequence of turns and content for each game in the season from the database, formatting it into a readable output, and posting it in the channel where the season was initiated (or DMing it to players if initiated via DM). This should utilize the messaging layer (Task 27).
+# Details:
+
+
+# Test Strategy:
+Complete a test season. Verify that the full sequences for all games are retrieved, formatted correctly, and posted in the designated channel or DM'd to players.

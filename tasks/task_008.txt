@@ -1,0 +1,11 @@
+# Task ID: 8
+# Title: Implement Season Activation Logic
+# Status: pending
+# Dependencies: 5
+# Priority: medium
+# Description: Implement the logic responsible for transitioning a season from PENDING (waiting for players) to ACTIVE. This logic should be triggered either when the `max_players` limit is reached or when the `open_duration` timeout expires (requires Task Scheduler). Upon activation, create N games for N players in the season and trigger the initial turn OFFERs for each player via DM.
+# Details:
+
+
+# Test Strategy:
+Create a season with `min_players` and `max_players` set. Join players until `max_players` is reached and verify the season activates, games are created, and initial turns are offered. Create a season with `open_duration` and verify it activates after the duration passes if `min_players` is met. Verify initial turns are offered.

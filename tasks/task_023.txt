@@ -1,0 +1,11 @@
+# Task ID: 23
+# Title: Implement Admin Commands: Ban/Unban Player
+# Status: pending
+# Dependencies: 2, 5
+# Priority: medium
+# Description: Implement the `/admin ban user:@user` and `/admin unban user:@user` slash command handlers in `src/commands/chat`. These handlers should include permission checks. They should call the `PlayerService` to update the player's state (BANNED/NOT_BANNED) in the database. Banned players should not be able to join new seasons or be offered turns.
+# Details:
+
+
+# Test Strategy:
+Use the `/admin ban` command on a test user as an admin. Verify the user's state changes to BANNED. Attempt to join a season or be offered a turn with the banned user and verify it fails. Use `/admin unban` and verify the user can then participate.

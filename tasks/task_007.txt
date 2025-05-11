@@ -1,0 +1,11 @@
+# Task ID: 7
+# Title: Implement '/join season' Command
+# Status: pending
+# Dependencies: 2, 5
+# Priority: medium
+# Description: Implement the `/join season:<id>` slash command handler in `src/commands/chat`. This handler should parse the season ID, call the `SeasonService` to add the user as a player to the specified season in the database, and validate that the season is in a state allowing players to join (e.g., not closed or active). Provide informative feedback to the user.
+# Details:
+
+
+# Test Strategy:
+Use the `/join season` command with valid and invalid season IDs. Verify players are added to the season in the database when valid. Test joining a season that is closed or doesn't exist and verify appropriate error messages are returned.

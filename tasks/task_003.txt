@@ -1,0 +1,11 @@
+# Task ID: 3
+# Title: Implement Configuration Loading
+# Status: pending
+# Dependencies: None
+# Priority: medium
+# Description: Implement the logic to load configuration settings from `config/config.json` (specifically for the guild ID) and potentially a separate file like `.taskmasterconfig` for default season parameters as mentioned in the PRD. Ensure configuration is accessible throughout the application.
+# Details:
+
+
+# Test Strategy:
+Create sample config files. Run the application and verify that the configuration values are loaded correctly and are accessible in relevant parts of the code.

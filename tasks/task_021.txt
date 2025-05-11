@@ -1,0 +1,11 @@
+# Task ID: 21
+# Title: Implement '/status season' Command
+# Status: pending
+# Dependencies: 2, 5
+# Priority: medium
+# Description: Implement the `/status season:<name>` slash command handler in `src/commands/chat`. This handler should parse the season identifier, query the database via the `SeasonService` to get the current state of the season and its games (e.g., how many turns are left per game, which turns are pending/offered), format this information using the messaging layer (Task 27), and send it as a response.
+# Details:
+
+
+# Test Strategy:
+Use the `/status season` command for active and completed seasons. Verify the command returns accurate information about the season's progress, including the state of games and turns.

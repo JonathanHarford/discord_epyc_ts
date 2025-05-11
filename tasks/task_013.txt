@@ -1,0 +1,11 @@
+# Task ID: 13
+# Title: Implement Season Next Player Logic
+# Status: pending
+# Dependencies: 5, 9
+# Priority: medium
+# Description: Implement the core Next Player Logic algorithm for Season Games as detailed in the PRD (`MUSTs` and `SHOULDs`). This logic, likely residing in `src/game/` or `GameService`, determines which player should be OFFERED the next AVAILABLE turn in a specific game, considering who has played, turn types, and avoiding multiple pending turns for one player.
+# Details:
+
+
+# Test Strategy:
+Write comprehensive unit tests for the next player selection function with various scenarios: a new game, mid-game with players available, end-game with few players left, scenarios where players have pending turns, scenarios after a player is skipped. Verify the correct player is selected according to the PRD rules.
