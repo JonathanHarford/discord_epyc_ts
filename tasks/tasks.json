@@ -76,7 +76,7 @@
       "testStrategy": "Run the bot application. Verify it connects successfully to Discord and logs in. Confirm that basic event listeners are active.",
       "priority": "medium",
       "dependencies": [],
-      "status": "pending",
+      "status": "done",
       "subtasks": []
     },
     {

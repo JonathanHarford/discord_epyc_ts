@@ -1,6 +1,6 @@
 # Task ID: 2
 # Title: Setup Basic Discord Bot Infrastructure
-# Status: pending
+# Status: done
 # Dependencies: None
 # Priority: medium
 # Description: Set up the basic Discord bot infrastructure using Discord.js. This includes initializing the client, connecting to Discord, setting up event listeners (e.g., 'ready', 'interactionCreate', 'messageCreate' for DMs), and integrating a framework for handling slash commands.
