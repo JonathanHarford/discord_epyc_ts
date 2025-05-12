@@ -9,3 +9,38 @@
 
 # Test Strategy:
 Use the `/new season` command in a channel and via DM. Verify a new season is created in the database with the correct initial state and parameters. Confirm the season creator receives a DM requesting their first turn.
+
+# Subtasks:
+## 1. Implement Command Parsing Logic [pending]
+### Dependencies: None
+### Description: Create a command handler that parses user input and extracts command arguments
+### Details:
+Develop a command parser that identifies command prefixes, separates arguments, and validates input format. Use Discord.js or Discord.py command handling frameworks to register commands and process options. Implement type conversion for arguments as needed.
+
+## 2. Build Service Invocation Layer [pending]
+### Dependencies: 6.1
+### Description: Create service classes that handle business logic separate from command handling
+### Details:
+Develop service classes that encapsulate the core functionality. Implement methods that will be called by command handlers. Ensure proper separation of concerns between command parsing and business logic execution. Design clean interfaces for service methods.
+<info added on 2025-05-12T21:26:54.125Z>
+Integrate with the existing SeasonService (Task 5) and call its method responsible for creating a new season record in the database using the parsed command options and user ID as creator. Ensure the service layer is invoked after command parsing is complete and all required data is available. Handle potential errors from the service layer, such as validation failures or database errors, and propagate appropriate error messages back to the command handler. Design the service interface to accept all necessary parameters for season creation, including user context and parsed options, and ensure it returns a clear result indicating success or failure.
+</info added on 2025-05-12T21:26:54.125Z>
+
+## 3. Implement Database Operations [pending]
+### Dependencies: 6.2
+### Description: Create database models and CRUD operations for storing command data
+### Details:
+Design database schema for storing relevant information. Implement create, read, update, and delete operations. Ensure proper transaction handling and data validation. Create a repository layer to abstract database operations from service layer.
+<info added on 2025-05-12T21:27:09.159Z>
+Within the SeasonService method called by the command handler (subtask 6.2), implement the logic to create the actual Season record in the database using Prisma client. This involves setting the initial status (e.g., PENDING), associating the creator, storing any parsed configuration overrides, and generating a unique, user-friendly season identifier if not handled automatically by the database. Ensure proper transaction handling and data validation. Create a repository layer to abstract database operations from the service layer, and design the database schema to store all relevant information for the Season entity, including creator association, status, configuration overrides, and unique identifier.
+</info added on 2025-05-12T21:27:09.159Z>
+
+## 4. Develop Error Handling and DM Notification System [pending]
+### Dependencies: 6.2, 6.3
+### Description: Implement comprehensive error handling and direct message notification logic
+### Details:
+Create error handling middleware that catches exceptions at different levels. Implement user-friendly error messages. Develop a notification system that sends direct messages to users based on events or errors. Ensure proper logging of errors for debugging purposes.
+<info added on 2025-05-12T21:27:22.895Z>
+<update timestamp="2025-05-12T21:27:19Z">Implement the logic to send a Direct Message to the season creator immediately after successful season creation, prompting them to take their initial turn (such as issuing a '/ready' command or similar, based on future turn logic). Integrate with the messaging layer (Task 27) to ensure the DM is properly formatted and user-friendly. Implement specific error handling for the /new season command, catching and logging errors from parsing, service calls, or database operations. Provide clear, actionable feedback to the user for common scenarios (e.g., 'Season name already exists', 'Invalid configuration option'). Ensure all errors are logged for debugging and future improvements.</update>
+</info added on 2025-05-12T21:27:22.895Z>
+
