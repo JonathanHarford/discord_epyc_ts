@@ -109,6 +109,7 @@ The bot will support two main modes of play: **Season Games** and **OnDemand Gam
 ## System Components
 * **Discord Bot**: The primary application interacting with users on Discord. Based on Kevin Novak's TypeScript Discord.js Bot Template.
 * **Service Layer**: Encapsulates core business logic (season management, game management within seasons, player management, turn processing, **next player selection logic for seasons**). (e.g., `SeasonService`, `GameService`, `PlayerService`, `TurnService` in `src/services/*.ts`).
+* **Platform Independence:** Service layers (`src/services/*`) MUST remain platform-independent. They should not contain logic specific to Discord (e.g., formatting messages for Discord, directly calling Discord API functions like `sendDm`). Platform-specific interactions should be handled by command handlers (`src/commands/chat/*`), dedicated DM handlers (part of Task 10), or the messaging layer (`src/messaging/*`, Task 27).
 * **Database**: Stores game state, player information, turns, season data, etc. Prisma on top of PostgreSQL.
 * **Command Handlers**: Process Discord slash commands and interactions, call service layer methods, and format responses. (Located in `src/commands/chat`).
 * **Task Scheduler**: Component responsible for monitoring claim and submission timeouts and triggering the necessary actions (dismissing offers, skipping players, offering turn to next eligible player).
