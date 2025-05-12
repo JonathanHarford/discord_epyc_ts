@@ -1,31 +1,85 @@
-export class SeasonService {
-  // TODO: Implement SeasonService methods
+import { PrismaClient, Player, Season, SeasonConfig, Prisma } from '@prisma/client'; // Import Prisma types
+import { nanoid } from 'nanoid'; // Use named import for nanoid
 
-  // TODO: Later, this will likely take PrismaClient or other dependencies
-  constructor() {}
+// Define a more specific return type for createSeason, using Prisma's generated Season type
+type SeasonWithConfig = Prisma.SeasonGetPayload<{
+  include: { config: true }
+}>
+
+export class SeasonService {
+  private prisma: PrismaClient;
+
+  // Inject PrismaClient instance
+  constructor(prisma: PrismaClient) {
+    this.prisma = prisma;
+  }
 
   /**
-   * Creates a new season.
-   * The actual database interaction will be implemented in subtask 6.3.
-   * This method will eventually interact with Prisma to create the season
-   * and its associated default configuration.
+   * Creates a new season, including its configuration, within a database transaction.
+   * Ensures the creator player exists before proceeding.
+   * @param options The details for the new season.
+   * @returns The created Season object, including its configuration.
+   * @throws Error if the creator player does not exist or if the season name is taken.
    */
-  async createSeason(options: NewSeasonOptions, /* eventData?: EventData */): Promise<any> { // eslint-disable-line @typescript-eslint/no-unused-vars
-    // Placeholder for actual season creation logic
-    console.log('SeasonService.createSeason called with options:', options);
-    // In subtask 6.3, this will:
-    // 1. Validate options further (e.g., against global defaults or constraints)
-    // 2. Create a SeasonConfig record with defaults or provided overrides.
-    // 3. Create a Season record, linking to the creator and the SeasonConfig.
-    // 4. Return the created season object (or a DTO).
+  async createSeason(options: NewSeasonOptions): Promise<SeasonWithConfig> {
+    console.log('SeasonService.createSeason DB logic executing with options:', options);
 
-    // For now, return a mock object
-    return {
-      id: 'mock-season-id-' + Date.now(), // Simulate a unique ID
-      name: options.name,
-      status: 'PENDING', // Initial status
-      ...options, // Include other passed options
-    };
+    // 1. Find the creator Player using their Discord ID
+    const creator = await this.prisma.player.findUnique({
+      where: { discordUserId: options.creatorDiscordId },
+    });
+
+    if (!creator) {
+      // TODO: Handle player creation if they don't exist? Or enforce pre-registration?
+      // For now, throw an error if the player isn't found.
+      console.error(`Creator player with Discord ID ${options.creatorDiscordId} not found.`);
+      throw new Error('Creator player not found. Please ensure the player is registered.');
+    }
+
+    // Use a transaction to ensure atomicity: create config and season together
+    const newSeasonWithConfig = await this.prisma.$transaction(async (tx) => {
+      // 2. Create the SeasonConfig record
+      // Start with defaults (implicitly handled by Prisma schema defaults)
+      // Override defaults with any provided options
+      const configData: Prisma.SeasonConfigCreateInput = {
+        // Use Prisma schema defaults unless overridden
+        ...(options.turnPattern && { turnPattern: options.turnPattern }),
+        ...(options.claimTimeout && { claimTimeout: options.claimTimeout }),
+        ...(options.writingTimeout && { writingTimeout: options.writingTimeout }),
+        // ...(options.writingWarning && { writingWarning: options.writingWarning }), // Add if needed
+        ...(options.drawingTimeout && { drawingTimeout: options.drawingTimeout }),
+        // ...(options.drawingWarning && { drawingWarning: options.drawingWarning }), // Add if needed
+        ...(options.openDuration && { openDuration: options.openDuration }),
+        ...(options.minPlayers && { minPlayers: options.minPlayers }),
+        ...(options.maxPlayers && { maxPlayers: options.maxPlayers }),
+        // isGuildDefaultFor: null, // Explicitly null unless setting a default
+        id: nanoid() // Use nanoid directly
+      };
+      const newConfig = await tx.seasonConfig.create({ data: configData });
+
+      // 3. Create the Season record
+      const seasonData: Prisma.SeasonCreateInput = {
+        name: options.name,
+        status: 'SETUP', // Initial status - player needs to join/ready up?
+        creator: {
+          connect: { id: creator.id },
+        },
+        config: {
+          connect: { id: newConfig.id },
+        },
+        id: nanoid() // Use nanoid directly
+      };
+
+      const newSeason = await tx.season.create({
+        data: seasonData,
+        include: { config: true }, // Include the config in the return value
+      });
+
+      return newSeason;
+    });
+
+    console.log(`Season '${newSeasonWithConfig.name}' (ID: ${newSeasonWithConfig.id}) created successfully in DB.`);
+    return newSeasonWithConfig;
   }
 }
 

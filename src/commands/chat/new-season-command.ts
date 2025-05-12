@@ -10,6 +10,7 @@ import {
 import { Command, CommandDeferType } from '../command.js';
 import { EventData } from '../../models/internal-models.js'; // Assuming this path is correct
 import { SeasonService, NewSeasonOptions } from '../../services/SeasonService.js'; // Import the service and options type
+import { PrismaClient } from '@prisma/client'; // Import PrismaClient
 // import logger from '../../utils/logger'; // Placeholder if needed
 
 // TODO: Define a type/interface for the options object passed to the service
@@ -82,6 +83,10 @@ export const command: Command = {
   async execute(intr: ChatInputCommandInteraction, data: EventData): Promise<void> {
     // logger.info(`'/newseason' command executed by ${intr.user.tag} with data: ${JSON.stringify(data)}`); // Optional logging
 
+    // TODO: PrismaClient should be injected, not instantiated here.
+    // This is a temporary setup for development.
+    const prisma = new PrismaClient();
+
     // Options extraction (already deferred by framework based on deferType)
     const name = intr.options.getString('name', true);
     const openDuration = intr.options.getString('open_duration');
@@ -116,7 +121,7 @@ export const command: Command = {
     try {
       // Call Service Layer
       // TODO: Inject SeasonService properly instead of instantiating here
-      const seasonService = new SeasonService(/* dependencies */);
+      const seasonService = new SeasonService(prisma); // Pass prisma client
       // Pass only the options argument for now
       const newSeason = await seasonService.createSeason(seasonOptions as NewSeasonOptions);
       // logger.info(`Season '${newSeason.name}' (ID: ${newSeason.id}) created by ${intr.user.tag}`);
@@ -125,6 +130,8 @@ export const command: Command = {
       // Use the actual name from the result object
       await intr.editReply({ content: `✅ Season '${newSeason.name}' (ID: ${newSeason.id}) created successfully! Check your DMs for the next step.` });
 
+      // Ensure Prisma client is disconnected after use in this temporary setup
+      await prisma.$disconnect();
     } catch (error) {
       // Error Handling (Implement properly in subtask 6.4)
       // logger.error(`Error creating season '${name}':`, error);
@@ -137,6 +144,8 @@ export const command: Command = {
         console.error("Failed to edit reply for /newseason error:", editError);
         // Log the failure, but don't try to reply again as the interaction is likely invalid
       }
+      // Ensure Prisma client is disconnected in case of error too
+      await prisma.$disconnect();
     }
   },
 };
