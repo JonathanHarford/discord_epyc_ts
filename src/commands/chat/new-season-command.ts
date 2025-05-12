@@ -9,7 +9,7 @@ import {
 } from 'discord.js';
 import { Command, CommandDeferType } from '../command.js';
 import { EventData } from '../../models/internal-models.js'; // Assuming this path is correct
-// import { SeasonService } from '../../services/SeasonService'; // Placeholder for future subtask
+import { SeasonService, NewSeasonOptions } from '../../services/SeasonService.js'; // Import the service and options type
 // import logger from '../../utils/logger'; // Placeholder if needed
 
 // TODO: Define a type/interface for the options object passed to the service
@@ -114,20 +114,20 @@ export const command: Command = {
     };
 
     try {
-      // Call Service Layer (Implement in subtask 6.2/6.3)
-      // const seasonService = new SeasonService(/* dependencies */);
-      // const newSeason = await seasonService.createSeason(seasonOptions, data); // Pass EventData if needed by service
+      // Call Service Layer
+      // TODO: Inject SeasonService properly instead of instantiating here
+      const seasonService = new SeasonService(/* dependencies */);
+      // Pass only the options argument for now
+      const newSeason = await seasonService.createSeason(seasonOptions as NewSeasonOptions);
       // logger.info(`Season '${newSeason.name}' (ID: ${newSeason.id}) created by ${intr.user.tag}`);
 
       // Send Confirmation Reply (handle properly in subtask 6.4)
-      await intr.editReply({ content: `Placeholder: Season '${name}' would be created with options: ${JSON.stringify(seasonOptions)}` }); // Use editReply
+      // Use the actual name from the result object
+      await intr.editReply({ content: `✅ Season '${newSeason.name}' (ID: ${newSeason.id}) created successfully! Check your DMs for the next step.` });
 
     } catch (error) {
       // Error Handling (Implement properly in subtask 6.4)
       // logger.error(`Error creating season '${name}':`, error);
-      // let errorMessage = 'Failed to create the season due to an internal error.';
-      // ... (error handling logic) ...
-      // await intr.editReply({ content: errorMessage });
       console.error("Error in /newseason command:", error);
       // Ensure reply is edited even if error occurs before service call completes (or during)
       try {

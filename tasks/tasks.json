@@ -175,7 +175,7 @@
             1
           ],
           "details": "Develop service classes that encapsulate the core functionality. Implement methods that will be called by command handlers. Ensure proper separation of concerns between command parsing and business logic execution. Design clean interfaces for service methods.\n<info added on 2025-05-12T21:26:54.125Z>\nIntegrate with the existing SeasonService (Task 5) and call its method responsible for creating a new season record in the database using the parsed command options and user ID as creator. Ensure the service layer is invoked after command parsing is complete and all required data is available. Handle potential errors from the service layer, such as validation failures or database errors, and propagate appropriate error messages back to the command handler. Design the service interface to accept all necessary parameters for season creation, including user context and parsed options, and ensure it returns a clear result indicating success or failure.\n</info added on 2025-05-12T21:26:54.125Z>",
-          "status": "pending"
+          "status": "done"
         },
         {
           "id": 3,
