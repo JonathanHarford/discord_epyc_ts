@@ -52,6 +52,9 @@ The bot will support two main modes of play: **Season Games** and **OnDemand Gam
 ## Game Flow (MVP focuses on Seasons)
 
 ### Season Game Flow
+
+See examples in [SEASON_FLOWS.md](mdc:docs/SEASON_FLOWS.md).
+
 1.  **Season Initialization**:
     * A player uses the `/new season` command in a channel or DM, setting optional rules/parameters (like `open_duration`, `min_players`, `max_players`). The channel/DM context determines where the completed season is announced/sent.
     * Other players join using `/join season:<id>`.
@@ -105,107 +108,7 @@ The bot will support two main modes of play: **Season Games** and **OnDemand Gam
 * **Test Player**: A virtual player created for testing purposes.
 
 # Technical Architecture
-
-## System Components
-* **Discord Bot**: The primary application interacting with users on Discord. Based on Kevin Novak's TypeScript Discord.js Bot Template.
-* **Service Layer**: Encapsulates core business logic (season management, game management within seasons, player management, turn processing, **next player selection logic for seasons**). (e.g., `SeasonService`, `GameService`, `PlayerService`, `TurnService` in `src/services/*.ts`).
-* **Platform Independence:** Service layers (`src/services/*`) MUST remain platform-independent. They should not contain logic specific to Discord (e.g., formatting messages for Discord, directly calling Discord API functions like `sendDm`). Platform-specific interactions should be handled by command handlers (`src/commands/chat/*`), dedicated DM handlers (part of Task 10), or the messaging layer (`src/messaging/*`, Task 27).
-* **Database**: Stores game state, player information, turns, season data, etc. Prisma on top of PostgreSQL.
-* **Command Handlers**: Process Discord slash commands and interactions, call service layer methods, and format responses. (Located in `src/commands/chat`).
-* **Task Scheduler**: Component responsible for monitoring claim and submission timeouts and triggering the necessary actions (dismissing offers, skipping players, offering turn to next eligible player).
-
-## Implementation Notes
-* Discord Commands are defined in `src/commands/chat`.
-* Discord Interactions that are game/season-oriented primarily call methods within the service layer.
-* Service methods return structured data (e.g., season/game objects, status updates, error details), **including structured data payloads for any required messages or notifications.**
-* The responsibility for constructing complete, user-facing strings for all bot replies (DMs, public channel messages, ephemeral messages) lies within the command handler files in `src/commands/chat`.
-* The command's `execute` method acts as a thin shell: it calls service method(s), receives structured data, passes this data to its local message generation function(s), and then sends the resulting string(s) to Discord.
-* This architecture decouples presentation logic from core service responsibilities and centralizes message formatting logic.
-* Service methods depend on pure logic functions (e.g., in `src/game/`) which should be unit-tested without mocking external dependencies.
-
-```mermaid
-sequenceDiagram
-    participant Discord
-    participant CommandHandler as Command Handler<br/>(src/commands/chat/*)
-    participant MessageLayer as Message Generation<br/>(src/messaging/*) # this layer formats messages based on structured data
-    participant ServiceLayer as Service Layer<br/>(Orchestration Logic) # returns structured data AND message instructions
-    participant Database
-    participant PureLogic as Game Pure Functions<br/>(Core State Transitions)
-    participant i18n
-    participant TaskScheduler as Task Scheduler
-
-    Discord->>CommandHandler: Command / Message Event
-    activate CommandHandler
-    CommandHandler->>Database: Fetch Current State
-    activate Database
-    Database-->>CommandHandler: Current State
-    deactivate Database
-
-    Note over CommandHandler,ServiceLayer: Call Service Method<br/>(Current State, Input Data)
-    CommandHandler->>ServiceLayer: Call Service Method
-    activate ServiceLayer
-
-    ServiceLayer->>PureLogic: Call Pure Function(s)
-    activate PureLogic
-    PureLogic-->>ServiceLayer: New State Slice / Results
-    deactivate PureLogic
-
-    ServiceLayer-->>CommandHandler: Results<br/>(New State Data, Message Instructions)
-    deactivate ServiceLayer
-
-    CommandHandler->>Database: Save New State / Apply Updates
-    activate Database
-    Database-->>CommandHandler: Confirmation
-    deactivate Database
-
-    Note over CommandHandler,MessageLayer: Generate Formatted Messages<br/>(Using Message Instructions)
-    CommandHandler->>MessageLayer: Generate Messages
-    activate MessageLayer
-    MessageLayer->>i18n: Get Localized Strings
-    activate i18n
-    i18n-->>MessageLayer: Strings
-    deactivate i18n
-    MessageLayer-->>CommandHandler: Formatted Messages
-    deactivate MessageLayer
-
-    Note over CommandHandler,Discord: Send Messages via Discord API
-    CommandHandler->>Discord: Send Messages
-    deactivate CommandHandler
-
-    Note over CommandHandler,TaskScheduler: Schedule/Cancel Timers<br/>(Based on Service Results)
-    CommandHandler->>TaskScheduler: Schedule/Cancel
-    activate TaskScheduler
-    TaskScheduler-->>CommandHandler: Confirmation
-    deactivate TaskScheduler
-
-    TaskScheduler->>CommandHandler: Timeout Event
-    activate CommandHandler
-    Note over CommandHandler,Database: (Similar flow for Timeout Events)<br/>Fetch State, Call Service, Save State, Generate/Send Messages, Schedule Tasks
-    CommandHandler->>Database: Fetch State
-    activate Database
-    Database-->>CommandHandler: State
-    deactivate Database
-    CommandHandler->>ServiceLayer: Call Service Method
-    activate ServiceLayer
-    ServiceLayer-->>CommandHandler: Results
-    deactivate ServiceLayer
-    CommandHandler->>Database: Save State
-    activate Database
-    Database-->>CommandHandler: Confirmation
-    deactivate Database
-    CommandHandler->>MessageLayer: Generate Messages
-    activate MessageLayer
-    MessageLayer-->>CommandHandler: Formatted Messages
-    deactivate MessageLayer
-    CommandHandler->>Discord: Send Messages
-    deactivate CommandHandler
-    CommandHandler->>TaskScheduler: Schedule/Cancel
-    activate TaskScheduler
-    TaskScheduler-->>CommandHandler: Confirmation
-    deactivate TaskScheduler
-
-
-```
+See [TECHNICAL_ARCHITECTURE.md](mdc:docs/TECHNICAL_ARCHITECTURE.md)
 
 ## System Terminology
 * **Announcement Channel**: Channel for new season announcements (defaults to where `/new season` is used if in a channel).
@@ -216,30 +119,6 @@ sequenceDiagram
 # Development Roadmap
 
 The MVP focuses exclusively on the **Season Game** type. OnDemand Games are a future enhancement.
-
-## MVP Requirements (Season Games)
-- Season creation (`/new season` in channel or DM).
-- Joining a season (`/join season`).
-- Season activation based on `open_duration` or `max_players`.
-- Automatic game creation (N games for N players).
-- Initial turn OFFER assignment for all players in a new season.
-- DM-based turn OFFERs to players.
-- `/ready` command in DM to CLAIM a turn (making it PENDING/ASSIGNED).
-- DM-based turn submission (image for drawing, text for writing).
-- Implementation of the Next Player Logic for Season Turns (MUSTs and SHOULDs).
-- Handling of `claim_timeout` (dismissing offer).
-- Handling of `writing_timeout` and `drawing_timeout` (skipping player, sending skipped message).
-- Season and game completion detection.
-- Automated posting of completed season game sequences to the originating channel or DMing to players.
-- `/status season:<name>` command showing turns left per game in the season.
-- Basic configuration for seasons (`/config seasons`).
-- Admin commands: `terminate season`, `ban`, `unban`, `list seasons`, `list players`.
-- Player states: Not Banned, Banned.
-- Turn states: AVAILABLE, OFFERED, PENDING, COMPLETED, SKIPPED (replaces Removed for timeouts in seasons). Flagged/Removed states are less critical for MVP seasons where flagging is off, but the fields should exist.
-- Game states: Setup, Pending (waiting for players to join season), Active (season open/in progress), Paused (less relevant for MVP seasons), Completed, Terminated, Stale (less relevant for MVP seasons).
-- **Development Commands:** Implement commands for registering and clearing guild-specific Discord commands for development purposes.
-    - `pnpm run commands:register:guild`: Registers commands for the guild specified in `config/config.json` (`client.guildId`).
-    - `pnpm run commands:clear:guild`: Clears guild-specific commands for the guild specified in `config/config.json` (`client.guildId`).
 
 ## Future Enhancements
 - OnDemand Game type (`/new game`, `/play`).
