@@ -1,6 +1,6 @@
 # Task ID: 1
 # Title: Define Database Schema (Prisma/PostgreSQL)
-# Status: pending
+# Status: done
 # Dependencies: None
 # Priority: medium
 # Description: Define the database schema using Prisma for PostgreSQL, including tables for Seasons, Games, Players (within a season context), Turns, and configuration settings. Establish relationships between these entities to support the season structure (Season has Players, Season has Games, Game is in Season, Game has Turns, Turn belongs to Player). Include necessary fields for states, content, timestamps, and configurable parameters.
