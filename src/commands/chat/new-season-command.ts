@@ -6,11 +6,12 @@ import {
   PermissionsString,
   SlashCommandBuilder,
   PermissionsBitField,
+  User,
 } from 'discord.js';
 import { Command, CommandDeferType } from '../command.js';
 import { EventData } from '../../models/internal-models.js'; // Assuming this path is correct
 import { SeasonService, NewSeasonOptions } from '../../services/SeasonService.js'; // Import the service and options type
-import { PrismaClient } from '@prisma/client'; // Import PrismaClient
+import { PrismaClient, Prisma } from '@prisma/client'; // Import PrismaClient and Prisma for error codes
 // import logger from '../../utils/logger'; // Placeholder if needed
 
 // TODO: Define a type/interface for the options object passed to the service
@@ -86,6 +87,8 @@ export const command: Command = {
     // TODO: PrismaClient should be injected, not instantiated here.
     // This is a temporary setup for development.
     const prisma = new PrismaClient();
+    const creatorDiscordId = intr.user.id; // Get creator ID directly from interaction
+    let creator: User | null = intr.user; // Store user object for DM
 
     // Options extraction (already deferred by framework based on deferType)
     const name = intr.options.getString('name', true);
@@ -96,7 +99,6 @@ export const command: Command = {
     const claimTimeout = intr.options.getString('claim_timeout');
     const writingTimeout = intr.options.getString('writing_timeout');
     const drawingTimeout = intr.options.getString('drawing_timeout');
-    const creatorDiscordId = intr.user.id;
 
     // Basic Validation
     if (minPlayers !== null && maxPlayers !== null && maxPlayers < minPlayers) {
@@ -106,7 +108,7 @@ export const command: Command = {
     }
 
     // Prepare Data for Service
-    const seasonOptions = {
+    const seasonOptions: NewSeasonOptions = {
       name,
       creatorDiscordId,
       ...(openDuration !== null && { openDuration }),
@@ -122,29 +124,63 @@ export const command: Command = {
       // Call Service Layer
       // TODO: Inject SeasonService properly instead of instantiating here
       const seasonService = new SeasonService(prisma); // Pass prisma client
-      // Pass only the options argument for now
-      const newSeason = await seasonService.createSeason(seasonOptions as NewSeasonOptions);
+      const newSeason = await seasonService.createSeason(seasonOptions);
       // logger.info(`Season '${newSeason.name}' (ID: ${newSeason.id}) created by ${intr.user.tag}`);
 
-      // Send Confirmation Reply (handle properly in subtask 6.4)
-      // Use the actual name from the result object
-      await intr.editReply({ content: `✅ Season '${newSeason.name}' (ID: ${newSeason.id}) created successfully! Check your DMs for the next step.` });
+      // Send Confirmation Reply (Public/Ephemeral)
+      await intr.editReply({
+        content: `✅ Season '${newSeason.name}' (ID: ${newSeason.id}) created successfully! Check your DMs to add players and start the season.`
+      });
 
-      // Ensure Prisma client is disconnected after use in this temporary setup
+      // Send DM to Creator (Subtask 6.4)
+      try {
+        if (!creator) {
+          // Attempt to fetch the user if not available directly from interaction
+          creator = await intr.client.users.fetch(creatorDiscordId);
+        }
+        if (creator) {
+          await creator.send(
+            `🎉 Your new Epyc season '${newSeason.name}' (ID: ${newSeason.id}) is ready for setup!\n\nUse the following commands in the server channel:\n- \`/join season:${newSeason.id}\` for players to join.\n- Or, you can use \`/invite season:${newSeason.id}\` to invite specific users.\n\nOnce enough players have joined (min ${newSeason.config.minPlayers}), the season will start automatically based on the \`open_duration\` (\`${newSeason.config.openDuration}\`), or when the maximum number of players (\`${newSeason.config.maxPlayers}\`) is reached.`
+          );
+          // Optional: Log DM success
+        } else {
+          console.error(`Could not find user ${creatorDiscordId} to send DM.`);
+          // Maybe update the public reply? For now, just log.
+        }
+      } catch (dmError) {
+        console.error(`Failed to send DM to creator ${creatorDiscordId} for season ${newSeason.id}:`, dmError);
+        // Update the original reply to inform the user about the DM failure
+        await intr.editReply({
+          content: `✅ Season '${newSeason.name}' (ID: ${newSeason.id}) created, but I failed to send you the setup instructions via DM. Please use \`/join season:${newSeason.id}\` to get started.`
+        });
+      }
+
       await prisma.$disconnect();
     } catch (error) {
-      // Error Handling (Implement properly in subtask 6.4)
-      // logger.error(`Error creating season '${name}':`, error);
       console.error("Error in /newseason command:", error);
-      // Ensure reply is edited even if error occurs before service call completes (or during)
+      let userErrorMessage = 'An error occurred while trying to create the season.';
+
+      // Refined Error Handling (Subtask 6.4)
+      if (error instanceof Prisma.PrismaClientKnownRequestError) {
+        // Handle known Prisma errors (e.g., unique constraint violation)
+        if (error.code === 'P2002') {
+          // Assuming the unique constraint is on the 'name' field of the Season model
+          // The error message might contain target field info: error.meta?.target
+          if ((error.meta?.target as string[])?.includes('name')) {
+            userErrorMessage = `❌ A season with the name '${name}' already exists. Please choose a different name.`;
+          } else {
+            userErrorMessage = '❌ Failed to create season due to a database conflict. Please try again.'; // More generic
+          }
+        }
+      } else if (error instanceof Error && error.message.includes('Creator player not found')) {
+        userErrorMessage = `❌ ${error.message} Please make sure you are registered with the bot first.`; // Use specific message
+      }
+
       try {
-        // Attempt to edit the reply, catching errors if it fails (e.g., interaction expired)
-        await intr.editReply({ content: 'An error occurred while trying to create the season.' });
+        await intr.editReply({ content: userErrorMessage });
       } catch (editError) {
         console.error("Failed to edit reply for /newseason error:", editError);
-        // Log the failure, but don't try to reply again as the interaction is likely invalid
       }
-      // Ensure Prisma client is disconnected in case of error too
       await prisma.$disconnect();
     }
   },

@@ -157,7 +157,7 @@
         2,
         5
       ],
-      "status": "pending",
+      "status": "done",
       "subtasks": [
         {
           "id": 1,
@@ -196,7 +196,7 @@
             3
           ],
           "details": "Create error handling middleware that catches exceptions at different levels. Implement user-friendly error messages. Develop a notification system that sends direct messages to users based on events or errors. Ensure proper logging of errors for debugging purposes.\n<info added on 2025-05-12T21:27:22.895Z>\n<update timestamp=\"2025-05-12T21:27:19Z\">Implement the logic to send a Direct Message to the season creator immediately after successful season creation, prompting them to take their initial turn (such as issuing a '/ready' command or similar, based on future turn logic). Integrate with the messaging layer (Task 27) to ensure the DM is properly formatted and user-friendly. Implement specific error handling for the /new season command, catching and logging errors from parsing, service calls, or database operations. Provide clear, actionable feedback to the user for common scenarios (e.g., 'Season name already exists', 'Invalid configuration option'). Ensure all errors are logged for debugging and future improvements.</update>\n</info added on 2025-05-12T21:27:22.895Z>",
-          "status": "pending"
+          "status": "done"
         }
       ]
     },

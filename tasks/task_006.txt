@@ -1,6 +1,6 @@
 # Task ID: 6
 # Title: Implement '/new season' Command
-# Status: pending
+# Status: done
 # Dependencies: 2, 5
 # Priority: medium
 # Description: Implement the `/new season` slash command handler in `src/commands/chat`. This handler should parse command options, call the `SeasonService` to create a new season entry in the database, generate a unique season ID, and send a Direct Message to the season creator requesting their initial turn.
@@ -44,7 +44,7 @@ Design database schema for storing relevant information. Implement create, read,
 Within the SeasonService method called by the command handler (subtask 6.2), implement the logic to create the actual Season record in the database using Prisma client. This involves setting the initial status (e.g., PENDING), associating the creator, storing any parsed configuration overrides, and generating a unique, user-friendly season identifier if not handled automatically by the database. Ensure proper transaction handling and data validation. Create a repository layer to abstract database operations from the service layer, and design the database schema to store all relevant information for the Season entity, including creator association, status, configuration overrides, and unique identifier.
 </info added on 2025-05-12T21:27:09.159Z>
 
-## 4. Develop Error Handling and DM Notification System [pending]
+## 4. Develop Error Handling and DM Notification System [done]
 ### Dependencies: 6.2, 6.3
 ### Description: Implement comprehensive error handling and direct message notification logic
 ### Details:
