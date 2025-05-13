@@ -9,6 +9,7 @@ import {
 import { Args } from './index.js';
 import { Language } from '../models/enum-helpers/index.js';
 import { Lang } from '../services/index.js';
+import { newCommandData } from './chat/new-command.js';
 
 export const ChatCommandMetadata: {
     [command: string]: RESTPostAPIChatInputApplicationCommandsJSONBody;
@@ -69,6 +70,7 @@ export const ChatCommandMetadata: {
         dm_permission: true,
         default_member_permissions: undefined,
     },
+    NEW: newCommandData.toJSON(),
 };
 
 export const MessageCommandMetadata: {

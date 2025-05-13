@@ -1,11 +1,27 @@
 # Task ID: 7
 # Title: Implement '/join season' Command
-# Status: pending
+# Status: in-progress
 # Dependencies: 2, 5
 # Priority: medium
-# Description: Implement the `/join season:<id>` slash command handler in `src/commands/chat`. This handler should parse the season ID, call the `SeasonService` to add the user as a player to the specified season in the database, and validate that the season is in a state allowing players to join (e.g., not closed or active). Provide informative feedback to the user.
+# Description: Implement the `/join season:<id>` slash command handler in `src/commands/chat`. This handler should parse the required `season_id` option, call the `SeasonService` to validate the season and add the user as a player, and provide informative feedback to the user.
 # Details:
-
+Implementation Plan:
+1. Create a new command file for `/join season` in `src/commands/chat`.
+2. Define the command structure with a required `season_id` option (e.g., using Discord.js builders).
+3. In the command handler:
+    a. Retrieve the `season_id` option value and the user executing the command (their Discord user ID).
+    b. Call `SeasonService.findSeasonById(seasonId)` to fetch the season details from the database.
+    c. Validate the fetched season:
+        i. Ensure the season exists (check if `findSeasonById` returned a season).
+        ii. Ensure the season is currently open for joining. This typically means its status should be 'open' or 'pending_start'. It should NOT be 'active', 'closed', or 'archived'.
+    d. If all validations pass, call `SeasonService.addPlayerToSeason(userId, seasonId)` to link the user to the season in the database.
+    e. Respond to the user with an ephemeral message indicating success or failure. Include specific reasons for failure, such as 'Season not found', 'Season is not open for joining', or 'You have already joined this season'.
+4. Implement appropriate error handling for potential issues during database operations or unexpected errors.
 
 # Test Strategy:
-Use the `/join season` command with valid and invalid season IDs. Verify players are added to the season in the database when valid. Test joining a season that is closed or doesn't exist and verify appropriate error messages are returned.
+Use the `/join season` command with various inputs:
+- Use a valid `season_id` for a season that is 'open' or 'pending_start'. Verify the user is added as a player to that season in the database and a success message is received.
+- Use a valid `season_id` for a season that is 'active', 'closed', or 'archived'. Verify an appropriate error message is returned (e.g., 'Season is not open for joining') and the user is NOT added.
+- Use an invalid or non-existent `season_id`. Verify an appropriate error message is returned (e.g., 'Season not found').
+- Attempt to join a season the user has already joined. Verify an appropriate error message is returned (e.g., 'You have already joined this season').
+- Test edge cases like invalid input format for the ID (if applicable based on Discord.js option type).

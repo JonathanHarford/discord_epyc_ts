@@ -16,6 +16,7 @@ alwaysApply: true
 - Do the simplest thing first.  
 - Break code into modules rather than one large file.  
 - Avoid duplicating functionality—reuse existing code or libraries.  
+- Try to avoid using escaped quotes and backticks in strings.
 
 # Testing & Errors  
 - Fix all linting/type errors before anything else; don’t prompt for user input while errors remain.  
