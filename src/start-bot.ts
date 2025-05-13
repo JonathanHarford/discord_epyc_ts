@@ -60,7 +60,7 @@ async function start(): Promise<void> {
         new HelpCommand(),
         new InfoCommand(),
         new TestCommand(),
-        NewCommand,
+        new NewCommand(),
 
         // Message Context Commands
         new ViewDateSent(),
