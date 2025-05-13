@@ -3,15 +3,22 @@
         "displayEmbeds": {
             "welcome": {
                 "title": "Thank you for using {{COM:bot.name}}!",
-                "description": ["{{REF:bot.description}}"],
+                "description": [
+                    "{{REF:bot.description}}"
+                ],
                 "fields": [
                     {
                         "name": "Important {{REF:fields.commands}}",
-                        "value": ["{{CMD_LINK_HELP}} - {{REF:commandDescs.help}}"]
+                        "value": [
+                            "{{CMD_LINK_HELP}} - {{REF:commandDescs.help}}"
+                        ]
                     },
                     {
                         "name": "{{REF:fields.links}}",
-                        "value": ["{{REF:links.docsEmbed}}", "{{REF:links.supportEmbed}}"]
+                        "value": [
+                            "{{REF:links.docsEmbed}}",
+                            "{{REF:links.supportEmbed}}"
+                        ]
                     }
                 ]
             },
@@ -23,7 +30,9 @@
                 "fields": [
                     {
                         "name": "{{REF:fields.links}}",
-                        "value": ["{{REF:links.supportEmbed}}"]
+                        "value": [
+                            "{{REF:links.supportEmbed}}"
+                        ]
                     }
                 ]
             },
@@ -47,7 +56,10 @@
                     },
                     {
                         "name": "{{REF:fields.links}}",
-                        "value": ["{{REF:links.docsEmbed}}", "{{REF:links.supportEmbed}}"]
+                        "value": [
+                            "{{REF:links.docsEmbed}}",
+                            "{{REF:links.supportEmbed}}"
+                        ]
                     }
                 ]
             },
@@ -64,7 +76,10 @@
                 "title": "{{COM:bot.name}} - About",
                 "description": "{{REF:bot.description}}",
                 "fields": [
-                    { "name": "Author", "value": "{{REF:links.authorEmbed}}" },
+                    {
+                        "name": "Author",
+                        "value": "{{REF:links.authorEmbed}}"
+                    },
                     {
                         "name": "{{REF:fields.links}}",
                         "value": [
@@ -79,7 +94,9 @@
                     },
                     {
                         "name": "Created With",
-                        "value": ["{{REF:links.templateEmbed}}"]
+                        "value": [
+                            "{{REF:links.templateEmbed}}"
+                        ]
                     }
                 ]
             },
@@ -307,25 +324,25 @@
             "templateEmbed": "[Discord Bot TypeScript Template]({{COM:links.template}})",
             "termsEmbed": "[View Terms of Service]({{COM:links.terms}})",
             "voteEmbed": "[Vote for {{COM:bot.name}}!]({{COM:links.vote}})"
+        },
+        "newCommand": {
+            "season": {
+                "create_success_channel": "✅ Season '{seasonName}' (ID: {seasonId}) created successfully! Check your DMs for setup instructions.",
+                "create_success_dm": "🎉 Your new Epyc season '{seasonName}' (ID: {seasonId}) is ready for setup!\nUse /join season:{seasonId} for players to join.",
+                "create_dm_fail_channel": "✅ Season '{seasonName}' (ID: {seasonId}) created, but I failed to send setup instructions via DM. Please use /join season:{seasonId}.",
+                "error_generic_service": "An error occurred while trying to create the season.",
+                "error_name_taken": "❌ A season with the name '{name}' already exists. Please choose a different name.",
+                "error_creator_not_found": "❌ Creator with Discord ID {discordUserId} not found. Please ensure you are registered.",
+                "error_min_max_players": "❌ Error: Maximum players ({maxPlayers}) cannot be less than minimum players ({minPlayers}).",
+                "error_db": "❌ A database error occurred (Code: {errorCode}). Please try again.",
+                "error_unknown_service": "❌ An unexpected error occurred: {message}"
+            },
+            "error_unknown_subcommand": "Unknown subcommand for /new."
+        },
+        "common": {
+            "error": {
+                "critical_command": "A critical unexpected error occurred. Please contact support."
+            }
         }
-    },
-    "newCommand": {
-      "season": {
-        "create_success_channel": "✅ Season '{seasonName}' (ID: {seasonId}) created successfully! Check your DMs for setup instructions.",
-        "create_success_dm": "🎉 Your new Epyc season '{seasonName}' (ID: {seasonId}) is ready for setup!\nUse /join season:{seasonId} for players to join.",
-        "create_dm_fail_channel": "✅ Season '{seasonName}' (ID: {seasonId}) created, but I failed to send setup instructions via DM. Please use /join season:{seasonId}.",
-        "error_generic_service": "An error occurred while trying to create the season.",
-        "error_name_taken": "❌ A season with the name '{name}' already exists. Please choose a different name.",
-        "error_creator_not_found": "❌ Creator with Discord ID {discordUserId} not found. Please ensure you are registered.",
-        "error_min_max_players": "❌ Error: Maximum players ({maxPlayers}) cannot be less than minimum players ({minPlayers}).",
-        "error_db": "❌ A database error occurred (Code: {errorCode}). Please try again.",
-        "error_unknown_service": "❌ An unexpected error occurred: {message}"
-      },
-      "error_unknown_subcommand": "Unknown subcommand for /new."
-    },
-    "common": {
-      "error": {
-         "critical_command": "A critical unexpected error occurred. Please contact support."
-      }
     }
 }
