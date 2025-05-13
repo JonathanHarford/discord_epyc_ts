@@ -1,0 +1,74 @@
+---
+description:
+globs:
+alwaysApply: false
+---
+- **Language Key Structure for `refs`:**
+    - All user-facing text strings should be managed in language JSON files (e.g., `lang/lang.en-US.json`).
+    - Keys should be organized hierarchically under the top-level `refs` object.
+
+- **Command-Specific Messages:**
+    - Group messages related to a specific command or feature under a dedicated object named after the command (e.g., `newCommand` for `/new` command messages).
+    - Further nest by sub-context if necessary (e.g., `refs.newCommand.season` for messages specific to the `season` subcommand).
+    - Use descriptive key names for the messages themselves (e.g., `create_success_channel`, `error_name_taken`).
+    - **Example:**
+      ```json
+      {
+        "refs": {
+          "newCommand": {
+            "season": {
+              "create_success_channel": "✅ Season '{seasonName}' (ID: {seasonId}) created successfully! Check your DMs for setup instructions.",
+              "error_name_taken": "❌ A season with the name '{name}' already exists. Please choose a different name."
+            },
+            "error_unknown_subcommand": "Unknown subcommand for /new."
+          }
+          // ... other command-specific refs
+        }
+      }
+      ```
+
+- **Common/Shared Messages:**
+    - Group messages that are shared across multiple commands or contexts under a `common` object within `refs`.
+    - Categorize further if needed (e.g., `refs.common.error` for common error messages).
+    - **Example:**
+      ```json
+      {
+        "refs": {
+          "common": {
+            "error": {
+              "critical_command": "A critical unexpected error occurred. Please contact support.",
+              "invalid_input": "The input provided was invalid. Please try again."
+            }
+            // ... other common categories
+          }
+          // ... other refs
+        }
+      }
+      ```
+
+- **Placeholders:**
+    - Use curly braces for placeholders in translation strings (e.g., `{seasonName}`, `{errorCode}`).
+    - Ensure the data object passed to `Lang.getRef(key, langCode, data)` contains corresponding properties for these placeholders.
+
+- **Accessing Translations in Code:**
+    - Use the `Lang.getRef(key, langCode, data)` method from `src/services/lang.ts` ([lang.ts](mdc:src/services/lang.ts)) to retrieve translated strings.
+    - Provide the full hierarchical key (e.g., `newCommand.season.create_success_channel`).
+    - Pass the appropriate `langCode` (e.g., `Language.Default` or `intr.locale`).
+    - Pass a data object for placeholder substitution.
+    - **Example:**
+      ```typescript
+      import { Lang } from '../../services/lang.js';
+      import { Language } from '../../models/enum-helpers/language.js';
+
+      // ...
+      const successMessage = Lang.getRef(
+        'newCommand.season.create_success_channel',
+        Language.Default, // Or intr.locale
+        { seasonName: 'My Awesome Season', seasonId: 'xyz123' }
+      );
+      ```
+
+- **File Location:**
+  - Language files should be located in the `lang/` directory at the project root.
+  - Filename convention: `lang.[locale_code].json` (e.g., `lang.en-US.json`, `lang.es-ES.json`).
+  - A `lang.common.json` file can be used for common structural elements or non-translatable shared values if needed by the `linguini` library setup.

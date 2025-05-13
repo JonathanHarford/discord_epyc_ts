@@ -9,10 +9,14 @@ import {
   User,
 } from 'discord.js';
 import { Command, CommandDeferType } from '../command.js';
-import { EventData } from '../../models/internal-models.js'; // Assuming this path is correct
-import { SeasonService, NewSeasonOptions } from '../../services/SeasonService.js'; // Import the service and options type
-import { PrismaClient, Prisma } from '@prisma/client'; // Import PrismaClient and Prisma for error codes
-// import logger from '../../utils/logger'; // Placeholder if needed
+import { EventData } from '../../models/internal-models.js';
+import { SeasonService, NewSeasonOptions } from '../../services/SeasonService.js';
+import { MessageInstruction } from '../../types/MessageInstruction.js';
+import prisma from '../../lib/prisma.js'; // Import global Prisma client instance
+import { Lang } from '../../services/lang.js';
+import { Language } from '../../models/enum-helpers/language.js';
+// Assuming Lang service is available, e.g., import { Lang } from '../../services/LangService.js';
+// For now, we'll construct strings and mark where Lang service should be used.
 
 // TODO: Define a type/interface for the options object passed to the service
 // interface NewSeasonOptions {
@@ -36,7 +40,6 @@ export const newCommandData = new SlashCommandBuilder()
     subcommand
       .setName('season')
       .setDescription('Starts a new season of the Epyc game.')
-      // All existing options from newSeasonCommandData are moved here
       .addStringOption(option =>
         option.setName('name')
           .setDescription('The unique name for this season.')
@@ -75,7 +78,7 @@ export const newCommandData = new SlashCommandBuilder()
   .setDMPermission(false); // Can be true if subcommands are usable in DMs
 
 export const command: Command = {
-  names: ['new'], // Changed from ['newseason']
+  names: ['new'],
   deferType: CommandDeferType.HIDDEN,
   requireClientPerms: ['SendMessages'],
 
@@ -87,10 +90,13 @@ export const command: Command = {
     const subcommand = intr.options.getSubcommand();
 
     if (subcommand === 'season') {
-      // Logic for '/new season'
-      const prisma = new PrismaClient();
+      // TODO: Centralize PrismaClient management. Ideally, it should be injected or obtained from a shared context.
+      // For now, instantiating locally and passing to the service. --> This is now resolved.
+      // const prisma = new PrismaClient(); // Removed local instantiation
+      const seasonService = new SeasonService(prisma); // Use global prisma instance
+
       const creatorDiscordId = intr.user.id;
-      let creator: User | null = intr.user;
+      const creator: User = intr.user;
 
       const name = intr.options.getString('name', true);
       const openDuration = intr.options.getString('open_duration');
@@ -100,11 +106,6 @@ export const command: Command = {
       const claimTimeout = intr.options.getString('claim_timeout');
       const writingTimeout = intr.options.getString('writing_timeout');
       const drawingTimeout = intr.options.getString('drawing_timeout');
-
-      if (minPlayers !== null && maxPlayers !== null && maxPlayers < minPlayers) {
-        await intr.editReply({ content: 'Error: Maximum players cannot be less than minimum players.' });
-        return;
-      }
 
       const seasonOptions: NewSeasonOptions = {
         name,
@@ -119,63 +120,82 @@ export const command: Command = {
       };
 
       try {
-        const seasonService = new SeasonService(prisma);
-        const newSeason = await seasonService.createSeason(seasonOptions);
+        const instruction: MessageInstruction = await seasonService.createSeason(seasonOptions);
 
-        await intr.editReply({
-          content: `✅ Season \'${newSeason.name}\' (ID: ${newSeason.id}) created successfully! Check your DMs to add players and start the season.`
-        });
+        if (instruction.type === 'success') {
+          // const successReply = Lang.get(instruction.key, instruction.data); // Key: 'season_create_success'
+          // const successReply = `✅ Season '${instruction.data?.seasonName}\' (ID: ${instruction.data?.seasonId}) created successfully! Check your DMs for setup instructions.`;
+          const successReply = Lang.getRef('newCommand.season.create_success_channel', Language.Default, instruction.data);
+          await intr.editReply({ content: successReply });
 
-        try {
-          if (!creator) {
-            creator = await intr.client.users.fetch(creatorDiscordId);
+          try {
+            // const dmMessage = Lang.get('new_season_success_dm', instruction.data);
+            // const dmMessage = `🎉 Your new Epyc season '${instruction.data?.seasonName}\' (ID: ${instruction.data?.seasonId}) is ready for setup!\nUse /join season:${instruction.data?.seasonId} for players to join.`;
+            const dmMessage = Lang.getRef('newCommand.season.create_success_dm', Language.Default, instruction.data);
+            await creator.send(dmMessage.trim());
+          } catch (dmError) {
+            console.error(`Failed to send DM to creator ${creatorDiscordId} for season ${instruction.data?.seasonId}:`, dmError);
+            // const dmFailReply = Lang.get('new_season_dm_fail_reply', instruction.data);
+            // const dmFailReply = `✅ Season '${instruction.data?.seasonName}' (ID: ${instruction.data?.seasonId}) created, but I failed to send setup instructions via DM. Please use /join season:${instruction.data?.seasonId}.`;
+            const dmFailReply = Lang.getRef('newCommand.season.create_dm_fail_channel', Language.Default, instruction.data);
+            await intr.followUp({ content: dmFailReply, ephemeral: true });
           }
-          if (creator) {
-            
-            await creator.send(`
-🎉 Your new Epyc season '${newSeason.name}' (ID: ${newSeason.id}) is ready for setup!
-Use the following commands in the server channel:
-- /join season:${newSeason.id} for players to join.
-- Or, you can use /invite season:${newSeason.id} to invite specific users.
-Once enough players have joined (min ${newSeason.config.minPlayers}), the season will start automatically based on the open_duration (${newSeason.config.openDuration}), or when the maximum number of players (${newSeason.config.maxPlayers}) is reached.`.trim());
+        } else { // instruction.type === 'error'
+          // const errorMessage = Lang.get(instruction.key, instruction.data);
+          // let errorMessage = 'An error occurred while trying to create the season.'; // Default for unknown service errors
+          // if (instruction.key === 'season_create_error_name_taken') {
+          //     errorMessage = `❌ A season with the name '${instruction.data?.name}' already exists. Please choose a different name.`;
+          // } else if (instruction.key === 'season_create_error_creator_not_found') {
+          //     errorMessage = `❌ Creator with Discord ID ${instruction.data?.discordUserId} not found. Please ensure you are registered.`;
+          // } else if (instruction.key === 'season_create_error_min_max_players') {
+          //     errorMessage = `❌ Error: Maximum players (${instruction.data?.maxPlayers}) cannot be less than minimum players (${instruction.data?.minPlayers}).`;
+          // } else if (instruction.key === 'season_create_error_prisma_unique_constraint' || instruction.key === 'season_create_error_prisma') {
+          //     errorMessage = `❌ A database error occurred (Code: ${instruction.data?.errorCode}). Please try again.`;
+          // } else if (instruction.key === 'season_create_error_unknown' && instruction.data?.message) {
+          //     errorMessage = `❌ An unexpected error occurred: ${instruction.data.message}`;
+          // }
+          // Default to a generic key if the specific one isn't directly usable or for unexpected keys.
+          // The plan was to use instruction.key directly, or map it. For now, let's assume direct usage or a generic fallback.
+          // A more robust solution might involve a switch or a mapping function if service keys don't match Lang keys.
+          let langKey = instruction.key; // Use service key directly
+          // Attempt to map service keys to more specific lang keys or use a generic one
+          // This mapping logic could be more sophisticated or configuration-driven
+          if (instruction.key === 'season_create_error_name_taken') {
+            langKey = 'newCommand.season.error_name_taken';
+          } else if (instruction.key === 'season_create_error_creator_not_found') {
+            langKey = 'newCommand.season.error_creator_not_found';
+          } else if (instruction.key === 'season_create_error_min_max_players') {
+            langKey = 'newCommand.season.error_min_max_players';
+          } else if (instruction.key === 'season_create_error_prisma_unique_constraint' || instruction.key === 'season_create_error_prisma') {
+            langKey = 'newCommand.season.error_db';
+          } else if (instruction.key === 'season_create_error_unknown') {
+            langKey = 'newCommand.season.error_unknown_service';
           } else {
-            console.error(`Could not find user ${creatorDiscordId} to send DM.`);
+            // Fallback for unmapped service error keys
+            langKey = 'newCommand.season.error_generic_service'; 
           }
-        } catch (dmError) {
-          console.error(`Failed to send DM to creator ${creatorDiscordId} for season ${newSeason.id}:`, dmError);
-          await intr.editReply({
-            content: `✅ Season '${newSeason.name}' (ID: ${newSeason.id}) created, but I failed to send you the setup instructions via DM. Please use /join season:${newSeason.id} to get started.`
-          });
+          const errorMessage = Lang.getRef(langKey, Language.Default, instruction.data);
+          await intr.editReply({ content: errorMessage });
         }
-        await prisma.$disconnect();
       } catch (error) {
-        console.error("Error in /new season command:", error);
-        let userErrorMessage = 'An error occurred while trying to create the season.';
-
-        if (error instanceof Prisma.PrismaClientKnownRequestError) {
-          if (error.code === 'P2002') {
-            if ((error.meta?.target as string[])?.includes('name')) {
-              userErrorMessage = `❌ A season with the name '${name}' already exists. Please choose a different name.`;
-            } else {
-              userErrorMessage = '❌ Failed to create season due to a database conflict. Please try again.';
-            }
-          }
-        } else if (error instanceof Error && error.message.includes('Creator player not found')) {
-          userErrorMessage = `❌ ${error.message} Please make sure you are registered with the bot first.`;
-        }
-
-        try {
-          await intr.editReply({ content: userErrorMessage });
-        } catch (editError) {
-          console.error("Failed to edit reply for /new season error:", editError);
-        }
-        await prisma.$disconnect(); // Ensure disconnect in error path too
+        // This catch block is for unexpected errors thrown by seasonService.createSeason itself,
+        // though it's designed to return MessageInstruction for handled errors.
+        // Or errors during intr.editReply / intr.followUp before prisma.$disconnect.
+        console.error("Critical error in /new season command processing:", error);
+        // const criticalErrorMessage = Lang.get('error_critical_command_processing');
+        // await intr.editReply({ content: 'A critical unexpected error occurred. Please contact support.' });
+        const criticalErrorMessage = Lang.getRef('common.error.critical_command', Language.Default);
+        await intr.editReply({ content: criticalErrorMessage });
+      } finally {
+        // await prisma.$disconnect(); // Removed disconnect for local Prisma client
       }
     } else {
-      // Handle other subcommands or lack thereof if needed
-      await intr.editReply({ content: 'Unknown subcommand for /new.' });
+      // const unknownSubcommandMessage = Lang.get('new_command_unknown_subcommand');
+      // const unknownSubcommandMessage = 'Unknown subcommand for /new.';
+      const unknownSubcommandMessage = Lang.getRef('newCommand.error_unknown_subcommand', Language.Default);
+      await intr.editReply({ content: unknownSubcommandMessage });
     }
   },
 };
 
-export default command; // Ensure default export for dynamic loading 
+export default command; 

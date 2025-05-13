@@ -1,5 +1,7 @@
-import { PrismaClient, Player, Season, SeasonConfig, Prisma } from '@prisma/client'; // Import Prisma types
+import { PrismaClient, Player, Season, SeasonConfig, Prisma } from '@prisma/client';
+import { PrismaClientKnownRequestError } from '@prisma/client/runtime/library'; // Attempting different import path
 import { nanoid } from 'nanoid'; // Use named import for nanoid
+import { MessageInstruction } from '../types/MessageInstruction.js'; // Added .js extension
 
 // Define a more specific return type for createSeason, using Prisma's generated Season type
 type SeasonWithConfig = Prisma.SeasonGetPayload<{
@@ -35,68 +37,117 @@ export class SeasonService {
    * Creates a new season, including its configuration, within a database transaction.
    * Ensures the creator player exists before proceeding.
    * @param options The details for the new season.
-   * @returns The created Season object, including its configuration.
-   * @throws Error if the creator player does not exist or if the season name is taken.
+   * @returns A MessageInstruction object indicating success or failure with a message key and data.
    */
-  async createSeason(options: NewSeasonOptions): Promise<SeasonWithConfig> {
+  async createSeason(options: NewSeasonOptions): Promise<MessageInstruction> {
     console.log('SeasonService.createSeason DB logic executing with options:', options);
 
-    // 1. Find the creator Player using their Discord ID
-    const creator = await this.prisma.player.findUnique({
-      where: { discordUserId: options.creatorDiscordId },
-    });
-
-    if (!creator) {
-      // TODO: Handle player creation if they don't exist? Or enforce pre-registration?
-      // For now, throw an error if the player isn't found.
-      console.error(`Creator player with Discord ID ${options.creatorDiscordId} not found.`);
-      throw new Error('Creator player not found. Please ensure the player is registered.');
+    // Validate minPlayers and maxPlayers
+    if (options.minPlayers != null && options.maxPlayers != null && options.maxPlayers < options.minPlayers) {
+      console.warn(`Validation Error: maxPlayers (${options.maxPlayers}) cannot be less than minPlayers (${options.minPlayers}).`);
+      return {
+        type: 'error',
+        key: 'season_create_error_min_max_players',
+        data: { minPlayers: options.minPlayers, maxPlayers: options.maxPlayers },
+      };
     }
 
-    // Use a transaction to ensure atomicity: create config and season together
-    const newSeasonWithConfig = await this.prisma.$transaction(async (tx) => {
-      // 2. Create the SeasonConfig record
-      // Start with defaults (implicitly handled by Prisma schema defaults)
-      // Override defaults with any provided options
-      const configData: Prisma.SeasonConfigCreateInput = {
-        // Use Prisma schema defaults unless overridden
-        ...(options.turnPattern && { turnPattern: options.turnPattern }),
-        ...(options.claimTimeout && { claimTimeout: options.claimTimeout }),
-        ...(options.writingTimeout && { writingTimeout: options.writingTimeout }),
-        // ...(options.writingWarning && { writingWarning: options.writingWarning }), // Add if needed
-        ...(options.drawingTimeout && { drawingTimeout: options.drawingTimeout }),
-        // ...(options.drawingWarning && { drawingWarning: options.drawingWarning }), // Add if needed
-        ...(options.openDuration && { openDuration: options.openDuration }),
-        ...(options.minPlayers && { minPlayers: options.minPlayers }),
-        ...(options.maxPlayers && { maxPlayers: options.maxPlayers }),
-        // isGuildDefaultFor: null, // Explicitly null unless setting a default
-        id: nanoid() // Use nanoid directly
-      };
-      const newConfig = await tx.seasonConfig.create({ data: configData });
-
-      // 3. Create the Season record
-      const seasonData: Prisma.SeasonCreateInput = {
-        name: options.name,
-        status: 'SETUP', // Initial status - player needs to join/ready up?
-        creator: {
-          connect: { id: creator.id },
-        },
-        config: {
-          connect: { id: newConfig.id },
-        },
-        id: nanoid() // Use nanoid directly
-      };
-
-      const newSeason = await tx.season.create({
-        data: seasonData,
-        include: { config: true }, // Include the config in the return value
+    try {
+      // 1. Find the creator Player using their Discord ID
+      const creator = await this.prisma.player.findUnique({
+        where: { discordUserId: options.creatorDiscordId },
       });
 
-      return newSeason;
-    });
+      if (!creator) {
+        console.error(`Creator player with Discord ID ${options.creatorDiscordId} not found.`);
+        return {
+          type: 'error',
+          key: 'season_create_error_creator_not_found',
+          data: { discordUserId: options.creatorDiscordId },
+        };
+      }
 
-    console.log(`Season '${newSeasonWithConfig.name}' (ID: ${newSeasonWithConfig.id}) created successfully in DB.`);
-    return newSeasonWithConfig;
+      // Use a transaction to ensure atomicity: create config and season together
+      const newSeasonWithConfig = await this.prisma.$transaction(async (tx) => {
+        // 2. Create the SeasonConfig record
+        const configData: Prisma.SeasonConfigCreateInput = {
+          id: nanoid(), // Use nanoid directly
+          ...(options.turnPattern && { turnPattern: options.turnPattern }),
+          ...(options.claimTimeout && { claimTimeout: options.claimTimeout }),
+          ...(options.writingTimeout && { writingTimeout: options.writingTimeout }),
+          ...(options.drawingTimeout && { drawingTimeout: options.drawingTimeout }),
+          ...(options.openDuration && { openDuration: options.openDuration }),
+          ...(options.minPlayers && { minPlayers: options.minPlayers }),
+          ...(options.maxPlayers && { maxPlayers: options.maxPlayers }),
+        };
+        const newConfig = await tx.seasonConfig.create({ data: configData });
+
+        // 3. Create the Season record
+        const seasonData: Prisma.SeasonCreateInput = {
+          id: nanoid(), // Use nanoid directly
+          name: options.name,
+          status: 'SETUP', 
+          creator: {
+            connect: { id: creator.id },
+          },
+          config: {
+            connect: { id: newConfig.id },
+          },
+        };
+
+        const newSeason = await tx.season.create({
+          data: seasonData,
+          include: { config: true }, 
+        });
+
+        return newSeason;
+      });
+
+      console.log(`Season '${newSeasonWithConfig.name}' (ID: ${newSeasonWithConfig.id}) created successfully in DB.`);
+      return {
+        type: 'success',
+        key: 'season_create_success',
+        data: {
+          seasonId: newSeasonWithConfig.id,
+          seasonName: newSeasonWithConfig.name,
+          status: newSeasonWithConfig.status,
+          // Potentially include other relevant details for the success message
+        },
+      };
+    } catch (error) {
+      console.error('Error creating season:', error);
+      if (error instanceof PrismaClientKnownRequestError) {
+        // P2002 is the Prisma error code for unique constraint violation
+        if (error.code === 'P2002') {
+          const target = error.meta?.target as string[] | undefined;
+          if (target && target.includes('name')) { // Check if the unique constraint was on the name field
+            return {
+              type: 'error',
+              key: 'season_create_error_name_taken',
+              data: { name: options.name },
+            };
+          }
+          // Handle other unique constraint violations if necessary
+          return {
+            type: 'error',
+            key: 'season_create_error_prisma_unique_constraint',
+            data: { errorCode: error.code, target: target },
+          };
+        }
+        // Handle other known Prisma errors
+        return {
+          type: 'error',
+          key: 'season_create_error_prisma',
+          data: { errorCode: error.code, message: error.message },
+        };
+      }
+      // Handle other unexpected errors
+      return {
+        type: 'error',
+        key: 'season_create_error_unknown',
+        data: { message: (error instanceof Error) ? error.message : 'An unknown error occurred' },
+      };
+    }
   }
 
   /**

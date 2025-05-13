@@ -1,0 +1,28 @@
+# Task ID: 31
+# Title: Refactor /new season Command to Use Lang Service
+# Status: pending
+# Dependencies: 30
+# Priority: medium
+# Description: Refactor the '/new season' subcommand handler in src/commands/chat/new-command.ts to utilize the Lang service for all user-facing messages based on structured instructions from SeasonService.
+# Details:
+This task involves modifying the `/new season` command handler located in `src/commands/chat/new-command.ts`. The primary goal is to eliminate direct string construction of user feedback messages (replies, follow-ups, DMs, errors) and instead rely entirely on the `Lang` service (`Lang.getRef`, `Lang.getEmbed`).
+
+Steps:
+1.  Identify all points in the `/new season` command handler where user feedback messages are currently constructed and sent.
+2.  Ensure that the command handler calls the updated `SeasonService.createSeason` (as per Task 30), which now returns structured message instruction objects.
+3.  For each message instruction received from `SeasonService`, use the `Lang` service (e.g., `Lang.getRef(instruction.key, instruction.placeholders)`) to generate the final message content or embed.
+4.  Send the message content/embed returned by the `Lang` service to the user via the appropriate interaction response method (reply, followUp, etc.). Handle potential DM messages separately if required by the instructions.
+5.  Define new language keys and corresponding entries in the language files (e.g., `lang.en-US.json`, `lang.fr-FR.json`, etc.) for all messages previously hardcoded or constructed via string concatenation in the command handler. These entries should include placeholders for dynamic data (e.g., season name, ID, dates, error details).
+6.  Remove all instances of direct string message construction or concatenation intended for user output within the command handler.
+7.  Verify that the command handler does *not* instantiate `PrismaClient` directly. It should rely on the `SeasonService` to handle database interactions, assuming `SeasonService` uses a shared/singleton `PrismaClient` instance (as may be addressed in a separate preliminary task).
+
+# Test Strategy:
+Thoroughly test the refactored `/new season` command in a development environment.
+
+Test Cases:
+1.  **Successful Season Creation:** Execute the command with valid parameters. Verify that the success message displayed to the user (reply or embed) is correctly formatted, includes the expected dynamic data (season name, ID, dates), and originates from the `Lang` service (visually inspect the content and confirm it matches the language file entry with placeholders filled).
+2.  **Validation Errors:** Execute the command with invalid parameters that should trigger validation errors within `SeasonService` (e.g., invalid dates, missing name, name too long). Verify that the error messages displayed are correct, informative, and originate from the `Lang` service, with appropriate placeholders filled (e.g., detailing the specific validation failure).
+3.  **Service Interaction Errors:** Simulate or trigger other potential errors during the `SeasonService.createSeason` call (e.g., database error, unexpected logic error). Verify that the command handler catches these errors and uses the `Lang` service to provide a user-friendly error message.
+4.  **Placeholder Verification:** For each message type (success, various errors), ensure that all intended placeholders (e.g., `{seasonName}`, `{seasonId}`, `{errorDetail}`) are correctly replaced with actual data in the final message output.
+5.  **Code Inspection:** Review the `src/commands/chat/new-command.ts` file to confirm that no direct string concatenation or hardcoded message strings intended for user output remain. Also, confirm that `PrismaClient` is not instantiated within this file.
+6.  **Language File Verification:** Check the language files (`lang.*.json`) to ensure that new keys for `/new season` messages have been added and are correctly structured with placeholders.
