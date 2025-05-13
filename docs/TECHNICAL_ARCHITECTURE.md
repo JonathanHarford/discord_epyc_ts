@@ -6,6 +6,7 @@
 * **Database**: Stores game state, player information, turns, season data, etc. Prisma on top of PostgreSQL.
 * **Command Handlers**: Process Discord slash commands and interactions, call service layer methods, and format responses. (Located in `src/commands/chat`).
 * **Task Scheduler**: Component responsible for monitoring claim and submission timeouts and triggering the necessary actions (dismissing offers, skipping players, offering turn to next eligible player).
+* **Testing**: We use vitest, not Jest.
 
 ## Implementation Notes
 
