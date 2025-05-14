@@ -110,6 +110,10 @@ See examples in [SEASON_FLOWS.md](mdc:docs/SEASON_FLOWS.md).
 # Technical Architecture
 See [TECHNICAL_ARCHITECTURE.md](mdc:docs/TECHNICAL_ARCHITECTURE.md)
 
+## Core Architectural Principles
+- **Chat Platform Independence**: Services should be designed to be independent of any specific chat platform (e.g., Discord). Core logic should be abstracted from platform-specific APIs.
+- **Standardized Service Method Returns**: Service methods that are invoked by bot commands should return a common, platform-agnostic data structure (e.g., a `MessageInstruction` type). This structure will then be translated by a platform-specific adapter into the appropriate format for the target chat platform. This ensures that the core service logic remains reusable across different platforms.
+
 ## System Terminology
 * **Announcement Channel**: Channel for new season announcements (defaults to where `/new season` is used if in a channel).
 * **Completed Channel**: Channel where completed game sequences are posted (defaults to announcement channel if season started in a channel; otherwise DM'd).

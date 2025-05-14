@@ -4,6 +4,8 @@
 # Dependencies: 5
 # Priority: medium
 # Description: Update `SeasonService.createSeason` to return structured message instruction objects for both success and error outcomes, facilitating user feedback via the Lang service.
+
+Architectural Principle: Services should be designed to be chat platform-independent. Core logic should be abstracted from platform-specific APIs. The use of `MessageInstruction` objects is a key part of this principle.
 # Details:
 Modify the `SeasonService.createSeason` method to return a structured object representing a message instruction, rather than the created season object or throwing raw errors. Define a standard interface or type for `MessageInstruction` (e.g., `{ type: 'success' | 'error', key: string, data?: Record<string, any> }`) that can be used across services. On successful season creation, return a success instruction object including relevant season details (like ID and name) for the message. On failure (e.g., validation errors, database issues), catch the error and return an error instruction object with an appropriate message key and relevant error data. Ensure all potential error paths within `createSeason` are handled by returning an error instruction.
 
