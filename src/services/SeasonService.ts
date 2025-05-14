@@ -1,5 +1,4 @@
 import { PrismaClient, Player, Season, SeasonConfig, Prisma } from '@prisma/client';
-import { PrismaClientKnownRequestError } from '@prisma/client/runtime/library'; // Attempting different import path
 import { nanoid } from 'nanoid'; // Use named import for nanoid
 import { MessageInstruction } from '../types/MessageInstruction.js'; // Added .js extension
 
@@ -83,9 +82,10 @@ export class SeasonService {
         const newConfig = await tx.seasonConfig.create({ data: configData });
 
         // 3. Create the Season record
+        const seasonName = options.name || `Epyc Season ${nanoid(8)}`; // Generate name if not provided TODO: Implement more creative/themed name generation
         const seasonData: Prisma.SeasonCreateInput = {
           id: nanoid(), // Use nanoid directly
-          name: options.name,
+          name: seasonName, // Use the potentially generated name
           status: 'SETUP', 
           creator: {
             connect: { id: creator.id },
@@ -116,7 +116,7 @@ export class SeasonService {
       };
     } catch (error) {
       console.error('Error creating season:', error);
-      if (error instanceof PrismaClientKnownRequestError) {
+      if (error instanceof Prisma.PrismaClientKnownRequestError) {
         // P2002 is the Prisma error code for unique constraint violation
         if (error.code === 'P2002') {
           const target = error.meta?.target as string[] | undefined;
@@ -286,7 +286,7 @@ export class SeasonService {
 }
 
 export interface NewSeasonOptions {
-  name: string;
+  name?: string; // Made name optional
   creatorDiscordId: string;
   openDuration?: string | null; // Prisma schema uses String?
   minPlayers?: number | null;

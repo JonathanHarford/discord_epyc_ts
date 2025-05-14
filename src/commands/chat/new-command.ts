@@ -15,22 +15,7 @@ import { MessageInstruction } from '../../types/MessageInstruction.js';
 import prisma from '../../lib/prisma.js'; // Import global Prisma client instance
 import { Lang } from '../../services/lang.js';
 import { Language } from '../../models/enum-helpers/language.js';
-// Assuming Lang service is available, e.g., import { Lang } from '../../services/LangService.js';
-// For now, we'll construct strings and mark where Lang service should be used.
 
-// TODO: Define a type/interface for the options object passed to the service
-// interface NewSeasonOptions {
-//   name: string;
-//   creatorDiscordId: string;
-//   openDuration?: string;
-//   minPlayers?: number;
-//   maxPlayers?: number;
-//   turnPattern?: string;
-//   claimTimeout?: string;
-//   writingTimeout?: string;
-//   drawingTimeout?: string;
-//   // Add warning timeouts if needed based on schema/service
-// }
 
 // Renamed from newSeasonCommandData to newCommandData
 export const newCommandData = new SlashCommandBuilder()
@@ -40,10 +25,6 @@ export const newCommandData = new SlashCommandBuilder()
     subcommand
       .setName('season')
       .setDescription('Starts a new season of the Epyc game.')
-      .addStringOption(option =>
-        option.setName('name')
-          .setDescription('The unique name for this season.')
-          .setRequired(true))
       .addStringOption(option =>
         option.setName('open_duration')
           .setDescription('How long the season is open for joining (e.g., "7d", "24h"). Default varies.')
@@ -91,7 +72,6 @@ export class NewCommand implements Command {
       const creatorDiscordId = intr.user.id;
       const creator: User = intr.user;
 
-      const name = intr.options.getString('name', true);
       const openDuration = intr.options.getString('open_duration');
       const minPlayers = intr.options.getInteger('min_players');
       const maxPlayers = intr.options.getInteger('max_players');
@@ -101,7 +81,6 @@ export class NewCommand implements Command {
       const drawingTimeout = intr.options.getString('drawing_timeout');
 
       const seasonOptions: NewSeasonOptions = {
-        name,
         creatorDiscordId,
         ...(openDuration !== null && { openDuration }),
         ...(minPlayers !== null && { minPlayers }),
