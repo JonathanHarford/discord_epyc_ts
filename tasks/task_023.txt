@@ -5,7 +5,51 @@
 # Priority: medium
 # Description: Implement the `/admin ban user:@user` and `/admin unban user:@user` slash command handlers in `src/commands/chat`. These handlers should include permission checks. They should call the `PlayerService` to update the player's state (BANNED/NOT_BANNED) in the database. Banned players should not be able to join new seasons or be offered turns.
 # Details:
-
+Implement the command logic within `src/commands/chat/admin.ts`. Ensure proper error handling for invalid user mentions or permission issues. The command should interact with the `PlayerService` to update the player's `status` field in the database.
 
 # Test Strategy:
-Use the `/admin ban` command on a test user as an admin. Verify the user's state changes to BANNED. Attempt to join a season or be offered a turn with the banned user and verify it fails. Use `/admin unban` and verify the user can then participate.
+Implement integration tests using a test database to verify the command handler correctly updates the player status and handles edge cases (e.g., banning an already banned user). Implement unit tests for the core logic within the command handler or any extracted helper functions. Manually test the commands in a development environment: Use the `/admin ban` command on a test user as an admin. Verify the user's state changes to BANNED in the database. Attempt to join a season or be offered a turn with the banned user and verify it fails. Use `/admin unban` and verify the user can then participate.
+
+# Subtasks:
+## 1. undefined [pending]
+### Dependencies: None
+### Description: Implement `/admin ban` command handler in `src/commands/chat/admin.ts`
+### Details:
+
+
+## 2. undefined [pending]
+### Dependencies: None
+### Description: Implement `/admin unban` command handler in `src/commands/chat/admin.ts`
+### Details:
+
+
+## 3. undefined [pending]
+### Dependencies: None
+### Description: Add permission checks to ban/unban handlers
+### Details:
+
+
+## 4. undefined [pending]
+### Dependencies: None
+### Description: Integrate ban/unban handlers with `PlayerService` to update player status
+### Details:
+
+
+## 5. undefined [pending]
+### Dependencies: None
+### Description: Implement integration tests for ban/unban commands against a test database
+### Details:
+
+
+## 6. undefined [pending]
+### Dependencies: None
+### Description: Implement unit tests for the ban/unban command logic
+### Details:
+
+
+## 7. undefined [pending]
+### Dependencies: None
+### Description: Manually test ban/unban commands in development environment
+### Details:
+
+

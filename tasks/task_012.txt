@@ -5,7 +5,48 @@
 # Priority: medium
 # Description: Implement the logic within the DM handling framework to process turn submissions (text for writing turns, image for drawing turns). This logic should validate that the user has a turn currently in the PENDING state. If valid, call `TurnService.submitTurn` to update the turn state to COMPLETED, save the submitted content (text or image URL), cancel the submission timeout timer via the Task Scheduler, and trigger the process to find and offer the next turn in that game.
 # Details:
-
+Implement the necessary command handler for processing turn submissions received via Direct Messages. This involves parsing the incoming message (checking for text or attachments), validating the user's current turn state, interacting with the `TurnService` to update the turn and save content, and coordinating with the Task Scheduler for timer cancellation and the game progression logic for finding the next turn.
 
 # Test Strategy:
-Have a test player claim a turn (PENDING). Have them submit text (for writing) or an image (for drawing) in DM. Verify the turn state changes to COMPLETED, content is saved in the DB, the submission timer is cancelled, and the next turn is offered (if applicable).
+Implement comprehensive tests covering the submission handling logic:
+1.  **Integration Tests:** Test the command handler's interaction with the database using a test database instance. Verify turn state updates, content saving, and timer cancellation logic without involving Discord.
+2.  **Unit Tests:** Test the core logic components of the command handler in isolation, mocking dependencies like the database or external services.
+3.  **End-to-End Test (Manual/Automated):** Have a test player claim a turn (PENDING) in a test game. Have them submit text (for writing) or an image (for drawing) in DM. Verify the turn state changes to COMPLETED, content is saved in the DB, the submission timer is cancelled, and the next turn is offered (if applicable).
+
+# Subtasks:
+## 1201. undefined [pending]
+### Dependencies: None
+### Description: Implement the core logic for validating turn submission and calling TurnService.submitTurn.
+### Details:
+
+
+## 1202. undefined [pending]
+### Dependencies: None
+### Description: Integrate logic for saving submitted content (text or image URL).
+### Details:
+
+
+## 1203. undefined [pending]
+### Dependencies: None
+### Description: Implement logic to cancel the submission timeout timer via the Task Scheduler.
+### Details:
+
+
+## 1204. undefined [pending]
+### Dependencies: None
+### Description: Implement logic to trigger finding and offering the next turn after successful submission.
+### Details:
+
+
+## 1205. undefined [pending]
+### Dependencies: None
+### Description: Write integration tests for the submission handling logic against a test database.
+### Details:
+
+
+## 1206. undefined [pending]
+### Dependencies: None
+### Description: Write unit tests for the core logic components of the submission handling command.
+### Details:
+
+

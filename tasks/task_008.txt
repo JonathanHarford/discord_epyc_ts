@@ -8,4 +8,42 @@
 
 
 # Test Strategy:
-Create a season with `min_players` and `max_players` set. Join players until `max_players` is reached and verify the season activates, games are created, and initial turns are offered. Create a season with `open_duration` and verify it activates after the duration passes if `min_players` is met. Verify initial turns are offered.
+Implement comprehensive tests including unit tests for core logic, integration tests verifying database interactions, and end-to-end tests simulating player joins and timeout scenarios. Verify season status transitions, game creation, player assignments, and initial turn offers (including Discord DMs in end-to-end tests).
+
+# Subtasks:
+## 8.1. undefined [pending]
+### Dependencies: None
+### Description: Implement the core season activation logic (check conditions, update season status, create games, assign players)
+### Details:
+
+
+## 8.2. undefined [pending]
+### Dependencies: None
+### Description: Integrate with Task Scheduler for the `open_duration` timeout trigger
+### Details:
+
+
+## 8.3. undefined [pending]
+### Dependencies: None
+### Description: Implement the logic to send initial turn offer DMs upon activation
+### Details:
+
+
+## 8.4. undefined [pending]
+### Dependencies: None
+### Description: Implement unit tests for the core season activation logic
+### Details:
+
+
+## 8.5. undefined [pending]
+### Dependencies: None
+### Description: Implement integration tests verifying database interactions during activation
+### Details:
+
+
+## 8.6. undefined [pending]
+### Dependencies: None
+### Description: Implement end-to-end tests covering player join and timeout scenarios, verifying full flow including Discord DMs
+### Details:
+
+

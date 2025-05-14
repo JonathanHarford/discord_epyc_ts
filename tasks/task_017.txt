@@ -5,7 +5,53 @@
 # Priority: medium
 # Description: Implement the handler logic that is triggered by the Task Scheduler when a `writing_timeout` or `drawing_timeout` occurs for a PENDING turn. This handler should call `TurnService.skipTurn` to update the turn state to SKIPPED, send a DM notification to the player informing them they were skipped, and then trigger the Turn Offering Mechanism (Task 14) to find and offer the turn to another eligible player.
 # Details:
-
+Implement the core logic for the timeout handler. This involves:
+- Receiving the timeout event (e.g., from a message queue or scheduler trigger).
+- Identifying the specific turn that timed out.
+- Calling `TurnService.skipTurn` to update the turn state.
+- Sending a DM notification to the player who was skipped.
+- Triggering the Turn Offering Mechanism (Task 14).
 
 # Test Strategy:
-Have a test player claim a turn (PENDING) but do not have them submit content. Set a short submission timeout. Verify that after the timeout, the turn state changes to SKIPPED, the player receives a skipped message DM, and the Turn Offering Mechanism attempts to find another player.
+Implement comprehensive tests covering the handler logic:
+1.  **Unit Tests:** Test the core logic components (e.g., service methods called by the handler) in isolation.
+2.  **Integration Tests:** Test the handler's interaction with the database (e.g., verifying turn state updates) using a test database. These tests should NOT interact with external services like Discord.
+3.  **End-to-End Test:** Have a test player claim a turn (PENDING) but do not have them submit content. Set a short submission timeout. Verify that after the timeout, the turn state changes to SKIPPED, the player receives a skipped message DM, and the Turn Offering Mechanism attempts to find another player.
+
+# Subtasks:
+## 17-1. undefined [pending]
+### Dependencies: None
+### Description: Implement the core handler logic for processing timeout events.
+### Details:
+This includes receiving the event, identifying the turn, calling `TurnService.skipTurn`, and initiating the notification/offering process.
+
+## 17-2. undefined [pending]
+### Dependencies: None
+### Description: Implement logic to send a DM notification to the skipped player.
+### Details:
+Utilize the appropriate messaging service to send a private message informing the player their turn was skipped due to timeout.
+
+## 17-3. undefined [pending]
+### Dependencies: None
+### Description: Integrate triggering the Turn Offering Mechanism (Task 14) after skipping the turn.
+### Details:
+Ensure the handler correctly calls or signals the mechanism responsible for finding the next eligible player.
+
+## 17-4. undefined [pending]
+### Dependencies: None
+### Description: Write Unit Tests for the handler's logic components.
+### Details:
+Focus on testing individual functions and methods called by the handler in isolation, mocking dependencies as needed.
+
+## 17-5. undefined [pending]
+### Dependencies: None
+### Description: Write Integration Tests for the handler's database interactions.
+### Details:
+Use a test database to verify that the handler correctly updates the turn state to SKIPPED. These tests should not involve Discord or other external services.
+
+## 17-6. undefined [pending]
+### Dependencies: None
+### Description: Perform End-to-End testing of the timeout scenario.
+### Details:
+Manually or automatically simulate the full flow: player claims turn, timeout occurs, verify state change, DM received, and offering mechanism triggered.
+

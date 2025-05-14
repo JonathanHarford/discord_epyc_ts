@@ -5,7 +5,27 @@
 # Priority: medium
 # Description: Implement the `/admin terminate season:<id>` slash command handler in `src/commands/chat`. This handler should include permission checks to ensure only authorized users can use it. It should call the `SeasonService` to mark the specified season as TERMINATED in the database and potentially clean up or mark related games/turns appropriately.
 # Details:
-
+As per TECHNICAL_ARCHITECTURE.md, this command implementation requires both integration tests against a test database and unit tests for the core logic.
 
 # Test Strategy:
-Use the `/admin terminate season` command with a test season as an admin. Verify the season state changes to TERMINATED in the database. Test using the command without admin permissions and verify it is rejected.
+Implement integration tests that use a test database to verify the command handler's interaction with the `SeasonService` and database state changes (season status, related entities). Implement unit tests for the permission checks and any specific logic within the command handler itself, mocking dependencies like the `SeasonService`. Also, perform manual testing using the `/admin terminate season` command with a test season as an admin to verify the season state changes to TERMINATED in the database. Manually test using the command without admin permissions and verify it is rejected.
+
+# Subtasks:
+## 1. undefined [pending]
+### Dependencies: None
+### Description: Implement the core logic for the `/admin terminate season` command handler, including permission checks.
+### Details:
+
+
+## 2. undefined [pending]
+### Dependencies: None
+### Description: Implement integration tests for the `/admin terminate season` command handler against a test database.
+### Details:
+
+
+## 3. undefined [pending]
+### Dependencies: None
+### Description: Implement unit tests for the logic within the `/admin terminate season` command handler.
+### Details:
+
+

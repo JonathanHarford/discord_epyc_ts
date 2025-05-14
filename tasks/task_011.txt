@@ -8,4 +8,8 @@
 
 
 # Test Strategy:
-Offer a turn to a test player. Have the player use `/ready` in DM. Verify the turn state changes to PENDING in the DB. Verify the claim timer is cancelled and a submission timer is scheduled via the Task Scheduler. Test using `/ready` when no turn is offered and verify an error message is returned.
+Implement the following testing types:
+
+1.  **Unit Tests:** Test the core logic components of the command handler in isolation, mocking external dependencies like the database, TurnService, and Task Scheduler. Verify correct validation, calls to services, and timer interactions.
+2.  **Integration Tests:** Test the command handler's interaction with the database using a test database instance. Verify that the turn state is correctly updated to PENDING (ASSIGNED) and that appropriate data is persisted.
+3.  **End-to-End/Manual Testing:** Offer a turn to a test player. Have the player use `/ready` in DM. Verify the turn state changes to PENDING in the DB. Verify the claim timer is cancelled and a submission timer is scheduled via the Task Scheduler (manual verification or logging). Test using `/ready` when no turn is offered and verify an appropriate error message is returned to the user.

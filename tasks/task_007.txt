@@ -19,9 +19,46 @@ Implementation Plan:
 4. Implement appropriate error handling for potential issues during database operations or unexpected errors.
 
 # Test Strategy:
-Use the `/join season` command with various inputs:
-- Use a valid `season_id` for a season that is 'open' or 'pending_start'. Verify the user is added as a player to that season in the database and a success message is received.
-- Use a valid `season_id` for a season that is 'active', 'closed', or 'archived'. Verify an appropriate error message is returned (e.g., 'Season is not open for joining') and the user is NOT added.
-- Use an invalid or non-existent `season_id`. Verify an appropriate error message is returned (e.g., 'Season not found').
-- Attempt to join a season the user has already joined. Verify an appropriate error message is returned (e.g., 'You have already joined this season').
-- Test edge cases like invalid input format for the ID (if applicable based on Discord.js option type).
+Implement and run tests according to the project's testing guidelines (TECHNICAL_ARCHITECTURE.md):
+
+1.  **Manual/Integration Testing (via Discord):** Use the `/join season` command in a test Discord server with various inputs:
+    -   Use a valid `season_id` for a season that is 'open' or 'pending_start'. Verify the user is added as a player to that season in the database and a success message is received.
+    -   Use a valid `season_id` for a season that is 'active', 'closed', or 'archived'. Verify an appropriate error message is returned (e.g., 'Season is not open for joining') and the user is NOT added.
+    -   Use an invalid or non-existent `season_id`. Verify an appropriate error message is returned (e.g., 'Season not found').
+    -   Attempt to join a season the user has already joined. Verify an appropriate error message is returned (e.g., 'You have already joined this season').
+    -   Test edge cases like invalid input format for the ID (if applicable based on Discord.js option type).
+
+2.  **Integration Tests (Database Interaction):** Write integration tests that simulate command execution logic, interacting with a test database but *without* involving the Discord API. These tests should cover:
+    -   Successful joining of an open season.
+    -   Attempting to join a non-existent season.
+    -   Attempting to join a season that is not open for joining (e.g., 'active', 'closed').
+    -   Attempting to join a season the user has already joined.
+    -   Error handling for database issues.
+
+3.  **Unit Tests (Logic Layer):** Write unit tests for any pure logic functions extracted from the command handler, focusing on validation rules and data processing, independent of database or Discord interactions.
+
+# Subtasks:
+## 701. undefined [todo]
+### Dependencies: None
+### Description: Implement the command handler logic in `src/commands/chat/joinSeason.ts`.
+### Details:
+
+
+## 702. undefined [todo]
+### Dependencies: None
+### Description: Add integration tests for the `/join season` command logic against a test database.
+### Details:
+
+
+## 703. undefined [todo]
+### Dependencies: None
+### Description: Add unit tests for any extracted logic functions related to season joining.
+### Details:
+
+
+## 704. undefined [todo]
+### Dependencies: None
+### Description: Manually test the `/join season` command in a test Discord server.
+### Details:
+
+

@@ -8,4 +8,4 @@
 
 
 # Test Strategy:
-Use the `/config seasons` command to view current settings. If setting is implemented, test updating a setting and verifying the change is reflected.
+Implement integration tests that interact with a test database to verify command behavior without Discord interaction. Implement unit tests for the core logic layer of the command handler. Additionally, manually test the command using `/config seasons` to view current settings and, if setting is implemented, test updating a setting and verifying the change is reflected via the command and potentially direct database inspection.

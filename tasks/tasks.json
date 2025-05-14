@@ -211,107 +211,257 @@
       ],
       "priority": "medium",
       "details": "Implementation Plan:\n1. Create a new command file for `/join season` in `src/commands/chat`.\n2. Define the command structure with a required `season_id` option (e.g., using Discord.js builders).\n3. In the command handler:\n    a. Retrieve the `season_id` option value and the user executing the command (their Discord user ID).\n    b. Call `SeasonService.findSeasonById(seasonId)` to fetch the season details from the database.\n    c. Validate the fetched season:\n        i. Ensure the season exists (check if `findSeasonById` returned a season).\n        ii. Ensure the season is currently open for joining. This typically means its status should be 'open' or 'pending_start'. It should NOT be 'active', 'closed', or 'archived'.\n    d. If all validations pass, call `SeasonService.addPlayerToSeason(userId, seasonId)` to link the user to the season in the database.\n    e. Respond to the user with an ephemeral message indicating success or failure. Include specific reasons for failure, such as 'Season not found', 'Season is not open for joining', or 'You have already joined this season'.\n4. Implement appropriate error handling for potential issues during database operations or unexpected errors.",
-      "testStrategy": "Use the `/join season` command with various inputs:\n- Use a valid `season_id` for a season that is 'open' or 'pending_start'. Verify the user is added as a player to that season in the database and a success message is received.\n- Use a valid `season_id` for a season that is 'active', 'closed', or 'archived'. Verify an appropriate error message is returned (e.g., 'Season is not open for joining') and the user is NOT added.\n- Use an invalid or non-existent `season_id`. Verify an appropriate error message is returned (e.g., 'Season not found').\n- Attempt to join a season the user has already joined. Verify an appropriate error message is returned (e.g., 'You have already joined this season').\n- Test edge cases like invalid input format for the ID (if applicable based on Discord.js option type).",
-      "subtasks": []
+      "testStrategy": "Implement and run tests according to the project's testing guidelines (TECHNICAL_ARCHITECTURE.md):\n\n1.  **Manual/Integration Testing (via Discord):** Use the `/join season` command in a test Discord server with various inputs:\n    -   Use a valid `season_id` for a season that is 'open' or 'pending_start'. Verify the user is added as a player to that season in the database and a success message is received.\n    -   Use a valid `season_id` for a season that is 'active', 'closed', or 'archived'. Verify an appropriate error message is returned (e.g., 'Season is not open for joining') and the user is NOT added.\n    -   Use an invalid or non-existent `season_id`. Verify an appropriate error message is returned (e.g., 'Season not found').\n    -   Attempt to join a season the user has already joined. Verify an appropriate error message is returned (e.g., 'You have already joined this season').\n    -   Test edge cases like invalid input format for the ID (if applicable based on Discord.js option type).\n\n2.  **Integration Tests (Database Interaction):** Write integration tests that simulate command execution logic, interacting with a test database but *without* involving the Discord API. These tests should cover:\n    -   Successful joining of an open season.\n    -   Attempting to join a non-existent season.\n    -   Attempting to join a season that is not open for joining (e.g., 'active', 'closed').\n    -   Attempting to join a season the user has already joined.\n    -   Error handling for database issues.\n\n3.  **Unit Tests (Logic Layer):** Write unit tests for any pure logic functions extracted from the command handler, focusing on validation rules and data processing, independent of database or Discord interactions.",
+      "subtasks": [
+        {
+          "id": 701,
+          "description": "Implement the command handler logic in `src/commands/chat/joinSeason.ts`.",
+          "status": "todo"
+        },
+        {
+          "id": 702,
+          "description": "Add integration tests for the `/join season` command logic against a test database.",
+          "status": "todo"
+        },
+        {
+          "id": 703,
+          "description": "Add unit tests for any extracted logic functions related to season joining.",
+          "status": "todo"
+        },
+        {
+          "id": 704,
+          "description": "Manually test the `/join season` command in a test Discord server.",
+          "status": "todo"
+        }
+      ]
     },
     {
       "id": 8,
       "title": "Implement Season Activation Logic",
       "description": "Implement the logic responsible for transitioning a season from PENDING (waiting for players) to ACTIVE. This logic should be triggered either when the `max_players` limit is reached or when the `open_duration` timeout expires (requires Task Scheduler). Upon activation, create N games for N players in the season and trigger the initial turn OFFERs for each player via DM.",
-      "details": "",
-      "testStrategy": "Create a season with `min_players` and `max_players` set. Join players until `max_players` is reached and verify the season activates, games are created, and initial turns are offered. Create a season with `open_duration` and verify it activates after the duration passes if `min_players` is met. Verify initial turns are offered.",
-      "priority": "medium",
+      "status": "pending",
       "dependencies": [
         5
       ],
-      "status": "pending",
-      "subtasks": []
+      "priority": "medium",
+      "details": "",
+      "testStrategy": "Implement comprehensive tests including unit tests for core logic, integration tests verifying database interactions, and end-to-end tests simulating player joins and timeout scenarios. Verify season status transitions, game creation, player assignments, and initial turn offers (including Discord DMs in end-to-end tests).",
+      "subtasks": [
+        {
+          "id": 8.1,
+          "description": "Implement the core season activation logic (check conditions, update season status, create games, assign players)",
+          "status": "pending"
+        },
+        {
+          "id": 8.2,
+          "description": "Integrate with Task Scheduler for the `open_duration` timeout trigger",
+          "status": "pending"
+        },
+        {
+          "id": 8.3,
+          "description": "Implement the logic to send initial turn offer DMs upon activation",
+          "status": "pending"
+        },
+        {
+          "id": 8.4,
+          "description": "Implement unit tests for the core season activation logic",
+          "status": "pending"
+        },
+        {
+          "id": 8.5,
+          "description": "Implement integration tests verifying database interactions during activation",
+          "status": "pending"
+        },
+        {
+          "id": 8.6,
+          "description": "Implement end-to-end tests covering player join and timeout scenarios, verifying full flow including Discord DMs",
+          "status": "pending"
+        }
+      ]
     },
     {
       "id": 9,
       "title": "Implement Turn State Management",
       "description": "Implement the state management logic for turns within the `TurnService`. This involves methods to update the state of a turn in the database, transitioning between CREATED, AVAILABLE, OFFERED, PENDING, COMPLETED, and SKIPPED states as defined in the PRD. Ensure atomic updates where necessary.",
-      "details": "",
-      "testStrategy": "Write unit tests for the `TurnService` methods that update turn states. Verify that state transitions are correctly recorded in the database for various scenarios.",
-      "priority": "medium",
+      "status": "pending",
       "dependencies": [
         1,
         5
       ],
-      "status": "pending",
+      "priority": "medium",
+      "details": "",
+      "testStrategy": "Implement testing requirements as documented in TECHNICAL_ARCHITECTURE.md. This includes writing unit tests for the logic layer functionality within the `TurnService` methods and integration tests against a test database to verify state transitions and atomic updates.",
       "subtasks": []
     },
     {
       "id": 10,
       "title": "Setup Direct Message Handling Framework",
       "description": "Set up the Discord.js listener to handle Direct Messages sent to the bot. Implement logic to identify the context of the DM (e.g., is the user expected to send a `/ready` command, or are they submitting a turn for a specific game/turn?). Route the DM content to the appropriate handling logic.",
-      "details": "",
-      "testStrategy": "Send various types of DMs to the bot (plain text, image, slash command). Verify the bot receives the DMs and the framework correctly identifies the sender and message type, routing it to a placeholder handler.",
-      "priority": "medium",
+      "status": "pending",
       "dependencies": [
         2
       ],
-      "status": "pending",
-      "subtasks": []
+      "priority": "medium",
+      "details": "Implement the core framework for receiving and routing Direct Messages. This includes setting up the Discord.js event listener for 'messageCreate' and adding initial logic to distinguish between different types of expected DM interactions.",
+      "testStrategy": "Implement unit tests for the core routing logic. Implement integration tests that simulate receiving a DM and routing it, using a test database but without interacting with the Discord API. Additionally, manually send various types of DMs to the bot (plain text, image, slash command) to verify the bot receives the DMs and the framework correctly identifies the sender and message type, routing it to a placeholder handler.",
+      "subtasks": [
+        {
+          "id": 1,
+          "description": "Implement Discord.js listener for 'messageCreate' event to capture DMs.",
+          "status": "pending"
+        },
+        {
+          "id": 2,
+          "description": "Add initial logic to identify DM sender and basic message type.",
+          "status": "pending"
+        },
+        {
+          "id": 3,
+          "description": "Implement placeholder routing mechanism for different DM contexts.",
+          "status": "pending"
+        },
+        {
+          "id": 4,
+          "description": "Write unit tests for the DM routing logic.",
+          "status": "pending"
+        },
+        {
+          "id": 5,
+          "description": "Write integration tests simulating DM reception and routing against a test database.",
+          "status": "pending"
+        },
+        {
+          "id": 6,
+          "description": "Perform manual testing by sending various DMs to the bot.",
+          "status": "pending"
+        }
+      ]
     },
     {
       "id": 11,
       "title": "Implement '/ready' Command Handling (DM)",
       "description": "Implement the handler for the `/ready` command when used in a Direct Message. This handler should validate that the user has a turn currently in the OFFERED state. If valid, call `TurnService.claimTurn` to update the turn state to PENDING (ASSIGNED), cancel the associated claim timeout timer via the Task Scheduler, and schedule the appropriate submission timeout timer (writing or drawing). Send a confirmation DM to the player.",
-      "details": "",
-      "testStrategy": "Offer a turn to a test player. Have the player use `/ready` in DM. Verify the turn state changes to PENDING in the DB. Verify the claim timer is cancelled and a submission timer is scheduled via the Task Scheduler. Test using `/ready` when no turn is offered and verify an error message is returned.",
-      "priority": "medium",
+      "status": "pending",
       "dependencies": [
         5,
         9,
         10
       ],
-      "status": "pending",
+      "priority": "medium",
+      "details": "",
+      "testStrategy": "Implement the following testing types:\n\n1.  **Unit Tests:** Test the core logic components of the command handler in isolation, mocking external dependencies like the database, TurnService, and Task Scheduler. Verify correct validation, calls to services, and timer interactions.\n2.  **Integration Tests:** Test the command handler's interaction with the database using a test database instance. Verify that the turn state is correctly updated to PENDING (ASSIGNED) and that appropriate data is persisted.\n3.  **End-to-End/Manual Testing:** Offer a turn to a test player. Have the player use `/ready` in DM. Verify the turn state changes to PENDING in the DB. Verify the claim timer is cancelled and a submission timer is scheduled via the Task Scheduler (manual verification or logging). Test using `/ready` when no turn is offered and verify an appropriate error message is returned to the user.",
       "subtasks": []
     },
     {
       "id": 12,
       "title": "Implement Turn Submission Handling (DM)",
       "description": "Implement the logic within the DM handling framework to process turn submissions (text for writing turns, image for drawing turns). This logic should validate that the user has a turn currently in the PENDING state. If valid, call `TurnService.submitTurn` to update the turn state to COMPLETED, save the submitted content (text or image URL), cancel the submission timeout timer via the Task Scheduler, and trigger the process to find and offer the next turn in that game.",
-      "details": "",
-      "testStrategy": "Have a test player claim a turn (PENDING). Have them submit text (for writing) or an image (for drawing) in DM. Verify the turn state changes to COMPLETED, content is saved in the DB, the submission timer is cancelled, and the next turn is offered (if applicable).",
-      "priority": "medium",
+      "status": "pending",
       "dependencies": [
         5,
         9,
         10
       ],
-      "status": "pending",
-      "subtasks": []
+      "priority": "medium",
+      "details": "Implement the necessary command handler for processing turn submissions received via Direct Messages. This involves parsing the incoming message (checking for text or attachments), validating the user's current turn state, interacting with the `TurnService` to update the turn and save content, and coordinating with the Task Scheduler for timer cancellation and the game progression logic for finding the next turn.",
+      "testStrategy": "Implement comprehensive tests covering the submission handling logic:\n1.  **Integration Tests:** Test the command handler's interaction with the database using a test database instance. Verify turn state updates, content saving, and timer cancellation logic without involving Discord.\n2.  **Unit Tests:** Test the core logic components of the command handler in isolation, mocking dependencies like the database or external services.\n3.  **End-to-End Test (Manual/Automated):** Have a test player claim a turn (PENDING) in a test game. Have them submit text (for writing) or an image (for drawing) in DM. Verify the turn state changes to COMPLETED, content is saved in the DB, the submission timer is cancelled, and the next turn is offered (if applicable).",
+      "subtasks": [
+        {
+          "id": 1201,
+          "description": "Implement the core logic for validating turn submission and calling TurnService.submitTurn.",
+          "status": "pending"
+        },
+        {
+          "id": 1202,
+          "description": "Integrate logic for saving submitted content (text or image URL).",
+          "status": "pending"
+        },
+        {
+          "id": 1203,
+          "description": "Implement logic to cancel the submission timeout timer via the Task Scheduler.",
+          "status": "pending"
+        },
+        {
+          "id": 1204,
+          "description": "Implement logic to trigger finding and offering the next turn after successful submission.",
+          "status": "pending"
+        },
+        {
+          "id": 1205,
+          "description": "Write integration tests for the submission handling logic against a test database.",
+          "status": "pending"
+        },
+        {
+          "id": 1206,
+          "description": "Write unit tests for the core logic components of the submission handling command.",
+          "status": "pending"
+        }
+      ]
     },
     {
       "id": 13,
       "title": "Implement Season Next Player Logic",
       "description": "Implement the core Next Player Logic algorithm for Season Games as detailed in the PRD (`MUSTs` and `SHOULDs`). This logic, likely residing in `src/game/` or `GameService`, determines which player should be OFFERED the next AVAILABLE turn in a specific game, considering who has played, turn types, and avoiding multiple pending turns for one player.",
-      "details": "",
-      "testStrategy": "Write comprehensive unit tests for the next player selection function with various scenarios: a new game, mid-game with players available, end-game with few players left, scenarios where players have pending turns, scenarios after a player is skipped. Verify the correct player is selected according to the PRD rules.",
-      "priority": "medium",
+      "status": "pending",
       "dependencies": [
         5,
         9
       ],
-      "status": "pending",
+      "priority": "medium",
+      "details": "",
+      "testStrategy": "Implement comprehensive tests as per TECHNICAL_ARCHITECTURE.md:\n1.  Write unit tests specifically for the core logic layer function(s) that determine the next player. These tests should cover various scenarios: a new game, mid-game with players available, end-game with few players left, scenarios where players have pending turns, scenarios after a player is skipped. Verify the correct player is selected according to the PRD rules.\n2.  Write integration tests that interact with a test database to ensure the logic functions correctly within the application context, considering database state changes and interactions.",
       "subtasks": []
     },
     {
       "id": 14,
       "title": "Implement Turn Offering Mechanism",
       "description": "Implement the mechanism that triggers the selection and offering of the next turn. This should be called after a turn is COMPLETED or SKIPPED, or when a season is activated. It uses the Next Player Logic (Task 13) to find the next player, calls `TurnService.offerTurn` to update the state, sends the DM notification to the selected player, and schedules the claim timeout timer via the Task Scheduler.",
-      "details": "",
-      "testStrategy": "Complete or skip a turn in a test game. Verify the Turn Offering Mechanism is triggered. Verify the correct next player is selected (using Task 13), the turn state becomes OFFERED, the player receives a DM notification, and the claim timer is scheduled.",
-      "priority": "medium",
+      "status": "pending",
       "dependencies": [
         5,
         9,
         13
       ],
-      "status": "pending",
-      "subtasks": []
+      "priority": "medium",
+      "details": "Implement the core logic for triggering the turn offering process. This involves:\n- Identifying the trigger points (Turn COMPLETED/SKIPPED, Season Activated).\n- Calling the Next Player Logic (Task 13) to determine the next player.\n- Updating the game state via `TurnService.offerTurn`.\n- Sending a Discord DM notification to the selected player.\n- Scheduling the turn claim timeout timer using the Task Scheduler.",
+      "testStrategy": "Implement comprehensive tests covering the turn offering mechanism:\n1.  **Unit Tests:** Test the core logic components in isolation, particularly the selection and state update logic, mocking external dependencies like the database, Discord API, and Task Scheduler.\n2.  **Integration Tests:** Test the interaction between the turn offering logic and the database using a test database. Verify state changes are correctly persisted without involving Discord or the Task Scheduler directly.\n3.  **End-to-End/Manual Testing:** Complete or skip a turn in a test game. Verify the Turn Offering Mechanism is triggered. Verify the correct next player is selected (using Task 13), the turn state becomes OFFERED, the player receives a DM notification, and the claim timer is scheduled.",
+      "subtasks": [
+        {
+          "id": "14.1",
+          "description": "Implement the core logic for triggering and executing the turn offering process.",
+          "status": "pending"
+        },
+        {
+          "id": "14.2",
+          "description": "Integrate with Next Player Logic (Task 13) to get the next player.",
+          "status": "pending"
+        },
+        {
+          "id": "14.3",
+          "description": "Implement the call to `TurnService.offerTurn` to update game state.",
+          "status": "pending"
+        },
+        {
+          "id": "14.4",
+          "description": "Implement sending the Discord DM notification to the selected player.",
+          "status": "pending"
+        },
+        {
+          "id": "14.5",
+          "description": "Implement scheduling the turn claim timeout timer via the Task Scheduler.",
+          "status": "pending"
+        },
+        {
+          "id": "14.6",
+          "description": "Write Unit Tests for the turn offering logic layer.",
+          "status": "pending"
+        },
+        {
+          "id": "14.7",
+          "description": "Write Integration Tests for the turn offering mechanism against a test database.",
+          "status": "pending"
+        }
+      ]
     },
     {
       "id": 15,
@@ -330,47 +480,126 @@
       "id": 16,
       "title": "Implement Claim Timeout Handler",
       "description": "Implement the handler logic that is triggered by the Task Scheduler when a `claim_timeout` occurs for an OFFERED turn. This handler should call `TurnService.dismissOffer` to revert the turn state to AVAILABLE and then trigger the Turn Offering Mechanism (Task 14) to find and offer the turn to another eligible player.",
-      "details": "",
-      "testStrategy": "Offer a turn to a test player but do not have them use `/ready`. Set a short `claim_timeout`. Verify that after the timeout, the turn state reverts to AVAILABLE and the Turn Offering Mechanism attempts to find another player.",
-      "priority": "medium",
+      "status": "pending",
       "dependencies": [
         5,
         9,
         14,
         15
       ],
-      "status": "pending",
-      "subtasks": []
+      "priority": "medium",
+      "details": "Implement the handler logic. Ensure comprehensive testing is included, covering both integration tests against a test database and unit tests for the core logic, as per the requirements in TECHNICAL_ARCHITECTURE.md.",
+      "testStrategy": "Implement integration tests using a test database to verify the handler's interaction with the database (state changes, task scheduling). Implement unit tests for the core logic within the handler and `TurnService.dismissOffer` to ensure correct state transitions and logic execution independent of the database or external services. Additionally, perform manual testing by offering a turn to a test player, letting the timeout expire, and verifying the state change and subsequent offering attempt.",
+      "subtasks": [
+        {
+          "id": "16-1",
+          "description": "Implement the core handler logic for claim timeout.",
+          "status": "pending"
+        },
+        {
+          "id": "16-2",
+          "description": "Implement integration tests for the claim timeout handler against a test database.",
+          "status": "pending"
+        },
+        {
+          "id": "16-3",
+          "description": "Implement unit tests for the claim timeout handler logic and related `TurnService` methods.",
+          "status": "pending"
+        },
+        {
+          "id": "16-4",
+          "description": "Perform manual testing to verify the end-to-end flow.",
+          "status": "pending"
+        }
+      ]
     },
     {
       "id": 17,
       "title": "Implement Submission Timeout Handler",
       "description": "Implement the handler logic that is triggered by the Task Scheduler when a `writing_timeout` or `drawing_timeout` occurs for a PENDING turn. This handler should call `TurnService.skipTurn` to update the turn state to SKIPPED, send a DM notification to the player informing them they were skipped, and then trigger the Turn Offering Mechanism (Task 14) to find and offer the turn to another eligible player.",
-      "details": "",
-      "testStrategy": "Have a test player claim a turn (PENDING) but do not have them submit content. Set a short submission timeout. Verify that after the timeout, the turn state changes to SKIPPED, the player receives a skipped message DM, and the Turn Offering Mechanism attempts to find another player.",
-      "priority": "medium",
+      "status": "pending",
       "dependencies": [
         5,
         9,
         14,
         15
       ],
-      "status": "pending",
-      "subtasks": []
+      "priority": "medium",
+      "details": "Implement the core logic for the timeout handler. This involves:\n- Receiving the timeout event (e.g., from a message queue or scheduler trigger).\n- Identifying the specific turn that timed out.\n- Calling `TurnService.skipTurn` to update the turn state.\n- Sending a DM notification to the player who was skipped.\n- Triggering the Turn Offering Mechanism (Task 14).",
+      "testStrategy": "Implement comprehensive tests covering the handler logic:\n1.  **Unit Tests:** Test the core logic components (e.g., service methods called by the handler) in isolation.\n2.  **Integration Tests:** Test the handler's interaction with the database (e.g., verifying turn state updates) using a test database. These tests should NOT interact with external services like Discord.\n3.  **End-to-End Test:** Have a test player claim a turn (PENDING) but do not have them submit content. Set a short submission timeout. Verify that after the timeout, the turn state changes to SKIPPED, the player receives a skipped message DM, and the Turn Offering Mechanism attempts to find another player.",
+      "subtasks": [
+        {
+          "id": "17-1",
+          "description": "Implement the core handler logic for processing timeout events.",
+          "status": "pending",
+          "details": "This includes receiving the event, identifying the turn, calling `TurnService.skipTurn`, and initiating the notification/offering process."
+        },
+        {
+          "id": "17-2",
+          "description": "Implement logic to send a DM notification to the skipped player.",
+          "status": "pending",
+          "details": "Utilize the appropriate messaging service to send a private message informing the player their turn was skipped due to timeout."
+        },
+        {
+          "id": "17-3",
+          "description": "Integrate triggering the Turn Offering Mechanism (Task 14) after skipping the turn.",
+          "status": "pending",
+          "details": "Ensure the handler correctly calls or signals the mechanism responsible for finding the next eligible player."
+        },
+        {
+          "id": "17-4",
+          "description": "Write Unit Tests for the handler's logic components.",
+          "status": "pending",
+          "details": "Focus on testing individual functions and methods called by the handler in isolation, mocking dependencies as needed."
+        },
+        {
+          "id": "17-5",
+          "description": "Write Integration Tests for the handler's database interactions.",
+          "status": "pending",
+          "details": "Use a test database to verify that the handler correctly updates the turn state to SKIPPED. These tests should not involve Discord or other external services."
+        },
+        {
+          "id": "17-6",
+          "description": "Perform End-to-End testing of the timeout scenario.",
+          "status": "pending",
+          "details": "Manually or automatically simulate the full flow: player claims turn, timeout occurs, verify state change, DM received, and offering mechanism triggered."
+        }
+      ]
     },
     {
       "id": 18,
       "title": "Implement Game Completion Check (Season)",
       "description": "Implement the logic to check if a game within a season is completed. This check should be performed after a turn is successfully COMPLETED or SKIPPED. A game is completed when every player in the season has either COMPLETED or been SKIPPED for their turn in that specific game.",
-      "details": "",
-      "testStrategy": "Set up a test season with a few players and games. Play through a game, ensuring all players either complete or are skipped for their turn. Verify the game state correctly transitions to COMPLETED when the criteria are met.",
-      "priority": "medium",
+      "status": "pending",
       "dependencies": [
         5,
         9
       ],
-      "status": "pending",
-      "subtasks": []
+      "priority": "medium",
+      "details": "Implement the necessary logic within the game or season management service to determine game completion status based on player turn states.",
+      "testStrategy": "Implement unit tests for the core logic layer function that determines game completion based on player turn states. Implement integration tests against a test database to verify the end-to-end process: setting up a season and game, simulating player turns (completed and skipped), and confirming the game state correctly transitions to COMPLETED when the criteria are met. Ensure these integration tests do not interact with external services like Discord.",
+      "subtasks": [
+        {
+          "id": "18-1",
+          "description": "Implement the core logic function to check game completion based on player turn states.",
+          "status": "pending"
+        },
+        {
+          "id": "18-2",
+          "description": "Integrate the game completion check into the turn completion/skip process.",
+          "status": "pending"
+        },
+        {
+          "id": "18-3",
+          "description": "Write unit tests for the game completion logic function.",
+          "status": "pending"
+        },
+        {
+          "id": "18-4",
+          "description": "Write integration tests against a test database to verify game completion flow.",
+          "status": "pending"
+        }
+      ]
     },
     {
       "id": 19,
@@ -405,70 +634,174 @@
       "id": 21,
       "title": "Implement '/status season' Command",
       "description": "Implement the `/status season:<name>` slash command handler in `src/commands/chat`. This handler should parse the season identifier, query the database via the `SeasonService` to get the current state of the season and its games (e.g., how many turns are left per game, which turns are pending/offered), format this information using the messaging layer (Task 27), and send it as a response.",
-      "details": "",
-      "testStrategy": "Use the `/status season` command for active and completed seasons. Verify the command returns accurate information about the season's progress, including the state of games and turns.",
-      "priority": "medium",
+      "status": "pending",
       "dependencies": [
         2,
         5
       ],
-      "status": "pending",
-      "subtasks": []
+      "priority": "medium",
+      "details": "",
+      "testStrategy": "Implement integration tests that verify the command's database interaction and data retrieval logic using a test database, without involving Discord. Implement unit tests for the command's logic layer (parsing, data processing, formatting). Also, manually test the `/status season` command via Discord for active and completed seasons to verify the command returns accurate information about the season's progress, including the state of games and turns, and that the output is correctly formatted.",
+      "subtasks": [
+        {
+          "id": "21-1",
+          "description": "Implement the core command handler logic for `/status season`.",
+          "status": "pending"
+        },
+        {
+          "id": "21-2",
+          "description": "Integrate with `SeasonService` to fetch season and game data.",
+          "status": "pending"
+        },
+        {
+          "id": "21-3",
+          "description": "Format the retrieved data using the messaging layer.",
+          "status": "pending"
+        },
+        {
+          "id": "21-4",
+          "description": "Implement integration tests for the command's database interaction and data retrieval.",
+          "status": "pending"
+        },
+        {
+          "id": "21-5",
+          "description": "Implement unit tests for the command's logic layer (parsing, data processing, formatting).",
+          "status": "pending"
+        }
+      ]
     },
     {
       "id": 22,
       "title": "Implement Admin Command: Terminate Season",
       "description": "Implement the `/admin terminate season:<id>` slash command handler in `src/commands/chat`. This handler should include permission checks to ensure only authorized users can use it. It should call the `SeasonService` to mark the specified season as TERMINATED in the database and potentially clean up or mark related games/turns appropriately.",
-      "details": "",
-      "testStrategy": "Use the `/admin terminate season` command with a test season as an admin. Verify the season state changes to TERMINATED in the database. Test using the command without admin permissions and verify it is rejected.",
-      "priority": "medium",
+      "status": "pending",
       "dependencies": [
         2,
         5
       ],
-      "status": "pending",
-      "subtasks": []
+      "priority": "medium",
+      "details": "As per TECHNICAL_ARCHITECTURE.md, this command implementation requires both integration tests against a test database and unit tests for the core logic.",
+      "testStrategy": "Implement integration tests that use a test database to verify the command handler's interaction with the `SeasonService` and database state changes (season status, related entities). Implement unit tests for the permission checks and any specific logic within the command handler itself, mocking dependencies like the `SeasonService`. Also, perform manual testing using the `/admin terminate season` command with a test season as an admin to verify the season state changes to TERMINATED in the database. Manually test using the command without admin permissions and verify it is rejected.",
+      "subtasks": [
+        {
+          "id": 1,
+          "description": "Implement the core logic for the `/admin terminate season` command handler, including permission checks.",
+          "status": "pending"
+        },
+        {
+          "id": 2,
+          "description": "Implement integration tests for the `/admin terminate season` command handler against a test database.",
+          "status": "pending"
+        },
+        {
+          "id": 3,
+          "description": "Implement unit tests for the logic within the `/admin terminate season` command handler.",
+          "status": "pending"
+        }
+      ]
     },
     {
       "id": 23,
       "title": "Implement Admin Commands: Ban/Unban Player",
       "description": "Implement the `/admin ban user:@user` and `/admin unban user:@user` slash command handlers in `src/commands/chat`. These handlers should include permission checks. They should call the `PlayerService` to update the player's state (BANNED/NOT_BANNED) in the database. Banned players should not be able to join new seasons or be offered turns.",
-      "details": "",
-      "testStrategy": "Use the `/admin ban` command on a test user as an admin. Verify the user's state changes to BANNED. Attempt to join a season or be offered a turn with the banned user and verify it fails. Use `/admin unban` and verify the user can then participate.",
-      "priority": "medium",
+      "status": "pending",
       "dependencies": [
         2,
         5
       ],
-      "status": "pending",
-      "subtasks": []
+      "priority": "medium",
+      "details": "Implement the command logic within `src/commands/chat/admin.ts`. Ensure proper error handling for invalid user mentions or permission issues. The command should interact with the `PlayerService` to update the player's `status` field in the database.",
+      "testStrategy": "Implement integration tests using a test database to verify the command handler correctly updates the player status and handles edge cases (e.g., banning an already banned user). Implement unit tests for the core logic within the command handler or any extracted helper functions. Manually test the commands in a development environment: Use the `/admin ban` command on a test user as an admin. Verify the user's state changes to BANNED in the database. Attempt to join a season or be offered a turn with the banned user and verify it fails. Use `/admin unban` and verify the user can then participate.",
+      "subtasks": [
+        {
+          "id": 1,
+          "description": "Implement `/admin ban` command handler in `src/commands/chat/admin.ts`",
+          "status": "pending"
+        },
+        {
+          "id": 2,
+          "description": "Implement `/admin unban` command handler in `src/commands/chat/admin.ts`",
+          "status": "pending"
+        },
+        {
+          "id": 3,
+          "description": "Add permission checks to ban/unban handlers",
+          "status": "pending"
+        },
+        {
+          "id": 4,
+          "description": "Integrate ban/unban handlers with `PlayerService` to update player status",
+          "status": "pending"
+        },
+        {
+          "id": 5,
+          "description": "Implement integration tests for ban/unban commands against a test database",
+          "status": "pending"
+        },
+        {
+          "id": 6,
+          "description": "Implement unit tests for the ban/unban command logic",
+          "status": "pending"
+        },
+        {
+          "id": 7,
+          "description": "Manually test ban/unban commands in development environment",
+          "status": "pending"
+        }
+      ]
     },
     {
       "id": 24,
       "title": "Implement Admin Commands: List Seasons/Players",
       "description": "Implement the `/admin list seasons` and `/admin list players` slash command handlers in `src/commands/chat`. These handlers should include permission checks. They should query the database via the service layer to retrieve lists of active seasons and players (potentially filtered by season or status) and display this information.",
-      "details": "",
-      "testStrategy": "Use the `/admin list seasons` and `/admin list players` commands as an admin. Verify the commands return lists of seasons and players currently in the database.",
-      "priority": "medium",
+      "status": "pending",
       "dependencies": [
         2,
         5
       ],
-      "status": "pending",
-      "subtasks": []
+      "priority": "medium",
+      "details": "As per TECHNICAL_ARCHITECTURE.md, this command implementation requires both integration tests against a test database and unit tests for the command's core logic.",
+      "testStrategy": "Implement integration tests that verify the command logic interacts correctly with a test database to retrieve season and player data. Implement unit tests for the command's logic layer (e.g., data formatting, permission checks). Manually test the `/admin list seasons` and `/admin list players` commands as an admin in a development environment to verify they return lists of seasons and players currently in the database via Discord.",
+      "subtasks": [
+        {
+          "id": 2401,
+          "description": "Implement `/admin list seasons` command handler with permission checks and database query.",
+          "status": "pending"
+        },
+        {
+          "id": 2402,
+          "description": "Implement `/admin list players` command handler with permission checks and database query.",
+          "status": "pending"
+        },
+        {
+          "id": 2403,
+          "description": "Add integration tests for `/admin list seasons` command against a test database.",
+          "status": "pending"
+        },
+        {
+          "id": 2404,
+          "description": "Add integration tests for `/admin list players` command against a test database.",
+          "status": "pending"
+        },
+        {
+          "id": 2405,
+          "description": "Add unit tests for the logic layer of the list seasons/players commands (e.g., data formatting).",
+          "status": "pending"
+        }
+      ]
     },
     {
       "id": 25,
       "title": "Implement Basic Configuration Command ('/config seasons')",
       "description": "Implement the `/config seasons [options]` slash command handler in `src/commands/chat`. This handler should allow administrators or authorized users to view the current default configuration settings for seasons (e.g., timeouts, min/max players). Optionally, allow setting these defaults, which would require persisting them (e.g., in the database or a config file).",
-      "details": "",
-      "testStrategy": "Use the `/config seasons` command to view current settings. If setting is implemented, test updating a setting and verifying the change is reflected.",
-      "priority": "medium",
+      "status": "pending",
       "dependencies": [
         2,
         5
       ],
-      "status": "pending",
+      "priority": "medium",
+      "details": "",
+      "testStrategy": "Implement integration tests that interact with a test database to verify command behavior without Discord interaction. Implement unit tests for the core logic layer of the command handler. Additionally, manually test the command using `/config seasons` to view current settings and, if setting is implemented, test updating a setting and verifying the change is reflected via the command and potentially direct database inspection.",
       "subtasks": []
     },
     {
@@ -618,15 +951,15 @@
     {
       "id": 32,
       "title": "Implement Tests for /new season Command",
-      "description": "Create comprehensive integration and unit tests for the /new season command, covering SeasonService.createSeason and related logic, including success and various error scenarios.",
-      "details": "Implement integration tests for `SeasonService.createSeason` focusing on interactions with the database. These tests should verify successful season creation, handling of duplicate season names, and cases where the creator ID might not exist. Ensure these tests assert that the service returns the correct `MessageInstruction` objects as implemented in Task 30. Additionally, write unit tests for any pure logic functions used by the `/new season` command handler or `SeasonService.createSeason` that are suitable for isolation. The tests should cover edge cases and invalid inputs where applicable. Leverage the test database setup for integration tests. Ensure tests are well-structured and easy to understand.",
-      "testStrategy": "Run all newly created integration and unit tests using the standard test runner. Verify that all tests pass for successful creation, duplicate name errors, creator not found errors, and any other implemented error conditions. Check test coverage metrics to ensure adequate coverage of the `SeasonService.createSeason` function and the relevant parts of the `/new season` command handler and associated logic. Manually test the `/new season` command in a development environment to confirm that the user feedback via the Lang service (implemented in Task 31) correctly reflects the outcomes tested by the automated tests.",
+      "description": "Create comprehensive integration tests focusing on database interaction (as per TECHNICAL_ARCHITECTURE.md) and unit tests for the logic layer for the /new season command, covering SeasonService.createSeason and related logic, including success and various error scenarios.",
       "status": "pending",
       "dependencies": [
         30,
         31
       ],
       "priority": "high",
+      "details": "Implement integration tests for `SeasonService.createSeason` focusing on interactions with the database. These tests should verify successful season creation, handling of duplicate season names, and cases where the creator ID might not exist. Ensure these tests assert that the service returns the correct `MessageInstruction` objects as implemented in Task 30. Additionally, write unit tests for any pure logic functions used by the `/new season` command handler or `SeasonService.createSeason` that are suitable for isolation. The tests should cover edge cases and invalid inputs where applicable. Leverage the test database setup for integration tests. This test structure, including database integration tests and logic layer unit tests, aligns with the requirements outlined in TECHNICAL_ARCHITECTURE.md. Ensure tests are well-structured and easy to understand.",
+      "testStrategy": "Run all newly created integration and unit tests using the standard test runner. Verify that all tests pass for successful creation, duplicate name errors, creator not found errors, and any other implemented error conditions. Check test coverage metrics to ensure adequate coverage of the `SeasonService.createSeason` function and the relevant parts of the `/new season` command handler and associated logic. Manually test the `/new season` command in a development environment to confirm that the user feedback via the Lang service (implemented in Task 31) correctly reflects the outcomes tested by the automated tests.",
       "subtasks": []
     }
   ]

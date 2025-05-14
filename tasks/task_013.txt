@@ -8,4 +8,6 @@
 
 
 # Test Strategy:
-Write comprehensive unit tests for the next player selection function with various scenarios: a new game, mid-game with players available, end-game with few players left, scenarios where players have pending turns, scenarios after a player is skipped. Verify the correct player is selected according to the PRD rules.
+Implement comprehensive tests as per TECHNICAL_ARCHITECTURE.md:
+1.  Write unit tests specifically for the core logic layer function(s) that determine the next player. These tests should cover various scenarios: a new game, mid-game with players available, end-game with few players left, scenarios where players have pending turns, scenarios after a player is skipped. Verify the correct player is selected according to the PRD rules.
+2.  Write integration tests that interact with a test database to ensure the logic functions correctly within the application context, considering database state changes and interactions.

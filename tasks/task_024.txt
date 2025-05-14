@@ -5,7 +5,39 @@
 # Priority: medium
 # Description: Implement the `/admin list seasons` and `/admin list players` slash command handlers in `src/commands/chat`. These handlers should include permission checks. They should query the database via the service layer to retrieve lists of active seasons and players (potentially filtered by season or status) and display this information.
 # Details:
-
+As per TECHNICAL_ARCHITECTURE.md, this command implementation requires both integration tests against a test database and unit tests for the command's core logic.
 
 # Test Strategy:
-Use the `/admin list seasons` and `/admin list players` commands as an admin. Verify the commands return lists of seasons and players currently in the database.
+Implement integration tests that verify the command logic interacts correctly with a test database to retrieve season and player data. Implement unit tests for the command's logic layer (e.g., data formatting, permission checks). Manually test the `/admin list seasons` and `/admin list players` commands as an admin in a development environment to verify they return lists of seasons and players currently in the database via Discord.
+
+# Subtasks:
+## 2401. undefined [pending]
+### Dependencies: None
+### Description: Implement `/admin list seasons` command handler with permission checks and database query.
+### Details:
+
+
+## 2402. undefined [pending]
+### Dependencies: None
+### Description: Implement `/admin list players` command handler with permission checks and database query.
+### Details:
+
+
+## 2403. undefined [pending]
+### Dependencies: None
+### Description: Add integration tests for `/admin list seasons` command against a test database.
+### Details:
+
+
+## 2404. undefined [pending]
+### Dependencies: None
+### Description: Add integration tests for `/admin list players` command against a test database.
+### Details:
+
+
+## 2405. undefined [pending]
+### Dependencies: None
+### Description: Add unit tests for the logic layer of the list seasons/players commands (e.g., data formatting).
+### Details:
+
+

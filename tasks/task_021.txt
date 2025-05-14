@@ -8,4 +8,36 @@
 
 
 # Test Strategy:
-Use the `/status season` command for active and completed seasons. Verify the command returns accurate information about the season's progress, including the state of games and turns.
+Implement integration tests that verify the command's database interaction and data retrieval logic using a test database, without involving Discord. Implement unit tests for the command's logic layer (parsing, data processing, formatting). Also, manually test the `/status season` command via Discord for active and completed seasons to verify the command returns accurate information about the season's progress, including the state of games and turns, and that the output is correctly formatted.
+
+# Subtasks:
+## 21-1. undefined [pending]
+### Dependencies: None
+### Description: Implement the core command handler logic for `/status season`.
+### Details:
+
+
+## 21-2. undefined [pending]
+### Dependencies: None
+### Description: Integrate with `SeasonService` to fetch season and game data.
+### Details:
+
+
+## 21-3. undefined [pending]
+### Dependencies: None
+### Description: Format the retrieved data using the messaging layer.
+### Details:
+
+
+## 21-4. undefined [pending]
+### Dependencies: None
+### Description: Implement integration tests for the command's database interaction and data retrieval.
+### Details:
+
+
+## 21-5. undefined [pending]
+### Dependencies: None
+### Description: Implement unit tests for the command's logic layer (parsing, data processing, formatting).
+### Details:
+
+

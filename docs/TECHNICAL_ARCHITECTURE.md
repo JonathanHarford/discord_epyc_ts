@@ -99,3 +99,9 @@ sequenceDiagram
     TaskScheduler-->>CommandHandler: Confirmation
     deactivate TaskScheduler
 ```
+
+## Testing Requirements for New Commands
+
+Whenever a new command is added, the following testing procedures must be implemented:
+- Integration tests: Must be conducted against a test database. These tests should not interact with Discord.
+- Unit tests: Must be developed for the logic layer of the command.

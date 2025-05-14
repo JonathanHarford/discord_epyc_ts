@@ -8,4 +8,4 @@
 
 
 # Test Strategy:
-Write unit tests for the `TurnService` methods that update turn states. Verify that state transitions are correctly recorded in the database for various scenarios.
+Implement testing requirements as documented in TECHNICAL_ARCHITECTURE.md. This includes writing unit tests for the logic layer functionality within the `TurnService` methods and integration tests against a test database to verify state transitions and atomic updates.
