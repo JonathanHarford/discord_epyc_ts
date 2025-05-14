@@ -225,7 +225,8 @@
             "dev": "Developer use only.",
             "help": "Find help or contact support.",
             "info": "View bot info.",
-            "test": "Run the test command."
+            "test": "Run the test command.",
+            "new": "Create a new season. Use this command to start a new game flow."
         },
         "argDescs": {
             "devCommand": "Command.",
@@ -325,19 +326,29 @@
             "termsEmbed": "[View Terms of Service]({{COM:links.terms}})",
             "voteEmbed": "[Vote for {{COM:bot.name}}!]({{COM:links.vote}})"
         },
+        "joinCommand": {
+            "join_season_success": "You have successfully joined season '{{seasonName}}'!",
+            "join_season_error_not_found": "Season with ID '{{seasonId}}' not found.",
+            "join_season_error_not_open": "Season with ID '{{seasonId}}' is not currently open for joining.",
+            "join_season_error_already_joined": "You have already joined season with ID '{{seasonId}}'.",
+            "join_season_error_full": "Season with ID '{{seasonId}}' is full.",
+            "join_season_error_player_not_found": "Your player profile could not be found. Please try again later or contact support.",
+            "join_season_error_unknown": "An unknown error occurred while trying to join season '{{seasonId}}'. Error: {{errorMessage}}"
+        },
         "newCommand": {
             "season": {
-                "create_success_channel": "✅ Season '{seasonName}' (ID: {seasonId}) created successfully! Check your DMs for setup instructions.",
-                "create_success_dm": "🎉 Your new Epyc season '{seasonName}' (ID: {seasonId}) is ready for setup!\nUse /join season:{seasonId} for players to join.",
-                "create_dm_fail_channel": "✅ Season '{seasonName}' (ID: {seasonId}) created, but I failed to send setup instructions via DM. Please use /join season:{seasonId}.",
-                "error_generic_service": "An error occurred while trying to create the season.",
-                "error_name_taken": "❌ A season with the name '{name}' already exists. Please choose a different name.",
-                "error_creator_not_found": "❌ Creator with Discord ID {discordUserId} not found. Please ensure you are registered.",
-                "error_min_max_players": "❌ Error: Maximum players ({maxPlayers}) cannot be less than minimum players ({minPlayers}).",
-                "error_db": "❌ A database error occurred (Code: {errorCode}). Please try again.",
-                "error_unknown_service": "❌ An unexpected error occurred: {message}"
+                "create_success_channel": "Season '{{seasonName}}' (ID: {{seasonId}}) created successfully. I have sent a DM to {{discordUserId}} to start the first turn!",
+                "create_success_dm": "You have successfully created the season '{{seasonName}}' (ID: {{seasonId}})!",
+                "create_error_name_taken": "A season with the name '{{name}}' already exists. Please choose a different name.",
+                "create_error_min_max_players": "Minimum players ({{minPlayers}}) cannot be greater than maximum players ({{maxPlayers}}).",
+                "create_error_creator_not_found": "Your player profile could not be found (Discord ID: {{discordUserId}}). Please try again later or contact support.",
+                "create_error_prisma_unique_constraint": "A database error occurred (unique constraint violation: {{target}}). Error code: {{errorCode}}",
+                "create_error_prisma": "A database error occurred (Prisma error code {{errorCode}}). Message: {{message}}",
+                "create_error_unknown": "An unknown error occurred while creating the season. Message: {{message}}"
             },
-            "error_unknown_subcommand": "Unknown subcommand for /new."
+            "commandDescs": {
+                "new": "Create a new season. Use this command to start a new game flow."
+            }
         },
         "common": {
             "error": {

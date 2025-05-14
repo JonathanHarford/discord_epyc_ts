@@ -17,13 +17,6 @@ type SeasonDetails = Prisma.SeasonGetPayload<{
   }
 }>
 
-// Define a return type for addPlayerToSeason
-interface AddPlayerResult {
-  success: boolean;
-  message: string; // e.g., 'Successfully joined', 'Season full', 'Already joined', 'Season not found', 'Season not open', 'Player not found'
-  season?: Season; // Optionally return the updated season or relevant info
-}
-
 export class SeasonService {
   private prisma: PrismaClient;
 
@@ -52,17 +45,17 @@ export class SeasonService {
     }
 
     try {
-      // 1. Find the creator Player using their Discord ID
+      // 1. Find the creator Player using their internal Player ID
       const creator = await this.prisma.player.findUnique({
-        where: { discordUserId: options.creatorDiscordId },
+        where: { id: options.creatorPlayerId }, // Changed from discordUserId
       });
 
       if (!creator) {
-        console.error(`Creator player with Discord ID ${options.creatorDiscordId} not found.`);
+        console.error(`Creator player with Player ID ${options.creatorPlayerId} not found.`);
         return {
           type: 'error',
-          key: 'season_create_error_creator_not_found',
-          data: { discordUserId: options.creatorDiscordId },
+          key: 'season_create_error_creator_player_not_found', // Updated key
+          data: { playerId: options.creatorPlayerId },
         };
       }
 
@@ -182,16 +175,26 @@ export class SeasonService {
   }
 
   /**
-   * Adds a player (by their Discord ID) to a specified season.
+   * Adds a player (by their internal Player ID) to a specified season.
    * Handles player creation if they don't exist, checks season status, max player limit, and if player already joined.
-   * @param discordUserId The Discord User ID of the player trying to join.
+   * @param playerId The internal ID of the player trying to join.
    * @param seasonId The ID of the season to join.
-   * @returns An AddPlayerResult object indicating success or failure reason.
+   * @returns An MessageInstruction object indicating success or failure reason.
    */
-  async addPlayerToSeason(discordUserId: string, seasonId: string): Promise<AddPlayerResult> {
-    console.log(`SeasonService.addPlayerToSeason: Attempting to add player ${discordUserId} to season ${seasonId}`);
+  async addPlayerToSeason(playerId: string, seasonId: string): Promise<MessageInstruction> {
+    console.log(`SeasonService.addPlayerToSeason: Attempting to add player ${playerId} to season ${seasonId}`);
 
     return await this.prisma.$transaction(async (tx) => {
+      // 0. Verify the player exists
+      const player = await tx.player.findUnique({
+        where: { id: playerId },
+      });
+
+      if (!player) {
+        console.log(`SeasonService.addPlayerToSeason: Player ${playerId} not found.`);
+        return { type: 'error', key: 'season_join_error_player_not_found', data: { playerId } };
+      }
+
       // 1. Find the season (and check if it exists)
       const season = await tx.season.findUnique({
         where: { id: seasonId },
@@ -200,86 +203,54 @@ export class SeasonService {
 
       if (!season) {
         console.log(`SeasonService.addPlayerToSeason: Season ${seasonId} not found.`);
-        return { success: false, message: 'Season not found' };
+        return { type: 'error', key: 'season_join_error_season_not_found' }; // Standardized key
       }
 
       // 2. Check if season is open for joining (Define valid statuses)
-      // TODO: Use an enum for statuses? For now, hardcode valid joining states.
-      const validJoinStatuses = ['SETUP', 'PENDING_START', 'OPEN']; // Adjust based on actual lifecycle
+      const validJoinStatuses = ['SETUP', 'PENDING_START', 'OPEN']; 
       if (!validJoinStatuses.includes(season.status)) {
         console.log(`SeasonService.addPlayerToSeason: Season ${seasonId} status (${season.status}) is not valid for joining.`);
-        return { success: false, message: 'Season is not open for joining' };
+        return { type: 'error', key: 'season_join_error_not_open', data: { status: season.status, seasonName: season.name } };
       }
 
       // 3. Check max player limit
-      const maxPlayers = season.config.maxPlayers; // Assumes config is always included
+      const maxPlayers = season.config.maxPlayers;
       const currentPlayerCount = season._count.players;
       if (maxPlayers !== null && currentPlayerCount >= maxPlayers) {
           console.log(`SeasonService.addPlayerToSeason: Season ${seasonId} is full (${currentPlayerCount}/${maxPlayers}).`);
-          return { success: false, message: 'Season is full' };
+          return { type: 'error', key: 'season_join_error_full', data: { currentPlayers: currentPlayerCount, maxPlayers: maxPlayers, seasonName: season.name } };
       }
 
+      // Player finding/creation logic is removed from here. Assumes valid playerId is passed.
 
-      // 4. Find or create the player
-      // Ensure player exists using their discordUserId
-      let player = await tx.player.findUnique({
-        where: { discordUserId: discordUserId },
-      });
-
-      if (!player) {
-        // TODO: How should player name be handled? Fetch from Discord API? Use placeholder?
-        // For now, create with a placeholder name if not found. Command might need to pass name.
-        console.log(`SeasonService.addPlayerToSeason: Player ${discordUserId} not found. Creating.`);
-        try {
-          player = await tx.player.create({
-            data: {
-              discordUserId: discordUserId,
-              name: `User_${discordUserId.slice(-4)}`, // Placeholder name
-              // bannedAt: null, // Default is null
-            }
-          });
-          console.log(`SeasonService.addPlayerToSeason: Created player ${player.id} for Discord user ${discordUserId}.`);
-        } catch (error) {
-           console.error(`SeasonService.addPlayerToSeason: Error creating player ${discordUserId}:`, error);
-           // Handle potential unique constraint errors if another process creates it concurrently?
-           // Re-throw or return specific error might be needed depending on desired behavior.
-           return { success: false, message: 'Error creating player profile.' };
-        }
-      }
-
-
-      // 5. Check if player is already in the season
+      // 4. Check if player is already in the season
       const existingJoin = await tx.playersOnSeasons.findUnique({
         where: {
           playerId_seasonId: {
-            playerId: player.id,
+            playerId: player.id, // Use the validated player's ID
             seasonId: seasonId,
           },
         },
       });
 
       if (existingJoin) {
-        console.log(`SeasonService.addPlayerToSeason: Player ${discordUserId} (ID: ${player.id}) already in season ${seasonId}.`);
-        return { success: false, message: 'You have already joined this season', season };
+        console.log(`SeasonService.addPlayerToSeason: Player ${playerId} (ID: ${player.id}) already in season ${seasonId}.`);
+        return { type: 'error', key: 'season_join_error_already_joined', data: { seasonName: season.name } };
       }
 
-      // 6. Add player to season (create join record)
+      // 5. Add player to season (create join record)
       try {
         await tx.playersOnSeasons.create({
           data: {
-            playerId: player.id,
+            playerId: player.id, // Use the validated player's ID
             seasonId: seasonId,
-            // joinedAt is handled by @default(now())
           },
         });
-        console.log(`SeasonService.addPlayerToSeason: Successfully added player ${discordUserId} (ID: ${player.id}) to season ${seasonId}.`);
-        return { success: true, message: 'Successfully joined the season', season };
+        console.log(`SeasonService.addPlayerToSeason: Successfully added player ${playerId} (ID: ${player.id}) to season ${seasonId}.`);
+        return { type: 'success', key: 'season_join_success', data: { seasonName: season.name } };
       } catch (error) {
          console.error(`SeasonService.addPlayerToSeason: Error adding player ${player.id} to season ${seasonId}:`, error);
-         // Handle potential errors during the join table creation
-         // Could be a race condition if max players check passed but someone else joined.
-         // Consider re-checking count or handling specific Prisma errors.
-         return { success: false, message: 'An error occurred while joining.' };
+         return { type: 'error', key: 'season_join_error_generic', data: { seasonName: season.name } };
       }
     });
   }
@@ -287,7 +258,7 @@ export class SeasonService {
 
 export interface NewSeasonOptions {
   name?: string; // Made name optional
-  creatorDiscordId: string;
+  creatorPlayerId: string; // Changed from creatorDiscordId
   openDuration?: string | null; // Prisma schema uses String?
   minPlayers?: number | null;
   maxPlayers?: number | null;

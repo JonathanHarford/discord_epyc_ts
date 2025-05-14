@@ -1,4 +1,4 @@
-import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
+import { describe, it, expect, beforeEach, afterEach, vi, beforeAll, afterAll } from 'vitest';
 import { PrismaClient, Player } from '@prisma/client';
 import { SeasonService, NewSeasonOptions } from '../../src/services/SeasonService.js';
 import { nanoid } from 'nanoid';
@@ -19,21 +19,28 @@ describe('SeasonService', () => {
   let seasonService: SeasonService;
   let testPlayer: Player;
 
-  beforeEach(async () => {
+  // Initialize PrismaClient once for the describe block
+  beforeAll(async () => {
     prisma = new PrismaClient({
       datasources: {
         db: {
-          url: process.env.DATABASE_URL
+          url: process.env.DATABASE_URL // Ensure this is set for tests
         }
       }
     });
+  });
+
+  beforeEach(async () => {
+    // seasonService is newed up with the shared prisma instance
     seasonService = new SeasonService(prisma);
 
-    // Clean up database before each test
+    // Clean up database before each test with correct order
+    await prisma.playersOnSeasons.deleteMany({});
+    // await prisma.turn.deleteMany({}); // Add if Turn table is used by tests
+    // await prisma.game.deleteMany({}); // Add if Game table is used by tests
     await prisma.season.deleteMany({});
     await prisma.seasonConfig.deleteMany({});
     await prisma.player.deleteMany({});
-
 
     // Create a test player for creator context
     testPlayer = await prisma.player.create({
@@ -44,35 +51,26 @@ describe('SeasonService', () => {
     });
   });
 
+  // afterEach no longer needs to disconnect, use afterAll
   afterEach(async () => {
-    // Clean up any created data
-    // Cascading deletes should handle related PlayersOnSeasons, Games, Turns
-    // but SeasonConfig needs to be deleted separately if not cascaded from Season
-    // and if Seasons are not deleted, then Player needs to be deleted last
-    // if it was a creator.
-    // For simplicity, explicitly delete what we know we created or might have created.
-    
-    // The order is important due to foreign key constraints.
-    // Seasons depend on SeasonConfig and Player (creator)
-    // PlayersOnSeasons depends on Player and Season
-    
-    // 1. Delete records that depend on Seasons or Players
-    await prisma.playersOnSeasons.deleteMany({}); // In case any players joined seasons
+    // Minimal cleanup, rely on beforeEach for full cleanup
+    // This is mostly to ensure testPlayer is gone if a test fails mid-way
+    // and to prevent interference if we don't clean everything.
+    // However, beforeEach should handle the comprehensive cleanup.
+    try {
+      await prisma.player.deleteMany({ where: { id: testPlayer?.id } });
+    } catch (e) {
+      // Ignore if testPlayer was not set or already deleted
+    }
+  });
 
-    // 2. Delete Seasons (which should cascade to Games and Turns if schema is set up correctly)
-    // but SeasonConfig is NOT set to cascade delete when Season is deleted.
-    // However, Season has a required relation to SeasonConfig via configId,
-    // and SeasonConfig is created *by* the SeasonService.createSeason method.
-    // The service creates a config then a season.
-    // If we delete season, the config it points to remains.
-    // If we delete config, and a season points to it, that will fail.
-
-    // Let's delete in the reverse order of creation or by what has fewest dependencies
-    
+  // Disconnect PrismaClient once after all tests in the describe block
+  afterAll(async () => {
+    // Final comprehensive cleanup
+    await prisma.playersOnSeasons.deleteMany({});
     await prisma.season.deleteMany({});
     await prisma.seasonConfig.deleteMany({});
-    await prisma.player.deleteMany({}); // Clean up the test player
-
+    await prisma.player.deleteMany({});
     await prisma.$disconnect();
   });
 
@@ -80,7 +78,7 @@ describe('SeasonService', () => {
     const seasonName = `Test Season ${nanoid()}`;
     const options: NewSeasonOptions = {
       name: seasonName,
-      creatorDiscordId: testPlayer.discordUserId,
+      creatorPlayerId: testPlayer.id,
     };
 
     const result = await seasonService.createSeason(options);
@@ -112,7 +110,7 @@ describe('SeasonService', () => {
     const seasonName = `Full Options Season ${nanoid()}`;
     const options: NewSeasonOptions = {
       name: seasonName,
-      creatorDiscordId: testPlayer.discordUserId,
+      creatorPlayerId: testPlayer.id,
       openDuration: '3d',
       minPlayers: 3,
       maxPlayers: 10,
@@ -146,13 +144,13 @@ describe('SeasonService', () => {
     // Create a season first
     await seasonService.createSeason({
       name: seasonName,
-      creatorDiscordId: testPlayer.discordUserId,
+      creatorPlayerId: testPlayer.id,
     });
 
     // Attempt to create another with the same name
     const options: NewSeasonOptions = {
       name: seasonName,
-      creatorDiscordId: testPlayer.discordUserId,
+      creatorPlayerId: testPlayer.id,
     };
     const result = await seasonService.createSeason(options);
 
@@ -162,23 +160,23 @@ describe('SeasonService', () => {
   });
 
   it('should return error if creator discord ID is not found', async () => {
-    const nonExistentDiscordId = `non-existent-${nanoid()}`;
+    const nonExistentPlayerId = `non-existent-${nanoid()}`;
     const options: NewSeasonOptions = {
       name: `Test Season ${nanoid()}`,
-      creatorDiscordId: nonExistentDiscordId,
+      creatorPlayerId: nonExistentPlayerId,
     };
 
     const result = await seasonService.createSeason(options);
 
     expect(result.type).toBe('error');
-    expect(result.key).toBe('season_create_error_creator_not_found');
-    expect(result.data?.discordUserId).toBe(nonExistentDiscordId);
+    expect(result.key).toBe('season_create_error_creator_player_not_found');
+    expect(result.data?.playerId).toBe(nonExistentPlayerId);
   });
 
   it('should return error if maxPlayers is less than minPlayers', async () => {
     const options: NewSeasonOptions = {
       name: `MinMax Test Season ${nanoid()}`,
-      creatorDiscordId: testPlayer.discordUserId,
+      creatorPlayerId: testPlayer.id,
       minPlayers: 10,
       maxPlayers: 5,
     };
@@ -195,7 +193,7 @@ describe('SeasonService', () => {
     const seasonName = `Equal MinMax Season ${nanoid()}`;
     const options: NewSeasonOptions = {
       name: seasonName,
-      creatorDiscordId: testPlayer.discordUserId,
+      creatorPlayerId: testPlayer.id,
       minPlayers: 5,
       maxPlayers: 5,
     };
@@ -215,7 +213,7 @@ describe('SeasonService', () => {
     const seasonName = `Default Config Season ${nanoid()}`;
     const options: NewSeasonOptions = {
       name: seasonName,
-      creatorDiscordId: testPlayer.discordUserId,
+      creatorPlayerId: testPlayer.id,
       // Intentionally omit other config options to test defaults
     };
 
