@@ -10,6 +10,7 @@ import { Args } from './index.js';
 import { Language } from '../models/enum-helpers/index.js';
 import { Lang } from '../services/index.js';
 import { newCommandData } from './chat/new-command.js';
+import { joinSeasonCommandData } from './chat/joinSeason.js';
 
 export const ChatCommandMetadata: {
     [command: string]: RESTPostAPIChatInputApplicationCommandsJSONBody;
@@ -71,6 +72,7 @@ export const ChatCommandMetadata: {
         default_member_permissions: undefined,
     },
     NEW: newCommandData.toJSON(),
+    JOIN_SEASON: joinSeasonCommandData.toJSON(),
 };
 
 export const MessageCommandMetadata: {
