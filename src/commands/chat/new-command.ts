@@ -69,8 +69,33 @@ export class NewCommand implements Command {
     if (subcommand === 'season') {
       const seasonService = new SeasonService(prisma); // Use global prisma instance
 
-      const creatorDiscordId = intr.user.id;
-      const creator: User = intr.user;
+      const discordUserId = intr.user.id;
+      const discordUserName = intr.user.username; // Get username for player creation
+
+      // --- Find or Create Player ---
+      let playerRecord = await prisma.player.findUnique({
+        where: { discordUserId: discordUserId },
+      });
+
+      if (!playerRecord) {
+        try {
+          playerRecord = await prisma.player.create({
+            data: {
+              discordUserId: discordUserId,
+              name: discordUserName,
+            },
+          });
+          console.log(`New player record created for ${discordUserName} (ID: ${playerRecord.id}) during /new season command.`);
+        } catch (playerCreateError) {
+          console.error(`Failed to create player record for ${discordUserName} (Discord ID: ${discordUserId}):`, playerCreateError);
+          const playerCreateErrorMessage = Lang.getRef('newCommand.season.error_player_create_failed', Language.Default, { discordId: discordUserId });
+          await intr.editReply({ content: playerCreateErrorMessage });
+          return;
+        }
+      }
+      const creatorPlayerId = playerRecord.id;
+      // --- End Find or Create Player ---
+
 
       const openDuration = intr.options.getString('open_duration');
       const minPlayers = intr.options.getInteger('min_players');
@@ -81,7 +106,7 @@ export class NewCommand implements Command {
       const drawingTimeout = intr.options.getString('drawing_timeout');
 
       const seasonOptions: NewSeasonOptions = {
-        creatorDiscordId,
+        creatorPlayerId, // Correctly use internal player ID
         ...(openDuration !== null && { openDuration }),
         ...(minPlayers !== null && { minPlayers }),
         ...(maxPlayers !== null && { maxPlayers }),
@@ -100,9 +125,9 @@ export class NewCommand implements Command {
 
           try {
             const dmMessage = Lang.getRef('newCommand.season.create_success_dm', Language.Default, instruction.data);
-            await creator.send(dmMessage.trim());
+            await intr.user.send(dmMessage.trim()); // Use intr.user to send DM
           } catch (dmError) {
-            console.error(`Failed to send DM to creator ${creatorDiscordId} for season ${instruction.data?.seasonId}:`, dmError);
+            console.error(`Failed to send DM to creator ${discordUserId} for season ${instruction.data?.seasonId}:`, dmError);
             const dmFailReply = Lang.getRef('newCommand.season.create_dm_fail_channel', Language.Default, instruction.data);
             await intr.followUp({ content: dmFailReply, ephemeral: true });
           }
