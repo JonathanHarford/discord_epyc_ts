@@ -3,15 +3,22 @@
         "displayEmbeds": {
             "welcome": {
                 "title": "Thank you for using {{COM:bot.name}}!",
-                "description": ["{{REF:bot.description}}"],
+                "description": [
+                    "{{REF:bot.description}}"
+                ],
                 "fields": [
                     {
                         "name": "Important {{REF:fields.commands}}",
-                        "value": ["{{CMD_LINK_HELP}} - {{REF:commandDescs.help}}"]
+                        "value": [
+                            "{{CMD_LINK_HELP}} - {{REF:commandDescs.help}}"
+                        ]
                     },
                     {
                         "name": "{{REF:fields.links}}",
-                        "value": ["{{REF:links.docsEmbed}}", "{{REF:links.supportEmbed}}"]
+                        "value": [
+                            "{{REF:links.docsEmbed}}",
+                            "{{REF:links.supportEmbed}}"
+                        ]
                     }
                 ]
             },
@@ -23,7 +30,9 @@
                 "fields": [
                     {
                         "name": "{{REF:fields.links}}",
-                        "value": ["{{REF:links.supportEmbed}}"]
+                        "value": [
+                            "{{REF:links.supportEmbed}}"
+                        ]
                     }
                 ]
             },
@@ -47,7 +56,10 @@
                     },
                     {
                         "name": "{{REF:fields.links}}",
-                        "value": ["{{REF:links.docsEmbed}}", "{{REF:links.supportEmbed}}"]
+                        "value": [
+                            "{{REF:links.docsEmbed}}",
+                            "{{REF:links.supportEmbed}}"
+                        ]
                     }
                 ]
             },
@@ -64,7 +76,10 @@
                 "title": "{{COM:bot.name}} - About",
                 "description": "{{REF:bot.description}}",
                 "fields": [
-                    { "name": "Author", "value": "{{REF:links.authorEmbed}}" },
+                    {
+                        "name": "Author",
+                        "value": "{{REF:links.authorEmbed}}"
+                    },
                     {
                         "name": "{{REF:fields.links}}",
                         "value": [
@@ -79,7 +94,9 @@
                     },
                     {
                         "name": "Created With",
-                        "value": ["{{REF:links.templateEmbed}}"]
+                        "value": [
+                            "{{REF:links.templateEmbed}}"
+                        ]
                     }
                 ]
             },
@@ -208,7 +225,8 @@
             "dev": "Developer use only.",
             "help": "Find help or contact support.",
             "info": "View bot info.",
-            "test": "Run the test command."
+            "test": "Run the test command.",
+            "new": "Create a new season. Use this command to start a new game flow."
         },
         "argDescs": {
             "devCommand": "Command.",
@@ -269,14 +287,16 @@
             "ViewAuditLog": "View Audit Log",
             "ViewChannel": "View Channel(s)",
             "ViewCreatorMonetizationAnalytics": "View Server Subscription Insights",
-            "ViewGuildInsights": "View Server Insights"
+            "ViewGuildInsights": "View Server Insights",
+            "voteEmbed": "[Vote for {{COM:bot.name}}!]({{COM:links.vote}})"
         },
         "devCommandNames": {
             "info": "info"
         },
         "helpOptions": {
             "contactSupport": "Contact Support",
-            "commands": "Commands"
+            "commands": "Commands",
+            "voteEmbed": "[Vote for {{COM:bot.name}}!]({{COM:links.vote}})"
         },
         "helpOptionDescs": {
             "contactSupport": "❓ {{REF:helpOptions.contactSupport}} ❓",
@@ -307,6 +327,35 @@
             "templateEmbed": "[Discord Bot TypeScript Template]({{COM:links.template}})",
             "termsEmbed": "[View Terms of Service]({{COM:links.terms}})",
             "voteEmbed": "[Vote for {{COM:bot.name}}!]({{COM:links.vote}})"
-        }
+        },
+        "joinCommand": {
+            "join_season_success": "You have successfully joined season '{{seasonName}}'!",
+            "join_season_error_not_found": "Season with ID '{{seasonId}}' not found.",
+            "join_season_error_not_open": "Season with ID '{{seasonId}}' is not currently open for joining.",
+            "join_season_error_already_joined": "You have already joined season with ID '{{seasonId}}'.",
+            "join_season_error_full": "Season with ID '{{seasonId}}' is full.",
+            "join_season_error_player_not_found": "Your player profile could not be found. Please try again later or contact support.",
+            "join_season_error_unknown": "An unknown error occurred while trying to join season '{{seasonId}}'. Error: {{errorMessage}}"
+        },
+        "newCommand.season": {
+            "create_success_channel": "Season '{{seasonName}}' (ID: {{seasonId}}) created successfully. I have sent a DM to {{discordUserId}} to start the first turn!",
+            "create_success_dm": "You have successfully created the season '{{seasonName}}' (ID: {{seasonId}})! I've also sent you a DM with instructions on how to start the first turn.",
+            "create_dm_fail_channel": "Season '{{seasonName}}' (ID: {{seasonId}}) created, but I couldn't send you a DM with first turn instructions. Please check your DM settings.",
+            "error_name_taken": "A season with the name '{{name}}' already exists. Please choose a different name.",
+            "error_min_max_players": "Minimum players ({{minPlayers}}) cannot be greater than maximum players ({{maxPlayers}}).",
+            "error_creator_not_found": "Your player profile could not be found (Discord ID: {{discordUserId}}). Please try again later or contact support.",
+            "error_player_create_failed": "Failed to create your player profile (Discord ID: {{discordId}}). Please try again later or contact support.",
+            "error_db": "A database error occurred. Please try again later or contact support. (Details: {{details}})",
+            "error_unknown_service": "An unknown error occurred while processing your request. Please try again later or contact support. (Details: {{details}})",
+            "error_generic_service": "A generic error occurred in the service. Please try again later or contact support. (Details: {{details}})",
+            "error_unknown": "An unknown error occurred while creating the season. Message: {{message}}"
+        },
+        "newCommand.commandDescs": {
+            "new": "Create a new season. Use this command to start a new game flow."
+        },
+        "common.error": {
+            "critical_command": "A critical unexpected error occurred. Please contact support."
+        },
+        "newCommand.error_unknown_subcommand": "That subcommand for 'new' isn't recognized. Please check the command and try again."
     }
 }

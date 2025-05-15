@@ -287,14 +287,16 @@
             "ViewAuditLog": "View Audit Log",
             "ViewChannel": "View Channel(s)",
             "ViewCreatorMonetizationAnalytics": "View Server Subscription Insights",
-            "ViewGuildInsights": "View Server Insights"
+            "ViewGuildInsights": "View Server Insights",
+            "voteEmbed": "[Vote for {{COM:bot.name}}!]({{COM:links.vote}})"
         },
         "devCommandNames": {
             "info": "info"
         },
         "helpOptions": {
             "contactSupport": "Contact Support",
-            "commands": "Commands"
+            "commands": "Commands",
+            "voteEmbed": "[Vote for {{COM:bot.name}}!]({{COM:links.vote}})"
         },
         "helpOptionDescs": {
             "contactSupport": "❓ {{REF:helpOptions.contactSupport}} ❓",
@@ -335,25 +337,25 @@
             "join_season_error_player_not_found": "Your player profile could not be found. Please try again later or contact support.",
             "join_season_error_unknown": "An unknown error occurred while trying to join season '{{seasonId}}'. Error: {{errorMessage}}"
         },
-        "newCommand": {
-            "season": {
-                "create_success_channel": "Season '{{seasonName}}' (ID: {{seasonId}}) created successfully. I have sent a DM to {{discordUserId}} to start the first turn!",
-                "create_success_dm": "You have successfully created the season '{{seasonName}}' (ID: {{seasonId}})!",
-                "create_error_name_taken": "A season with the name '{{name}}' already exists. Please choose a different name.",
-                "create_error_min_max_players": "Minimum players ({{minPlayers}}) cannot be greater than maximum players ({{maxPlayers}}).",
-                "create_error_creator_not_found": "Your player profile could not be found (Discord ID: {{discordUserId}}). Please try again later or contact support.",
-                "create_error_prisma_unique_constraint": "A database error occurred (unique constraint violation: {{target}}). Error code: {{errorCode}}",
-                "create_error_prisma": "A database error occurred (Prisma error code {{errorCode}}). Message: {{message}}",
-                "create_error_unknown": "An unknown error occurred while creating the season. Message: {{message}}"
-            },
-            "commandDescs": {
-                "new": "Create a new season. Use this command to start a new game flow."
-            }
+        "newCommand.season": {
+            "create_success_channel": "Season '{{seasonName}}' (ID: {{seasonId}}) created successfully. I have sent a DM to {{discordUserId}} to start the first turn!",
+            "create_success_dm": "You have successfully created the season '{{seasonName}}' (ID: {{seasonId}})! I've also sent you a DM with instructions on how to start the first turn.",
+            "create_dm_fail_channel": "Season '{{seasonName}}' (ID: {{seasonId}}) created, but I couldn't send you a DM with first turn instructions. Please check your DM settings.",
+            "error_name_taken": "A season with the name '{{name}}' already exists. Please choose a different name.",
+            "error_min_max_players": "Minimum players ({{minPlayers}}) cannot be greater than maximum players ({{maxPlayers}}).",
+            "error_creator_not_found": "Your player profile could not be found (Discord ID: {{discordUserId}}). Please try again later or contact support.",
+            "error_player_create_failed": "Failed to create your player profile (Discord ID: {{discordId}}). Please try again later or contact support.",
+            "error_db": "A database error occurred. Please try again later or contact support. (Details: {{details}})",
+            "error_unknown_service": "An unknown error occurred while processing your request. Please try again later or contact support. (Details: {{details}})",
+            "error_generic_service": "A generic error occurred in the service. Please try again later or contact support. (Details: {{details}})",
+            "error_unknown": "An unknown error occurred while creating the season. Message: {{message}}"
         },
-        "common": {
-            "error": {
-                "critical_command": "A critical unexpected error occurred. Please contact support."
-            }
-        }
+        "newCommand.commandDescs": {
+            "new": "Create a new season. Use this command to start a new game flow."
+        },
+        "common.error": {
+            "critical_command": "A critical unexpected error occurred. Please contact support."
+        },
+        "newCommand.error_unknown_subcommand": "That subcommand for 'new' isn't recognized. Please check the command and try again."
     }
 }
