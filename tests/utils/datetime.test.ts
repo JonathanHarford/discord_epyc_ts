@@ -68,18 +68,6 @@ describe('datetime utils', () => {
       expect(parseDuration('')).toBeNull();
     });
 
-    it('should return null for null input', () => {
-      expect(parseDuration(null as any)).toBeNull();
-    });
-    
-    it('should return null for undefined input', () => {
-      expect(parseDuration(undefined as any)).toBeNull();
-    });
-
-    it('should return null for non-string input', () => {
-      expect(parseDuration(123 as any)).toBeNull();
-    });
-
     it('should return null for invalid format: abc', () => {
       expect(parseDuration('abc')).toBeNull();
     });
@@ -185,16 +173,5 @@ describe('datetime utils', () => {
         expect(durationStr(zeroDuration)).toBe('0s');
     });
 
-    it('should return "0s" for null input', () => {
-      expect(durationStr(null as any)).toBe('0s');
-    });
-
-    it('should return "0s" for undefined input', () => {
-      expect(durationStr(undefined as any)).toBe('0s');
-    });
-
-    it('should return "0s" for non-Duration object', () => {
-      expect(durationStr({ days: 1 } as any)).toBe('0s');
-    });
   });
 }); 

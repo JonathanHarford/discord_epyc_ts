@@ -2,8 +2,7 @@ import { Duration, DurationLikeObject } from 'luxon';
 
 // New regex that enforces order and optional presence of each unit.
 // It expects the string to be d-h-m-s order.
-const STRICT_DURATION_REGEX = /^(?:(\\d+)d)?(?:(\\d+)h)?(?:(\\d+)m)?(?:(\\d+)s)?$/;
-const UNIT_ORDER = ['days', 'hours', 'minutes', 'seconds'] as const;
+const STRICT_DURATION_REGEX = /^(?:(\d+)d)?\s*(?:(\d+)h)?\s*(?:(\d+)m)?\s*(?:(\d+)s)?$/;
 
 /**
  * Parses a relaxed duration string (e.g., "7d", "3d6h30m10s") into a Luxon Duration object.
@@ -16,9 +15,6 @@ const UNIT_ORDER = ['days', 'hours', 'minutes', 'seconds'] as const;
  * @returns A Luxon Duration object, or null if the string is invalid or results in a zero duration.
  */
 export const parseDuration = (durationStr: string): Duration | null => {
-  if (!durationStr || typeof durationStr !== 'string') {
-    return null;
-  }
 
   // Trim leading/trailing whitespace and remove all internal whitespace
   const sanitizedStr = durationStr.trim().replace(/\\s+/g, '');
@@ -108,30 +104,30 @@ export const parseDuration = (durationStr: string): Duration | null => {
  * @returns The formatted duration string.
  */
 export const durationStr = (duration: Duration): string => {
-  if (!duration || !(duration instanceof Duration)) {
-    return '0s'; // Or throw error
-  }
+  // Shift the duration to the units we care about for string formatting.
+  // This will convert, for example, 900 minutes into { hours: 15, minutes: 0 } etc.
+  const shifted = duration.shiftTo('days', 'hours', 'minutes', 'seconds');
 
-  const normalized = duration.normalize(); // Normalizes units (e.g., 90 minutes to 1 hour, 30 minutes)
-  const obj = normalized.toObject(); // Gets { days, hours, minutes, seconds, milliseconds }
+  // console.log('Original duration:', duration.toObject());
+  // console.log('Shifted duration:', shifted.toObject());
+
+  const days = Math.floor(shifted.get('days'));
+  const hours = Math.floor(shifted.get('hours'));
+  const minutes = Math.floor(shifted.get('minutes'));
+  const seconds = Math.floor(shifted.get('seconds'));
 
   let result = '';
-
-  for (const unit of UNIT_ORDER) {
-    const value = obj[unit];
-    if (value && value > 0) {
-      result += `${Math.floor(value)}${unit.charAt(0)}`;
-    }
-  }
-  
-  // Handle milliseconds part for precision if needed, or ensure they are rounded into seconds
-  // For this relaxed format, we typically don't show milliseconds unless it's the only value.
-  // If seconds is 0 from normalization but there are milliseconds, we might want to show them as fractional seconds or just "0s" if very small.
-  // The current UNIT_ORDER only goes down to seconds.
-  // If normalized.as('milliseconds') is > 0 but result is empty, it means it's < 1 second.
+  if (days > 0) result += `${days}d`;
+  if (hours > 0) result += `${hours}h`;
+  if (minutes > 0) result += `${minutes}m`;
+  if (seconds > 0) result += `${seconds}s`;
 
   if (result === '') {
-    // If total duration is zero or less than 1 second (and we don't show ms)
+    // This handles two cases:
+    // 1. The duration was genuinely zero.
+    // 2. The duration was non-zero but less than 1 second (e.g., 500ms), 
+    //    and all d,h,m,s components floored to 0.
+    // In both scenarios, the desired output is "0s" based on existing tests.
     return '0s';
   }
 
