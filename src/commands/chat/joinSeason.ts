@@ -18,45 +18,92 @@ export const JoinSeasonCommand: any = {
   async execute(interaction: ChatInputCommandInteraction) {
     await interaction.deferReply({ ephemeral: true });
 
-    const seasonIdOption = interaction.options.getString('season_id', true);
+    const seasonId = interaction.options.getString('season_id', true);
     const discordUserId = interaction.user.id;
 
     const seasonService = new SeasonService(prisma);
 
-    let instruction: MessageInstruction;
-
     try {
-      // IMPORTANT: SeasonService.addPlayerToSeason now expects an internal Player ID.
-      // You'll need to implement logic here to resolve discordUserId to your internal player ID.
-      // This might involve calling a PlayerService to find or create the player.
-      // For now, this is a placeholder for that logic:
-      const internalPlayerId = discordUserId; // TODO: Replace with actual player ID resolution
-
-      // The result from addPlayerToSeason is now directly the MessageInstruction
-      instruction = await seasonService.addPlayerToSeason(internalPlayerId, seasonIdOption);
-
-      // The service provides the 'key' and most 'data'.
-      // We ensure seasonId and a seasonName fallback are present in data, 
-      // similar to the original command's behavior for its lang strings.
-      const serviceData = instruction.data || {};
-      instruction.data = {
-        ...serviceData,
-        seasonId: seasonIdOption, // Ensure seasonId is available
-        // Use seasonName from service if present, otherwise fallback to seasonIdOption
-        seasonName: serviceData.seasonName || seasonIdOption 
-      };
-
+      // Step 1: First check if the season exists and is open for joining
+      const season = await seasonService.findSeasonById(seasonId);
+      
+      if (!season) {
+        await interaction.editReply({ 
+          content: Lang.getRef('joinCommand.join_season_error_not_found', Language.Default, { seasonId }) 
+        });
+        return;
+      }
+      
+      // Step 2: Check if season is in a valid state for joining (SETUP, PENDING_START, OPEN)
+      const validJoinStatuses = ['SETUP', 'PENDING_START', 'OPEN'];
+      if (!validJoinStatuses.includes(season.status)) {
+        await interaction.editReply({ 
+          content: Lang.getRef('joinCommand.join_season_error_not_open', Language.Default, { 
+            seasonId,
+            seasonName: season.name,
+            status: season.status 
+          }) 
+        });
+        return;
+      }
+      
+      // Step 3: Find or create the player record for this Discord user
+      const player = await prisma.player.findUnique({
+        where: { discordUserId }
+      });
+      
+      if (!player) {
+        // This is a first-time player, so we need to create their player record
+        try {
+          const newPlayer = await prisma.player.create({
+            data: {
+              discordUserId,
+              name: interaction.user.username,
+            }
+          });
+          
+          // Now use the new player ID to add them to the season
+          const result = await seasonService.addPlayerToSeason(newPlayer.id, seasonId);
+          await interaction.editReply({ 
+            content: Lang.getRef(result.key, Language.Default, {
+              ...result.data,
+              seasonId,
+              seasonName: season.name
+            }) 
+          });
+          
+        } catch (error) {
+          console.error('Error creating player record:', error);
+          await interaction.editReply({ 
+            content: Lang.getRef('joinCommand.join_season_error_unknown', Language.Default, { 
+              seasonId,
+              errorMessage: error instanceof Error ? error.message : 'Unknown error'
+            }) 
+          });
+        }
+        return;
+      }
+      
+      // Step 4: Add existing player to the season
+      const result = await seasonService.addPlayerToSeason(player.id, seasonId);
+      
+      // The key should already be formatted for Lang.getRef
+      await interaction.editReply({ 
+        content: Lang.getRef(result.key, Language.Default, {
+          ...result.data,
+          seasonId,
+          seasonName: season.name
+        }) 
+      });
+      
     } catch (error) {
       console.error('Error in /join command:', error);
-      instruction = {
-        type: 'error',
-        key: 'common.error.critical_command',
-        data: { errorDetail: (error as Error).message },
-      };
+      await interaction.editReply({ 
+        content: Lang.getRef('joinCommand.join_season_error_unknown', Language.Default, { 
+          seasonId,
+          errorMessage: error instanceof Error ? error.message : 'Unknown error'
+        }) 
+      });
     }
-
-    const replyContent = Lang.getRef(instruction.key, Language.Default, instruction.data);
-
-    await interaction.editReply({ content: replyContent });
   },
 }; 

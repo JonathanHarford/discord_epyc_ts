@@ -3,33 +3,34 @@
 # Status: in-progress
 # Dependencies: 2, 5
 # Priority: medium
-# Description: Implement the `/join season:<id>` slash command handler in `src/commands/chat`. This handler should parse the required `season_id` option, call the `SeasonService` to validate the season and add the user as a player, and provide informative feedback to the user.
+# Description: The core logic for the `/join season:<id>` slash command handler in `src/commands/chat` has been implemented. This includes parsing the `season_id`, validating the season state, adding the user as a player (creating a new player record if necessary), and providing informative feedback. Integration tests covering various scenarios have also been completed.
 # Details:
 Implementation Plan:
-1. Create a new command file for `/join season` in `src/commands/chat`.
-2. Define the command structure with a required `season_id` option (e.g., using Discord.js builders).
-3. In the command handler:
-    a. Retrieve the `season_id` option value and the user executing the command (their Discord user ID).
-    b. Call `SeasonService.findSeasonById(seasonId)` to fetch the season details from the database.
-    c. Validate the fetched season:
-        i. Ensure the season exists (check if `findSeasonById` returned a season).
-        ii. Ensure the season is currently open for joining. This typically means its status should be 'open' or 'pending_start'. It should NOT be 'active', 'closed', or 'archived'.
-    d. If all validations pass, call `SeasonService.addPlayerToSeason(userId, seasonId)` to link the user to the season in the database.
-    e. Respond to the user with an ephemeral message indicating success or failure. Include specific reasons for failure, such as 'Season not found', 'Season is not open for joining', or 'You have already joined this season'.
-4. Implement appropriate error handling for potential issues during database operations or unexpected errors.
+1. Create a new command file for `/join season` in `src/commands/chat`. (Completed as part of 701)
+2. Define the command structure with a required `season_id` option (e.g., using Discord.js builders). (Completed as part of 701)
+3. In the command handler: (Completed as part of 701)
+    a. Retrieve the `season_id` option value and the user executing the command (their Discord user ID and username). (Completed as part of 701)
+    b. Call `SeasonService.findSeasonById(seasonId)` to fetch the season details from the database. (Completed as part of 701)
+    c. Validate the fetched season: (Completed as part of 701)
+        i. Ensure the season exists (check if `findSeasonById` returned a season). (Completed as part of 701)
+        ii. Ensure the season is currently open for joining. This typically means its status should be 'open' or 'pending_start'. It should NOT be 'active', 'closed', or 'archived'. (Completed as part of 701)
+    d. If all validations pass, call `SeasonService.addPlayerToSeason(userId, seasonId)`. This logic now includes checking if a player record exists for the user's Discord ID and creating one if necessary, using their Discord username. (Completed as part of 701)
+    e. Respond to the user with an ephemeral message indicating success or failure. Include specific reasons for failure, such as 'Season not found', 'Season is not open for joining', or 'You have already joined this season'. (Completed as part of 701)
+4. Implement appropriate error handling for potential issues during database operations or unexpected errors. (Completed as part of 701)
 
 # Test Strategy:
 Implement and run tests according to the project's testing guidelines (TECHNICAL_ARCHITECTURE.md):
 
 1.  **Manual/Integration Testing (via Discord):** Use the `/join season` command in a test Discord server with various inputs:
-    -   Use a valid `season_id` for a season that is 'open' or 'pending_start'. Verify the user is added as a player to that season in the database and a success message is received.
+    -   Use a valid `season_id` for a season that is 'open' or 'pending_start'. Verify the user is added as a player to that season in the database (creating a new player record if they didn't have one) and a success message is received.
     -   Use a valid `season_id` for a season that is 'active', 'closed', or 'archived'. Verify an appropriate error message is returned (e.g., 'Season is not open for joining') and the user is NOT added.
     -   Use an invalid or non-existent `season_id`. Verify an appropriate error message is returned (e.g., 'Season not found').
     -   Attempt to join a season the user has already joined. Verify an appropriate error message is returned (e.g., 'You have already joined this season').
     -   Test edge cases like invalid input format for the ID (if applicable based on Discord.js option type).
 
-2.  **Integration Tests (Database Interaction):** Write integration tests that simulate command execution logic, interacting with a test database but *without* involving the Discord API. These tests should cover:
-    -   Successful joining of an open season.
+2.  **Integration Tests (Database Interaction):** Integration tests simulating command execution logic, interacting with a test database but *without* involving the Discord API, have been completed in `tests/commands/chat/joinSeason.integration.test.ts`. These tests cover:
+    -   Successful joining of an open season for a new player (player record created).
+    -   Successful joining of an open season for an existing player.
     -   Attempting to join a non-existent season.
     -   Attempting to join a season that is not open for joining (e.g., 'active', 'closed').
     -   Attempting to join a season the user has already joined.
@@ -38,15 +39,15 @@ Implement and run tests according to the project's testing guidelines (TECHNICAL
 3.  **Unit Tests (Logic Layer):** Write unit tests for any pure logic functions extracted from the command handler, focusing on validation rules and data processing, independent of database or Discord interactions.
 
 # Subtasks:
-## 701. undefined [todo]
+## 701. undefined [done]
 ### Dependencies: None
-### Description: Implement the command handler logic in `src/commands/chat/joinSeason.ts`.
+### Description: Implement the command handler logic in `src/commands/chat/joinSeason.ts`. This includes parsing options, validating season state, adding the player (creating a player record if needed), and sending responses.
 ### Details:
 
 
-## 702. undefined [todo]
+## 702. undefined [done]
 ### Dependencies: None
-### Description: Add integration tests for the `/join season` command logic against a test database.
+### Description: Add integration tests for the `/join season` command logic against a test database, covering success cases (new/existing player), invalid season, closed season, and already joined scenarios.
 ### Details:
 
 
