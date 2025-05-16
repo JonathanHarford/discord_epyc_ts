@@ -329,7 +329,7 @@
             "voteEmbed": "[Vote for {{COM:bot.name}}!]({{COM:links.vote}})"
         },
         "joinCommand": {
-            "join_season_success": "You have successfully joined season '{{seasonName}}'!",
+            "join_season_success": "You have successfully joined season with ID: **{{seasonId}}**!",
             "join_season_error_not_found": "Season with ID '{{seasonId}}' not found.",
             "join_season_error_not_open": "Season with ID '{{seasonId}}' is not currently open for joining.",
             "join_season_error_already_joined": "You have already joined season with ID '{{seasonId}}'.",
@@ -338,10 +338,7 @@
             "join_season_error_unknown": "An unknown error occurred while trying to join season '{{seasonId}}'. Error: {{errorMessage}}"
         },
         "newCommand.season": {
-            "create_success_channel": "Season '{{seasonName}}' (ID: {{seasonId}}) created successfully. I have sent a DM to {{discordUserId}} to start the first turn!",
-            "create_success_dm": "You have successfully created the season '{{seasonName}}' (ID: {{seasonId}})! I've also sent you a DM with instructions on how to start the first turn.",
-            "create_dm_fail_channel": "Season '{{seasonName}}' (ID: {{seasonId}}) created, but I couldn't send you a DM with first turn instructions. Please check your DM settings.",
-            "error_name_taken": "A season with the name '{{name}}' already exists. Please choose a different name.",
+            "create_success_channel": "{{mentionUser}} has started a new season with ID: **{{seasonId}}**\\nSeason will remain open for joining for {{openDuration}}.\\nUse `/join season:{{seasonId}}` to join!",
             "error_min_max_players": "Minimum players ({{minPlayers}}) cannot be greater than maximum players ({{maxPlayers}}).",
             "error_creator_not_found": "Your player profile could not be found (Discord ID: {{discordUserId}}). Please try again later or contact support.",
             "error_player_create_failed": "Failed to create your player profile (Discord ID: {{discordId}}). Please try again later or contact support.",

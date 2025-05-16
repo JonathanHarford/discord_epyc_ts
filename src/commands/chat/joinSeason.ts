@@ -43,7 +43,6 @@ export class JoinSeasonCommand implements Command {
         await interaction.editReply({ 
           content: Lang.getRef('joinCommand.join_season_error_not_open', data.lang, { 
             seasonId,
-            seasonName: season.name,
             status: season.status 
           }) 
         });
@@ -68,7 +67,6 @@ export class JoinSeasonCommand implements Command {
             content: Lang.getRef(result.key, data.lang, {
               ...result.data,
               seasonId,
-              seasonName: season.name
             }) 
           });
           
@@ -90,7 +88,6 @@ export class JoinSeasonCommand implements Command {
         content: Lang.getRef(result.key, data.lang, {
           ...result.data,
           seasonId,
-          seasonName: season.name
         }) 
       });
       

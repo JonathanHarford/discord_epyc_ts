@@ -75,9 +75,9 @@ describe('SeasonService', () => {
   });
 
   it('should create a new season successfully with minimal options', async () => {
-    const seasonName = `Test Season ${nanoid()}`;
+    // const seasonName = `Test Season ${nanoid()}`;
     const options: NewSeasonOptions = {
-      name: seasonName,
+      // name: seasonName,
       creatorPlayerId: testPlayer.id,
     };
 
@@ -86,7 +86,7 @@ describe('SeasonService', () => {
     expect(result.type).toBe('success');
     expect(result.key).toBe('season_create_success');
     expect(result.data).toBeDefined();
-    expect(result.data?.seasonName).toBe(seasonName);
+    // expect(result.data?.seasonName).toBe(seasonName);
     expect(result.data?.status).toBe('SETUP');
 
     const dbSeason = await prisma.season.findUnique({
@@ -95,7 +95,7 @@ describe('SeasonService', () => {
     });
 
     expect(dbSeason).not.toBeNull();
-    expect(dbSeason?.name).toBe(seasonName);
+    // expect(dbSeason?.name).toBe(seasonName);
     expect(dbSeason?.status).toBe('SETUP');
     expect(dbSeason?.creatorId).toBe(testPlayer.id);
     expect(dbSeason?.config).not.toBeNull();
@@ -107,9 +107,9 @@ describe('SeasonService', () => {
   });
 
   it('should create a new season successfully with all options specified', async () => {
-    const seasonName = `Full Options Season ${nanoid()}`;
+    // const seasonName = `Full Options Season ${nanoid()}`;
     const options: NewSeasonOptions = {
-      name: seasonName,
+      // name: seasonName,
       creatorPlayerId: testPlayer.id,
       openDuration: '3d',
       minPlayers: 3,
@@ -129,7 +129,7 @@ describe('SeasonService', () => {
     });
 
     expect(dbSeason).not.toBeNull();
-    expect(dbSeason?.name).toBe(seasonName);
+    // expect(dbSeason?.name).toBe(seasonName);
     expect(dbSeason?.config.openDuration).toBe('3d');
     expect(dbSeason?.config.minPlayers).toBe(3);
     expect(dbSeason?.config.maxPlayers).toBe(10);
@@ -139,30 +139,30 @@ describe('SeasonService', () => {
     expect(dbSeason?.config.drawingTimeout).toBe('24h');
   });
 
-  it('should return error if season name is taken', async () => {
-    const seasonName = `Taken Name Season ${nanoid()}`;
-    // Create a season first
-    await seasonService.createSeason({
-      name: seasonName,
-      creatorPlayerId: testPlayer.id,
-    });
-
-    // Attempt to create another with the same name
-    const options: NewSeasonOptions = {
-      name: seasonName,
-      creatorPlayerId: testPlayer.id,
-    };
-    const result = await seasonService.createSeason(options);
-
-    expect(result.type).toBe('error');
-    expect(result.key).toBe('season_create_error_name_taken');
-    expect(result.data?.name).toBe(seasonName);
-  });
+  // it('should return error if season name is taken', async () => {
+  //   const seasonName = `Taken Name Season ${nanoid()}`;
+  //   // Create a season first
+  //   await seasonService.createSeason({
+  //     name: seasonName,
+  //     creatorPlayerId: testPlayer.id,
+  //   });
+  //
+  //   // Attempt to create another with the same name
+  //   const options: NewSeasonOptions = {
+  //     name: seasonName,
+  //     creatorPlayerId: testPlayer.id,
+  //   };
+  //   const result = await seasonService.createSeason(options);
+  //
+  //   expect(result.type).toBe('error');
+  //   expect(result.key).toBe('season_create_error_name_taken');
+  //   expect(result.data?.name).toBe(seasonName);
+  // });
 
   it('should return error if creator discord ID is not found', async () => {
     const nonExistentPlayerId = `non-existent-${nanoid()}`;
     const options: NewSeasonOptions = {
-      name: `Test Season ${nanoid()}`,
+      // name: `Test Season ${nanoid()}`,
       creatorPlayerId: nonExistentPlayerId,
     };
 
@@ -175,7 +175,7 @@ describe('SeasonService', () => {
 
   it('should return error if maxPlayers is less than minPlayers', async () => {
     const options: NewSeasonOptions = {
-      name: `MinMax Test Season ${nanoid()}`,
+      // name: `MinMax Test Season ${nanoid()}`,
       creatorPlayerId: testPlayer.id,
       minPlayers: 10,
       maxPlayers: 5,
@@ -190,9 +190,9 @@ describe('SeasonService', () => {
   });
   
   it('should allow minPlayers and maxPlayers to be equal', async () => {
-    const seasonName = `Equal MinMax Season ${nanoid()}`;
+    // const seasonName = `Equal MinMax Season ${nanoid()}`;
     const options: NewSeasonOptions = {
-      name: seasonName,
+      // name: seasonName,
       creatorPlayerId: testPlayer.id,
       minPlayers: 5,
       maxPlayers: 5,
@@ -210,9 +210,9 @@ describe('SeasonService', () => {
   });
 
   it('should use default config values if not provided in options', async () => {
-    const seasonName = `Default Config Season ${nanoid()}`;
+    // const seasonName = `Default Config Season ${nanoid()}`;
     const options: NewSeasonOptions = {
-      name: seasonName,
+      // name: seasonName,
       creatorPlayerId: testPlayer.id,
       // Intentionally omit other config options to test defaults
     };

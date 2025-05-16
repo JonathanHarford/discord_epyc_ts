@@ -1,9 +1,11 @@
 import { describe, it, expect, beforeEach, afterEach, vi, afterAll, beforeAll } from 'vitest';
-import { ChatInputCommandInteraction } from 'discord.js';
+import { ChatInputCommandInteraction, PermissionsString, MessageFlags } from 'discord.js';
 import { JoinSeasonCommand } from '../../../src/commands/chat/joinSeason.js';
 import { PrismaClient } from '@prisma/client';
 import { nanoid } from 'nanoid';
 import { Lang } from '../../../src/services/lang.js';
+import { Language } from '../../../src/models/enum-helpers/language.js';
+import { EventData } from '../../../src/models/internal-models.js';
 
 // Mock Lang service
 vi.mock('../../../src/services/lang.js', () => ({
@@ -20,9 +22,13 @@ describe('JoinSeasonCommand - Integration Tests', () => {
   let prisma: PrismaClient;
   let testSeasonId: string;
   let closedSeasonId: string;
+  let commandInstance: JoinSeasonCommand;
+  let mockEventData: EventData;
 
   beforeAll(async () => {
     prisma = new PrismaClient();
+    commandInstance = new JoinSeasonCommand();
+    mockEventData = { lang: Language.Default, langGuild: Language.Default };
     
     // Clean database and set up test data
     await prisma.$transaction([
@@ -56,7 +62,6 @@ describe('JoinSeasonCommand - Integration Tests', () => {
     const testSeason = await prisma.season.create({
       data: {
         id: nanoid(),
-        name: 'Test Open Season',
         status: 'OPEN',
         configId: seasonConfig.id,
         creatorId: creator.id
@@ -68,7 +73,6 @@ describe('JoinSeasonCommand - Integration Tests', () => {
     const closedSeason = await prisma.season.create({
       data: {
         id: nanoid(),
-        name: 'Test Closed Season',
         status: 'ACTIVE', // Not joinable
         configId: closedSeasonConfig.id,
         creatorId: creator.id
@@ -118,10 +122,9 @@ describe('JoinSeasonCommand - Integration Tests', () => {
     interaction.user.username = 'NewPlayer';
 
     // Execute the command
-    await JoinSeasonCommand.execute(interaction);
+    await commandInstance.execute(interaction, mockEventData);
 
-    // Verify the command called deferReply and editReply
-    expect(interaction.deferReply).toHaveBeenCalledWith({ ephemeral: true });
+    // Verify the command called editReply (deferReply is handled by the command runner)
     expect(interaction.editReply).toHaveBeenCalled();
 
     // Verify the player was created and added to the season
@@ -157,10 +160,9 @@ describe('JoinSeasonCommand - Integration Tests', () => {
     interaction.user.id = discordUserId;
 
     // Execute the command
-    await JoinSeasonCommand.execute(interaction);
+    await commandInstance.execute(interaction, mockEventData);
 
-    // Verify the command called deferReply and editReply
-    expect(interaction.deferReply).toHaveBeenCalledWith({ ephemeral: true });
+    // Verify the command called editReply (deferReply is handled by the command runner)
     expect(interaction.editReply).toHaveBeenCalled();
 
     // Verify the player was added to the season
@@ -181,7 +183,7 @@ describe('JoinSeasonCommand - Integration Tests', () => {
     interaction.options.getString = vi.fn().mockReturnValue(nonExistentSeasonId);
 
     // Execute the command
-    await JoinSeasonCommand.execute(interaction);
+    await commandInstance.execute(interaction, mockEventData);
 
     // Verify Lang.getRef was called with the correct error key
     expect(Lang.getRef).toHaveBeenCalledWith(
@@ -196,7 +198,7 @@ describe('JoinSeasonCommand - Integration Tests', () => {
     interaction.options.getString = vi.fn().mockReturnValue(closedSeasonId);
 
     // Execute the command
-    await JoinSeasonCommand.execute(interaction);
+    await commandInstance.execute(interaction, mockEventData);
 
     // Verify Lang.getRef was called with the correct error key
     expect(Lang.getRef).toHaveBeenCalledWith(
@@ -233,7 +235,7 @@ describe('JoinSeasonCommand - Integration Tests', () => {
     interaction.user.id = discordUserId;
 
     // Execute the command
-    await JoinSeasonCommand.execute(interaction);
+    await commandInstance.execute(interaction, mockEventData);
 
     // Verify that the Lang.getRef was called with the already joined error key
     expect(Lang.getRef).toHaveBeenCalledWith(

@@ -50,7 +50,6 @@ describe('SeasonService Integration Tests', () => {
     const season = await prisma.season.create({
       data: {
         id: nanoid(),
-        name: `Test Season ${nanoid(5)}`,
         status: 'SETUP', // Should be joinable in SETUP or OPEN
         creatorId: creator.id,
         configId: seasonConfig.id, // Connect to the created config
@@ -89,7 +88,6 @@ describe('SeasonService Integration Tests', () => {
     const season = await prisma.season.create({
       data: {
         id: nanoid(),
-        name: `Test Season ${nanoid(5)}`,
         status: 'ACTIVE', // Not joinable
         creatorId: creator.id,
         configId: seasonConfig.id,
@@ -107,7 +105,6 @@ describe('SeasonService Integration Tests', () => {
     const season = await prisma.season.create({
       data: {
         id: nanoid(),
-        name: `Test Season ${nanoid(5)}`,
         status: 'SETUP',
         creatorId: creator.id,
         configId: seasonConfig.id,
@@ -128,7 +125,6 @@ describe('SeasonService Integration Tests', () => {
     const season = await prisma.season.create({
       data: {
         id: nanoid(),
-        name: `Test Season ${nanoid(5)}`,
         status: 'SETUP',
         creatorId: creator.id,
         configId: seasonConfig.id,
@@ -148,7 +144,6 @@ describe('SeasonService Integration Tests', () => {
     const season = await prisma.season.create({
       data: {
         id: nanoid(),
-        name: `Test Season ${nanoid(5)}`,
         status: 'SETUP',
         creatorId: creator.id,
         configId: seasonConfig.id,

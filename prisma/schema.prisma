@@ -24,7 +24,6 @@ model Player {
 
 model Season {
   id              String   @id @default(nanoid())
-  name            String   @unique
   status          String   // e.g., "SETUP", "PENDING", "ACTIVE", "COMPLETED", "TERMINATED"
   createdAt       DateTime @default(now())
   updatedAt       DateTime @updatedAt

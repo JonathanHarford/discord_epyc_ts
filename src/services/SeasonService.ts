@@ -1,5 +1,6 @@
 import { PrismaClient, Player, Season, SeasonConfig, Prisma, Game } from '@prisma/client';
 import { nanoid } from 'nanoid'; // Use named import for nanoid
+import { humanId } from 'human-id'; // Import human-id
 import { MessageInstruction } from '../types/MessageInstruction.js'; // Added .js extension
 import schedule from 'node-schedule'; // Added for task scheduling
 import { DateTime } from 'luxon'; // Duration and DurationLikeObject might not be needed here anymore
@@ -82,10 +83,8 @@ export class SeasonService {
         const newConfig = await tx.seasonConfig.create({ data: configData });
 
         // 3. Create the Season record
-        const seasonName = options.name || `Epyc Season ${nanoid(8)}`; // Generate name if not provided TODO: Implement more creative/themed name generation
         const seasonData: Prisma.SeasonCreateInput = {
-          id: nanoid(), // Use nanoid directly
-          name: seasonName, // Use the potentially generated name
+          id: humanId(), // Use human-id for season ID
           status: 'SETUP', 
           creator: {
             connect: { id: creator.id },
@@ -120,14 +119,14 @@ export class SeasonService {
         }
       }
 
-      console.log(`Season '${newSeasonWithConfig.name}' (ID: ${newSeasonWithConfig.id}) created successfully in DB.`);
+      console.log(`Season (ID: ${newSeasonWithConfig.id}) created successfully in DB.`);
       return {
         type: 'success',
         key: 'season_create_success',
         data: {
           seasonId: newSeasonWithConfig.id,
-          seasonName: newSeasonWithConfig.name,
           status: newSeasonWithConfig.status,
+          openDuration: newSeasonWithConfig.config.openDuration, // Add openDuration for the message
           // Potentially include other relevant details for the success message
         },
       };
@@ -137,13 +136,13 @@ export class SeasonService {
         // P2002 is the Prisma error code for unique constraint violation
         if (error.code === 'P2002') {
           const target = error.meta?.target as string[] | undefined;
-          if (target && target.includes('name')) { // Check if the unique constraint was on the name field
-            return {
-              type: 'error',
-              key: 'season_create_error_name_taken',
-              data: { name: options.name },
-            };
-          }
+          // if (target && target.includes('name')) { // Check if the unique constraint was on the name field
+          //   return {
+          //     type: 'error',
+          //     key: 'season_create_error_name_taken',
+          //     data: { name: options.name },
+          //   };
+          // }
           // Handle other unique constraint violations if necessary
           return {
             type: 'error',
@@ -186,7 +185,7 @@ export class SeasonService {
       });
 
       if (season) {
-        console.log(`SeasonService.findSeasonById: Found season \'${season.name}\'`);
+        console.log(`SeasonService.findSeasonById: Found season with ID: ${season.id}`);
       } else {
         console.log(`SeasonService.findSeasonById: Season with ID ${seasonId} not found.`);
       }
@@ -234,7 +233,7 @@ export class SeasonService {
       const validJoinStatuses = ['SETUP', 'PENDING_START', 'OPEN']; 
       if (!validJoinStatuses.includes(season.status)) {
         console.log(`SeasonService.addPlayerToSeason: Season ${seasonId} status (${season.status}) is not valid for joining.`);
-        return { type: 'error', key: 'season_join_error_not_open', data: { status: season.status, seasonName: season.name } };
+        return { type: 'error', key: 'season_join_error_not_open', data: { status: season.status /*, seasonName: season.name */ } };
       }
 
       // 3. Check max player limit
@@ -242,7 +241,7 @@ export class SeasonService {
       const currentPlayerCount = season._count.players;
       if (maxPlayers !== null && currentPlayerCount >= maxPlayers) {
           console.log(`SeasonService.addPlayerToSeason: Season ${seasonId} is full (${currentPlayerCount}/${maxPlayers}).`);
-          return { type: 'error', key: 'season_join_error_full', data: { currentPlayers: currentPlayerCount, maxPlayers: maxPlayers, seasonName: season.name } };
+          return { type: 'error', key: 'season_join_error_full', data: { currentPlayers: currentPlayerCount, maxPlayers: maxPlayers /*, seasonName: season.name */ } };
       }
 
       // Player finding/creation logic is removed from here. Assumes valid playerId is passed.
@@ -259,7 +258,7 @@ export class SeasonService {
 
       if (existingJoin) {
         console.log(`SeasonService.addPlayerToSeason: Player ${playerId} (ID: ${player.id}) already in season ${seasonId}.`);
-        return { type: 'error', key: 'season_join_error_already_joined', data: { seasonName: season.name } };
+        return { type: 'error', key: 'season_join_error_already_joined', data: { /* seasonName: season.name */ } };
       }
 
       // 5. Add player to season (create join record)
@@ -271,10 +270,10 @@ export class SeasonService {
           },
         });
         console.log(`SeasonService.addPlayerToSeason: Successfully added player ${playerId} (ID: ${player.id}) to season ${seasonId}.`);
-        return { type: 'success', key: 'season_join_success', data: { seasonName: season.name } };
+        return { type: 'success', key: 'season_join_success', data: { /* seasonName: season.name */ } };
       } catch (error) {
          console.error(`SeasonService.addPlayerToSeason: Error adding player ${player.id} to season ${seasonId}:`, error);
-         return { type: 'error', key: 'season_join_error_generic', data: { seasonName: season.name } };
+         return { type: 'error', key: 'season_join_error_generic', data: { /* seasonName: season.name */ } };
       }
     });
   }
@@ -481,7 +480,6 @@ export class SeasonService {
 }
 
 export interface NewSeasonOptions {
-  name?: string; // Made name optional
   creatorPlayerId: string;
   openDuration?: string | null; // Prisma schema uses String?
   minPlayers?: number | null;

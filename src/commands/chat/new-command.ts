@@ -120,22 +120,11 @@ export class NewCommand implements Command {
         const instruction: MessageInstruction = await seasonService.createSeason(seasonOptions);
 
         if (instruction.type === 'success') {
-          const successReply = Lang.getRef('newCommand.season.create_success_channel', Language.Default, instruction.data);
+          const successReply = Lang.getRef('newCommand.season.create_success_channel', Language.Default, { ...instruction.data, mentionUser: intr.user.toString() });
           await intr.editReply({ content: successReply });
-
-          try {
-            const dmMessage = Lang.getRef('newCommand.season.create_success_dm', Language.Default, instruction.data);
-            await intr.user.send(dmMessage.trim()); // Use intr.user to send DM
-          } catch (dmError) {
-            console.error(`Failed to send DM to creator ${discordUserId} for season ${instruction.data?.seasonId}:`, dmError);
-            const dmFailReply = Lang.getRef('newCommand.season.create_dm_fail_channel', Language.Default, instruction.data);
-            await intr.followUp({ content: dmFailReply, ephemeral: true });
-          }
-        } else { // instruction.type === 'error'
+        } else { // Handle error case
           let langKey = instruction.key; // Use service key directly
-          if (instruction.key === 'season_create_error_name_taken') {
-            langKey = 'newCommand.season.error_name_taken';
-          } else if (instruction.key === 'season_create_error_creator_not_found') {
+          if (instruction.key === 'season_create_error_creator_not_found') {
             langKey = 'newCommand.season.error_creator_not_found';
           } else if (instruction.key === 'season_create_error_min_max_players') {
             langKey = 'newCommand.season.error_min_max_players';
