@@ -61,7 +61,7 @@ async function start(): Promise<void> {
         new InfoCommand(),
         new TestCommand(),
         new NewCommand(),
-        JoinSeasonCommand,
+        new JoinSeasonCommand(),
 
         // Message Context Commands
         new ViewDateSent(),
