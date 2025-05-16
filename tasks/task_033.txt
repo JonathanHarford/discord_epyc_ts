@@ -1,0 +1,37 @@
+# Task ID: 33
+# Title: Refactor Language Keys for joinCommand to Use Constants
+# Status: pending
+# Dependencies: None
+# Priority: medium
+# Description: To improve type safety and prevent mismatches between language keys used in code and those defined in language files, this task will refactor the joinCommand related language string usage to rely on predefined constants.
+# Details:
+
+
+# Test Strategy:
+
+
+# Subtasks:
+## 1. Create lang-keys.ts and Define JoinCommand Keys [pending]
+### Dependencies: None
+### Description: Create a new file (e.g., src/constants/lang-keys.ts). Define an exported object (e.g., LangKeys) using `as const`. Inside, create a nested JoinCommand object containing all full string paths for language keys related to the join command (e.g., refs.joinCommand.join_season_success).
+### Details:
+Ensure all keys currently used in SeasonService.ts for addPlayerToSeason and potentially in joinSeason.ts command are covered.
+
+## 2. Update SeasonService.ts to Use LangKeys Constants [pending]
+### Dependencies: None
+### Description: Modify src/services/SeasonService.ts. Import the LangKeys object. In the addPlayerToSeason method, replace all hardcoded string literals for language keys with references to the constants defined in LangKeys.JoinCommand.
+### Details:
+Example: Change return { type: 'error', key: 'refs.joinCommand.join_season_error_already_joined', ... }; to return { type: 'error', key: LangKeys.JoinCommand.ErrorAlreadyJoined, ... };
+
+## 3. Update joinSeason.ts Command to Use LangKeys (If Applicable) [pending]
+### Dependencies: None
+### Description: Review src/commands/chat/joinSeason.ts. If it directly constructs or uses any language keys for Lang.getRef that are part of joinCommand, update these to use constants from LangKeys.JoinCommand.
+### Details:
+Currently, it seems to primarily use keys from SeasonService's response, so this subtask might be a quick verification.
+
+## 4. Testing and Verification (joinCommand LangKeys Refactor) [pending]
+### Dependencies: None
+### Description: After refactoring, run the application and manually test the /join season command with various scenarios (successful join, already joined, season not found, etc.) to ensure all messages are still displayed correctly.
+### Details:
+This is a manual testing step. The developer should also ensure the project compiles without TypeScript errors.
+

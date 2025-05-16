@@ -226,7 +226,8 @@
         {
           "id": 703,
           "description": "Add unit tests for any extracted logic functions related to season joining.",
-          "status": "todo"
+          "status": "done",
+          "details": "<info added on 2025-05-16T00:33:52.360Z>\n<update><timestamp>2025-05-16T00:33:48Z</timestamp><content>Analysis of the command handler `src/commands/chat/joinSeason.ts` reveals that it primarily orchestrates calls to `SeasonService` and manages Discord interactions. The core business logic—such as finding the season, adding a player, and status checks—is encapsulated within `SeasonService` methods, which are already covered by integration tests (subtask 702). The remaining logic in the command handler itself consists of simple validation and direct interaction handling, with no extracted functions that warrant separate unit tests. Therefore, no new unit tests are required for this subtask. This assessment is based on the current code structure and test coverage.</content></update>\n</info added on 2025-05-16T00:33:52.360Z>"
         },
         {
           "id": 704,
@@ -961,6 +962,54 @@
       "details": "Implement integration tests for `SeasonService.createSeason` focusing on interactions with the database. These tests should verify successful season creation, handling of duplicate season names, and cases where the creator ID might not exist. Ensure these tests assert that the service returns the correct `MessageInstruction` objects as implemented in Task 30. Additionally, write unit tests for any pure logic functions used by the `/new season` command handler or `SeasonService.createSeason` that are suitable for isolation. The tests should cover edge cases and invalid inputs where applicable. Leverage the test database setup for integration tests. This test structure, including database integration tests and logic layer unit tests, aligns with the requirements outlined in TECHNICAL_ARCHITECTURE.md. Ensure tests are well-structured and easy to understand.",
       "testStrategy": "Run all newly created integration and unit tests using the standard test runner. Verify that all tests pass for successful creation, duplicate name errors, creator not found errors, and any other implemented error conditions. Check test coverage metrics to ensure adequate coverage of the `SeasonService.createSeason` function and the relevant parts of the `/new season` command handler and associated logic. Manually test the `/new season` command in a development environment to confirm that the user feedback via the Lang service (implemented in Task 31) correctly reflects the outcomes tested by the automated tests.",
       "subtasks": []
+    },
+    {
+      "id": 33,
+      "title": "Refactor Language Keys for joinCommand to Use Constants",
+      "description": "To improve type safety and prevent mismatches between language keys used in code and those defined in language files, this task will refactor the joinCommand related language string usage to rely on predefined constants.",
+      "details": "",
+      "testStrategy": "",
+      "status": "pending",
+      "dependencies": [],
+      "priority": "medium",
+      "subtasks": [
+        {
+          "id": 1,
+          "title": "Create lang-keys.ts and Define JoinCommand Keys",
+          "description": "Create a new file (e.g., src/constants/lang-keys.ts). Define an exported object (e.g., LangKeys) using `as const`. Inside, create a nested JoinCommand object containing all full string paths for language keys related to the join command (e.g., refs.joinCommand.join_season_success).",
+          "details": "Ensure all keys currently used in SeasonService.ts for addPlayerToSeason and potentially in joinSeason.ts command are covered.",
+          "status": "pending",
+          "dependencies": [],
+          "parentTaskId": 33
+        },
+        {
+          "id": 2,
+          "title": "Update SeasonService.ts to Use LangKeys Constants",
+          "description": "Modify src/services/SeasonService.ts. Import the LangKeys object. In the addPlayerToSeason method, replace all hardcoded string literals for language keys with references to the constants defined in LangKeys.JoinCommand.",
+          "details": "Example: Change return { type: 'error', key: 'refs.joinCommand.join_season_error_already_joined', ... }; to return { type: 'error', key: LangKeys.JoinCommand.ErrorAlreadyJoined, ... };",
+          "status": "pending",
+          "dependencies": [],
+          "parentTaskId": 33
+        },
+        {
+          "id": 3,
+          "title": "Update joinSeason.ts Command to Use LangKeys (If Applicable)",
+          "description": "Review src/commands/chat/joinSeason.ts. If it directly constructs or uses any language keys for Lang.getRef that are part of joinCommand, update these to use constants from LangKeys.JoinCommand.",
+          "details": "Currently, it seems to primarily use keys from SeasonService's response, so this subtask might be a quick verification.",
+          "status": "pending",
+          "dependencies": [],
+          "parentTaskId": 33
+        },
+        {
+          "id": 4,
+          "title": "Testing and Verification (joinCommand LangKeys Refactor)",
+          "description": "After refactoring, run the application and manually test the /join season command with various scenarios (successful join, already joined, season not found, etc.) to ensure all messages are still displayed correctly.",
+          "details": "This is a manual testing step. The developer should also ensure the project compiles without TypeScript errors.",
+          "status": "pending",
+          "dependencies": [],
+          "parentTaskId": 33
+        }
+      ]
     }
   ]
 }
