@@ -5,3 +5,4 @@ alwaysApply: true
 ---
 * Vitest is installed and configured. Dont use Jest!
 * pnpm, not npm!
+* Discord: Supplying "ephemeral" for interaction response options is deprecated. Utilize flags instead.
