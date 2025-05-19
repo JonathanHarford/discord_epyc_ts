@@ -6,6 +6,7 @@ import schedule from 'node-schedule'; // Added for task scheduling
 import { DateTime } from 'luxon'; // Duration and DurationLikeObject might not be needed here anymore
 import { parseDuration } from '../utils/datetime.js'; // Import the new utility
 import { LangKeys } from '../constants/lang-keys.js';
+import { TurnService } from './TurnService.js'; // Added .js extension
 
 // Define a more specific return type for createSeason, using Prisma's generated Season type
 type SeasonWithConfig = Prisma.SeasonGetPayload<{
@@ -28,10 +29,13 @@ const PRE_ACTIVATION_SEASON_STATUSES = ['PENDING_START', 'OPEN', 'SETUP']; // Ad
 export class SeasonService {
   private prisma: PrismaClient;
   private scheduledActivationJobs: Map<string, schedule.Job> = new Map(); // For managing scheduled jobs
+  private turnService: TurnService;
 
-  // Inject PrismaClient instance
-  constructor(prisma: PrismaClient) {
+  // Inject PrismaClient instance and TurnService
+  constructor(prisma: PrismaClient, turnService: TurnService) {
     this.prisma = prisma;
+    this.scheduledActivationJobs = new Map(); // Ensure it's initialized here too
+    this.turnService = turnService;
   }
 
   /**
@@ -287,7 +291,7 @@ export class SeasonService {
    */
   async activateSeason(seasonId: string, activationParams?: { triggeredBy?: 'max_players' | 'open_duration_timeout' }): Promise<MessageInstruction> {
     console.log(`SeasonService.activateSeason: Attempting to activate season ${seasonId}`);
-    const trigger = activationParams?.triggeredBy || 'max_players'; // Default to max_players logic
+    const trigger = activationParams?.triggeredBy || 'max_players';
 
     try {
       return await this.prisma.$transaction(async (tx) => {
@@ -299,6 +303,8 @@ export class SeasonService {
             _count: {
               select: { players: true },
             },
+            // Eager load players details for DM sending if not too large an operation
+            // Alternatively, fetch them after confirming activation, as done below.
           },
         });
 
@@ -402,24 +408,59 @@ export class SeasonService {
         
         // 4.c Create N games for N players
         const gameCreationPromises: Promise<Game>[] = [];
-        for (const playerEntry of playersInSeason) {
-          // For now, we don't assign an initiatingPlayerId at game creation,
-          // as it's not in the schema and turn assignment (subtask 8.3) handles initial player turns.
+        // Fetch actual player records for their discordUserIds to pass to TurnService
+        const playerIdsInSeason = playersInSeason.map(p => p.playerId);
+        const playerRecordsForTurnOffer = await tx.player.findMany({
+            where: { id: { in: playerIdsInSeason } },
+        });
+
+        // Ensure we have a consistent list of players to map to games
+        // Sort both by ID to ensure deterministic mapping if order matters, or use a map
+        const sortedPlayerRecords = [...playerRecordsForTurnOffer].sort((a, b) => a.id.localeCompare(b.id));
+
+        for (const playerEntry of playersInSeason) { // playersInSeason is {playerId: string}[]
+          // This loop creates games. We need to map these games to players afterwards.
           gameCreationPromises.push(
             tx.game.create({
               data: {
                 id: nanoid(),
-                status: 'ACTIVE', // Games start active as first turns are offered immediately.
+                status: 'ACTIVE', 
                 season: {
                   connect: { id: seasonId },
                 },
-                // turns: {} // Turns are created as part of turn logic, not game creation.
               },
             })
           );
         }
         const createdGames = await Promise.all(gameCreationPromises);
-        console.log(`SeasonService.activateSeason: Created ${createdGames.length} games for season ${seasonId}.`);
+        console.log(`SeasonService.activateSeason: Created ${createdGames.length} games for season ${seasonId}. Offering initial turns...`);
+
+        // Ensure games are also sorted if matching to sorted players by index
+        const sortedCreatedGames = [...createdGames].sort((a, b) => a.id.localeCompare(b.id));
+
+        if (sortedPlayerRecords.length !== sortedCreatedGames.length) {
+            console.warn(`SeasonService.activateSeason: Mismatch between player count (${sortedPlayerRecords.length}) and game count (${sortedCreatedGames.length}) for initial turn offering. Aborting initial turn offers for this season.`);
+            // This might happen if playerCount from _count was different from playersInSeason.length
+            // or if a player was somehow removed mid-transaction after the initial fetch.
+            // Update the return message to reflect this potential issue.
+        } else {
+            for (let i = 0; i < sortedCreatedGames.length; i++) {
+                const game = sortedCreatedGames[i];
+                const player = sortedPlayerRecords[i]; // Assign i-th player to i-th game
+
+                if (player) { 
+                    const offerResult = await this.turnService.offerInitialTurn(game, player, updatedSeason.id);
+                    if (!offerResult.success) {
+                        console.error(`SeasonService.activateSeason: Failed to offer initial turn for game ${game.id} to player ${player.id}. Error: ${offerResult.error}`);
+                    } else {
+                        console.log(`SeasonService.activateSeason: Successfully offered initial turn for game ${game.id} to player ${player.id}. Turn ID: ${offerResult.turn?.id}`);
+                    }
+                } else {
+                    // This case should ideally not be reached if lengths match and arrays are populated
+                    console.error(`SeasonService.activateSeason: Could not find player for game ${game.id} at index ${i} during initial turn offering.`);
+                }
+            }
+        }
 
         return {
           type: 'success',

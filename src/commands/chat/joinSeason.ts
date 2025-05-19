@@ -27,7 +27,8 @@ export class JoinSeasonCommand implements Command {
     const discordUserId = interaction.user.id;
     console.log(`[JoinSeasonCommand] Received season_id: ${seasonId}, discordUserId: ${discordUserId}`);
 
-    const seasonService = new SeasonService(prisma);
+    // Null for TurnService since it's not needed for joining a season
+    const seasonService = new SeasonService(prisma, null);
 
     try {
       const season = await seasonService.findSeasonById(seasonId);

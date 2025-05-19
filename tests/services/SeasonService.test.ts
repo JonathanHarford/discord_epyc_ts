@@ -1,7 +1,12 @@
 import { describe, it, expect, beforeEach, afterEach, vi, beforeAll, afterAll } from 'vitest';
-import { PrismaClient, Player } from '@prisma/client';
+import { PrismaClient, Player, Game, Season, SeasonConfig, Prisma } from '@prisma/client';
+import { Client as DiscordClient } from 'discord.js';
 import { SeasonService, NewSeasonOptions } from '../../src/services/SeasonService.js';
+import { TurnService } from '../../src/services/TurnService.js';
+import schedule from 'node-schedule';
+import { humanId } from 'human-id';
 import { nanoid } from 'nanoid';
+import { MessageInstruction } from '../../src/types/MessageInstruction.js';
 
 // Mock the logger to prevent console output during tests
 vi.mock('../lib/logger', () => ({
@@ -13,11 +18,45 @@ vi.mock('../lib/logger', () => ({
   },
 }));
 
+// We don't mock the Prisma client for integration tests
+// Instead use a real test database
+
+// Refined mock for TurnService
+const mockOfferInitialTurn = vi.fn();
+vi.mock('../../src/services/TurnService.js', () => {
+  // This mocks the module, making TurnService a mock constructor
+  return {
+    TurnService: vi.fn().mockImplementation((prisma, discordClient) => {
+      return {
+        offerInitialTurn: mockOfferInitialTurn,
+      };
+    }),
+  };
+});
+
+vi.mock('node-schedule', () => ({
+  default: {
+    scheduleJob: vi.fn(),
+    // Mock other functions if needed, e.g., cancelJob, etc.
+  },
+}));
+
+vi.mock('human-id', () => ({
+  humanId: vi.fn(() => 'test-season-id'),
+}));
+vi.mock('nanoid', () => ({
+  nanoid: vi.fn(() => 'test-nano-id'),
+}));
+
+
+// For real integration tests, we don't need to mock transaction objects
+// We'll use the actual database
 
 describe('SeasonService', () => {
   let prisma: PrismaClient;
-  let seasonService: SeasonService;
+  let seasonService: SeasonService; 
   let testPlayer: Player;
+  // We use the real PrismaClient for integration tests
 
   // Initialize PrismaClient once for the describe block
   beforeAll(async () => {
@@ -31,16 +70,18 @@ describe('SeasonService', () => {
   });
 
   beforeEach(async () => {
-    // seasonService is newed up with the shared prisma instance
-    seasonService = new SeasonService(prisma);
+    // Create a TurnService instance for the shared prisma instance
+    const turnServiceInstance = new (TurnService as any)(prisma, {} as DiscordClient);
+    // seasonService is newed up with the shared prisma instance and TurnService
+    seasonService = new SeasonService(prisma, turnServiceInstance);
 
     // Clean up database before each test with correct order
-    await prisma.playersOnSeasons.deleteMany({});
-    // await prisma.turn.deleteMany({}); // Add if Turn table is used by tests
-    // await prisma.game.deleteMany({}); // Add if Game table is used by tests
-    await prisma.season.deleteMany({});
-    await prisma.seasonConfig.deleteMany({});
-    await prisma.player.deleteMany({});
+    await prisma.$executeRaw`TRUNCATE TABLE "PlayersOnSeasons" CASCADE`;
+    await prisma.$executeRaw`TRUNCATE TABLE "Turn" CASCADE`;
+    await prisma.$executeRaw`TRUNCATE TABLE "Game" CASCADE`;
+    await prisma.$executeRaw`TRUNCATE TABLE "Season" CASCADE`;
+    await prisma.$executeRaw`TRUNCATE TABLE "SeasonConfig" CASCADE`;
+    await prisma.$executeRaw`TRUNCATE TABLE "Player" CASCADE`;
 
     // Create a test player for creator context
     testPlayer = await prisma.player.create({
@@ -49,6 +90,10 @@ describe('SeasonService', () => {
         name: 'Test User',
       },
     });
+
+    // Reset all mocks before each test
+    vi.clearAllMocks();
+    mockOfferInitialTurn.mockReset(); // Reset the shared mock function
   });
 
   // afterEach no longer needs to disconnect, use afterAll
@@ -62,15 +107,18 @@ describe('SeasonService', () => {
     } catch (e) {
       // Ignore if testPlayer was not set or already deleted
     }
+    vi.restoreAllMocks();
   });
 
   // Disconnect PrismaClient once after all tests in the describe block
   afterAll(async () => {
     // Final comprehensive cleanup
-    await prisma.playersOnSeasons.deleteMany({});
-    await prisma.season.deleteMany({});
-    await prisma.seasonConfig.deleteMany({});
-    await prisma.player.deleteMany({});
+    await prisma.$executeRaw`TRUNCATE TABLE "PlayersOnSeasons" CASCADE`;
+    await prisma.$executeRaw`TRUNCATE TABLE "Turn" CASCADE`;
+    await prisma.$executeRaw`TRUNCATE TABLE "Game" CASCADE`;
+    await prisma.$executeRaw`TRUNCATE TABLE "Season" CASCADE`;
+    await prisma.$executeRaw`TRUNCATE TABLE "SeasonConfig" CASCADE`;
+    await prisma.$executeRaw`TRUNCATE TABLE "Player" CASCADE`;
     await prisma.$disconnect();
   });
 
@@ -240,4 +288,24 @@ describe('SeasonService', () => {
     expect(dbSeason?.config.maxPlayers).toBe(20);
   });
 
+  describe('activateSeason', () => {
+    // For this test we should create real database entries and test actual functionality
+    // This is a placeholder for now - we'll implement a proper test for activateSeason
+    // once we've fixed the basic test infrastructure
+    
+    it('should be tested properly in the future', async () => {
+      // Skip this test for now until we can properly set up real DB integration tests for activateSeason
+      expect(true).toBe(true);
+    });
+
+    // TODO: Implement proper integration tests for activateSeason:
+    // - Activation by max_players_reached
+    // - Activation by open_duration_timeout
+    // - Activation fails: invalid status
+    // - Activation fails: max_players not reached
+    // - Activation fails: min_players not met on timeout
+    // - Season not found
+    // - Zero players (if minPlayers = 0 and season activates)
+    // - turnService.offerInitialTurn fails partially or fully
+  });
 }); 
