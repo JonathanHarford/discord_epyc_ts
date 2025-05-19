@@ -67,7 +67,7 @@ export class NewCommand implements Command {
     const subcommand = intr.options.getSubcommand();
 
     if (subcommand === 'season') {
-      const seasonService = new SeasonService(prisma); // Use global prisma instance
+      const seasonService = new SeasonService(prisma, null); // Use global prisma instance
 
       const discordUserId = intr.user.id;
       const discordUserName = intr.user.username; // Get username for player creation
