@@ -47,7 +47,8 @@
         "test:watch": "vitest",
         "test:coverage": "vitest run --coverage",
         "test:unit": "vitest run --exclude **/*.integration.test.ts",
-        "test:integration": "vitest run **/*.integration.test.ts"
+        "test:integration": "vitest run **/*.integration.test.ts",
+        "check:langkeys": "tsx src/utils/langkey-existence-check.ts"
     },
     "dependencies": {
         "@discordjs/rest": "^2.4.3",
@@ -87,6 +88,7 @@
         "eslint-plugin-import": "^2.31.0",
         "eslint-plugin-unicorn": "^57.0.0",
         "prettier": "^3.5.1",
+        "tsx": "^4.19.4",
         "typescript": "^5.7.3",
         "vitest": "^3.0.8"
     }

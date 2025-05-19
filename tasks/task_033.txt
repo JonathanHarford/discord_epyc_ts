@@ -1,6 +1,6 @@
 # Task ID: 33
 # Title: Refactor Language Keys for joinCommand to Use Constants
-# Status: pending
+# Status: done
 # Dependencies: None
 # Priority: medium
 # Description: To improve type safety and prevent mismatches between language keys used in code and those defined in language files, this task will establish a scalable pattern for using predefined constants for *all* command-related language strings. The initial implementation will focus on refactoring the `joinCommand` usage as an example. Additionally, a startup check will be implemented to proactively verify that all commands have corresponding language key entries defined.
@@ -50,13 +50,13 @@ The logic should iterate through the list of commands available to the applicati
 ### Details:
 Ensure that if the check fails (i.e., finds missing command language key entries), the application terminates immediately with a descriptive error message indicating which command(s) are missing language key definitions. This should be a critical failure.
 
-## 4. Testing and Verification (joinCommand LangKeys Refactor & Startup Check) [pending]
+## 4. Testing and Verification (joinCommand LangKeys Refactor & Startup Check) [done]
 ### Dependencies: 33.2, 33.3, 33.6
 ### Description: After implementing the refactor and the startup check, perform comprehensive testing. This includes manually testing the `/join season` command with various scenarios to ensure messages are correct, verifying the structure in `lang-keys.ts` is extensible, and thoroughly testing the new startup check's behavior.
 ### Details:
 This is a manual testing step. Test the `/join season` command (success, already joined, season not found). Verify the `LangKeys.Commands` structure is logical. Crucially, test the startup check by running the application with all entries present (should succeed) and then with a command's entry temporarily removed (should fail fast with a clear error). Ensure the project compiles without TypeScript errors.
 
-## 7. Add placeholder LangKeys.Commands objects for all commands flagged by the coverage check [pending]
+## 7. Add placeholder LangKeys.Commands objects for all commands flagged by the coverage check [done]
 ### Dependencies: None
 ### Description: For each command flagged as missing by the language key coverage check (Dev, Help, Info, JoinSeason, New, Test), add a corresponding empty object to LangKeys.Commands in lang-keys.ts. This ensures the coverage check passes and provides a place to add language keys as each command is refactored.
 ### Details:

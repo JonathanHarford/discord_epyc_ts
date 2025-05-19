@@ -328,14 +328,14 @@
             "termsEmbed": "[View Terms of Service]({{COM:links.terms}})",
             "voteEmbed": "[Vote for {{COM:bot.name}}!]({{COM:links.vote}})"
         },
-        "joinCommand": {
-            "join_season_success": "You have successfully joined season with ID: **{{seasonId}}**!",
-            "join_season_error_not_found": "Season with ID '{{seasonId}}' not found.",
-            "join_season_error_not_open": "Season with ID '{{seasonId}}' is not currently open for joining.",
-            "join_season_error_already_joined": "You have already joined season with ID '{{seasonId}}'.",
-            "join_season_error_full": "Season with ID '{{seasonId}}' is full.",
-            "join_season_error_player_not_found": "Your player profile could not be found. Please try again later or contact support.",
-            "join_season_error_unknown": "An unknown error occurred while trying to join season '{{seasonId}}'. Error: {{errorMessage}}"
+        "joinSeason": {
+            "success": "You have successfully joined season with ID: **{{seasonId}}**!",
+            "seasonNotFound": "Season with ID '{{seasonId}}' not found.",
+            "notOpen": "Season with ID '{{seasonId}}' is not currently open for joining.",
+            "alreadyJoined": "You have already joined season with ID '{{seasonId}}'.",
+            "full": "Season with ID '{{seasonId}}' is full.",
+            "playerNotFound": "Your player profile could not be found. Please try again later or contact support.",
+            "genericError": "An unknown error occurred while trying to join season '{{seasonId}}'. Error: {{errorMessage}}"
         },
         "newCommand.season": {
             "create_success_channel": "{{mentionUser}} has started a new season with ID: **{{seasonId}}**\\nSeason will remain open for joining for {{openDuration}}.\\nUse `/join season:{{seasonId}}` to join!",

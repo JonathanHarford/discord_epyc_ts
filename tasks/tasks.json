@@ -967,7 +967,7 @@
       "id": 33,
       "title": "Refactor Language Keys for joinCommand to Use Constants",
       "description": "To improve type safety and prevent mismatches between language keys used in code and those defined in language files, this task will establish a scalable pattern for using predefined constants for *all* command-related language strings. The initial implementation will focus on refactoring the `joinCommand` usage as an example. Additionally, a startup check will be implemented to proactively verify that all commands have corresponding language key entries defined.",
-      "status": "pending",
+      "status": "done",
       "dependencies": [],
       "priority": "medium",
       "details": "The goal is to create a central place for language key constants (e.g., `lang-keys.ts`) structured to support keys for every command. This file should use `as const` for type safety. The refactor will involve defining a clear structure within this file (e.g., a top-level `Commands` object with nested objects for each command like `JoinCommand`) and then updating the `joinCommand` related code (SeasonService, joinSeason command) to use these new constants.\n\nFurthermore, a critical startup check must be implemented. This check will iterate through all registered commands and verify that each command has a corresponding entry (e.g., `LangKeys.Commands.YourCommandName`) defined in the `lang-keys.ts` structure. If any command is missing its language key definition, the application should fail fast during startup with a clear error message, preventing runtime errors related to missing language keys.",
@@ -1027,7 +1027,7 @@
           "title": "Testing and Verification (joinCommand LangKeys Refactor & Startup Check)",
           "description": "After implementing the refactor and the startup check, perform comprehensive testing. This includes manually testing the `/join season` command with various scenarios to ensure messages are correct, verifying the structure in `lang-keys.ts` is extensible, and thoroughly testing the new startup check's behavior.",
           "details": "This is a manual testing step. Test the `/join season` command (success, already joined, season not found). Verify the `LangKeys.Commands` structure is logical. Crucially, test the startup check by running the application with all entries present (should succeed) and then with a command's entry temporarily removed (should fail fast with a clear error). Ensure the project compiles without TypeScript errors.",
-          "status": "pending",
+          "status": "done",
           "dependencies": [
             2,
             3,
@@ -1040,7 +1040,7 @@
           "title": "Add placeholder LangKeys.Commands objects for all commands flagged by the coverage check",
           "description": "For each command flagged as missing by the language key coverage check (Dev, Help, Info, JoinSeason, New, Test), add a corresponding empty object to LangKeys.Commands in lang-keys.ts. This ensures the coverage check passes and provides a place to add language keys as each command is refactored.",
           "details": "Update src/constants/lang-keys.ts to include empty objects for Dev, Help, Info, JoinSeason, New, and Test under LangKeys.Commands. Example: LangKeys.Commands.Dev = {}. This is a preparatory step for future refactors.",
-          "status": "pending",
+          "status": "done",
           "dependencies": [],
           "parentTaskId": 33
         }

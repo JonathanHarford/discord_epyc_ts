@@ -1,18 +1,42 @@
 export const LangKeys = {
   Commands: {
-    JoinCommand: {
-      // Keys used in SeasonService.ts
-      PlayerNotFound: 'season_join_error_player_not_found',
-      SeasonNotFound: 'season_join_error_season_not_found',
-      NotOpen: 'season_join_error_not_open',
-      Full: 'season_join_error_full',
-      AlreadyJoined: 'season_join_error_already_joined',
-      Success: 'season_join_success',
-      GenericError: 'season_join_error_generic',
-      // Keys used in joinSeason.ts (discord reply keys)
-      RefNotFound: 'joinCommand.join_season_error_not_found',
-      RefNotOpen: 'joinCommand.join_season_error_not_open',
-      RefUnknown: 'joinCommand.join_season_error_unknown',
+    Dev: {
+      Info: 'data.displayEmbeds.devInfo',
+      NotDeveloper: 'data.validationEmbeds.devOnly',
+      StartupInProcess: 'data.errorEmbeds.startupInProcess',
+    },
+    Help: {
+      ContactSupport: 'data.displayEmbeds.helpContactSupport',
+      Commands: 'data.displayEmbeds.helpCommands',
+    },
+    Info: {
+      About: 'data.displayEmbeds.about',
+      Translate: 'data.displayEmbeds.translate',
+      TranslatorList: 'meta.translators',
+    },
+    Test: {
+      Test: 'data.displayEmbeds.test',
+    },
+    New: {
+      CreateSuccessChannel: 'newCommand.season.create_success_channel',
+      ErrorMinMaxPlayers: 'newCommand.season.error_min_max_players',
+      ErrorCreatorNotFound: 'newCommand.season.error_creator_not_found',
+      ErrorPlayerCreateFailed: 'newCommand.season.error_player_create_failed',
+      ErrorDb: 'newCommand.season.error_db',
+      ErrorUnknownService: 'newCommand.season.error_unknown_service',
+      ErrorGenericService: 'newCommand.season.error_generic_service',
+      ErrorUnknown: 'newCommand.season.error_unknown',
+      ErrorUnknownSubcommand: 'newCommand.error_unknown_subcommand',
+      CriticalError: 'common.error.critical_command',
+    },
+    JoinSeason: {
+      playerNotFound: 'joinSeason.playerNotFound',
+      seasonNotFound: 'joinSeason.seasonNotFound',
+      notOpen: 'joinSeason.notOpen',
+      full: 'joinSeason.full',
+      alreadyJoined: 'joinSeason.alreadyJoined',
+      success: 'joinSeason.success',
+      genericError: 'joinSeason.genericError',
     },
     // Add other commands here in the future
   },

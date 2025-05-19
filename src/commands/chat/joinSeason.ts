@@ -34,7 +34,7 @@ export class JoinSeasonCommand implements Command {
       
       if (!season) {
         await interaction.editReply({ 
-          content: Lang.getRef(LangKeys.Commands.JoinCommand.RefNotFound, data.lang, { seasonId }) 
+          content: Lang.getRef(LangKeys.Commands.JoinSeason.seasonNotFound, data.lang, { seasonId }) 
         });
         return;
       }
@@ -42,7 +42,7 @@ export class JoinSeasonCommand implements Command {
       const validJoinStatuses = ['SETUP', 'PENDING_START', 'OPEN'];
       if (!validJoinStatuses.includes(season.status)) {
         await interaction.editReply({ 
-          content: Lang.getRef(LangKeys.Commands.JoinCommand.RefNotOpen, data.lang, { 
+          content: Lang.getRef(LangKeys.Commands.JoinSeason.notOpen, data.lang, { 
             seasonId,
             status: season.status 
           }) 
@@ -74,7 +74,7 @@ export class JoinSeasonCommand implements Command {
         } catch (error) {
           console.error('Error creating player record:', error);
           await interaction.editReply({ 
-            content: Lang.getRef(LangKeys.Commands.JoinCommand.RefUnknown, data.lang, {
+            content: Lang.getRef(LangKeys.Commands.JoinSeason.genericError, data.lang, {
               seasonId,
               errorMessage: error instanceof Error ? error.message : 'Unknown error'
             }) 
@@ -95,7 +95,7 @@ export class JoinSeasonCommand implements Command {
     } catch (error) {
       console.error('Error in /join command:', error);
       await interaction.editReply({ 
-        content: Lang.getRef(LangKeys.Commands.JoinCommand.RefUnknown, data.lang, {
+        content: Lang.getRef(LangKeys.Commands.JoinSeason.genericError, data.lang, {
           seasonId,
           errorMessage: error instanceof Error ? error.message : 'Unknown error'
         }) 
