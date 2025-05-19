@@ -5,6 +5,7 @@ import { MessageInstruction } from '../types/MessageInstruction.js'; // Added .j
 import schedule from 'node-schedule'; // Added for task scheduling
 import { DateTime } from 'luxon'; // Duration and DurationLikeObject might not be needed here anymore
 import { parseDuration } from '../utils/datetime.js'; // Import the new utility
+import { LangKeys } from '../constants/lang-keys.js';
 
 // Define a more specific return type for createSeason, using Prisma's generated Season type
 type SeasonWithConfig = Prisma.SeasonGetPayload<{
@@ -215,7 +216,7 @@ export class SeasonService {
 
       if (!player) {
         console.log(`SeasonService.addPlayerToSeason: Player ${playerId} not found.`);
-        return { type: 'error', key: 'season_join_error_player_not_found', data: { playerId } };
+        return { type: 'error', key: LangKeys.Commands.JoinCommand.PlayerNotFound, data: { playerId } };
       }
 
       // 1. Find the season (and check if it exists)
@@ -226,14 +227,14 @@ export class SeasonService {
 
       if (!season) {
         console.log(`SeasonService.addPlayerToSeason: Season ${seasonId} not found.`);
-        return { type: 'error', key: 'season_join_error_season_not_found' }; // Standardized key
+        return { type: 'error', key: LangKeys.Commands.JoinCommand.SeasonNotFound };
       }
 
       // 2. Check if season is open for joining (Define valid statuses)
       const validJoinStatuses = ['SETUP', 'PENDING_START', 'OPEN']; 
       if (!validJoinStatuses.includes(season.status)) {
         console.log(`SeasonService.addPlayerToSeason: Season ${seasonId} status (${season.status}) is not valid for joining.`);
-        return { type: 'error', key: 'season_join_error_not_open', data: { status: season.status /*, seasonName: season.name */ } };
+        return { type: 'error', key: LangKeys.Commands.JoinCommand.NotOpen, data: { status: season.status /*, seasonName: season.name */ } };
       }
 
       // 3. Check max player limit
@@ -241,7 +242,7 @@ export class SeasonService {
       const currentPlayerCount = season._count.players;
       if (maxPlayers !== null && currentPlayerCount >= maxPlayers) {
           console.log(`SeasonService.addPlayerToSeason: Season ${seasonId} is full (${currentPlayerCount}/${maxPlayers}).`);
-          return { type: 'error', key: 'season_join_error_full', data: { currentPlayers: currentPlayerCount, maxPlayers: maxPlayers /*, seasonName: season.name */ } };
+          return { type: 'error', key: LangKeys.Commands.JoinCommand.Full, data: { currentPlayers: currentPlayerCount, maxPlayers: maxPlayers /*, seasonName: season.name */ } };
       }
 
       // Player finding/creation logic is removed from here. Assumes valid playerId is passed.
@@ -258,7 +259,7 @@ export class SeasonService {
 
       if (existingJoin) {
         console.log(`SeasonService.addPlayerToSeason: Player ${playerId} (ID: ${player.id}) already in season ${seasonId}.`);
-        return { type: 'error', key: 'season_join_error_already_joined', data: { /* seasonName: season.name */ } };
+        return { type: 'error', key: LangKeys.Commands.JoinCommand.AlreadyJoined, data: { /* seasonName: season.name */ } };
       }
 
       // 5. Add player to season (create join record)
@@ -270,10 +271,10 @@ export class SeasonService {
           },
         });
         console.log(`SeasonService.addPlayerToSeason: Successfully added player ${playerId} (ID: ${player.id}) to season ${seasonId}.`);
-        return { type: 'success', key: 'season_join_success', data: { /* seasonName: season.name */ } };
+        return { type: 'success', key: LangKeys.Commands.JoinCommand.Success, data: { /* seasonName: season.name */ } };
       } catch (error) {
          console.error(`SeasonService.addPlayerToSeason: Error adding player ${player.id} to season ${seasonId}:`, error);
-         return { type: 'error', key: 'season_join_error_generic', data: { /* seasonName: season.name */ } };
+         return { type: 'error', key: LangKeys.Commands.JoinCommand.GenericError, data: { /* seasonName: season.name */ } };
       }
     });
   }

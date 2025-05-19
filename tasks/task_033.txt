@@ -20,31 +20,31 @@ Test the new startup check:
 Ensure the project compiles without TypeScript errors.
 
 # Subtasks:
-## 1. Create lang-keys.ts and Define Structure for All Command Keys [pending]
+## 1. Create lang-keys.ts and Define Structure for All Command Keys [done]
 ### Dependencies: None
 ### Description: Create a new file (e.g., src/constants/lang-keys.ts). Define an exported object (e.g., LangKeys) using `as const`. Structure this object to contain nested objects or namespaces for different categories of language keys, starting with a top-level object for 'Commands'. Inside 'Commands', create a nested object for 'JoinCommand' containing all full string paths for language keys related to the join command (e.g., refs.joinCommand.join_season_success). The structure under `LangKeys.Commands` should be designed such that each command can have its own dedicated nested object.
 ### Details:
 Ensure all keys currently used in SeasonService.ts for addPlayerToSeason and potentially in joinSeason.ts command are covered under LangKeys.Commands.JoinCommand. The structure under `LangKeys.Commands` must be suitable for the planned startup check to iterate and verify coverage for *all* commands.
 
-## 2. Update SeasonService.ts to Use LangKeys.Commands.JoinCommand Constants [pending]
+## 2. Update SeasonService.ts to Use LangKeys.Commands.JoinCommand Constants [done]
 ### Dependencies: None
 ### Description: Modify src/services/SeasonService.ts. Import the LangKeys object. In the addPlayerToSeason method, replace all hardcoded string literals for language keys with references to the constants defined in LangKeys.Commands.JoinCommand.
 ### Details:
 Example: Change return { type: 'error', key: 'refs.joinCommand.join_season_error_already_joined', ... }; to return { type: 'error', key: LangKeys.Commands.JoinCommand.ErrorAlreadyJoined, ... };
 
-## 3. Update joinSeason.ts Command to Use LangKeys.Commands.JoinCommand (If Applicable) [pending]
+## 3. Update joinSeason.ts Command to Use LangKeys.Commands.JoinCommand (If Applicable) [done]
 ### Dependencies: None
 ### Description: Review src/commands/chat/joinSeason.ts. If it directly constructs or uses any language keys for Lang.getRef that are part of joinCommand, update these to use constants from LangKeys.Commands.JoinCommand.
 ### Details:
 Currently, it seems to primarily use keys from SeasonService's response, so this subtask might be a quick verification. Ensure the LangKeys.Commands.JoinCommand structure is used.
 
-## 5. Implement Language Key Coverage Check Logic [pending]
+## 5. Implement Language Key Coverage Check Logic [done]
 ### Dependencies: 33.1
 ### Description: Create a utility function or module responsible for verifying that every registered command has a corresponding entry within the `LangKeys.Commands` structure defined in `lang-keys.ts`. This check should compare the list of known, registered commands against the keys present directly under `LangKeys.Commands`.
 ### Details:
 The logic should iterate through the list of commands available to the application and check if a key matching the command's identifier (or a derived identifier) exists as a property of `LangKeys.Commands`. If a command is found without a corresponding entry, the check should identify it.
 
-## 6. Integrate Language Key Coverage Check into Application Startup [pending]
+## 6. Integrate Language Key Coverage Check into Application Startup [done]
 ### Dependencies: 33.5
 ### Description: Modify the application's main entry point or initialization sequence to execute the language key coverage check (implemented in Subtask 5) early in the startup process, after commands have been loaded but before the application is fully operational.
 ### Details:
@@ -55,4 +55,10 @@ Ensure that if the check fails (i.e., finds missing command language key entries
 ### Description: After implementing the refactor and the startup check, perform comprehensive testing. This includes manually testing the `/join season` command with various scenarios to ensure messages are correct, verifying the structure in `lang-keys.ts` is extensible, and thoroughly testing the new startup check's behavior.
 ### Details:
 This is a manual testing step. Test the `/join season` command (success, already joined, season not found). Verify the `LangKeys.Commands` structure is logical. Crucially, test the startup check by running the application with all entries present (should succeed) and then with a command's entry temporarily removed (should fail fast with a clear error). Ensure the project compiles without TypeScript errors.
+
+## 7. Add placeholder LangKeys.Commands objects for all commands flagged by the coverage check [pending]
+### Dependencies: None
+### Description: For each command flagged as missing by the language key coverage check (Dev, Help, Info, JoinSeason, New, Test), add a corresponding empty object to LangKeys.Commands in lang-keys.ts. This ensures the coverage check passes and provides a place to add language keys as each command is refactored.
+### Details:
+Update src/constants/lang-keys.ts to include empty objects for Dev, Help, Info, JoinSeason, New, and Test under LangKeys.Commands. Example: LangKeys.Commands.Dev = {}. This is a preparatory step for future refactors.
 

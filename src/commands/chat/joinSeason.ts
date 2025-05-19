@@ -5,6 +5,7 @@ import { Lang } from '../../services/lang.js';
 import { Language } from '../../models/enum-helpers/language.js';
 import { Command, CommandDeferType } from '../command.js';
 import { EventData } from '../../models/internal-models.js';
+import { LangKeys } from '../../constants/lang-keys.js';
 
 export const joinSeasonCommandData = new SlashCommandBuilder()
   .setName('join')
@@ -33,7 +34,7 @@ export class JoinSeasonCommand implements Command {
       
       if (!season) {
         await interaction.editReply({ 
-          content: Lang.getRef('joinCommand.join_season_error_not_found', data.lang, { seasonId }) 
+          content: Lang.getRef(LangKeys.Commands.JoinCommand.RefNotFound, data.lang, { seasonId }) 
         });
         return;
       }
@@ -41,7 +42,7 @@ export class JoinSeasonCommand implements Command {
       const validJoinStatuses = ['SETUP', 'PENDING_START', 'OPEN'];
       if (!validJoinStatuses.includes(season.status)) {
         await interaction.editReply({ 
-          content: Lang.getRef('joinCommand.join_season_error_not_open', data.lang, { 
+          content: Lang.getRef(LangKeys.Commands.JoinCommand.RefNotOpen, data.lang, { 
             seasonId,
             status: season.status 
           }) 
@@ -73,7 +74,7 @@ export class JoinSeasonCommand implements Command {
         } catch (error) {
           console.error('Error creating player record:', error);
           await interaction.editReply({ 
-            content: Lang.getRef('joinCommand.join_season_error_unknown', data.lang, {
+            content: Lang.getRef(LangKeys.Commands.JoinCommand.RefUnknown, data.lang, {
               seasonId,
               errorMessage: error instanceof Error ? error.message : 'Unknown error'
             }) 
@@ -94,7 +95,7 @@ export class JoinSeasonCommand implements Command {
     } catch (error) {
       console.error('Error in /join command:', error);
       await interaction.editReply({ 
-        content: Lang.getRef('joinCommand.join_season_error_unknown', data.lang, {
+        content: Lang.getRef(LangKeys.Commands.JoinCommand.RefUnknown, data.lang, {
           seasonId,
           errorMessage: error instanceof Error ? error.message : 'Unknown error'
         }) 

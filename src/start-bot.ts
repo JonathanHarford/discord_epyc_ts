@@ -32,12 +32,16 @@ import {
     Logger,
 } from './services/index.js';
 import { Trigger } from './triggers/index.js';
+import { checkCommandLangKeyCoverage } from './utils/command-langkey-coverage.js';
 
 const require = createRequire(import.meta.url);
 let Config = require('../config/config.json');
 let Logs = require('../lang/logs.json');
 
 async function start(): Promise<void> {
+    // Language key coverage check (fail fast if missing)
+    checkCommandLangKeyCoverage();
+
     // Services
     let eventDataService = new EventDataService();
 
