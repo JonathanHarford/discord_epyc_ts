@@ -90,7 +90,7 @@ export class SeasonService {
 
         // 3. Create the Season record
         const seasonData: Prisma.SeasonCreateInput = {
-          id: humanId(), // Use human-id for season ID
+          id: humanId({ separator: '-', capitalize: false }), // Use human-id for season ID
           status: 'SETUP', 
           creator: {
             connect: { id: creator.id },

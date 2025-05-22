@@ -338,7 +338,7 @@
             "genericError": "An unknown error occurred while trying to join season '{{seasonId}}'. Error: {{errorMessage}}"
         },
         "newCommand.season": {
-            "create_success_channel": "{{mentionUser}} has started a new season with ID: **{{seasonId}}**\\nSeason will remain open for joining for {{openDuration}}.\\nUse `/join season:{{seasonId}}` to join!",
+            "create_success_channel": "{{mentionUser}} has started a new season with ID: **{{seasonId}}**\nSeason will remain open for joining for {{openDuration}}.\nUse `/join season:{{seasonId}}` to join!",
             "error_min_max_players": "Minimum players ({{minPlayers}}) cannot be greater than maximum players ({{maxPlayers}}).",
             "error_creator_not_found": "Your player profile could not be found (Discord ID: {{discordUserId}}). Please try again later or contact support.",
             "error_player_create_failed": "Failed to create your player profile (Discord ID: {{discordId}}). Please try again later or contact support.",
