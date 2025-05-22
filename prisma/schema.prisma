@@ -116,4 +116,22 @@ model SeasonConfig {
 
   isGuildDefaultFor  String?   @unique // Discord Guild ID for which this config is the default
   season             Season?   @relation("SeasonToConfig") // Relation name must match the one in Season model
+}
+
+model ScheduledJob {
+  id              String    @id @default(nanoid())
+  jobId           String    @unique // Application job ID (e.g., "season-activation-123")
+  fireDate        DateTime  // When the job should execute
+  jobType         String    // Type of job (e.g., "season-activation", "turn-timeout")
+  jobData         Json?     // Serialized data to pass to callback
+  status          String    @default("SCHEDULED") // "SCHEDULED", "EXECUTED", "CANCELLED", "FAILED"
+  createdAt       DateTime  @default(now())
+  updatedAt       DateTime  @updatedAt
+  executedAt      DateTime? // When job was actually executed
+  failureReason   String?   // Error message if job failed
+
+  @@index([status])
+  @@index([jobType])
+  @@index([fireDate])
+  @@index([jobId])
 } 

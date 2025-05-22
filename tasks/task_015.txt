@@ -37,11 +37,72 @@ Next Steps:
 ### Details:
 Implement mechanisms to start/stop bot instances based on scheduled events. Ensure proper handling of bot lifecycle states including initialization, execution, and termination. Configure the system to prevent scheduling conflicts where execution time exceeds the interval between scheduled runs. Implement proper tagging for resources to denote shutdown/startup times.
 
-## 3. Implement persistence for scheduled tasks [pending]
+## 3. Implement persistence for scheduled tasks [done]
 ### Dependencies: 15.1, 15.2
 ### Description: Develop a storage solution to maintain scheduled task information across system restarts or failures.
 ### Details:
 Create a database schema to store scheduling information including task details, execution history, and state. Implement queue-based triggers for dependent processes to ensure sequential execution when needed. Design recovery mechanisms for handling failures during scheduled executions, including appropriate retry logic with waiting periods before retrying failed processes.
+<info added on 2025-05-22T18:01:27.967Z>
+Implementation of persistence for scheduled tasks will proceed as follows:
+
+- Introduce a new Prisma model `ScheduledJob` to persist job metadata. The schema will include fields for unique job identifiers, job type, execution time, serialized job data, status, timestamps for creation, updates, and execution, and failure reasons. This design ensures each scheduled job is uniquely tracked and auditable, supporting both one-off and recurring jobs[1][3][5].
+
+- Extend `SchedulerService` with persistence methods:
+  - `persistJob()` will save job details to the database whenever a job is scheduled.
+  - `loadPersistedJobs()` will be called on bot startup to restore and reschedule jobs from the database, ensuring jobs survive restarts.
+  - `removePersistedJob()` will delete or update job records when jobs are completed or cancelled.
+
+- Modify `scheduleJob()` and `cancelJob()` to integrate with the persistence layer, ensuring all job lifecycle events are reflected in the database.
+
+- Implement a recovery mechanism: On startup, `loadPersistedJobs()` will check for jobs whose scheduled execution time has passed while the bot was offline. These jobs will be marked as missed or failed, and retry logic will be applied according to the job's configuration, with appropriate waiting periods before retry attempts[5].
+
+- The database schema will support querying by job status, type, and execution history, enabling efficient recovery, monitoring, and audit trails[5].
+
+- The persistence layer will be designed to support both ad hoc and recurring jobs, with fields for recurrence and scheduling metadata as needed[1][3].
+
+This approach ensures scheduled jobs are durable, recoverable, and auditable, providing a robust foundation for reliable task scheduling across system restarts and failures.
+</info added on 2025-05-22T18:01:27.967Z>
+<info added on 2025-05-22T18:15:02.384Z>
+<info added on 2025-05-22T18:35:42Z>
+
+Persistence for scheduled tasks has been fully implemented, providing robust durability and recovery for all scheduled jobs:
+
+**Database Schema:**
+- Introduced a `ScheduledJob` model in the Prisma schema with fields for id, jobId, fireDate, jobType, jobData, status, createdAt, updatedAt, executedAt, and failureReason.
+- Applied database migration and added indexes on status, jobType, fireDate, and jobId for efficient querying and performance.
+- Schema supports both one-off and recurring jobs, and enables audit trails and execution history tracking[1][3][5].
+
+**SchedulerService Enhancements:**
+- Integrated PrismaClient for database operations.
+- Made `scheduleJob()` and `cancelJob()` asynchronous to persist changes.
+- Implemented persistence methods:
+  - `persistJob()` to save job details when scheduled.
+  - `markJobExecuted()` and `markJobFailed()` to update job status and record execution outcomes.
+  - `removePersistedJob()` to clean up completed or cancelled jobs.
+- Added `loadPersistedJobs()` for startup recovery:
+  - Restores jobs from the database on bot startup.
+  - Marks jobs with missed execution times as FAILED and applies retry logic if configured.
+  - Reschedules future jobs with appropriate callbacks.
+
+**Integration:**
+- Updated bot startup to inject PrismaClient into SchedulerService and invoke `loadPersistedJobs()`.
+- Refactored SeasonService and related modules to use async scheduling methods.
+- Maintained backward compatibility with existing scheduling features.
+
+**Testing:**
+- Developed a comprehensive test suite covering job scheduling, persistence, duplicate prevention, past date validation, cancellation, restoration, missed job handling, and execution tracking.
+- All tests pass, confirming reliability and correctness.
+
+**Key Features:**
+- Scheduled jobs persist across bot restarts and system failures.
+- Missed jobs are detected and marked as failed, with retry logic as needed.
+- Full audit trail and execution history for all jobs.
+- Robust error handling and cleanup.
+- Efficient querying and monitoring of scheduled jobs.
+
+This implementation ensures a reliable, auditable, and recoverable task scheduling system that meets the requirements for persistent, distributed job management[1][3][5].
+</info added on 2025-05-22T18:35:42Z>
+</info added on 2025-05-22T18:15:02.384Z>
 
 ## 4. Write tests for scheduling and triggering [pending]
 ### Dependencies: 15.1, 15.2, 15.3

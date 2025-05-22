@@ -66,9 +66,12 @@ async function start(): Promise<void> {
     });
     
     // Service instances with proper dependency injection
-    const schedulerService = new SchedulerService();
+    const schedulerService = new SchedulerService(prisma);
     const turnService = new TurnService(prisma, client);
     const seasonService = new SeasonService(prisma, turnService, schedulerService);
+    
+    // Load persisted jobs on startup
+    await schedulerService.loadPersistedJobs();
     
     // Commands with injected services
     let commands: Command[] = [

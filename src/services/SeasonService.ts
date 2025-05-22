@@ -116,14 +116,16 @@ export class SeasonService {
           
           // MODIFIED: Use SchedulerService
           const jobId = `season-activation-${newSeasonWithConfig.id}`; // Create a unique job ID
-          const jobScheduled = this.schedulerService.scheduleJob(
+          const jobScheduled = await this.schedulerService.scheduleJob(
             jobId,
             activationTime,
             async () => { // The callback function
               console.log(`Scheduled job (via SchedulerService) running for season ${newSeasonWithConfig.id} (open_duration timeout).`);
               await this.handleOpenDurationTimeout(newSeasonWithConfig.id);
               // No need to delete job here, SchedulerService handles it for one-time jobs
-            }
+            },
+            undefined, // jobData
+            'season-activation' // jobType
           );
 
           if (jobScheduled) {
@@ -467,7 +469,7 @@ export class SeasonService {
 
       // Cancel the scheduled open_duration job if it exists, as the season is now active.
       const activationJobId = `season-activation-${seasonId}`;
-      const wasCancelled = this.schedulerService.cancelJob(activationJobId);
+      const wasCancelled = await this.schedulerService.cancelJob(activationJobId);
       if (wasCancelled) {
         console.log(`SeasonService.activateSeason: Canceled scheduled activation job '${activationJobId}' for season ${seasonId}.`);
       } else {
