@@ -1,9 +1,12 @@
 import { REST } from '@discordjs/rest';
 import { Options, Partials } from 'discord.js';
 import { createRequire } from 'node:module';
+import schedule from 'node-schedule';
 
 import { Button } from './buttons/index.js';
-import { DevCommand, HelpCommand, InfoCommand, TestCommand, NewCommand, JoinSeasonCommand } from './commands/chat/index.js';
+import { DevCommand, HelpCommand, InfoCommand, TestCommand } from './commands/chat/index.js';
+import NewCommand from './commands/chat/new-command.js';
+import JoinSeasonCommand from './commands/chat/joinSeason.js';
 import {
     ChatCommandMetadata,
     Command,
@@ -31,9 +34,13 @@ import {
     EventDataService,
     JobService,
     Logger,
+    SchedulerService,
+    SeasonService,
+    TurnService,
 } from './services/index.js';
 import { Trigger } from './triggers/index.js';
 import { checkCommandLangKeyCoverage } from './utils/command-langkey-coverage.js';
+import prisma from './lib/prisma.js';
 
 const require = createRequire(import.meta.url);
 let Config = require('../config/config.json');
@@ -45,7 +52,7 @@ async function start(): Promise<void> {
 
     // Services
     let eventDataService = new EventDataService();
-
+    
     // Client
     let client = new CustomClient({
         intents: Config.client.intents,
@@ -57,16 +64,21 @@ async function start(): Promise<void> {
             ...Config.client.caches,
         }),
     });
-
-    // Commands
+    
+    // Service instances with proper dependency injection
+    const schedulerService = new SchedulerService();
+    const turnService = new TurnService(prisma, client);
+    const seasonService = new SeasonService(prisma, turnService, schedulerService);
+    
+    // Commands with injected services
     let commands: Command[] = [
         // Chat Commands
         new DevCommand(),
         new HelpCommand(),
         new InfoCommand(),
         new TestCommand(),
-        new NewCommand(),
-        new JoinSeasonCommand(),
+        new NewCommand(prisma, seasonService),
+        new JoinSeasonCommand(prisma, seasonService),
 
         // Message Context Commands
         new ViewDateSent(),
@@ -104,7 +116,7 @@ async function start(): Promise<void> {
 
     // Jobs
     let jobs: Job[] = [
-        // TODO: Add new jobs here
+        // TODO: Add new jobs here. These are different from scheduled tasks via SchedulerService.
     ];
 
     // Bot
@@ -148,4 +160,33 @@ process.on('unhandledRejection', (reason, _promise) => {
 
 start().catch(error => {
     Logger.error(Logs.error.unspecified, error);
+});
+
+// Graceful shutdown
+async function shutdown(signal: string) {
+    Logger.info(Logs.info.shuttingDown.replaceAll('{SIGNAL}', signal));
+    try {
+        // Perform bot-specific cleanup first (e.g., client.destroy())
+        // Assuming 'bot' instance is accessible or has a static stop method
+        // if (bot && typeof bot.stop === 'function') {
+        //     await bot.stop(); 
+        // } else if (client && typeof client.destroy === 'function') {
+        //     client.destroy();
+        // }
+        // Add any other specific cleanup for your bot here
+
+        await schedule.gracefulShutdown();
+        Logger.info(Logs.info.jobsCancelled);
+    } catch (error) {
+        Logger.error(Logs.error.shutdown, error);
+    }
+    process.exit(0);
+}
+
+process.on('SIGINT', async () => {
+    await shutdown('SIGINT');
+});
+
+process.on('SIGTERM', async () => {
+    await shutdown('SIGTERM');
 });

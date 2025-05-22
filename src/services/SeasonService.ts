@@ -2,11 +2,11 @@ import { PrismaClient, Player, Season, SeasonConfig, Prisma, Game } from '@prism
 import { nanoid } from 'nanoid'; // Use named import for nanoid
 import { humanId } from 'human-id'; // Import human-id
 import { MessageInstruction } from '../types/MessageInstruction.js'; // Added .js extension
-import schedule from 'node-schedule'; // Added for task scheduling
 import { DateTime } from 'luxon'; // Duration and DurationLikeObject might not be needed here anymore
 import { parseDuration } from '../utils/datetime.js'; // Import the new utility
 import { LangKeys } from '../constants/lang-keys.js';
 import { TurnService } from './TurnService.js'; // Added .js extension
+import { SchedulerService } from './SchedulerService.js'; // ADDED: Import SchedulerService
 
 // Define a more specific return type for findSeasonById, including config and player count
 type SeasonDetails = Prisma.SeasonGetPayload<{
@@ -29,14 +29,14 @@ type PrismaTransactionClient = Omit<
 
 export class SeasonService {
   private prisma: PrismaClient;
-  private scheduledActivationJobs: Map<string, schedule.Job> = new Map(); // For managing scheduled jobs
   private turnService: TurnService;
+  private schedulerService: SchedulerService; // ADDED: SchedulerService instance
 
-  // Inject PrismaClient instance and TurnService
-  constructor(prisma: PrismaClient, turnService: TurnService) {
+  // Inject PrismaClient instance, TurnService, and SchedulerService
+  constructor(prisma: PrismaClient, turnService: TurnService, schedulerService: SchedulerService) { // MODIFIED: Added schedulerService
     this.prisma = prisma;
-    this.scheduledActivationJobs = new Map(); // Ensure it's initialized here too
     this.turnService = turnService;
+    this.schedulerService = schedulerService; // ADDED: Assign schedulerService
   }
 
   /**
@@ -113,13 +113,25 @@ export class SeasonService {
         const luxonDuration = parseDuration(newSeasonWithConfig.config.openDuration);
         if (luxonDuration && luxonDuration.as('milliseconds') > 0) { // Ensure duration is positive
           const activationTime = DateTime.now().plus(luxonDuration).toJSDate();
-          const job = schedule.scheduleJob(activationTime, async () => {
-            console.log(`Scheduled job running for season ${newSeasonWithConfig.id} (open_duration timeout).`);
-            await this.handleOpenDurationTimeout(newSeasonWithConfig.id);
-            this.scheduledActivationJobs.delete(newSeasonWithConfig.id); // Remove job from map after execution
-          });
-          this.scheduledActivationJobs.set(newSeasonWithConfig.id, job);
-          console.log(`SeasonService.createSeason: Scheduled activation for season ${newSeasonWithConfig.id} at ${activationTime.toISOString()}`);
+          
+          // MODIFIED: Use SchedulerService
+          const jobId = `season-activation-${newSeasonWithConfig.id}`; // Create a unique job ID
+          const jobScheduled = this.schedulerService.scheduleJob(
+            jobId,
+            activationTime,
+            async () => { // The callback function
+              console.log(`Scheduled job (via SchedulerService) running for season ${newSeasonWithConfig.id} (open_duration timeout).`);
+              await this.handleOpenDurationTimeout(newSeasonWithConfig.id);
+              // No need to delete job here, SchedulerService handles it for one-time jobs
+            }
+          );
+
+          if (jobScheduled) {
+            console.log(`SeasonService.createSeason: Scheduled activation (via SchedulerService) for season ${newSeasonWithConfig.id} at ${activationTime.toISOString()} with job ID ${jobId}`);
+          } else {
+            console.warn(`SeasonService.createSeason: Failed to schedule activation job for season ${newSeasonWithConfig.id} using SchedulerService.`);
+            // Consider if an error should be returned to the user or if a warning is sufficient
+          }
         } else {
           console.warn(`SeasonService.createSeason: Invalid or zero openDuration format for season ${newSeasonWithConfig.id}: '${newSeasonWithConfig.config.openDuration}'. Job not scheduled.`);
         }
@@ -454,11 +466,12 @@ export class SeasonService {
       }
 
       // Cancel the scheduled open_duration job if it exists, as the season is now active.
-      const scheduledJob = this.scheduledActivationJobs.get(seasonId);
-      if (scheduledJob) {
-        scheduledJob.cancel();
-        this.scheduledActivationJobs.delete(seasonId);
-        console.log(`SeasonService.activateSeason: Canceled and removed scheduled activation job for season ${seasonId}.`);
+      const activationJobId = `season-activation-${seasonId}`;
+      const wasCancelled = this.schedulerService.cancelJob(activationJobId);
+      if (wasCancelled) {
+        console.log(`SeasonService.activateSeason: Canceled scheduled activation job '${activationJobId}' for season ${seasonId}.`);
+      } else {
+        console.log(`SeasonService.activateSeason: No scheduled activation job found with ID '${activationJobId}' for season ${seasonId} to cancel.`);
       }
       
       return {
@@ -505,14 +518,9 @@ export class SeasonService {
     }
     // Remove the job from the map as it has been handled (either successfully or failed activation)
     // activateSeason also tries to remove it, but this is a safeguard.
-    const scheduledJob = this.scheduledActivationJobs.get(seasonId);
-    if (scheduledJob) {
-      // It might have already been cancelled by activateSeason if successful.
-      // If activateSeason failed before cancelling, we ensure it's cancelled here.
-      scheduledJob.cancel(); 
-      this.scheduledActivationJobs.delete(seasonId);
-      console.log(`SeasonService.handleOpenDurationTimeout: Cleaned up scheduled job for season ${seasonId}.`);
-    }
+    // The SchedulerService automatically removes one-time jobs after execution.
+    // No explicit cleanup is needed here.
+    console.log(`SeasonService.handleOpenDurationTimeout: Job handling complete for season ${seasonId}. SchedulerService will clean up the job.`);
   }
 }
 

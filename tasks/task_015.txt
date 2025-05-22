@@ -9,3 +9,43 @@
 
 # Test Strategy:
 Implement basic scheduling and triggering. Schedule a simple task for a short duration. Verify the task is executed at the correct time. Test scheduling multiple tasks.
+
+# Subtasks:
+## 1. Select or implement scheduler [done]
+### Dependencies: None
+### Description: Research, evaluate, and select an appropriate scheduling system or implement a custom solution for the bot.
+### Details:
+Evaluate scheduling software options based on security features (data encryption, secure hosting), scalability to handle increasing user traffic, and comprehensive customer support/training resources. Consider factors like A/B testing capabilities and proactive assistance features. If implementing custom, ensure it can handle time-based triggers with proper UTC time format (HHMM).
+<info added on 2025-05-22T15:03:15.516Z>
+Decision: The existing `node-schedule` library will be used as the scheduler for the bot.
+
+Rationale:
+- `node-schedule` is already integrated and actively used in `src/services/SeasonService.ts` for scheduling season activation based on `openDuration`, ensuring consistency and reducing the need for new dependencies.
+- The current implementation leverages a `scheduledActivationJobs` Map for managing scheduled jobs, which can be adapted for broader scheduling needs.
+- `node-schedule` supports both cron-style and date-based scheduling, offering flexibility for both recurring and one-time jobs[1][2][3].
+- Compared to alternatives, `node-schedule` balances simplicity and flexibility, making it suitable for time-based triggers and adaptable for more frequent, turn-based timeouts (e.g., claim and submission windows)[3].
+
+Next Steps:
+- Enhance integration with the bot lifecycle (see Subtask 15.2).
+- Implement database persistence for scheduled jobs, as the current Map-based approach is in-memory only (see Subtask 15.3).
+- Adapt the scheduling logic to support more granular, frequent timeouts as required by the application's turn-based features.
+</info added on 2025-05-22T15:03:15.516Z>
+
+## 2. Integrate with bot lifecycle [done]
+### Dependencies: 15.1
+### Description: Connect the scheduler with the bot's operational lifecycle to manage starting, stopping, and other state transitions.
+### Details:
+Implement mechanisms to start/stop bot instances based on scheduled events. Ensure proper handling of bot lifecycle states including initialization, execution, and termination. Configure the system to prevent scheduling conflicts where execution time exceeds the interval between scheduled runs. Implement proper tagging for resources to denote shutdown/startup times.
+
+## 3. Implement persistence for scheduled tasks [pending]
+### Dependencies: 15.1, 15.2
+### Description: Develop a storage solution to maintain scheduled task information across system restarts or failures.
+### Details:
+Create a database schema to store scheduling information including task details, execution history, and state. Implement queue-based triggers for dependent processes to ensure sequential execution when needed. Design recovery mechanisms for handling failures during scheduled executions, including appropriate retry logic with waiting periods before retrying failed processes.
+
+## 4. Write tests for scheduling and triggering [pending]
+### Dependencies: 15.1, 15.2, 15.3
+### Description: Develop comprehensive test cases to verify the reliability and accuracy of the scheduling system.
+### Details:
+Create unit tests for individual scheduling components. Develop integration tests to verify proper interaction between scheduler and bot lifecycle. Implement stress tests to ensure the system handles concurrent scheduling without resource overload. Test edge cases such as system failures during execution, timezone handling, and daylight saving time transitions. Validate that confirmation and reminder functionalities work as expected.
+

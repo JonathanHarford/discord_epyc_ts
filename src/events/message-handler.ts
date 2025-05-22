@@ -1,4 +1,4 @@
-import { DMChannel, Message } from 'discord.js';
+import { Message, ChannelType } from 'discord.js';
 
 import { DirectMessageHandler } from './direct-message-handler.js';
 import { EventHandler, TriggerHandler } from './index.js';
@@ -15,8 +15,8 @@ export class MessageHandler implements EventHandler {
             return;
         }
 
-        // Handle direct messages
-        if (msg.channel instanceof DMChannel) {
+        // Handle direct messages based on channel type
+        if (msg.channel.type === ChannelType.DM) {
             await this.directMessageHandler.process(msg);
             return;
         }

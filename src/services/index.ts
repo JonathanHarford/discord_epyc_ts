@@ -5,4 +5,8 @@ export { JobService } from './job-service.js';
 export { Lang } from './lang.js';
 export { Logger } from './logger.js';
 export { MasterApiService } from './master-api-service.js';
+export { SchedulerService } from './SchedulerService.js';
 export { SeasonService } from './SeasonService.js';
+export { TurnService } from './TurnService.js';
+export { GameService } from './GameService.js';
+export { PlayerService } from './PlayerService.js';

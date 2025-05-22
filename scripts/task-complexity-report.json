@@ -1,7 +1,7 @@
 {
   "meta": {
-    "generatedAt": "2025-05-13T15:17:50.510Z",
-    "tasksAnalyzed": 26,
+    "generatedAt": "2025-05-22T15:02:18.044Z",
+    "tasksAnalyzed": 23,
     "thresholdScore": 5,
     "projectName": "Taskmaster",
     "usedResearch": true
@@ -10,210 +10,186 @@
     {
       "taskId": 7,
       "taskTitle": "Implement '/join season' Command",
-      "complexityScore": 5,
-      "recommendedSubtasks": 4,
-      "expansionPrompt": "Break down the implementation of the '/join season' command into subtasks covering command structure definition, validation logic, database interaction, and error handling with user feedback.",
-      "reasoning": "This task has moderate complexity as it involves command structure definition, validation logic, database interaction, and error handling. The implementation plan is already well-defined with clear steps, but would benefit from being broken into distinct subtasks for command structure, validation logic, database operations, and error handling."
-    },
-    {
-      "taskId": 8,
-      "taskTitle": "Implement Season Activation Logic",
-      "complexityScore": 7,
-      "recommendedSubtasks": 5,
-      "expansionPrompt": "Divide the season activation logic implementation into subtasks covering activation triggers (player count and timeout), game creation logic, initial turn offering, and integration with the task scheduler.",
-      "reasoning": "This task has higher complexity as it involves multiple trigger conditions (player count and time-based), game creation logic, and initial turn offering. It also requires integration with the Task Scheduler component which adds complexity. The lack of detailed implementation plan suggests more planning is needed."
+      "complexityScore": 3,
+      "recommendedSubtasks": 1,
+      "expansionPrompt": "Expand the manual testing subtask into detailed test cases covering edge scenarios (e.g., concurrent joins, Discord API failures, permission edge cases).",
+      "reasoning": "The core logic and integration/unit tests are already implemented, and the command is straightforward with limited branching logic. Only manual testing remains, which could be expanded for completeness, but overall complexity is low."
     },
     {
       "taskId": 9,
       "taskTitle": "Implement Turn State Management",
       "complexityScore": 6,
-      "recommendedSubtasks": 6,
-      "expansionPrompt": "Break down the turn state management implementation into subtasks for each state transition method (CREATED→AVAILABLE, AVAILABLE→OFFERED, OFFERED→PENDING, etc.), ensuring atomic updates and proper validation for each transition.",
-      "reasoning": "This task involves implementing multiple state transitions with validation rules for each. The complexity comes from ensuring atomic updates and handling edge cases for each transition. Six subtasks would allow focusing on each major transition path separately."
-    },
-    {
-      "taskId": 10,
-      "taskTitle": "Setup Direct Message Handling Framework",
-      "complexityScore": 6,
       "recommendedSubtasks": 4,
-      "expansionPrompt": "Divide the DM handling framework setup into subtasks covering Discord.js event listener implementation, message context identification logic, routing mechanism, and integration with command handlers.",
-      "reasoning": "Setting up the DM handling framework requires implementing event listeners, context identification logic, and routing mechanisms. The complexity comes from correctly identifying different types of messages and routing them appropriately. Four subtasks would provide good separation of concerns."
+      "expansionPrompt": "Break down into: (1) Define state transition rules and enums, (2) Implement state update methods with atomicity, (3) Write unit tests for state transitions, (4) Write integration tests for database updates.",
+      "reasoning": "Managing multiple turn states and ensuring atomic transitions introduces moderate complexity, especially with database consistency and test coverage requirements."
     },
     {
       "taskId": 11,
       "taskTitle": "Implement '/ready' Command Handling (DM)",
-      "complexityScore": 5,
-      "recommendedSubtasks": 4,
-      "expansionPrompt": "Break down the '/ready' command handler implementation into subtasks covering command structure definition, turn validation logic, state transition handling, and timer management via the Task Scheduler.",
-      "reasoning": "This task involves command definition, validation logic, state transitions, and timer management. The complexity is moderate as it builds on existing components but requires coordination between them. Four subtasks would allow focusing on each aspect separately."
+      "complexityScore": 6,
+      "recommendedSubtasks": 5,
+      "expansionPrompt": "Expand into: (1) Validate user and turn state, (2) Integrate with TurnService.claimTurn, (3) Cancel claim timeout and schedule submission timeout, (4) Send DM confirmation, (5) Write unit and integration tests.",
+      "reasoning": "This task involves validation, state updates, timer management, and messaging, each with potential edge cases and dependencies, making it moderately complex."
     },
     {
       "taskId": 12,
       "taskTitle": "Implement Turn Submission Handling (DM)",
-      "complexityScore": 6,
-      "recommendedSubtasks": 5,
-      "expansionPrompt": "Divide the turn submission handling implementation into subtasks covering message type detection (text vs image), validation logic, content storage, timer management, and next turn triggering.",
-      "reasoning": "This task has higher complexity as it needs to handle different content types (text and images), validate submissions, store content, manage timers, and trigger next turns. Five subtasks would provide good separation of concerns for these different aspects."
+      "complexityScore": 7,
+      "recommendedSubtasks": 6,
+      "expansionPrompt": "Review each subtask for granularity and ensure coverage of all content types, error handling, and timer coordination.",
+      "reasoning": "Submission handling must validate state, process different content types, manage timers, and trigger game progression, requiring careful coordination and robust testing."
     },
     {
       "taskId": 13,
       "taskTitle": "Implement Season Next Player Logic",
       "complexityScore": 8,
-      "recommendedSubtasks": 6,
-      "expansionPrompt": "Break down the Next Player Logic algorithm implementation into subtasks covering player eligibility rules, turn type matching, player selection algorithm, handling of edge cases, optimization, and comprehensive testing.",
-      "reasoning": "This task has high complexity as it involves implementing a complex algorithm with multiple rules and considerations. The algorithm needs to consider who has played, turn types, and avoid multiple pending turns for one player. Six subtasks would allow focusing on different aspects of the algorithm separately."
+      "recommendedSubtasks": 5,
+      "expansionPrompt": "Expand into: (1) Analyze PRD rules and edge cases, (2) Implement core selection algorithm, (3) Handle pending/skipped player logic, (4) Write unit tests for all scenarios, (5) Write integration tests with real data.",
+      "reasoning": "Selecting the next player involves complex business rules, edge cases, and must avoid race conditions or unfair assignments, making this logic-heavy and critical."
     },
     {
       "taskId": 14,
       "taskTitle": "Implement Turn Offering Mechanism",
       "complexityScore": 7,
-      "recommendedSubtasks": 5,
-      "expansionPrompt": "Divide the turn offering mechanism implementation into subtasks covering trigger conditions, integration with Next Player Logic, turn state updates, DM notification formatting, and timer scheduling.",
-      "reasoning": "This task has higher complexity as it integrates multiple components (Next Player Logic, TurnService, Task Scheduler) and handles different trigger conditions. Five subtasks would allow focusing on each integration point separately."
+      "recommendedSubtasks": 7,
+      "expansionPrompt": "Review and refine each subtask to ensure all trigger points, integrations, and notification flows are covered, and add error handling as needed.",
+      "reasoning": "This mechanism orchestrates multiple services, triggers, and user notifications, requiring careful sequencing and robust testing."
     },
     {
       "taskId": 15,
       "taskTitle": "Integrate Task Scheduler",
-      "complexityScore": 7,
-      "recommendedSubtasks": 5,
-      "expansionPrompt": "Break down the Task Scheduler integration into subtasks covering component architecture, scheduling API design, persistence mechanism, restart recovery, and integration with existing timeout requirements.",
-      "reasoning": "Integrating a Task Scheduler with persistence across bot restarts has significant complexity. It requires designing a robust architecture, implementing scheduling APIs, ensuring persistence, and handling restart recovery. Five subtasks would provide good separation of concerns."
+      "complexityScore": 6,
+      "recommendedSubtasks": 4,
+      "expansionPrompt": "Expand into: (1) Select or implement scheduler, (2) Integrate with bot lifecycle, (3) Implement persistence for scheduled tasks, (4) Write tests for scheduling and triggering.",
+      "reasoning": "Scheduler integration is moderately complex due to persistence, reliability, and integration with other components."
     },
     {
       "taskId": 16,
       "taskTitle": "Implement Claim Timeout Handler",
-      "complexityScore": 5,
-      "recommendedSubtasks": 3,
-      "expansionPrompt": "Divide the claim timeout handler implementation into subtasks covering timeout event handling, turn state transition logic, and integration with the Turn Offering Mechanism.",
-      "reasoning": "This task has moderate complexity as it primarily involves integrating existing components (Task Scheduler, TurnService, Turn Offering Mechanism). Three subtasks would be sufficient to cover the main aspects of the implementation."
+      "complexityScore": 6,
+      "recommendedSubtasks": 4,
+      "expansionPrompt": "Review each subtask for completeness and ensure coverage of error handling, notification, and offering logic.",
+      "reasoning": "The handler must coordinate state changes, trigger follow-up actions, and ensure reliability under time-based events."
     },
     {
       "taskId": 17,
       "taskTitle": "Implement Submission Timeout Handler",
-      "complexityScore": 5,
-      "recommendedSubtasks": 4,
-      "expansionPrompt": "Break down the submission timeout handler implementation into subtasks covering timeout event handling, turn state transition to SKIPPED, player notification, and integration with the Turn Offering Mechanism.",
-      "reasoning": "Similar to the claim timeout handler, this task has moderate complexity as it primarily involves integrating existing components. Four subtasks would be appropriate to cover the main aspects including the additional player notification requirement."
+      "complexityScore": 7,
+      "recommendedSubtasks": 6,
+      "expansionPrompt": "Review each subtask for completeness, ensuring all notification, state update, and offering flows are robust and well-tested.",
+      "reasoning": "This handler must manage timeouts, user notifications, state transitions, and trigger subsequent actions, with multiple integration points."
     },
     {
       "taskId": 18,
       "taskTitle": "Implement Game Completion Check (Season)",
-      "complexityScore": 4,
-      "recommendedSubtasks": 3,
-      "expansionPrompt": "Divide the game completion check implementation into subtasks covering completion criteria definition, database query optimization, and state transition handling.",
-      "reasoning": "This task has lower complexity as it primarily involves implementing a well-defined check (all players have COMPLETED or SKIPPED turns) and updating the game state. Three subtasks would be sufficient to cover the main aspects."
+      "complexityScore": 5,
+      "recommendedSubtasks": 4,
+      "expansionPrompt": "Expand into: (1) Implement core logic, (2) Integrate with turn completion/skip, (3) Write unit tests, (4) Write integration tests.",
+      "reasoning": "Game completion logic is straightforward but must be robust and well-tested to ensure correct end-of-game detection."
     },
     {
       "taskId": 19,
       "taskTitle": "Implement Season Completion Check",
       "complexityScore": 4,
       "recommendedSubtasks": 3,
-      "expansionPrompt": "Break down the season completion check implementation into subtasks covering completion criteria definition, database query optimization, and state transition handling.",
-      "reasoning": "Similar to the game completion check, this task has lower complexity as it involves implementing a well-defined check (all games are COMPLETED) and updating the season state. Three subtasks would be sufficient to cover the main aspects."
+      "expansionPrompt": "Expand into: (1) Implement core logic for season completion, (2) Integrate with game completion events, (3) Write unit and integration tests.",
+      "reasoning": "Season completion is a simple aggregation over game states, with low algorithmic complexity but some integration needs."
     },
     {
       "taskId": 20,
       "taskTitle": "Implement Season Completion Announcement/DM",
-      "complexityScore": 6,
+      "complexityScore": 5,
       "recommendedSubtasks": 4,
-      "expansionPrompt": "Divide the season completion announcement implementation into subtasks covering data retrieval and aggregation, content formatting, channel vs DM delivery logic, and integration with the messaging layer.",
-      "reasoning": "This task has moderate to higher complexity as it involves retrieving and formatting complex data (full sequence of turns and content for each game), and delivering it through different channels. Four subtasks would allow focusing on data retrieval, formatting, delivery, and messaging layer integration separately."
+      "expansionPrompt": "Expand into: (1) Retrieve and format results, (2) Integrate with messaging layer, (3) Implement channel/DM delivery logic, (4) Write tests for formatting and delivery.",
+      "reasoning": "Formatting and delivering results involves data aggregation, formatting, and messaging, with moderate complexity."
     },
     {
       "taskId": 21,
       "taskTitle": "Implement '/status season' Command",
       "complexityScore": 5,
-      "recommendedSubtasks": 4,
-      "expansionPrompt": "Break down the '/status season' command implementation into subtasks covering command structure definition, data retrieval and aggregation, status information formatting, and integration with the messaging layer.",
-      "reasoning": "This task has moderate complexity as it involves command definition, data retrieval and aggregation, and formatting complex status information. Four subtasks would allow focusing on each aspect separately."
+      "recommendedSubtasks": 5,
+      "expansionPrompt": "Review each subtask for completeness, ensuring all data retrieval, formatting, and testing aspects are covered.",
+      "reasoning": "Status commands require data aggregation, formatting, and integration with the messaging layer, but are not algorithmically complex."
     },
     {
       "taskId": 22,
       "taskTitle": "Implement Admin Command: Terminate Season",
       "complexityScore": 4,
       "recommendedSubtasks": 3,
-      "expansionPrompt": "Divide the admin terminate season command implementation into subtasks covering command structure and permission checks, season termination logic, and related cleanup operations.",
-      "reasoning": "This task has lower complexity as it primarily involves implementing a command with permission checks and a relatively simple database update. Three subtasks would be sufficient to cover the main aspects."
+      "expansionPrompt": "Review each subtask for completeness, ensuring permission checks, state updates, and test coverage.",
+      "reasoning": "Admin termination is a simple command with permission checks and a state update, requiring basic testing."
     },
     {
       "taskId": 23,
       "taskTitle": "Implement Admin Commands: Ban/Unban Player",
-      "complexityScore": 4,
-      "recommendedSubtasks": 3,
-      "expansionPrompt": "Break down the ban/unban player commands implementation into subtasks covering command structure and permission checks, player state management, and integration with player eligibility checks.",
-      "reasoning": "This task has lower complexity as it involves implementing commands with permission checks and relatively simple database updates. Three subtasks would be sufficient to cover the main aspects including integration with player eligibility checks."
+      "complexityScore": 5,
+      "recommendedSubtasks": 7,
+      "expansionPrompt": "Review each subtask for completeness, ensuring permission checks, state updates, and test coverage for all edge cases.",
+      "reasoning": "Ban/unban commands involve permission checks, state updates, and must handle edge cases, but are not deeply complex."
     },
     {
       "taskId": 24,
       "taskTitle": "Implement Admin Commands: List Seasons/Players",
       "complexityScore": 4,
-      "recommendedSubtasks": 3,
-      "expansionPrompt": "Divide the list seasons/players commands implementation into subtasks covering command structure and permission checks, data retrieval and filtering, and results formatting and display.",
-      "reasoning": "This task has lower complexity as it primarily involves implementing commands with permission checks, data retrieval, and formatting. Three subtasks would be sufficient to cover the main aspects."
+      "recommendedSubtasks": 5,
+      "expansionPrompt": "Review each subtask for completeness, ensuring permission checks, data retrieval, formatting, and test coverage.",
+      "reasoning": "Listing commands are straightforward queries with permission checks and formatting, requiring moderate testing."
     },
     {
       "taskId": 25,
       "taskTitle": "Implement Basic Configuration Command ('/config seasons')",
-      "complexityScore": 5,
+      "complexityScore": 4,
       "recommendedSubtasks": 4,
-      "expansionPrompt": "Break down the configuration command implementation into subtasks covering command structure and permission checks, current settings retrieval, settings update mechanism, and persistence implementation.",
-      "reasoning": "This task has moderate complexity as it involves implementing a command with permission checks, settings retrieval, and potentially settings updates with persistence. Four subtasks would allow focusing on each aspect separately."
+      "expansionPrompt": "Expand into: (1) Implement view config logic, (2) Implement set config logic, (3) Integrate with database or config file, (4) Write unit and integration tests.",
+      "reasoning": "Configuration commands are simple but require careful handling of permissions, persistence, and validation."
     },
     {
       "taskId": 26,
       "taskTitle": "Implement Comprehensive Error Handling and User Feedback",
-      "complexityScore": 7,
+      "complexityScore": 6,
       "recommendedSubtasks": 5,
-      "expansionPrompt": "Divide the error handling implementation into subtasks covering error categorization, handler-level error handling, service-level error handling, database error handling, and integration with the messaging layer.",
-      "reasoning": "This task has higher complexity as it involves implementing robust error handling across multiple layers of the application. Five subtasks would allow focusing on different types of errors and layers separately."
+      "expansionPrompt": "Expand into: (1) Audit all command handlers for error cases, (2) Implement standardized error responses, (3) Integrate with messaging layer, (4) Write tests for error scenarios, (5) Manual testing of user feedback.",
+      "reasoning": "Comprehensive error handling requires auditing, standardization, and integration across the codebase, with moderate complexity."
     },
     {
       "taskId": 27,
       "taskTitle": "Refine and Integrate Messaging Layer",
-      "complexityScore": 6,
-      "recommendedSubtasks": 4,
-      "expansionPrompt": "Break down the messaging layer refinement into subtasks covering architecture finalization, message formatting standardization, integration with command handlers, and integration with DM processing logic.",
-      "reasoning": "This task has moderate to higher complexity as it involves refining and integrating a core architectural component across the application. Four subtasks would allow focusing on architecture, formatting, and integration with different components separately."
+      "complexityScore": 7,
+      "recommendedSubtasks": 5,
+      "expansionPrompt": "Expand into: (1) Define MessageInstruction structure, (2) Implement translation logic, (3) Integrate with all command handlers, (4) Add i18n support if needed, (5) Write tests for formatting and integration.",
+      "reasoning": "The messaging layer is central to user experience and must handle diverse message types, formatting, and potential i18n, making it moderately complex."
     },
     {
       "taskId": 28,
       "taskTitle": "Comprehensive Testing and Refinement (MVP)",
-      "complexityScore": 9,
-      "recommendedSubtasks": 7,
-      "expansionPrompt": "Divide the comprehensive testing task into subtasks covering unit test implementation, integration test implementation, end-to-end test scenarios, performance testing, security testing, bug fixing, and final refinement.",
-      "reasoning": "This task has very high complexity as it involves comprehensive testing across all implemented features, including unit tests, integration tests, and end-to-end testing. Seven subtasks would allow focusing on different types of testing and refinement separately."
-    },
-    {
-      "taskId": 29,
-      "taskTitle": "Refactor /new season command handler to align with architecture",
-      "complexityScore": 6,
-      "recommendedSubtasks": 4,
-      "expansionPrompt": "Break down the /new season command refactoring into subtasks covering Prisma client handling, SeasonService integration, structured error handling, and message generation layer integration.",
-      "reasoning": "This task has moderate to higher complexity as it involves refactoring an existing command to align with architectural principles. Four subtasks would align with the key changes outlined in the details: Prisma client handling, SeasonService integration, structured error handling, and message generation layer integration."
+      "complexityScore": 8,
+      "recommendedSubtasks": 6,
+      "expansionPrompt": "Expand into: (1) Write unit tests for all logic modules, (2) Write integration tests for services and commands, (3) Manual end-to-end testing, (4) Document test scenarios and results, (5) Refactor code based on feedback, (6) Review test coverage.",
+      "reasoning": "Comprehensive testing and refinement is a large, cross-cutting task requiring coordination, coverage analysis, and iterative improvement."
     },
     {
       "taskId": 30,
       "taskTitle": "Modify SeasonService.createSeason for Message Instructions",
       "complexityScore": 5,
       "recommendedSubtasks": 3,
-      "expansionPrompt": "Divide the SeasonService.createSeason modification into subtasks covering MessageInstruction interface definition, success path implementation, and error path implementation.",
-      "reasoning": "This task has moderate complexity as it involves defining a new interface and modifying an existing method to return structured message instructions. Three subtasks would allow focusing on interface definition, success path, and error path separately."
+      "expansionPrompt": "Expand into: (1) Define MessageInstruction interface, (2) Refactor createSeason to use instructions, (3) Write unit tests for all paths.",
+      "reasoning": "Refactoring for structured message instructions is straightforward but requires careful handling of all success and error paths."
     },
     {
       "taskId": 31,
       "taskTitle": "Refactor /new season Command to Use Lang Service",
       "complexityScore": 5,
-      "recommendedSubtasks": 4,
-      "expansionPrompt": "Break down the Lang service integration refactoring into subtasks covering message identification, Lang service integration, language file updates, and direct string construction removal.",
-      "reasoning": "This task has moderate complexity as it involves refactoring an existing command to use the Lang service for all user-facing messages. Four subtasks would align with the key steps outlined in the details: message identification, Lang service integration, language file updates, and direct string construction removal."
+      "recommendedSubtasks": 5,
+      "expansionPrompt": "Expand into: (1) Identify all user-facing messages, (2) Integrate Lang service for all outputs, (3) Update language files, (4) Remove direct string construction, (5) Write/refactor tests.",
+      "reasoning": "Refactoring for i18n and structured messaging is moderately complex, requiring updates to message handling and language files."
     },
     {
       "taskId": 32,
       "taskTitle": "Implement Tests for /new season Command",
-      "complexityScore": 6,
-      "recommendedSubtasks": 4,
-      "expansionPrompt": "Divide the test implementation into subtasks covering integration tests for SeasonService.createSeason, unit tests for pure logic functions, edge case testing, and test coverage analysis.",
-      "reasoning": "This task has moderate to higher complexity as it involves implementing comprehensive tests for both the service and command handler. Four subtasks would allow focusing on integration tests, unit tests, edge cases, and coverage analysis separately."
+      "complexityScore": 5,
+      "recommendedSubtasks": 3,
+      "expansionPrompt": "Expand into: (1) Write integration tests for createSeason, (2) Write unit tests for logic functions, (3) Manual testing of command and feedback.",
+      "reasoning": "Testing is straightforward but must cover all success and error scenarios for robust coverage."
     }
   ]
 }

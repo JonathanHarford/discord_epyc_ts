@@ -1,6 +1,7 @@
 import { PrismaClient } from '@prisma/client';
 import { SeasonService } from '../../src/services/SeasonService.js';
 import { TurnService } from '../../src/services/TurnService.js';
+import { SchedulerService } from '../../src/services/SchedulerService.js';
 import { nanoid } from 'nanoid';
 import { describe, it, expect, beforeEach, afterAll, vi, beforeAll } from 'vitest';
 import { Client as DiscordClient } from 'discord.js';
@@ -11,6 +12,7 @@ describe('Season Activation End-to-End Tests', () => {
   let prisma: PrismaClient;
   let seasonService: SeasonService;
   let turnService: TurnService;
+  let mockSchedulerService: SchedulerService;
   let mockDiscordClient: any;
   let testPlayers: any[] = [];
   let seasonId: string;
@@ -44,9 +46,15 @@ describe('Season Activation End-to-End Tests', () => {
     // Reset mocks
     vi.clearAllMocks();
     
+    // Create mock SchedulerService
+    mockSchedulerService = {
+      scheduleJob: vi.fn().mockReturnValue(true),
+      cancelJob: vi.fn().mockReturnValue(true),
+    } as unknown as SchedulerService;
+    
     // Recreate services
     turnService = new TurnService(prisma, mockDiscordClient as unknown as DiscordClient);
-    seasonService = new SeasonService(prisma, turnService);
+    seasonService = new SeasonService(prisma, turnService, mockSchedulerService);
     
     // Create test players for this test run
     testPlayers = [];

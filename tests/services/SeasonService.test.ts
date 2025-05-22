@@ -3,6 +3,7 @@ import { PrismaClient, Player, Game, Season, SeasonConfig, Prisma } from '@prism
 import { Client as DiscordClient } from 'discord.js';
 import { SeasonService, NewSeasonOptions } from '../../src/services/SeasonService.js';
 import { TurnService } from '../../src/services/TurnService.js';
+import { SchedulerService } from '../../src/services/SchedulerService.js';
 import schedule from 'node-schedule';
 import { humanId } from 'human-id';
 import { nanoid } from 'nanoid';
@@ -42,6 +43,7 @@ describe('SeasonService', () => {
   let prisma: PrismaClient;
   let seasonService: SeasonService; 
   let testPlayer: Player;
+  let mockSchedulerService: SchedulerService;
   // We use the real PrismaClient for integration tests
 
   // Initialize PrismaClient once for the describe block
@@ -60,8 +62,15 @@ describe('SeasonService', () => {
 
     // Create a TurnService instance for the shared prisma instance
     const turnService = new TurnService(prisma, {} as DiscordClient);
-    // seasonService is newed up with the shared prisma instance and TurnService
-    seasonService = new SeasonService(prisma, turnService);
+    
+    // Create a mock SchedulerService
+    mockSchedulerService = {
+      scheduleJob: vi.fn().mockReturnValue(true),
+      cancelJob: vi.fn().mockReturnValue(true),
+    } as unknown as SchedulerService;
+    
+    // seasonService is newed up with the shared prisma instance, TurnService, and mockSchedulerService
+    seasonService = new SeasonService(prisma, turnService, mockSchedulerService);
 
     // Create a test player for creator context
     testPlayer = await prisma.player.create({
@@ -311,8 +320,13 @@ describe('SeasonService', () => {
 
     // Mock TurnService locally for this test, returning success for offerInitialTurn
     const mockTurnServiceLocal = { offerInitialTurn: vi.fn().mockReturnValue({ success: true }) };
-    // Re-instantiate SeasonService with the local mock TurnService
-    const seasonServiceLocal = new SeasonService(prisma, mockTurnServiceLocal as any);
+    // Create mock SchedulerService for local test
+    const mockSchedulerServiceLocal = {
+      scheduleJob: vi.fn().mockReturnValue(true),
+      cancelJob: vi.fn().mockReturnValue(true),
+    };
+    // Re-instantiate SeasonService with the local mock TurnService and SchedulerService
+    const seasonServiceLocal = new SeasonService(prisma, mockTurnServiceLocal as any, mockSchedulerServiceLocal as any);
 
     // Act: Add players one by one, the last one should trigger activation
     let lastAddPlayerResult: MessageInstruction | undefined;
@@ -397,8 +411,13 @@ describe('SeasonService', () => {
     const mockTurnService = {
       offerInitialTurn: mockOfferInitialTurn,
     } as unknown as TurnService;
-    // Create a new SeasonService with our mocked TurnService
-    const testSeasonService = new SeasonService(prisma, mockTurnService);
+    // Create a mock SchedulerService for local test
+    const mockSchedulerServiceLocal = {
+      scheduleJob: vi.fn().mockReturnValue(true),
+      cancelJob: vi.fn().mockReturnValue(true),
+    };
+    // Create a new SeasonService with our mocked TurnService and SchedulerService
+    const testSeasonService = new SeasonService(prisma, mockTurnService, mockSchedulerServiceLocal as any);
 
     // Act: Call activateSeason, simulating it being triggered by reaching max_players
     const activationResult = await testSeasonService.activateSeason(season.id, { triggeredBy: 'max_players', playerCount: maxPlayers });
@@ -594,8 +613,14 @@ describe('SeasonService', () => {
       offerInitialTurn: mockOfferInitialTurn,
     } as unknown as TurnService;
     
-    // Create a new SeasonService with our mocked TurnService
-    const testSeasonService = new SeasonService(prisma, mockTurnService);
+    // Create a mock SchedulerService for local test
+    const mockSchedulerServiceLocal = {
+      scheduleJob: vi.fn().mockReturnValue(true),
+      cancelJob: vi.fn().mockReturnValue(true),
+    };
+    
+    // Create a new SeasonService with our mocked TurnService and SchedulerService
+    const testSeasonService = new SeasonService(prisma, mockTurnService, mockSchedulerServiceLocal as any);
 
     // **Revised Act:** Directly call handleOpenDurationTimeout with the season ID
     await testSeasonService.handleOpenDurationTimeout(season!.id);

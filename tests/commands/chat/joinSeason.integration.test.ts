@@ -6,6 +6,9 @@ import { nanoid } from 'nanoid';
 import { Lang } from '../../../src/services/lang.js';
 import { Language } from '../../../src/models/enum-helpers/language.js';
 import { EventData } from '../../../src/models/internal-models.js';
+import { SeasonService } from '../../../src/services/SeasonService.js';
+import { TurnService } from '../../../src/services/TurnService.js';
+import { SchedulerService } from '../../../src/services/SchedulerService.js';
 
 // Mock Lang service
 vi.mock('../../../src/services/lang.js', () => ({
@@ -24,10 +27,27 @@ describe('JoinSeasonCommand - Integration Tests', () => {
   let closedSeasonId: string;
   let commandInstance: JoinSeasonCommand;
   let mockEventData: EventData;
+  let seasonService: SeasonService;
+  let mockSchedulerService: SchedulerService;
 
   beforeAll(async () => {
     prisma = new PrismaClient();
-    commandInstance = new JoinSeasonCommand();
+    
+    // Create mock scheduler service
+    mockSchedulerService = {
+      scheduleJob: vi.fn().mockReturnValue(true),
+      cancelJob: vi.fn().mockReturnValue(true),
+    } as unknown as SchedulerService;
+    
+    // Create the TurnService
+    const turnService = { offerInitialTurn: vi.fn().mockReturnValue({ success: true }) } as unknown as TurnService;
+    
+    // Create the SeasonService with proper dependencies
+    seasonService = new SeasonService(prisma, turnService, mockSchedulerService);
+    
+    // Now create the command with proper dependencies
+    commandInstance = new JoinSeasonCommand(prisma, seasonService);
+    
     mockEventData = { lang: Language.Default, langGuild: Language.Default };
     
     // Clean database and set up test data

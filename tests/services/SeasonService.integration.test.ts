@@ -1,6 +1,7 @@
 import { PrismaClient } from '@prisma/client';
 import { SeasonService } from '../../src/services/SeasonService.js';
 import { TurnService } from '../../src/services/TurnService.js'; 
+import { SchedulerService } from '../../src/services/SchedulerService.js';
 import { nanoid } from 'nanoid';
 import { describe, it, expect, beforeEach, afterAll, vi } from 'vitest'; // Import Vitest globals
 import { Client as DiscordClient } from 'discord.js';
@@ -12,6 +13,7 @@ describe('SeasonService Integration Tests', () => {
   let seasonService: SeasonService;
   let mockDiscordClient: any;
   let turnService: TurnService;
+  let mockSchedulerService: SchedulerService;
 
   // Clear the database before each test
   beforeEach(async () => {
@@ -37,9 +39,15 @@ describe('SeasonService Integration Tests', () => {
       },
     };
 
+    // Create mock SchedulerService
+    mockSchedulerService = {
+      scheduleJob: vi.fn().mockReturnValue(true),
+      cancelJob: vi.fn().mockReturnValue(true),
+    } as unknown as SchedulerService;
+
     // Create actual services
     turnService = new TurnService(prisma, mockDiscordClient as unknown as DiscordClient);
-    seasonService = new SeasonService(prisma, turnService);
+    seasonService = new SeasonService(prisma, turnService, mockSchedulerService);
   });
 
   // Disconnect Prisma client after all tests

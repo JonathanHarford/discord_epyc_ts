@@ -15,6 +15,7 @@ import { MessageInstruction } from '../../types/MessageInstruction.js';
 import prisma from '../../lib/prisma.js'; // Import global Prisma client instance
 import { Lang } from '../../services/lang.js';
 import { Language } from '../../models/enum-helpers/language.js';
+import { PrismaClient } from '@prisma/client'; // ADDED: Import PrismaClient type
 
 
 // Renamed from newSeasonCommandData to newCommandData
@@ -63,23 +64,35 @@ export class NewCommand implements Command {
   public deferType = CommandDeferType.HIDDEN;
   public requireClientPerms: PermissionsString[] = ['SendMessages'];
 
+  private prisma: PrismaClient; // ADDED: Store Prisma client
+  private seasonService: SeasonService; // ADDED: Store SeasonService
+
+  // Inject dependencies
+  constructor(prisma: PrismaClient, seasonService: SeasonService) { // MODIFIED: Added constructor with injected services
+    this.prisma = prisma;
+    this.seasonService = seasonService;
+  }
+
   public async execute(intr: ChatInputCommandInteraction, data: EventData): Promise<void> {
     const subcommand = intr.options.getSubcommand();
 
     if (subcommand === 'season') {
-      const seasonService = new SeasonService(prisma, null); // Use global prisma instance
+      // REMOVE: Instantiate SeasonService here, use injected instance
+      // const seasonService = new SeasonService(prisma, null); // Use global prisma instance
 
       const discordUserId = intr.user.id;
       const discordUserName = intr.user.username; // Get username for player creation
 
       // --- Find or Create Player ---
-      let playerRecord = await prisma.player.findUnique({
+      // Use injected prisma instance
+      let playerRecord = await this.prisma.player.findUnique({
         where: { discordUserId: discordUserId },
       });
 
       if (!playerRecord) {
         try {
-          playerRecord = await prisma.player.create({
+          // Use injected prisma instance
+          playerRecord = await this.prisma.player.create({
             data: {
               discordUserId: discordUserId,
               name: discordUserName,
@@ -117,7 +130,7 @@ export class NewCommand implements Command {
       };
 
       try {
-        const instruction: MessageInstruction = await seasonService.createSeason(seasonOptions);
+        const instruction: MessageInstruction = await this.seasonService.createSeason(seasonOptions);
 
         if (instruction.type === 'success') {
           const successReply = Lang.getRef('newCommand.season.create_success_channel', Language.Default, { ...instruction.data, mentionUser: intr.user.toString() });

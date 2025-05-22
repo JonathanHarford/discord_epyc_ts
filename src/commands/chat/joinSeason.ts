@@ -6,6 +6,7 @@ import { Language } from '../../models/enum-helpers/language.js';
 import { Command, CommandDeferType } from '../command.js';
 import { EventData } from '../../models/internal-models.js';
 import { LangKeys } from '../../constants/lang-keys.js';
+import { PrismaClient } from '@prisma/client';
 
 export const joinSeasonCommandData = new SlashCommandBuilder()
   .setName('join')
@@ -21,17 +22,22 @@ export class JoinSeasonCommand implements Command {
   public deferType = CommandDeferType.HIDDEN;
   public requireClientPerms: PermissionsString[] = ['SendMessages'];
 
+  private prisma: PrismaClient;
+  private seasonService: SeasonService;
+
+  constructor(prisma: PrismaClient, seasonService: SeasonService) {
+    this.prisma = prisma;
+    this.seasonService = seasonService;
+  }
+
   public async execute(interaction: ChatInputCommandInteraction, data: EventData): Promise<void> {
     console.log(`[JoinSeasonCommand] Executing /join command for user: ${interaction.user.id}, username: ${interaction.user.username}`);
     const seasonId = interaction.options.getString('season_id', true);
     const discordUserId = interaction.user.id;
     console.log(`[JoinSeasonCommand] Received season_id: ${seasonId}, discordUserId: ${discordUserId}`);
 
-    // Null for TurnService since it's not needed for joining a season
-    const seasonService = new SeasonService(prisma, null);
-
     try {
-      const season = await seasonService.findSeasonById(seasonId);
+      const season = await this.seasonService.findSeasonById(seasonId);
       
       if (!season) {
         await interaction.editReply({ 
@@ -51,20 +57,20 @@ export class JoinSeasonCommand implements Command {
         return;
       }
       
-      let player = await prisma.player.findUnique({
+      let player = await this.prisma.player.findUnique({
         where: { discordUserId }
       });
       
       if (!player) {
         try {
-          player = await prisma.player.create({
+          player = await this.prisma.player.create({
             data: {
               discordUserId,
               name: interaction.user.username,
             }
           });
           
-          const result = await seasonService.addPlayerToSeason(player.id, seasonId);
+          const result = await this.seasonService.addPlayerToSeason(player.id, seasonId);
           await interaction.editReply({ 
             content: Lang.getRef(result.key, data.lang, {
               ...result.data,
@@ -84,7 +90,7 @@ export class JoinSeasonCommand implements Command {
         return;
       }
       
-      const result = await seasonService.addPlayerToSeason(player.id, seasonId);
+      const result = await this.seasonService.addPlayerToSeason(player.id, seasonId);
       
       await interaction.editReply({ 
         content: Lang.getRef(result.key, data.lang, {
@@ -96,15 +102,13 @@ export class JoinSeasonCommand implements Command {
     } catch (error) {
       console.error('Error in /join command:', error);
       await interaction.editReply({ 
-        content: Lang.getRef(LangKeys.Commands.JoinSeason.genericError, data.lang, {
-          seasonId,
-          errorMessage: error instanceof Error ? error.message : 'Unknown error'
+        content: Lang.getRef(LangKeys.Commands.JoinSeason.genericError, data.lang, { 
+          seasonId, 
+          errorMessage: error instanceof Error ? error.message : 'Unknown error' 
         }) 
       });
     }
   }
 }
 
-// Default export might be useful if other commands follow this pattern,
-// but src/commands/chat/index.ts uses named exports.
-// export default JoinSeasonCommand; 
+export default JoinSeasonCommand; 
