@@ -7,6 +7,8 @@ import { EventData } from '../../models/internal-models.js';
 import { Lang } from '../../services/index.js';
 import { InteractionUtils } from '../../utils/index.js';
 import { Command, CommandDeferType } from '../index.js';
+import { MessageHelpers } from '../../messaging/MessageHelpers.js';
+import { MessageAdapter } from '../../messaging/MessageAdapter.js';
 
 export class ViewDateSent implements Command {
     public names = [Lang.getRef('messageCommands.viewDateSent', Language.Default)];
@@ -18,13 +20,12 @@ export class ViewDateSent implements Command {
         intr: MessageContextMenuCommandInteraction,
         data: EventData
     ): Promise<void> {
-        await InteractionUtils.send(
-            intr,
-            Lang.getEmbed('displayEmbeds.viewDateSent', data.lang, {
-                DATE: DateTime.fromJSDate(intr.targetMessage.createdAt).toLocaleString(
-                    DateTime.DATE_HUGE
-                ),
-            })
-        );
+        const dateSentInstruction = MessageHelpers.embedMessage('info', 'displayEmbeds.viewDateSent', {
+            DATE: DateTime.fromJSDate(intr.targetMessage.createdAt).toLocaleString(
+                DateTime.DATE_HUGE
+            ),
+        }, true);
+        
+        await MessageAdapter.processInstruction(dateSentInstruction, intr, data.lang);
     }
 }

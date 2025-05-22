@@ -7,6 +7,8 @@ import { EventData } from '../../models/internal-models.js';
 import { Lang } from '../../services/index.js';
 import { InteractionUtils } from '../../utils/index.js';
 import { Command, CommandDeferType } from '../index.js';
+import { MessageHelpers } from '../../messaging/MessageHelpers.js';
+import { MessageAdapter } from '../../messaging/MessageAdapter.js';
 
 export class ViewDateJoined implements Command {
     public names = [Lang.getRef('userCommands.viewDateJoined', Language.Default)];
@@ -21,12 +23,11 @@ export class ViewDateJoined implements Command {
             joinDate = member.joinedAt;
         } else joinDate = intr.targetUser.createdAt;
 
-        await InteractionUtils.send(
-            intr,
-            Lang.getEmbed('displayEmbeds.viewDateJoined', data.lang, {
-                TARGET: intr.targetUser.toString(),
-                DATE: DateTime.fromJSDate(joinDate).toLocaleString(DateTime.DATE_HUGE),
-            })
-        );
+        const dateJoinedInstruction = MessageHelpers.embedMessage('info', 'displayEmbeds.viewDateJoined', {
+            TARGET: intr.targetUser.toString(),
+            DATE: DateTime.fromJSDate(joinDate).toLocaleString(DateTime.DATE_HUGE),
+        }, true);
+        
+        await MessageAdapter.processInstruction(dateJoinedInstruction, intr, data.lang);
     }
 }

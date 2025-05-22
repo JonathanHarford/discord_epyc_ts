@@ -6,6 +6,8 @@ import { EventData } from '../../models/internal-models.js';
 import { Lang } from '../../services/index.js';
 import { ClientUtils, FormatUtils, InteractionUtils } from '../../utils/index.js';
 import { Command, CommandDeferType } from '../index.js';
+import { MessageHelpers } from '../../messaging/MessageHelpers.js';
+import { MessageAdapter } from '../../messaging/MessageAdapter.js';
 
 export class HelpCommand implements Command {
     public names = [Lang.getRef('chatCommands.help', Language.Default)];
@@ -18,14 +20,17 @@ export class HelpCommand implements Command {
             ) as HelpOption,
         };
 
-        let embed: EmbedBuilder;
+        let messageKey: string;
+        let messageData: Record<string, any> = {};
+
         switch (args.option) {
             case HelpOption.CONTACT_SUPPORT: {
-                embed = Lang.getEmbed('displayEmbeds.helpContactSupport', data.lang);
+                messageKey = 'displayEmbeds.helpContactSupport';
                 break;
             }
             case HelpOption.COMMANDS: {
-                embed = Lang.getEmbed('displayEmbeds.helpCommands', data.lang, {
+                messageKey = 'displayEmbeds.helpCommands';
+                messageData = {
                     CMD_LINK_TEST: FormatUtils.commandMention(
                         await ClientUtils.findAppCommand(
                             intr.client,
@@ -38,7 +43,7 @@ export class HelpCommand implements Command {
                             Lang.getRef('chatCommands.info', Language.Default)
                         )
                     ),
-                });
+                };
                 break;
             }
             default: {
@@ -46,6 +51,7 @@ export class HelpCommand implements Command {
             }
         }
 
-        await InteractionUtils.send(intr, embed);
+        const instruction = MessageHelpers.embedMessage('info', messageKey, messageData, true);
+        await MessageAdapter.processInstruction(instruction, intr, data.lang);
     }
 }

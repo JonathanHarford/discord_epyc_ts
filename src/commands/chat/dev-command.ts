@@ -9,6 +9,8 @@ import { EventData } from '../../models/internal-models.js';
 import { Lang } from '../../services/index.js';
 import { FormatUtils, InteractionUtils, ShardUtils } from '../../utils/index.js';
 import { Command, CommandDeferType } from '../index.js';
+import { MessageHelpers } from '../../messaging/MessageHelpers.js';
+import { MessageAdapter } from '../../messaging/MessageAdapter.js';
 
 const require = createRequire(import.meta.url);
 let Config = require('../../../config/config.json');
@@ -20,7 +22,8 @@ export class DevCommand implements Command {
     public requireClientPerms: PermissionsString[] = [];
     public async execute(intr: ChatInputCommandInteraction, data: EventData): Promise<void> {
         if (!Config.developers.includes(intr.user.id)) {
-            await InteractionUtils.send(intr, Lang.getEmbed('validationEmbeds.devOnly', data.lang));
+            const devOnlyInstruction = MessageHelpers.embedMessage('warning', 'validationEmbeds.devOnly', {}, true);
+            await MessageAdapter.processInstruction(devOnlyInstruction, intr, data.lang);
             return;
         }
 
@@ -39,10 +42,8 @@ export class DevCommand implements Command {
                         serverCount = await ShardUtils.serverCount(intr.client.shard);
                     } catch (error) {
                         if (error.name.includes('ShardingInProcess')) {
-                            await InteractionUtils.send(
-                                intr,
-                                Lang.getEmbed('errorEmbeds.startupInProcess', data.lang)
-                            );
+                            const startupErrorInstruction = MessageHelpers.embedMessage('error', 'errorEmbeds.startupInProcess', {}, true);
+                            await MessageAdapter.processInstruction(startupErrorInstruction, intr, data.lang);
                             return;
                         } else {
                             throw error;
@@ -54,40 +55,39 @@ export class DevCommand implements Command {
 
                 let memory = process.memoryUsage();
 
-                await InteractionUtils.send(
-                    intr,
-                    Lang.getEmbed('displayEmbeds.devInfo', data.lang, {
-                        NODE_VERSION: process.version,
-                        TS_VERSION: `v${typescript.version}`,
-                        ES_VERSION: TsConfig.compilerOptions.target,
-                        DJS_VERSION: `v${djs.version}`,
-                        SHARD_COUNT: shardCount.toLocaleString(data.lang),
-                        SERVER_COUNT: serverCount.toLocaleString(data.lang),
-                        SERVER_COUNT_PER_SHARD: Math.round(serverCount / shardCount).toLocaleString(
-                            data.lang
-                        ),
-                        RSS_SIZE: FormatUtils.fileSize(memory.rss),
-                        RSS_SIZE_PER_SERVER:
-                            serverCount > 0
-                                ? FormatUtils.fileSize(memory.rss / serverCount)
-                                : Lang.getRef('other.na', data.lang),
-                        HEAP_TOTAL_SIZE: FormatUtils.fileSize(memory.heapTotal),
-                        HEAP_TOTAL_SIZE_PER_SERVER:
-                            serverCount > 0
-                                ? FormatUtils.fileSize(memory.heapTotal / serverCount)
-                                : Lang.getRef('other.na', data.lang),
-                        HEAP_USED_SIZE: FormatUtils.fileSize(memory.heapUsed),
-                        HEAP_USED_SIZE_PER_SERVER:
-                            serverCount > 0
-                                ? FormatUtils.fileSize(memory.heapUsed / serverCount)
-                                : Lang.getRef('other.na', data.lang),
-                        HOSTNAME: os.hostname(),
-                        SHARD_ID: (intr.guild?.shardId ?? 0).toString(),
-                        SERVER_ID: intr.guild?.id ?? Lang.getRef('other.na', data.lang),
-                        BOT_ID: intr.client.user?.id,
-                        USER_ID: intr.user.id,
-                    })
-                );
+                const devInfoInstruction = MessageHelpers.embedMessage('info', 'displayEmbeds.devInfo', {
+                    NODE_VERSION: process.version,
+                    TS_VERSION: `v${typescript.version}`,
+                    ES_VERSION: TsConfig.compilerOptions.target,
+                    DJS_VERSION: `v${djs.version}`,
+                    SHARD_COUNT: shardCount.toLocaleString(data.lang),
+                    SERVER_COUNT: serverCount.toLocaleString(data.lang),
+                    SERVER_COUNT_PER_SHARD: Math.round(serverCount / shardCount).toLocaleString(
+                        data.lang
+                    ),
+                    RSS_SIZE: FormatUtils.fileSize(memory.rss),
+                    RSS_SIZE_PER_SERVER:
+                        serverCount > 0
+                            ? FormatUtils.fileSize(memory.rss / serverCount)
+                            : Lang.getRef('other.na', data.lang),
+                    HEAP_TOTAL_SIZE: FormatUtils.fileSize(memory.heapTotal),
+                    HEAP_TOTAL_SIZE_PER_SERVER:
+                        serverCount > 0
+                            ? FormatUtils.fileSize(memory.heapTotal / serverCount)
+                            : Lang.getRef('other.na', data.lang),
+                    HEAP_USED_SIZE: FormatUtils.fileSize(memory.heapUsed),
+                    HEAP_USED_SIZE_PER_SERVER:
+                        serverCount > 0
+                            ? FormatUtils.fileSize(memory.heapUsed / serverCount)
+                            : Lang.getRef('other.na', data.lang),
+                    HOSTNAME: os.hostname(),
+                    SHARD_ID: (intr.guild?.shardId ?? 0).toString(),
+                    SERVER_ID: intr.guild?.id ?? Lang.getRef('other.na', data.lang),
+                    BOT_ID: intr.client.user?.id,
+                    USER_ID: intr.user.id,
+                }, true);
+                
+                await MessageAdapter.processInstruction(devInfoInstruction, intr, data.lang);
                 break;
             }
             default: {

@@ -1,12 +1,15 @@
 import { 
   ChatInputCommandInteraction, 
+  UserContextMenuCommandInteraction,
+  MessageContextMenuCommandInteraction,
   EmbedBuilder, 
   User, 
   TextChannel, 
   BaseMessageOptions,
   InteractionReplyOptions,
   InteractionEditReplyOptions,
-  MessageCreateOptions
+  MessageCreateOptions,
+  CommandInteraction
 } from 'discord.js';
 import { MessageInstruction } from '../types/MessageInstruction.js';
 import { Lang } from '../services/lang.js';
@@ -29,7 +32,7 @@ export class MessageAdapter {
    */
   public static async processInstruction(
     instruction: MessageInstruction,
-    interaction?: ChatInputCommandInteraction,
+    interaction?: CommandInteraction,
     langCode: string = Language.Default,
     discordClient?: any // TODO: Type as Discord Client when available
   ): Promise<void> {
@@ -134,7 +137,7 @@ export class MessageAdapter {
    * @param instruction Original instruction for context
    */
   private static async sendInteractionResponse(
-    interaction: ChatInputCommandInteraction,
+    interaction: CommandInteraction,
     content: BaseMessageOptions,
     instruction: MessageInstruction
   ): Promise<void> {

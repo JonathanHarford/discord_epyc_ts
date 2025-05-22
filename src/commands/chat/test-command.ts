@@ -6,6 +6,8 @@ import { EventData } from '../../models/internal-models.js';
 import { Lang } from '../../services/index.js';
 import { InteractionUtils } from '../../utils/index.js';
 import { Command, CommandDeferType } from '../index.js';
+import { MessageHelpers } from '../../messaging/MessageHelpers.js';
+import { MessageAdapter } from '../../messaging/MessageAdapter.js';
 
 export class TestCommand implements Command {
     public names = [Lang.getRef('chatCommands.test', Language.Default)];
@@ -14,6 +16,7 @@ export class TestCommand implements Command {
     public requireClientPerms: PermissionsString[] = [];
 
     public async execute(intr: ChatInputCommandInteraction, data: EventData): Promise<void> {
-        await InteractionUtils.send(intr, Lang.getEmbed('displayEmbeds.test', data.lang));
+        const testInstruction = MessageHelpers.embedMessage('info', 'displayEmbeds.test', {}, true);
+        await MessageAdapter.processInstruction(testInstruction, intr, data.lang);
     }
 }

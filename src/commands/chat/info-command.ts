@@ -6,6 +6,8 @@ import { EventData } from '../../models/internal-models.js';
 import { Lang } from '../../services/index.js';
 import { InteractionUtils } from '../../utils/index.js';
 import { Command, CommandDeferType } from '../index.js';
+import { MessageHelpers } from '../../messaging/MessageHelpers.js';
+import { MessageAdapter } from '../../messaging/MessageAdapter.js';
 
 export class InfoCommand implements Command {
     public names = [Lang.getRef('chatCommands.info', Language.Default)];
@@ -19,22 +21,18 @@ export class InfoCommand implements Command {
             ) as InfoOption,
         };
 
-        let embed: EmbedBuilder;
+        let messageKey: string;
+        let messageData: Record<string, any> = {};
+
         switch (args.option) {
             case InfoOption.ABOUT: {
-                embed = Lang.getEmbed('displayEmbeds.about', data.lang);
+                messageKey = 'displayEmbeds.about';
                 break;
             }
             case InfoOption.TRANSLATE: {
-                embed = Lang.getEmbed('displayEmbeds.translate', data.lang);
-                for (let langCode of Language.Enabled) {
-                    embed.addFields([
-                        {
-                            name: Language.Data[langCode].nativeName,
-                            value: Lang.getRef('meta.translators', langCode),
-                        },
-                    ]);
-                }
+                messageKey = 'displayEmbeds.translate';
+                // Note: The dynamic field addition for translators will be handled by the MessageAdapter
+                // when it processes the embed. For now, we'll use the base translate embed.
                 break;
             }
             default: {
@@ -42,6 +40,26 @@ export class InfoCommand implements Command {
             }
         }
 
-        await InteractionUtils.send(intr, embed);
+        const instruction = MessageHelpers.embedMessage('info', messageKey, messageData, true);
+        
+        // Special handling for translate option to add dynamic fields
+        if (args.option === InfoOption.TRANSLATE) {
+            // We need to create a custom instruction that includes the translator fields
+            // This is a limitation of the current MessageAdapter - it doesn't support dynamic field addition
+            // For now, we'll fall back to the original method for this specific case
+            let embed = Lang.getEmbed('displayEmbeds.translate', data.lang);
+            for (let langCode of Language.Enabled) {
+                embed.addFields([
+                    {
+                        name: Language.Data[langCode].nativeName,
+                        value: Lang.getRef('meta.translators', langCode),
+                    },
+                ]);
+            }
+            await InteractionUtils.send(intr, embed);
+            return;
+        }
+
+        await MessageAdapter.processInstruction(instruction, intr, data.lang);
     }
 }
