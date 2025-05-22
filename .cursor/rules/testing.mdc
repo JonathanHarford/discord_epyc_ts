@@ -18,6 +18,7 @@ alwaysApply: false
 - AVOID mocks. 
   - NEVER mock the database -- that's what the test database is for! 
   - Focus tests below the chat layer -- you shouldn't need to mock Discord (very much) either.
+  - DO mock time and scheduling
 - Don't assume tests passed just because some passing results appear
 - Don't proceed with commits or further changes until test completion
 - Be wary of partial test results in large test suites

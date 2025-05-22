@@ -27,19 +27,24 @@ export class TurnService {
    * @param game The game for which to offer the turn.
    * @param player The player to whom the turn is offered.
    * @param seasonId The ID of the season this game belongs to (for context in DM).
+   * @param tx Optional Prisma transaction client to use for database operations.
    * @returns An object indicating success or failure, with the created turn or an error message.
    */
   async offerInitialTurn(
     game: Game,
     player: Player,
-    seasonId: string
+    seasonId: string,
+    tx?: Prisma.TransactionClient
   ): Promise<{ success: boolean; turn?: Turn; error?: string }> {
     try {
       // For now, assume 'WRITING' or get from a default/config.
       // TODO: Determine initial turn type based on game/season config if available.
       const initialTurnType: Prisma.TurnCreateInput['type'] = 'WRITING';
 
-      const newTurn = await this.prisma.turn.create({
+      // Use the provided transaction client or fall back to the default prisma client
+      const prismaClient = tx || this.prisma;
+
+      const newTurn = await prismaClient.turn.create({
         data: {
           id: nanoid(),
           gameId: game.id,

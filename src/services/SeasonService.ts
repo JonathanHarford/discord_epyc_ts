@@ -453,7 +453,7 @@ export class SeasonService {
           // 'player' is directly available here.
           // 'game' is the created game.
           // 'game.seasonId' is available as it's a scalar field on Game.
-          return this.turnService.offerInitialTurn(game, player, game.seasonId);
+          return this.turnService.offerInitialTurn(game, player, game.seasonId, prismaClient);
         }));
         
         turnOfferResults.forEach(result => {

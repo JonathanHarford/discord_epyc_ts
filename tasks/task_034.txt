@@ -1,0 +1,36 @@
+# Task ID: 34
+# Title: Fix SeasonService Activation Test Memory Leaks and Restore Skipped Tests
+# Status: pending
+# Dependencies: None
+# Priority: high
+# Description: Fix memory leaks in SeasonService activation tests, restore skipped tests, and ensure tests run quickly and without errors.
+# Details:
+The SeasonService activation tests currently suffer from memory leaks, causing 'JavaScript heap out of memory' errors and excessive runtimes. Five complex activation tests were temporarily skipped to isolate the issue. This task involves identifying and resolving the root cause of these leaks, likely related to improper resource cleanup or unhandled asynchronous operations within the test environment.
+
+Implementation steps:
+1.  Unskip the five previously skipped tests:
+    - should activate season and create games when max_players is reached
+    - should activate season and create games when open_players is reached
+    - should not activate season when in invalid state
+    - should not activate season when minPlayers requirement not met
+    - should activate season and create games when open_duration timeout is reached
+2.  Analyze the skipped tests and the test setup for potential memory leak sources. Pay close attention to:
+    - Database connections/transactions not being properly closed or rolled back.
+    - Event listeners or timers not being cleared.
+    - Mocked dependencies potentially holding onto references.
+    - Asynchronous operations not being awaited or handled correctly.
+3.  Rewrite or refactor the tests to ensure proper resource cleanup after each test run (e.g., clearing database state, resetting mocks, stopping timers).
+4.  Implement complete and effective mocking for external dependencies like `SchedulerService` and `TurnService` to isolate the `SeasonService` logic being tested. Mocks should simulate expected behavior without introducing side effects or resource issues.
+5.  Ensure database operations within tests use proper transaction isolation where necessary and that transactions are always committed or rolled back.
+6.  Verify that the `activateSeason`, `addPlayerToSeason`, and `handleOpenDurationTimeout` methods within `SeasonService` are being tested correctly and without introducing leaks themselves.
+7.  Optimize test setup and execution to meet the performance target.
+
+# Test Strategy:
+1.  Unskip the five previously skipped tests in the SeasonService test suite.
+2.  Run the full SeasonService test suite locally.
+3.  Monitor memory usage during the test run using Node.js debugging tools (e.g., `--inspect` with Chrome DevTools or a dedicated memory profiler) to confirm that memory consumption remains stable and does not continuously grow, indicating no significant leaks.
+4.  Verify that all tests, including the previously skipped ones, pass successfully without errors.
+5.  Measure the total execution time of the SeasonService test suite. Confirm that the total runtime is less than 5 seconds.
+6.  Ensure that test coverage for the season activation logic and associated error scenarios remains high or improves.
+7.  Run the tests multiple times consecutively to check for cumulative memory issues.
+8.  Confirm the fix by running the tests in a CI environment to ensure consistency.
