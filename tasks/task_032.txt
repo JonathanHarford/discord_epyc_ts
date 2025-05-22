@@ -1,6 +1,6 @@
 # Task ID: 32
 # Title: Implement Tests for /new season Command
-# Status: pending
+# Status: in-progress
 # Dependencies: 30, 31
 # Priority: high
 # Description: Create comprehensive integration tests focusing on database interaction (as per TECHNICAL_ARCHITECTURE.md) and unit tests for the logic layer for the /new season command, covering SeasonService.createSeason and related logic, including success and various error scenarios.
