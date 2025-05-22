@@ -8,6 +8,8 @@ import { humanId } from 'human-id';
 import { nanoid } from 'nanoid';
 import { MessageInstruction } from '../../src/types/MessageInstruction.js';
 import { LangKeys } from '../../src/constants/lang-keys.js';
+import prisma from "../../src/lib/prisma.js";
+import { truncateTables } from "../utils/testUtils";
 
 // Mock the logger to prevent console output during tests
 vi.mock('../lib/logger', () => ({
@@ -54,18 +56,12 @@ describe('SeasonService', () => {
   });
 
   beforeEach(async () => {
+    await truncateTables(prisma);
+
     // Create a TurnService instance for the shared prisma instance
     const turnService = new TurnService(prisma, {} as DiscordClient);
     // seasonService is newed up with the shared prisma instance and TurnService
     seasonService = new SeasonService(prisma, turnService);
-
-    // Clean up database before each test with correct order
-    await prisma.$executeRaw`TRUNCATE TABLE "PlayersOnSeasons" CASCADE`;
-    await prisma.$executeRaw`TRUNCATE TABLE "Turn" CASCADE`;
-    await prisma.$executeRaw`TRUNCATE TABLE "Game" CASCADE`;
-    await prisma.$executeRaw`TRUNCATE TABLE "Season" CASCADE`;
-    await prisma.$executeRaw`TRUNCATE TABLE "SeasonConfig" CASCADE`;
-    await prisma.$executeRaw`TRUNCATE TABLE "Player" CASCADE`;
 
     // Create a test player for creator context
     testPlayer = await prisma.player.create({
@@ -81,15 +77,7 @@ describe('SeasonService', () => {
 
   // afterEach no longer needs to disconnect, use afterAll
   afterEach(async () => {
-    // Minimal cleanup, rely on beforeEach for full cleanup
-    // This is mostly to ensure testPlayer is gone if a test fails mid-way
-    // and to prevent interference if we don't clean everything.
-    // However, beforeEach should handle the comprehensive cleanup.
-    try {
-      await prisma.player.deleteMany({ where: { id: testPlayer?.id } });
-    } catch (e) {
-      // Ignore if testPlayer was not set or already deleted
-    }
+    await truncateTables(prisma);
     vi.restoreAllMocks();
   });
 
