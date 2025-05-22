@@ -8,11 +8,6 @@ import { parseDuration } from '../utils/datetime.js'; // Import the new utility
 import { LangKeys } from '../constants/lang-keys.js';
 import { TurnService } from './TurnService.js'; // Added .js extension
 
-// Define a more specific return type for createSeason, using Prisma's generated Season type
-type SeasonWithConfig = Prisma.SeasonGetPayload<{
-  include: { config: true }
-}>
-
 // Define a more specific return type for findSeasonById, including config and player count
 type SeasonDetails = Prisma.SeasonGetPayload<{
   include: {
@@ -25,6 +20,12 @@ type SeasonDetails = Prisma.SeasonGetPayload<{
 
 // Possible statuses for a season before activation
 const PRE_ACTIVATION_SEASON_STATUSES = ['PENDING_START', 'OPEN', 'SETUP']; // Added 'SETUP' as per createSeason
+
+// Define a type for the Prisma transaction client
+type PrismaTransactionClient = Omit<
+  PrismaClient,
+  '$connect' | '$disconnect' | '$on' | '$transaction' | '$use' | '$extends'
+>;
 
 export class SeasonService {
   private prisma: PrismaClient;
@@ -266,257 +267,251 @@ export class SeasonService {
         return { type: 'error', key: LangKeys.Commands.JoinSeason.alreadyJoined, data: { /* seasonName: season.name */ } };
       }
 
-      // 5. Add player to season (create join record)
-      try {
-        await tx.playersOnSeasons.create({
-          data: {
-            playerId: player.id, // Use the validated player's ID
-            seasonId: seasonId,
-          },
-        });
-        console.log(`SeasonService.addPlayerToSeason: Successfully added player ${playerId} (ID: ${player.id}) to season ${seasonId}.`);
-        return { type: 'success', key: LangKeys.Commands.JoinSeason.success, data: { /* seasonName: season.name */ } };
-      } catch (error) {
-         console.error(`SeasonService.addPlayerToSeason: Error adding player ${player.id} to season ${seasonId}:`, error);
-         return { type: 'error', key: LangKeys.Commands.JoinSeason.genericError, data: { /* seasonName: season.name */ } };
+      // 5. Add player to season using the transaction client (tx)
+      await tx.playersOnSeasons.create({
+        data: {
+          playerId: player.id,
+          seasonId: season.id,
+        },
+      });
+      console.log(`SeasonService.addPlayerToSeason: Player ${player.id} successfully added to season ${seasonId}.`);
+
+      // Recalculate player count *within the current transaction*
+      const updatedPlayerCount = await tx.playersOnSeasons.count({
+        where: { seasonId: season.id },
+      });
+      console.log(`SeasonService.addPlayerToSeason: Updated player count for season ${seasonId} is ${updatedPlayerCount}.`);
+
+      // 6. Check if max players reached after adding this player
+      if (maxPlayers !== null && updatedPlayerCount >= maxPlayers) {
+        console.log(`SeasonService.addPlayerToSeason: Max players reached for season ${seasonId} (${updatedPlayerCount}/${maxPlayers}). Triggering activation.`);
+        // Pass the current transaction client (tx) to activateSeason
+        const activationResult = await this.activateSeason(season.id, { triggeredBy: 'max_players', playerCount: updatedPlayerCount }, tx);
+        if (activationResult.type === 'success') {
+          console.log(`SeasonService.addPlayerToSeason: Season ${seasonId} activated successfully due to max players.`);
+          // Return the activation success message directly
+          return activationResult;
+        } else {
+          console.error(`SeasonService.addPlayerToSeason: Activation failed for season ${seasonId} after max players reached. Error: ${activationResult.key}`, activationResult.data);
+          // Return the activation error message
+          // This case should be handled carefully: player was added, but activation failed.
+          // For now, we return the activation error, but this might need more robust error handling or rollback.
+          return activationResult;
+        }
       }
+
+      // Player joined, but season not yet activated by max players
+      return {
+        type: 'success',
+        key: LangKeys.Commands.JoinSeason.success,
+        data: {
+          // seasonName: season.name,
+          seasonId: season.id,
+          currentPlayers: updatedPlayerCount, // Use the fresh count
+          maxPlayers: maxPlayers,
+        },
+      };
     });
   }
 
   /**
-   * Activates a season if conditions are met (e.g., max players reached).
-   * Transitions season status to ACTIVE and creates N games for N players.
+   * Activates a season: changes its status to ACTIVE, creates initial games, and offers turns.
+   * Can be triggered by max_players being reached or open_duration timeout.
+   * Uses an optional Prisma transaction client if provided.
    * @param seasonId The ID of the season to activate.
-   * @returns A MessageInstruction object indicating success or failure.
+   * @param activationParams Optional parameters indicating the trigger and player count.
+   * @param tx Optional Prisma transaction client.
+   * @returns A MessageInstruction indicating success or failure.
    */
-  async activateSeason(seasonId: string, activationParams?: { triggeredBy?: 'max_players' | 'open_duration_timeout' }): Promise<MessageInstruction> {
-    console.log(`SeasonService.activateSeason: Attempting to activate season ${seasonId}`);
-    const trigger = activationParams?.triggeredBy || 'max_players';
+  async activateSeason(
+    seasonId: string,
+    activationParams?: { triggeredBy?: 'max_players' | 'open_duration_timeout'; playerCount?: number },
+    tx?: PrismaTransactionClient // Optional transaction client
+  ): Promise<MessageInstruction> {
+    const triggeredBy = activationParams?.triggeredBy || 'unknown';
+    console.log(`SeasonService.activateSeason: Attempting to activate season ${seasonId}, triggered by: ${triggeredBy}`);
 
-    try {
-      return await this.prisma.$transaction(async (tx) => {
-        // 1. Fetch Season with config and player count
-        const season = await tx.season.findUnique({
-          where: { id: seasonId },
-          include: {
-            config: true,
-            _count: {
-              select: { players: true },
+    // Define a function to perform the activation logic, which can be wrapped in a transaction or use an existing one.
+    const activationLogic = async (prismaClient: PrismaTransactionClient | PrismaClient) => {
+      // 1. Fetch the season and its configuration
+      const season = await prismaClient.season.findUnique({
+        where: { id: seasonId },
+        include: {
+          config: true,
+          players: { // Fetch players linked to the season
+            include: {
+              player: true, // Include the actual player details
             },
-            // Eager load players details for DM sending if not too large an operation
-            // Alternatively, fetch them after confirming activation, as done below.
           },
-        });
+        },
+      });
 
-        if (!season) {
-          console.warn(`SeasonService.activateSeason: Season ${seasonId} not found.`);
-          return { type: 'error', key: 'season_activate_error_not_found', data: { seasonId } };
+      if (!season) {
+        console.error(`SeasonService.activateSeason: Season ${seasonId} not found.`);
+        return { type: 'error' as const, key: 'season_activate_error_not_found', data: { seasonId } };
+      }
+
+      // 2. Check if season is already active or in a non-activatable state
+      if (season.status === 'ACTIVE' || season.status === 'COMPLETED' || season.status === 'CANCELLED') {
+        console.warn(`SeasonService.activateSeason: Season ${seasonId} is already ${season.status} and cannot be activated again.`);
+        return { type: 'error' as const, key: 'season_activate_error_already_active_or_completed', data: { seasonId, status: season.status } };
+      }
+      
+      // Check if the season is in a pre-activation state
+      if (!PRE_ACTIVATION_SEASON_STATUSES.includes(season.status)) {
+        console.warn(`SeasonService.activateSeason: Season ${seasonId} has an invalid status '${season.status}' for activation.`);
+        return { type: 'error' as const, key: 'season_activate_error_invalid_status', data: { seasonId, status: season.status } };
+      }
+
+      // 3. Determine player count for checks (use actual count from DB within this transaction)
+      const playersInSeason = season.players.map(pOnS => pOnS.player);
+      const actualPlayerCountInTx = playersInSeason.length;
+      console.log(`SeasonService.activateSeason: Season ${seasonId} has ${actualPlayerCountInTx} players currently in this transaction.`);
+
+      // 4. Check min/max player conditions based on trigger
+      const { minPlayers, maxPlayers } = season.config;
+
+      if (triggeredBy === 'open_duration_timeout') {
+        if (minPlayers !== null && actualPlayerCountInTx < minPlayers) {
+          console.warn(`SeasonService.activateSeason: Season ${seasonId} (timeout) does not meet min player requirement (${actualPlayerCountInTx}/${minPlayers}). Cancelling season.`);
+          await prismaClient.season.update({
+            where: { id: seasonId },
+            data: { status: 'CANCELLED' }, // Or a new status like 'ABORTED_MIN_PLAYERS'
+          });
+          return { type: 'error' as const, key: 'season_activate_error_min_players_not_met_on_timeout', data: { seasonId, currentPlayers: actualPlayerCountInTx, minPlayers } };
         }
+      } else if (triggeredBy === 'max_players') {
+        // If triggered by max_players, playerCount from params should match maxPlayers
+        // And actualPlayerCountInTx should also match for consistency
+        if (maxPlayers === null || (activationParams?.playerCount !== undefined && activationParams.playerCount < maxPlayers) || actualPlayerCountInTx < maxPlayers) {
+          console.warn(`SeasonService.activateSeason: Season ${seasonId} (max_players trigger) condition not met. Expected ${maxPlayers}, param count: ${activationParams?.playerCount}, actual in tx: ${actualPlayerCountInTx}. Activation aborted.`);
+          // This state is unexpected if triggeredBy max_players correctly.
+          // It implies a logic error or race condition if activationParams.playerCount was indeed maxPlayers.
+          return { type: 'error' as const, key: 'season_activate_error_max_players_condition_not_met', data: { seasonId, currentPlayers: actualPlayerCountInTx, expectedMax: maxPlayers, providedCount: activationParams?.playerCount } };
+        }
+      }
+      
+      if (actualPlayerCountInTx === 0) {
+        // Decide how to handle zero players. For now, let's assume minPlayers handles this.
+        // If minPlayers is 0 or null, this might be valid.
+        // If minPlayers > 0, the 'open_duration_timeout' check above should catch it.
+        console.warn(`SeasonService.activateSeason: Season ${seasonId} is being activated with zero players. Proceeding if minPlayers allows.`);
+        if (minPlayers !== null && minPlayers > 0) {
+           console.error(`SeasonService.activateSeason: Season ${seasonId} activation with 0 players but minPlayers is ${minPlayers}. This should have been caught.`);
+           // This indicates a logic flaw if reached, as minPlayers check should prevent this.
+           // For robustness, update status to CANCELLED if somehow reached.
+            await prismaClient.season.update({
+                where: { id: seasonId },
+                data: { status: 'CANCELLED' },
+            });
+           return { type: 'error' as const, key: 'season_activate_error_zero_players_violates_minplayers', data: { seasonId, minPlayers } };
+        }
+      }
 
-        // 2. Validate Season Status
-        if (!PRE_ACTIVATION_SEASON_STATUSES.includes(season.status)) {
-          console.warn(`SeasonService.activateSeason: Season ${seasonId} is not in a valid pre-activation state. Status: ${season.status}`);
-          return {
-            type: 'error',
-            key: 'season_activate_error_invalid_status',
-            data: { seasonId, currentStatus: season.status, expectedStatuses: PRE_ACTIVATION_SEASON_STATUSES },
+      // 5. Update season status to ACTIVE
+      await prismaClient.season.update({
+        where: { id: seasonId },
+        data: { status: 'ACTIVE' },
+      });
+      console.log(`SeasonService.activateSeason: Season ${seasonId} status updated to ACTIVE.`);
+
+      // 6. Create games - one for each player and associate them with the player
+      const gameAndPlayerCreationPromises: Promise<{ game: Prisma.GameGetPayload<{ include: { season: true } }>; player: Player }>[] = [];
+      if (actualPlayerCountInTx > 0) { // Only create games if there are players
+        for (const playerOnSeason of season.players) { // playerOnSeason is PlayersOnSeasons[], playerOnSeason.player is Player
+          const gameData: Prisma.GameCreateInput = {
+            id: nanoid(), // Use nanoid for game ID
+            season: { connect: { id: seasonId } },
+            status: 'PENDING_START',
           };
-        }
-
-        const playerCount = season._count.players;
-        const maxPlayers = season.config.maxPlayers;
-        const minPlayers = season.config.minPlayers; // Needed if called by open_duration timeout
-
-        // 3. Activation Conditions
-        // For now, focusing on maxPlayers. open_duration logic will be handled by the calling context (e.g. scheduler)
-        // or explicitly passed as a trigger type if this function needs to handle both.
-        let canActivate = false;
-        let activationReason = '';
-
-        if (trigger === 'max_players') {
-          if (maxPlayers !== null && playerCount >= maxPlayers) {
-            canActivate = true;
-            activationReason = `max players reached (${playerCount}/${maxPlayers})`;
-          }
-        } else if (trigger === 'open_duration_timeout') {
-          if (playerCount >= minPlayers) {
-            canActivate = true;
-            activationReason = `open_duration timeout and min players met (${playerCount}/${minPlayers})`;
-          } else {
-            console.log(`SeasonService.activateSeason: Triggered by open_duration_timeout for season ${seasonId}, but min players NOT met (${playerCount}/${minPlayers}). Not activating.`);
-            // Consider updating season status here to 'EXPIRED_PENDING_PLAYERS' or similar.
-            // For now, returning an info-like error.
-            return { 
-              type: 'error', // Conform to MessageInstruction
-              key: 'season_activate_error_min_players_not_met_on_timeout', 
-              data: { seasonId, playerCount, minPlayers }
-            };
-          }
-        }
-
-        if (!canActivate) {
-          console.warn(`SeasonService.activateSeason: Season ${seasonId} does not meet activation conditions for trigger '${trigger}'. Players: ${playerCount}, Max: ${maxPlayers}, Min: ${minPlayers}`);
-          return {
-            type: 'error',
-            key: 'season_activate_error_conditions_not_met',
-            data: { seasonId, playerCount, maxPlayers, minPlayers, trigger },
-          };
-        }
-        
-        console.log(`SeasonService.activateSeason: Activating season ${seasonId}. Reason: ${activationReason}.`);
-
-        // Cancel pending open_duration job if it exists for this season, as it's activating now.
-        const pendingJob = this.scheduledActivationJobs.get(seasonId);
-        if (pendingJob) {
-          pendingJob.cancel();
-          this.scheduledActivationJobs.delete(seasonId);
-          console.log(`SeasonService.activateSeason: Cancelled pending open_duration activation job for season ${seasonId}.`);
-        }
-
-        // 4.a Update Season status to ACTIVE
-        const updatedSeason = await tx.season.update({
-          where: { id: seasonId },
-          data: { status: 'ACTIVE' },
-        });
-        console.log(`SeasonService.activateSeason: Season ${seasonId} status updated to ACTIVE.`);
-
-        // 4.b Fetch all Player IDs in the season
-        const playersInSeason = await tx.playersOnSeasons.findMany({
-          where: { seasonId: seasonId },
-          select: { playerId: true },
-        });
-
-        if (playersInSeason.length === 0 && playerCount > 0) { // playerCount from initial fetch might be > 0
-             // This indicates a serious inconsistency if players disappeared during the transaction.
-             console.error(`SeasonService.activateSeason: CRITICAL - Player count mismatch for season ${seasonId}. Initial: ${playerCount}, Current in Tx: ${playersInSeason.length}.`);
-             throw new Error(`Critical player count mismatch for season ${seasonId} during activation.`);
-        }
-        if (playersInSeason.length === 0) { // If still 0 (e.g. playerCount was 0 and minPlayers was 0 for some reason)
-          console.warn(`SeasonService.activateSeason: Season ${seasonId} has 0 players. No games will be created, but season is ACTIVE.`);
-          // Return success but indicate no games created.
-           return {
-            type: 'success',
-            key: 'season_activate_success_no_players',
-            data: {
-              seasonId: updatedSeason.id,
-              newStatus: updatedSeason.status,
-              gamesCreated: 0,
-              playerCount: 0,
-            },
-          };
-        }
-        
-        // 4.c Create N games for N players
-        const gameCreationPromises: Promise<Game>[] = [];
-        // Fetch actual player records for their discordUserIds to pass to TurnService
-        const playerIdsInSeason = playersInSeason.map(p => p.playerId);
-        const playerRecordsForTurnOffer = await tx.player.findMany({
-            where: { id: { in: playerIdsInSeason } },
-        });
-
-        // Ensure we have a consistent list of players to map to games
-        // Sort both by ID to ensure deterministic mapping if order matters, or use a map
-        const sortedPlayerRecords = [...playerRecordsForTurnOffer].sort((a, b) => a.id.localeCompare(b.id));
-
-        for (const playerEntry of playersInSeason) { // playersInSeason is {playerId: string}[]
-          // This loop creates games. We need to map these games to players afterwards.
-          gameCreationPromises.push(
-            tx.game.create({
-              data: {
-                id: nanoid(),
-                status: 'ACTIVE', 
-                season: {
-                  connect: { id: seasonId },
-                },
-              },
-            })
+          const playerForThisGame = playerOnSeason.player; // player is the actual Player object
+          gameAndPlayerCreationPromises.push(
+            prismaClient.game.create({ data: gameData, include: { season: true } })
+              .then(createdGame => ({ game: createdGame, player: playerForThisGame }))
           );
         }
-        const createdGames = await Promise.all(gameCreationPromises);
-        console.log(`SeasonService.activateSeason: Created ${createdGames.length} games for season ${seasonId}. Offering initial turns...`);
+      }
+      
+      const createdGamesAndPlayers = await Promise.all(gameAndPlayerCreationPromises);
+      console.log(`SeasonService.activateSeason: Created ${createdGamesAndPlayers.length} games for season ${seasonId}.`);
 
-        // Ensure games are also sorted if matching to sorted players by index
-        const sortedCreatedGames = [...createdGames].sort((a, b) => a.id.localeCompare(b.id));
+      // 7. Offer initial turns for each game-player pair
+      if (createdGamesAndPlayers.length > 0) {
+        const turnOfferResults = await Promise.all(createdGamesAndPlayers.map(async ({ game, player }) => {
+          // 'player' is directly available here.
+          // 'game' is the created game.
+          // 'game.seasonId' is available as it's a scalar field on Game.
+          return this.turnService.offerInitialTurn(game, player, game.seasonId);
+        }));
+        
+        turnOfferResults.forEach(result => {
+          if (!result.success) {
+            // Assuming result structure is { success: boolean, error?: string | object }
+            console.error(`SeasonService.activateSeason: Failed to offer initial turn for a game in season ${seasonId}. Error: ${result.error || 'Unknown error'}`);
+          }
+        });
+        console.log(`SeasonService.activateSeason: Initial turns offering process completed for ${createdGamesAndPlayers.length} games in season ${seasonId}.`);
+      }
 
-        if (sortedPlayerRecords.length !== sortedCreatedGames.length) {
-            console.warn(`SeasonService.activateSeason: Mismatch between player count (${sortedPlayerRecords.length}) and game count (${sortedCreatedGames.length}) for initial turn offering. Aborting initial turn offers for this season.`);
-            // This might happen if playerCount from _count was different from playersInSeason.length
-            // or if a player was somehow removed mid-transaction after the initial fetch.
-            // Update the return message to reflect this potential issue.
-        } else {
-            for (let i = 0; i < sortedCreatedGames.length; i++) {
-                const game = sortedCreatedGames[i];
-                const player = sortedPlayerRecords[i]; // Assign i-th player to i-th game
-
-                if (player) { 
-                    const offerResult = await this.turnService.offerInitialTurn(game, player, updatedSeason.id);
-                    if (!offerResult.success) {
-                        console.error(`SeasonService.activateSeason: Failed to offer initial turn for game ${game.id} to player ${player.id}. Error: ${offerResult.error}`);
-                    } else {
-                        console.log(`SeasonService.activateSeason: Successfully offered initial turn for game ${game.id} to player ${player.id}. Turn ID: ${offerResult.turn?.id}`);
-                    }
-                } else {
-                    // This case should ideally not be reached if lengths match and arrays are populated
-                    console.error(`SeasonService.activateSeason: Could not find player for game ${game.id} at index ${i} during initial turn offering.`);
-                }
-            }
-        }
-
-        return {
-          type: 'success',
-          key: 'season_activate_success',
-          data: {
-            seasonId: updatedSeason.id,
-            newStatus: updatedSeason.status,
-            gamesCreated: createdGames.length,
-            playerCount: playersInSeason.length,
-          },
-        };
-      });
-    } catch (error: any) { // Added type for error
-      console.error(`SeasonService.activateSeason: Error activating season ${seasonId}:`, error);
-      // If the error is due to our explicit throw (e.g. 0 players), it will be caught here.
-      // Otherwise, it's likely a Prisma or unexpected error.
+      // Cancel the scheduled open_duration job if it exists, as the season is now active.
+      const scheduledJob = this.scheduledActivationJobs.get(seasonId);
+      if (scheduledJob) {
+        scheduledJob.cancel();
+        this.scheduledActivationJobs.delete(seasonId);
+        console.log(`SeasonService.activateSeason: Canceled and removed scheduled activation job for season ${seasonId}.`);
+      }
+      
       return {
-        type: 'error',
-        key: 'season_activate_error_generic',
-        data: { seasonId, error: error.message || 'Unknown error' },
+        type: 'success' as const, // Ensure type is literal for MessageInstruction
+        key: 'season_activate_success',
+        data: {
+          seasonId,
+          status: 'ACTIVE',
+          gamesCreated: createdGamesAndPlayers.length,
+          playersInSeason: actualPlayerCountInTx,
+        },
       };
+    };
+
+    // Execute the logic: if a transaction client 'tx' is provided, use it. Otherwise, create a new transaction.
+    if (tx) {
+      console.log(`SeasonService.activateSeason: Using provided transaction client for season ${seasonId}.`);
+      return await activationLogic(tx);
+    } else {
+      console.log(`SeasonService.activateSeason: Starting new transaction for season ${seasonId}.`);
+      return await this.prisma.$transaction(async (newTx) => activationLogic(newTx));
     }
   }
 
+  /**
+   * Handles the timeout for a season's open_duration.
+   * This is intended to be called by the node-schedule job.
+   * @param seasonId The ID of the season whose open_duration has expired.
+   */
   async handleOpenDurationTimeout(seasonId: string): Promise<void> {
-    console.log(`SeasonService.handleOpenDurationTimeout: Checking season ${seasonId} for activation.`);
-    const season = await this.prisma.season.findUnique({
-      where: { id: seasonId },
-      include: { config: true, _count: { select: { players: true } } },
-    });
+    console.log(`SeasonService.handleOpenDurationTimeout: Handling open_duration timeout for season ${seasonId}.`);
+    // Activation due to timeout does not have a prior player count from an addPlayerToSeason call.
+    // activateSeason will fetch the current count within its own transaction.
+    const result = await this.activateSeason(seasonId, { triggeredBy: 'open_duration_timeout' });
+    // No 'tx' is passed here, so activateSeason will create its own transaction.
 
-    if (!season) {
-      console.warn(`SeasonService.handleOpenDurationTimeout: Season ${seasonId} not found. Job will not proceed.`);
-      return;
-    }
-
-    if (!PRE_ACTIVATION_SEASON_STATUSES.includes(season.status)) {
-      console.log(`SeasonService.handleOpenDurationTimeout: Season ${seasonId} status (${season.status}) is not pre-activation. Job will not proceed.`);
-      return;
-    }
-
-    const playerCount = season._count.players;
-    const minPlayers = season.config.minPlayers;
-
-    if (playerCount >= minPlayers) {
-      console.log(`SeasonService.handleOpenDurationTimeout: Season ${seasonId} meets min player criteria (${playerCount}/${minPlayers}). Attempting activation.`);
-      const activationResult = await this.activateSeason(seasonId, { triggeredBy: 'open_duration_timeout' });
-      if (activationResult.type === 'success') {
-        console.log(`SeasonService.handleOpenDurationTimeout: Season ${seasonId} successfully activated.`);
-      } else {
-        console.error(`SeasonService.handleOpenDurationTimeout: Failed to activate season ${seasonId}. Reason: ${activationResult.key}`, activationResult.data);
-      }
+    if (result.type === 'success') {
+      console.log(`SeasonService.handleOpenDurationTimeout: Season ${seasonId} activated successfully by timeout.`);
+      // TODO: Potentially send a notification (e.g., via Discord bot if applicable)
     } else {
-      console.log(`SeasonService.handleOpenDurationTimeout: Season ${seasonId} did not meet min player criteria (${playerCount}/${minPlayers}). Not activating.`);
-      // Optionally: Update season status to indicate it timed out without enough players, e.g., 'TIMED_OUT_PENDING_PLAYERS'
-      // await this.prisma.season.update({ where: { id: seasonId }, data: { status: 'PENDING_MIN_PLAYERS_AFTER_TIMEOUT' }});
+      console.error(`SeasonService.handleOpenDurationTimeout: Failed to activate season ${seasonId} by timeout. Error: ${result.key}`, result.data);
+      // TODO: Handle activation failure (e.g., log, notify admin)
+      // If min_players not met, activateSeason already sets status to CANCELLED.
+    }
+    // Remove the job from the map as it has been handled (either successfully or failed activation)
+    // activateSeason also tries to remove it, but this is a safeguard.
+    const scheduledJob = this.scheduledActivationJobs.get(seasonId);
+    if (scheduledJob) {
+      // It might have already been cancelled by activateSeason if successful.
+      // If activateSeason failed before cancelling, we ensure it's cancelled here.
+      scheduledJob.cancel(); 
+      this.scheduledActivationJobs.delete(seasonId);
+      console.log(`SeasonService.handleOpenDurationTimeout: Cleaned up scheduled job for season ${seasonId}.`);
     }
   }
 }

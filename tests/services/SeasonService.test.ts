@@ -7,6 +7,7 @@ import schedule from 'node-schedule';
 import { humanId } from 'human-id';
 import { nanoid } from 'nanoid';
 import { MessageInstruction } from '../../src/types/MessageInstruction.js';
+import { LangKeys } from '../../src/constants/lang-keys.js';
 
 // Mock the logger to prevent console output during tests
 vi.mock('../lib/logger', () => ({
@@ -21,33 +22,16 @@ vi.mock('../lib/logger', () => ({
 // We don't mock the Prisma client for integration tests
 // Instead use a real test database
 
-// Refined mock for TurnService
-const mockOfferInitialTurn = vi.fn();
-vi.mock('../../src/services/TurnService.js', () => {
-  // This mocks the module, making TurnService a mock constructor
-  return {
-    TurnService: vi.fn().mockImplementation((prisma, discordClient) => {
-      return {
-        offerInitialTurn: mockOfferInitialTurn,
-      };
-    }),
-  };
-});
-
 vi.mock('node-schedule', () => ({
   default: {
     scheduleJob: vi.fn(),
-    // Mock other functions if needed, e.g., cancelJob, etc.
+    cancelJob: vi.fn(), // Also mock cancelJob
   },
 }));
 
 vi.mock('human-id', () => ({
   humanId: vi.fn(() => 'test-season-id'),
 }));
-vi.mock('nanoid', () => ({
-  nanoid: vi.fn(() => 'test-nano-id'),
-}));
-
 
 // For real integration tests, we don't need to mock transaction objects
 // We'll use the actual database
@@ -71,9 +55,9 @@ describe('SeasonService', () => {
 
   beforeEach(async () => {
     // Create a TurnService instance for the shared prisma instance
-    const turnServiceInstance = new (TurnService as any)(prisma, {} as DiscordClient);
+    const turnService = new TurnService(prisma, {} as DiscordClient);
     // seasonService is newed up with the shared prisma instance and TurnService
-    seasonService = new SeasonService(prisma, turnServiceInstance);
+    seasonService = new SeasonService(prisma, turnService);
 
     // Clean up database before each test with correct order
     await prisma.$executeRaw`TRUNCATE TABLE "PlayersOnSeasons" CASCADE`;
@@ -93,7 +77,6 @@ describe('SeasonService', () => {
 
     // Reset all mocks before each test
     vi.clearAllMocks();
-    mockOfferInitialTurn.mockReset(); // Reset the shared mock function
   });
 
   // afterEach no longer needs to disconnect, use afterAll
@@ -307,5 +290,151 @@ describe('SeasonService', () => {
     // - Season not found
     // - Zero players (if minPlayers = 0 and season activates)
     // - turnService.offerInitialTurn fails partially or fully
+  });
+
+  it('should activate season and create games when max_players is reached', async () => {
+    // Arrange: Create a season and players directly in the test database
+    const maxPlayers = 3; // Use a smaller number for the test
+
+    const seasonConfig = await prisma.seasonConfig.create({
+      data: { maxPlayers, minPlayers: 2, openDuration: '1d', turnPattern: 'drawing,writing' },
+    });
+
+    const season = await prisma.season.create({
+      data: {
+        id: 'test-season-activate-max-players',
+        status: 'SETUP',
+        creatorId: testPlayer.id,
+        configId: seasonConfig.id,
+      },
+    });
+
+    // Create players but do NOT link them to the season yet
+    const players: Player[] = [];
+    for (let i = 0; i < maxPlayers; i++) {
+      const player = await prisma.player.create({
+        data: {
+          discordUserId: `discord-activate-max-${i}-${nanoid()}`, // Use nanoid for uniqueness
+          name: `Player Activate Max ${i}`,
+        },
+      });
+      players.push(player);
+    }
+
+    // Mock TurnService locally for this test, returning success for offerInitialTurn
+    const mockTurnServiceLocal = { offerInitialTurn: vi.fn().mockReturnValue({ success: true }) };
+    // Re-instantiate SeasonService with the local mock TurnService
+    const seasonServiceLocal = new SeasonService(prisma, mockTurnServiceLocal as any);
+
+    // Act: Add players one by one, the last one should trigger activation
+    let lastAddPlayerResult: MessageInstruction | undefined;
+    for (let i = 0; i < players.length; i++) {
+        lastAddPlayerResult = await seasonServiceLocal.addPlayerToSeason(players[i].id, season.id);
+        // Optional: Add assertions here for intermediate player additions if needed
+        if (i < players.length - 1) {
+             expect(lastAddPlayerResult.type).toBe('success'); // Expect success for non-triggering joins
+             expect(lastAddPlayerResult.key).toBe(LangKeys.Commands.JoinSeason.success); // Expect standard join success
+        }
+    }
+
+    // Assert: Verify the result of adding the LAST player indicates activation
+    expect(lastAddPlayerResult).toBeDefined();
+    expect(lastAddPlayerResult!.type).toBe('success');
+    expect(lastAddPlayerResult!.key).toBe('season_activate_success'); // Expect activation success key
+
+    // Verify season status is updated to ACTIVE in the database
+    const updatedSeason = await prisma.season.findUnique({
+      where: { id: season.id },
+      include: { games: true, players: { include: { player: true } } },
+    });
+
+    expect(updatedSeason?.status).toBe('ACTIVE');
+
+    // Verify games are created in the database (one game per player)
+    expect(updatedSeason?.games.length).toBe(maxPlayers);
+
+    // Verify initial turn offers are sent (once per player) using the local mock
+    expect(mockTurnServiceLocal.offerInitialTurn).toHaveBeenCalledTimes(maxPlayers);
+    players.forEach(player => {
+      expect(mockTurnServiceLocal.offerInitialTurn).toHaveBeenCalledWith(
+        expect.objectContaining({ seasonId: season.id }), 
+        expect.objectContaining({ id: player.id }), 
+        season.id 
+      );
+    });
+
+    // Verify the structure of the games passed to offerInitialTurn
+  });
+
+  // Add integration test for activateSeason triggered by open_duration timeout
+  it('should activate season and create games when open_duration timeout is reached', async () => {
+    // Arrange: Create a season with a short openDuration and players (less than maxPlayers)
+    const openDuration = '1s'; // Use a short duration for the test
+    const maxPlayers = 10;
+    const minPlayers = 2;
+    const initialPlayers = 3; // Less than maxPlayers
+
+    // Create a season using the service, which will schedule the job
+    const createSeasonResult = await seasonService.createSeason({
+      creatorPlayerId: testPlayer.id,
+      openDuration: openDuration,
+      maxPlayers: maxPlayers,
+      minPlayers: minPlayers,
+      turnPattern: 'drawing,writing',
+    });
+
+    expect(createSeasonResult.type).toBe('success');
+    const seasonId = createSeasonResult.data?.seasonId;
+    expect(seasonId).toBeDefined();
+
+    // Manually add players to the season after creation
+    // We need to find the created season and config first
+    const season = await prisma.season.findUnique({
+      where: { id: seasonId },
+      include: { config: true },
+    });
+    expect(season).not.toBeNull();
+
+    const players: Player[] = [];
+    for (let i = 0; i < initialPlayers; i++) {
+      const player = await prisma.player.create({
+        data: {
+          discordUserId: `discord-activate-timeout-${i}`,
+          name: `Player Activate Timeout ${i}`,
+        },
+      });
+      players.push(player);
+      await prisma.playersOnSeasons.create({
+        data: {
+          seasonId: season!.id,
+          playerId: player.id,
+        },
+      });
+    }
+
+    // Mock TurnService locally for this test
+    const mockTurnServiceLocal = { offerInitialTurn: vi.fn() };
+    // Note: We are not re-instantiating SeasonService here because the job was scheduled by the original instance
+    // We will directly call the scheduled callback.
+
+    // **Revised Act:** Directly call handleOpenDurationTimeout with the season ID
+    await seasonService.handleOpenDurationTimeout(season!.id);
+
+    // Assert: Verify the expected outcomes in the database and mock calls after activation
+
+    // Verify season status is updated to ACTIVE in the database
+    const updatedSeason = await prisma.season.findUnique({
+      where: { id: season!.id },
+      include: { games: true, players: { include: { player: true } } },
+    });
+
+    expect(updatedSeason?.status).toBe('ACTIVE');
+
+    // Verify games are created in the database
+    expect(updatedSeason?.games.length).toBe(initialPlayers); // Number of games should equal number of players at timeout
+
+    // Verify initial turn offers are sent
+    // Since we directly called handleOpenDurationTimeout, it would use the main seasonService's TurnService.
+    // We need to check the main mockOfferInitialTurn.
   });
 }); 
