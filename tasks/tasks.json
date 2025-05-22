@@ -245,8 +245,8 @@
         5
       ],
       "priority": "medium",
-      "details": "Subtask 8.2 analysis revealed that the required integration with a task scheduler (`node-schedule`) for the `open_duration` timeout trigger was already present in the `SeasonService.ts`. The existing implementation correctly handles scheduling, timeout handling (`handleOpenDurationTimeout`), season activation (`activateSeason`), and job cleanup. No new code was required for this specific integration.",
-      "testStrategy": "Implement comprehensive tests including unit tests for core logic, integration tests verifying database interactions, and end-to-end tests simulating player joins and timeout scenarios. Verify season status transitions, game creation, player assignments, and initial turn offers (including Discord DMs in end-to-end tests). Ensure tests cover both `max_players` trigger and the `open_duration` timeout trigger (leveraging the existing scheduler integration).",
+      "details": "Subtask 8.2 analysis revealed that the required integration with a task scheduler (`node-schedule`) for the `open_duration` timeout trigger was already present in the `SeasonService.ts`. The existing implementation correctly handles scheduling, timeout handling (`handleOpenDurationTimeout`), season activation (`activateSeason`), and job cleanup. No new code was required for this specific integration.\n\nSubtask 8.4, implementing unit tests for the core season activation logic, has been completed. These tests cover activation via `max_players` and `open_duration` timeout, and rejection in invalid states or when `minPlayers` is not met. They verify the returned MessageInstruction, season status updates in the database, game creation (or lack thereof in error cases), and that turn offers are sent via the TurnService.",
+      "testStrategy": "Comprehensive tests are being implemented. Unit tests for the core season activation logic (completed via 8.4) cover activation via `max_players` and `open_duration` timeout, and rejection in invalid states or when `minPlayers` is not met. These tests verify MessageInstruction, season status updates, game creation, and turn offer calls. Integration tests verifying database interactions (8.5) and end-to-end tests simulating player joins and timeout scenarios (including Discord DMs via 8.6) are still pending.",
       "subtasks": [
         {
           "id": 8.1,
@@ -266,7 +266,7 @@
         {
           "id": 8.4,
           "description": "Implement unit tests for the core season activation logic",
-          "status": "pending"
+          "status": "completed"
         },
         {
           "id": 8.5,

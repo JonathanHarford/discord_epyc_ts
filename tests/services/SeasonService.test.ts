@@ -354,6 +354,194 @@ describe('SeasonService', () => {
     // Verify the structure of the games passed to offerInitialTurn
   });
 
+  it('should activate season and create games when open_players is reached', async () => {
+    // Arrange: Create a season with a min/max player limit and players in the test database
+    const maxPlayers = 3; // Use a smaller number for the test
+    const minPlayers = 2;
+
+    const seasonConfig = await prisma.seasonConfig.create({
+      data: { maxPlayers, minPlayers, openDuration: '1d', turnPattern: 'drawing,writing' },
+    });
+
+    const season = await prisma.season.create({
+      data: {
+        id: 'test-season-activate-open-players',
+        status: 'PENDING_START', // Start in PENDING_START or SETUP
+        creatorId: testPlayer.id,
+        configId: seasonConfig.id,
+      },
+    });
+
+    // Create players and add them to the season, up to the maxPlayers limit
+    const players: Player[] = [];
+    for (let i = 0; i < maxPlayers; i++) {
+      const player = await prisma.player.create({
+        data: {
+          discordUserId: `discord-activate-open-${i}-${nanoid()}`, // Use nanoid for uniqueness
+          name: `Player Activate Open ${i}`,
+        },
+      });
+      players.push(player);
+      // Link player to season directly for setup, we will not use addPlayerToSeason for triggering
+      await prisma.playersOnSeasons.create({
+        data: {
+          seasonId: season.id,
+          playerId: player.id,
+        },
+      });
+    }
+
+    // Mock TurnService locally for this test, returning success for offerInitialTurn
+    const mockOfferInitialTurn = vi.fn().mockResolvedValue({ type: 'success', key: 'turn_offer_success' });
+    // Create a new TurnService instance with the mocked method
+    const mockTurnService = {
+      offerInitialTurn: mockOfferInitialTurn,
+    } as unknown as TurnService;
+    // Create a new SeasonService with our mocked TurnService
+    const testSeasonService = new SeasonService(prisma, mockTurnService);
+
+    // Act: Call activateSeason, simulating it being triggered by reaching max_players
+    const activationResult = await testSeasonService.activateSeason(season.id, { triggeredBy: 'max_players', playerCount: maxPlayers });
+
+    // Assert: Verify the result indicates success and the season status is updated
+    expect(activationResult.type).toBe('success');
+    expect(activationResult.key).toBe('season_activate_success');
+    expect(activationResult.data).toBeDefined();
+    expect(activationResult.data?.seasonId).toBe(season.id);
+    expect(activationResult.data?.status).toBe('ACTIVE');
+
+    // Verify season status is updated to ACTIVE in the database
+    const updatedSeason = await prisma.season.findUnique({
+      where: { id: season.id },
+      include: { games: true, players: { include: { player: true } } },
+    });
+
+    expect(updatedSeason?.status).toBe('ACTIVE');
+
+    // Verify games are created in the database (one game per player)
+    expect(updatedSeason?.games.length).toBe(maxPlayers);
+
+    // Verify each game is linked to the correct season and players
+    updatedSeason?.games.forEach(game => {
+      expect(game.seasonId).toBe(season.id);
+    });
+
+    // Verify game count matches player count (one game per player)
+    expect(updatedSeason?.games.length).toBe(players.length);
+
+    // Verify initial turn offers are sent (once per player)
+    expect(mockOfferInitialTurn).toHaveBeenCalledTimes(maxPlayers);
+    players.forEach(player => {
+      expect(mockOfferInitialTurn).toHaveBeenCalledWith(
+        expect.objectContaining({ seasonId: season.id }), 
+        expect.objectContaining({ id: player.id }), 
+        season.id 
+      );
+    });
+  });
+
+  it('should not activate season when in invalid state', async () => {
+    // Arrange: Create a season in an invalid state (ACTIVE)
+    const seasonConfig = await prisma.seasonConfig.create({
+      data: { maxPlayers: 5, minPlayers: 2, openDuration: '1d', turnPattern: 'drawing,writing' },
+    });
+
+    const season = await prisma.season.create({
+      data: {
+        id: 'test-season-invalid-state',
+        status: 'ACTIVE', // Already active - invalid for activation
+        creatorId: testPlayer.id,
+        configId: seasonConfig.id,
+      },
+    });
+
+    // Add a few players to the season
+    for (let i = 0; i < 3; i++) {
+      const player = await prisma.player.create({
+        data: {
+          discordUserId: `discord-invalid-state-${i}-${nanoid()}`,
+          name: `Player Invalid State ${i}`,
+        },
+      });
+      await prisma.playersOnSeasons.create({
+        data: {
+          seasonId: season.id,
+          playerId: player.id,
+        },
+      });
+    }
+
+    // Act: Try to activate the season
+    const activationResult = await seasonService.activateSeason(season.id);
+
+    // Assert: Verify activation was rejected due to invalid state
+    expect(activationResult.type).toBe('error');
+    expect(activationResult.key).toBe('season_activate_error_already_active_or_completed');
+    
+    // Verify season status remains unchanged in database
+    const updatedSeason = await prisma.season.findUnique({
+      where: { id: season.id },
+      include: { games: true },
+    });
+    
+    expect(updatedSeason?.status).toBe('ACTIVE'); // Still active, no change
+    
+    // Verify no games were created
+    expect(updatedSeason?.games.length).toBe(0); // No games should have been created
+  });
+
+  it('should not activate season when minPlayers requirement not met', async () => {
+    // Arrange: Create a season with too few players
+    const minPlayers = 5; // Set minimum higher than what we'll add
+    
+    const seasonConfig = await prisma.seasonConfig.create({
+      data: { minPlayers, maxPlayers: 10, openDuration: '1d', turnPattern: 'drawing,writing' },
+    });
+
+    const season = await prisma.season.create({
+      data: {
+        id: 'test-season-min-players-not-met',
+        status: 'PENDING_START',
+        creatorId: testPlayer.id,
+        configId: seasonConfig.id,
+      },
+    });
+
+    // Add only 2 players (less than minPlayers)
+    for (let i = 0; i < 2; i++) {
+      const player = await prisma.player.create({
+        data: {
+          discordUserId: `discord-min-players-${i}-${nanoid()}`,
+          name: `Player Min Players ${i}`,
+        },
+      });
+      await prisma.playersOnSeasons.create({
+        data: {
+          seasonId: season.id,
+          playerId: player.id,
+        },
+      });
+    }
+
+    // Act: Try to activate the season (simulating open_duration timeout)
+    const activationResult = await seasonService.activateSeason(season.id, { triggeredBy: 'open_duration_timeout' });
+
+    // Assert: Verify activation was rejected due to not meeting minimum players
+    expect(activationResult.type).toBe('error');
+    expect(activationResult.key).toBe('season_activate_error_min_players_not_met_on_timeout');
+    
+    // Verify season status remains unchanged in database
+    const updatedSeason = await prisma.season.findUnique({
+      where: { id: season.id },
+      include: { games: true },
+    });
+    
+    expect(updatedSeason?.status).toBe('CANCELLED'); // Season is cancelled due to not meeting minPlayers on timeout
+    
+    // Verify no games were created
+    expect(updatedSeason?.games.length).toBe(0); // No games should have been created
+  });
+
   // Add integration test for activateSeason triggered by open_duration timeout
   it('should activate season and create games when open_duration timeout is reached', async () => {
     // Arrange: Create a season with a short openDuration and players (less than maxPlayers)
@@ -400,13 +588,17 @@ describe('SeasonService', () => {
       });
     }
 
-    // Mock TurnService locally for this test
-    const mockTurnServiceLocal = { offerInitialTurn: vi.fn() };
-    // Note: We are not re-instantiating SeasonService here because the job was scheduled by the original instance
-    // We will directly call the scheduled callback.
+    // Create a new TurnService instance with a mocked offerInitialTurn method
+    const mockOfferInitialTurn = vi.fn().mockResolvedValue({ type: 'success', key: 'turn_offer_success' });
+    const mockTurnService = {
+      offerInitialTurn: mockOfferInitialTurn,
+    } as unknown as TurnService;
+    
+    // Create a new SeasonService with our mocked TurnService
+    const testSeasonService = new SeasonService(prisma, mockTurnService);
 
     // **Revised Act:** Directly call handleOpenDurationTimeout with the season ID
-    await seasonService.handleOpenDurationTimeout(season!.id);
+    await testSeasonService.handleOpenDurationTimeout(season!.id);
 
     // Assert: Verify the expected outcomes in the database and mock calls after activation
 
@@ -421,8 +613,14 @@ describe('SeasonService', () => {
     // Verify games are created in the database
     expect(updatedSeason?.games.length).toBe(initialPlayers); // Number of games should equal number of players at timeout
 
-    // Verify initial turn offers are sent
-    // Since we directly called handleOpenDurationTimeout, it would use the main seasonService's TurnService.
-    // We need to check the main mockOfferInitialTurn.
+    // Verify offers were sent to each player
+    expect(mockOfferInitialTurn).toHaveBeenCalledTimes(initialPlayers);
+    players.forEach(player => {
+      expect(mockOfferInitialTurn).toHaveBeenCalledWith(
+        expect.any(Object), // Game object
+        expect.objectContaining({ id: player.id }), // Player object
+        season!.id // Season ID
+      );
+    });
   });
 }); 
