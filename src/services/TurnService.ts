@@ -47,6 +47,7 @@ export class TurnService {
           turnNumber: 1, // Initial turn
           status: 'OFFERED',
           type: initialTurnType,
+          offeredAt: new Date(), // Set when turn is offered
           // expiresAt: // TODO: Set if scheduling claim timeout (integrates with Task 14/15 for scheduler)
           // content: // No content for an offered turn
           // nextTurnId: // Not applicable for initial turn
@@ -89,11 +90,424 @@ export class TurnService {
     }
   }
 
-  // TODO: Implement other TurnService methods as per Task 9, 11, 12, 13, 14, 16, 17, 18
-  // - claimTurn(turnId, playerId)
-  // - submitTurn(turnId, playerId, content)
-  // - dismissOffer(turnId)
-  // - skipTurn(turnId)
-  // - offerNextTurn(gameId)
-  // - etc.
+  /**
+   * Claims a turn that is currently OFFERED, transitioning it to PENDING state.
+   * @param turnId The ID of the turn to claim.
+   * @param playerId The ID of the player claiming the turn.
+   * @returns An object indicating success or failure with the updated turn or error message.
+   */
+  async claimTurn(
+    turnId: string,
+    playerId: string
+  ): Promise<{ success: boolean; turn?: Turn; error?: string }> {
+    try {
+      // Verify the turn exists and is in OFFERED state for this player
+      const existingTurn = await this.prisma.turn.findUnique({
+        where: { id: turnId },
+        include: { player: true, game: true }
+      });
+
+      if (!existingTurn) {
+        return { success: false, error: 'Turn not found.' };
+      }
+
+      if (existingTurn.status !== 'OFFERED') {
+        return { success: false, error: `Turn is not in OFFERED state. Current status: ${existingTurn.status}` };
+      }
+
+      if (existingTurn.playerId !== playerId) {
+        return { success: false, error: 'Turn is not offered to this player.' };
+      }
+
+      // Update turn to PENDING state with atomic operation
+      const updatedTurn = await this.prisma.turn.update({
+        where: { id: turnId },
+        data: {
+          status: 'PENDING',
+          claimedAt: new Date(),
+          updatedAt: new Date()
+        },
+        include: { player: true, game: true }
+      });
+
+      console.log(`Turn ${turnId} claimed by player ${playerId}, status updated to PENDING`);
+      return { success: true, turn: updatedTurn };
+    } catch (error) {
+      console.error(`Error in TurnService.claimTurn for turn ${turnId}, player ${playerId}:`, error);
+      let errorMessage = 'Unknown error occurred while claiming the turn.';
+      if (error instanceof Error) {
+        errorMessage = error.message;
+      }
+      return { success: false, error: errorMessage };
+    }
+  }
+
+  /**
+   * Submits content for a turn that is currently PENDING, transitioning it to COMPLETED state.
+   * @param turnId The ID of the turn to submit.
+   * @param playerId The ID of the player submitting the turn.
+   * @param content The content to submit (text or image URL).
+   * @param contentType The type of content ('text' or 'image').
+   * @returns An object indicating success or failure with the updated turn or error message.
+   */
+  async submitTurn(
+    turnId: string,
+    playerId: string,
+    content: string,
+    contentType: 'text' | 'image'
+  ): Promise<{ success: boolean; turn?: Turn; error?: string }> {
+    try {
+      // Verify the turn exists and is in PENDING state for this player
+      const existingTurn = await this.prisma.turn.findUnique({
+        where: { id: turnId },
+        include: { player: true, game: true }
+      });
+
+      if (!existingTurn) {
+        return { success: false, error: 'Turn not found.' };
+      }
+
+      if (existingTurn.status !== 'PENDING') {
+        return { success: false, error: `Turn is not in PENDING state. Current status: ${existingTurn.status}` };
+      }
+
+      if (existingTurn.playerId !== playerId) {
+        return { success: false, error: 'Turn does not belong to this player.' };
+      }
+
+      // Prepare update data based on content type
+      const updateData: Prisma.TurnUpdateInput = {
+        status: 'COMPLETED',
+        completedAt: new Date(),
+        updatedAt: new Date()
+      };
+
+      if (contentType === 'text') {
+        updateData.textContent = content;
+      } else if (contentType === 'image') {
+        updateData.imageUrl = content;
+      }
+
+      // Update turn to COMPLETED state with atomic operation
+      const updatedTurn = await this.prisma.turn.update({
+        where: { id: turnId },
+        data: updateData,
+        include: { player: true, game: true }
+      });
+
+      console.log(`Turn ${turnId} submitted by player ${playerId}, status updated to COMPLETED`);
+      return { success: true, turn: updatedTurn };
+    } catch (error) {
+      console.error(`Error in TurnService.submitTurn for turn ${turnId}, player ${playerId}:`, error);
+      let errorMessage = 'Unknown error occurred while submitting the turn.';
+      if (error instanceof Error) {
+        errorMessage = error.message;
+      }
+      return { success: false, error: errorMessage };
+    }
+  }
+
+  /**
+   * Dismisses an offered turn, reverting it back to AVAILABLE state.
+   * This is typically called when a claim timeout occurs.
+   * @param turnId The ID of the turn to dismiss.
+   * @returns An object indicating success or failure with the updated turn or error message.
+   */
+  async dismissOffer(
+    turnId: string
+  ): Promise<{ success: boolean; turn?: Turn; error?: string }> {
+    try {
+      // Verify the turn exists and is in OFFERED state
+      const existingTurn = await this.prisma.turn.findUnique({
+        where: { id: turnId },
+        include: { player: true, game: true }
+      });
+
+      if (!existingTurn) {
+        return { success: false, error: 'Turn not found.' };
+      }
+
+      if (existingTurn.status !== 'OFFERED') {
+        return { success: false, error: `Turn is not in OFFERED state. Current status: ${existingTurn.status}` };
+      }
+
+      // Update turn back to AVAILABLE state and clear player assignment
+      const updatedTurn = await this.prisma.turn.update({
+        where: { id: turnId },
+        data: {
+          status: 'AVAILABLE',
+          playerId: null, // Clear player assignment
+          offeredAt: null, // Clear offer timestamp
+          updatedAt: new Date()
+        },
+        include: { player: true, game: true }
+      });
+
+      console.log(`Turn ${turnId} offer dismissed, status reverted to AVAILABLE`);
+      return { success: true, turn: updatedTurn };
+    } catch (error) {
+      console.error(`Error in TurnService.dismissOffer for turn ${turnId}:`, error);
+      let errorMessage = 'Unknown error occurred while dismissing the turn offer.';
+      if (error instanceof Error) {
+        errorMessage = error.message;
+      }
+      return { success: false, error: errorMessage };
+    }
+  }
+
+  /**
+   * Skips a turn that is currently PENDING, transitioning it to SKIPPED state.
+   * This is typically called when a submission timeout occurs.
+   * @param turnId The ID of the turn to skip.
+   * @returns An object indicating success or failure with the updated turn or error message.
+   */
+  async skipTurn(
+    turnId: string
+  ): Promise<{ success: boolean; turn?: Turn; error?: string }> {
+    try {
+      // Verify the turn exists and is in PENDING state
+      const existingTurn = await this.prisma.turn.findUnique({
+        where: { id: turnId },
+        include: { player: true, game: true }
+      });
+
+      if (!existingTurn) {
+        return { success: false, error: 'Turn not found.' };
+      }
+
+      if (existingTurn.status !== 'PENDING') {
+        return { success: false, error: `Turn is not in PENDING state. Current status: ${existingTurn.status}` };
+      }
+
+      // Update turn to SKIPPED state with atomic operation
+      const updatedTurn = await this.prisma.turn.update({
+        where: { id: turnId },
+        data: {
+          status: 'SKIPPED',
+          skippedAt: new Date(),
+          updatedAt: new Date()
+        },
+        include: { player: true, game: true }
+      });
+
+      console.log(`Turn ${turnId} skipped for player ${existingTurn.playerId}, status updated to SKIPPED`);
+      return { success: true, turn: updatedTurn };
+    } catch (error) {
+      console.error(`Error in TurnService.skipTurn for turn ${turnId}:`, error);
+      let errorMessage = 'Unknown error occurred while skipping the turn.';
+      if (error instanceof Error) {
+        errorMessage = error.message;
+      }
+      return { success: false, error: errorMessage };
+    }
+  }
+
+  /**
+   * Offers a turn to a specific player, transitioning it from AVAILABLE to OFFERED state.
+   * @param turnId The ID of the turn to offer.
+   * @param playerId The ID of the player to offer the turn to.
+   * @returns An object indicating success or failure with the updated turn or error message.
+   */
+  async offerTurn(
+    turnId: string,
+    playerId: string
+  ): Promise<{ success: boolean; turn?: Turn; error?: string }> {
+    try {
+      // Verify the turn exists and is in AVAILABLE state
+      const existingTurn = await this.prisma.turn.findUnique({
+        where: { id: turnId },
+        include: { player: true, game: true }
+      });
+
+      if (!existingTurn) {
+        return { success: false, error: 'Turn not found.' };
+      }
+
+      if (existingTurn.status !== 'AVAILABLE') {
+        return { success: false, error: `Turn is not in AVAILABLE state. Current status: ${existingTurn.status}` };
+      }
+
+      // Verify the player exists
+      const player = await this.prisma.player.findUnique({
+        where: { id: playerId }
+      });
+
+      if (!player) {
+        return { success: false, error: 'Player not found.' };
+      }
+
+      // Update turn to OFFERED state with atomic operation
+      const updatedTurn = await this.prisma.turn.update({
+        where: { id: turnId },
+        data: {
+          status: 'OFFERED',
+          playerId: playerId,
+          offeredAt: new Date(),
+          updatedAt: new Date()
+        },
+        include: { player: true, game: true }
+      });
+
+      console.log(`Turn ${turnId} offered to player ${playerId}, status updated to OFFERED`);
+      return { success: true, turn: updatedTurn };
+    } catch (error) {
+      console.error(`Error in TurnService.offerTurn for turn ${turnId}, player ${playerId}:`, error);
+      let errorMessage = 'Unknown error occurred while offering the turn.';
+      if (error instanceof Error) {
+        errorMessage = error.message;
+      }
+      return { success: false, error: errorMessage };
+    }
+  }
+
+  /**
+   * Updates the status of a turn with proper validation and atomic operation.
+   * This is a general method for state transitions with validation.
+   * @param turnId The ID of the turn to update.
+   * @param newStatus The new status to set.
+   * @param additionalData Optional additional data to update.
+   * @returns An object indicating success or failure with the updated turn or error message.
+   */
+  async updateTurnStatus(
+    turnId: string,
+    newStatus: string,
+    additionalData?: Partial<Prisma.TurnUpdateInput>
+  ): Promise<{ success: boolean; turn?: Turn; error?: string }> {
+    try {
+      // Verify the turn exists
+      const existingTurn = await this.prisma.turn.findUnique({
+        where: { id: turnId },
+        include: { player: true, game: true }
+      });
+
+      if (!existingTurn) {
+        return { success: false, error: 'Turn not found.' };
+      }
+
+      // Validate state transition (basic validation)
+      const validTransitions: Record<string, string[]> = {
+        'AVAILABLE': ['OFFERED'],
+        'OFFERED': ['PENDING', 'AVAILABLE'], // AVAILABLE for dismissing offer
+        'PENDING': ['COMPLETED', 'SKIPPED'],
+        'COMPLETED': [], // Terminal state
+        'SKIPPED': [] // Terminal state
+      };
+
+      const allowedNextStates = validTransitions[existingTurn.status] || [];
+      if (!allowedNextStates.includes(newStatus)) {
+        return { 
+          success: false, 
+          error: `Invalid state transition from ${existingTurn.status} to ${newStatus}` 
+        };
+      }
+
+      // Prepare update data
+      const updateData: Prisma.TurnUpdateInput = {
+        status: newStatus,
+        updatedAt: new Date(),
+        ...additionalData
+      };
+
+      // Update turn with atomic operation
+      const updatedTurn = await this.prisma.turn.update({
+        where: { id: turnId },
+        data: updateData,
+        include: { player: true, game: true }
+      });
+
+      console.log(`Turn ${turnId} status updated from ${existingTurn.status} to ${newStatus}`);
+      return { success: true, turn: updatedTurn };
+    } catch (error) {
+      console.error(`Error in TurnService.updateTurnStatus for turn ${turnId}:`, error);
+      let errorMessage = 'Unknown error occurred while updating turn status.';
+      if (error instanceof Error) {
+        errorMessage = error.message;
+      }
+      return { success: false, error: errorMessage };
+    }
+  }
+
+  /**
+   * Gets a turn by ID with full details.
+   * @param turnId The ID of the turn to retrieve.
+   * @returns The turn with related data or null if not found.
+   */
+  async getTurn(turnId: string): Promise<Turn | null> {
+    try {
+      return await this.prisma.turn.findUnique({
+        where: { id: turnId },
+        include: { 
+          player: true, 
+          game: {
+            include: {
+              season: true
+            }
+          },
+          previousTurn: true,
+          nextTurn: true
+        }
+      });
+    } catch (error) {
+      console.error(`Error in TurnService.getTurn for turn ${turnId}:`, error);
+      return null;
+    }
+  }
+
+  /**
+   * Gets all turns for a specific game.
+   * @param gameId The ID of the game.
+   * @param status Optional status filter.
+   * @returns Array of turns for the game.
+   */
+  async getTurnsForGame(gameId: string, status?: string): Promise<Turn[]> {
+    try {
+      const whereClause: Prisma.TurnWhereInput = { gameId };
+      if (status) {
+        whereClause.status = status;
+      }
+
+      return await this.prisma.turn.findMany({
+        where: whereClause,
+        include: { 
+          player: true, 
+          game: true 
+        },
+        orderBy: { turnNumber: 'asc' }
+      });
+    } catch (error) {
+      console.error(`Error in TurnService.getTurnsForGame for game ${gameId}:`, error);
+      return [];
+    }
+  }
+
+  /**
+   * Gets all turns for a specific player.
+   * @param playerId The ID of the player.
+   * @param status Optional status filter.
+   * @returns Array of turns for the player.
+   */
+  async getTurnsForPlayer(playerId: string, status?: string): Promise<Turn[]> {
+    try {
+      const whereClause: Prisma.TurnWhereInput = { playerId };
+      if (status) {
+        whereClause.status = status;
+      }
+
+      return await this.prisma.turn.findMany({
+        where: whereClause,
+        include: { 
+          player: true, 
+          game: {
+            include: {
+              season: true
+            }
+          }
+        },
+        orderBy: { createdAt: 'desc' }
+      });
+    } catch (error) {
+      console.error(`Error in TurnService.getTurnsForPlayer for player ${playerId}:`, error);
+      return [];
+    }
+  }
 } 
