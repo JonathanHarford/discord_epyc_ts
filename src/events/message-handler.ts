@@ -1,9 +1,13 @@
-import { Message } from 'discord.js';
+import { DMChannel, Message } from 'discord.js';
 
+import { DirectMessageHandler } from './direct-message-handler.js';
 import { EventHandler, TriggerHandler } from './index.js';
 
 export class MessageHandler implements EventHandler {
-    constructor(private triggerHandler: TriggerHandler) {}
+    constructor(
+        private triggerHandler: TriggerHandler,
+        private directMessageHandler: DirectMessageHandler
+    ) {}
 
     public async process(msg: Message): Promise<void> {
         // Don't respond to system messages or self
@@ -11,7 +15,13 @@ export class MessageHandler implements EventHandler {
             return;
         }
 
-        // Process trigger
+        // Handle direct messages
+        if (msg.channel instanceof DMChannel) {
+            await this.directMessageHandler.process(msg);
+            return;
+        }
+
+        // Process trigger for regular channel messages
         await this.triggerHandler.process(msg);
     }
 }

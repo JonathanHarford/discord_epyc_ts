@@ -15,6 +15,7 @@ import { ViewDateJoined } from './commands/user/index.js';
 import {
     ButtonHandler,
     CommandHandler,
+    DirectMessageHandler,
     GuildJoinHandler,
     GuildLeaveHandler,
     MessageHandler,
@@ -97,7 +98,8 @@ async function start(): Promise<void> {
     let commandHandler = new CommandHandler(commands, eventDataService);
     let buttonHandler = new ButtonHandler(buttons, eventDataService);
     let triggerHandler = new TriggerHandler(triggers, eventDataService);
-    let messageHandler = new MessageHandler(triggerHandler);
+    let directMessageHandler = new DirectMessageHandler();
+    let messageHandler = new MessageHandler(triggerHandler, directMessageHandler);
     let reactionHandler = new ReactionHandler(reactions, eventDataService);
 
     // Jobs

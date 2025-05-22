@@ -45,6 +45,7 @@
         "guildJoin": "An error occurred while processing a guild join.",
         "guildLeave": "An error occurred while processing a guild leave.",
         "message": "An error occurred while processing a message.",
+        "directMessage": "An error occurred while processing a direct message.",
         "reaction": "An error occurred while processing a reaction.",
         "command": "An error occurred while processing a command interaction.",
         "button": "An error occurred while processing a button interaction.",

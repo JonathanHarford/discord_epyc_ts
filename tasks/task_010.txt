@@ -1,6 +1,6 @@
 # Task ID: 10
 # Title: Setup Direct Message Handling Framework
-# Status: pending
+# Status: done
 # Dependencies: 2
 # Priority: medium
 # Description: Set up the Discord.js listener to handle Direct Messages sent to the bot. Implement logic to identify the context of the DM (e.g., is the user expected to send a `/ready` command, or are they submitting a turn for a specific game/turn?). Route the DM content to the appropriate handling logic.
@@ -11,37 +11,37 @@ Implement the core framework for receiving and routing Direct Messages. This inc
 Implement unit tests for the core routing logic. Implement integration tests that simulate receiving a DM and routing it, using a test database but without interacting with the Discord API. Additionally, manually send various types of DMs to the bot (plain text, image, slash command) to verify the bot receives the DMs and the framework correctly identifies the sender and message type, routing it to a placeholder handler.
 
 # Subtasks:
-## 1. undefined [pending]
+## 1. undefined [done]
 ### Dependencies: None
 ### Description: Implement Discord.js listener for 'messageCreate' event to capture DMs.
 ### Details:
 
 
-## 2. undefined [pending]
+## 2. undefined [done]
 ### Dependencies: None
 ### Description: Add initial logic to identify DM sender and basic message type.
 ### Details:
 
 
-## 3. undefined [pending]
+## 3. undefined [done]
 ### Dependencies: None
 ### Description: Implement placeholder routing mechanism for different DM contexts.
 ### Details:
 
 
-## 4. undefined [pending]
+## 4. undefined [done]
 ### Dependencies: None
 ### Description: Write unit tests for the DM routing logic.
 ### Details:
 
 
-## 5. undefined [pending]
+## 5. undefined [done]
 ### Dependencies: None
 ### Description: Write integration tests simulating DM reception and routing against a test database.
 ### Details:
 
 
-## 6. undefined [pending]
+## 6. undefined [done]
 ### Dependencies: None
 ### Description: Perform manual testing by sending various DMs to the bot.
 ### Details:
