@@ -2,6 +2,7 @@ import { PrismaClient, Player, Season, SeasonConfig, Prisma, Game } from '@prism
 import { nanoid } from 'nanoid'; // Use named import for nanoid
 import { humanId } from 'human-id'; // Import human-id
 import { MessageInstruction } from '../types/MessageInstruction.js'; // Added .js extension
+import { MessageHelpers } from '../messaging/MessageHelpers.js'; // Added MessageHelpers import
 import { DateTime } from 'luxon'; // Duration and DurationLikeObject might not be needed here anymore
 import { parseDuration } from '../utils/datetime.js'; // Import the new utility
 import { LangKeys } from '../constants/lang-keys.js';
@@ -51,11 +52,10 @@ export class SeasonService {
     // Validate minPlayers and maxPlayers
     if (options.minPlayers != null && options.maxPlayers != null && options.maxPlayers < options.minPlayers) {
       console.warn(`Validation Error: maxPlayers (${options.maxPlayers}) cannot be less than minPlayers (${options.minPlayers}).`);
-      return {
-        type: 'error',
-        key: 'season_create_error_min_max_players',
-        data: { minPlayers: options.minPlayers, maxPlayers: options.maxPlayers },
-      };
+      return MessageHelpers.validationError(
+        'season_create_error_min_max_players',
+        { minPlayers: options.minPlayers, maxPlayers: options.maxPlayers }
+      );
     }
 
     try {
@@ -66,11 +66,10 @@ export class SeasonService {
 
       if (!creator) {
         console.error(`Creator player with Player ID ${options.creatorPlayerId} not found.`);
-        return {
-          type: 'error',
-          key: 'season_create_error_creator_player_not_found', // Updated key
-          data: { playerId: options.creatorPlayerId },
-        };
+        return MessageHelpers.commandError(
+          'season_create_error_creator_player_not_found', // Updated key
+          { playerId: options.creatorPlayerId }
+        );
       }
 
       // Use a transaction to ensure atomicity: create config and season together
@@ -140,16 +139,15 @@ export class SeasonService {
       }
 
       console.log(`Season (ID: ${newSeasonWithConfig.id}) created successfully in DB.`);
-      return {
-        type: 'success',
-        key: 'season_create_success',
-        data: {
+      return MessageHelpers.commandSuccess(
+        'season_create_success',
+        {
           seasonId: newSeasonWithConfig.id,
           status: newSeasonWithConfig.status,
           openDuration: newSeasonWithConfig.config.openDuration, // Add openDuration for the message
           // Potentially include other relevant details for the success message
-        },
-      };
+        }
+      );
     } catch (error) {
       console.error('Error creating season:', error);
       if (error instanceof Prisma.PrismaClientKnownRequestError) {

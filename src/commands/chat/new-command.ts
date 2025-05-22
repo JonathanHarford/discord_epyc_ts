@@ -12,6 +12,7 @@ import { Command, CommandDeferType } from '../command.js';
 import { EventData } from '../../models/internal-models.js';
 import { SeasonService, NewSeasonOptions } from '../../services/SeasonService.js';
 import { MessageInstruction } from '../../types/MessageInstruction.js';
+import { MessageAdapter } from '../../messaging/MessageAdapter.js';
 import prisma from '../../lib/prisma.js'; // Import global Prisma client instance
 import { Lang } from '../../services/lang.js';
 import { Language } from '../../models/enum-helpers/language.js';
@@ -101,8 +102,13 @@ export class NewCommand implements Command {
           console.log(`New player record created for ${discordUserName} (ID: ${playerRecord.id}) during /new season command.`);
         } catch (playerCreateError) {
           console.error(`Failed to create player record for ${discordUserName} (Discord ID: ${discordUserId}):`, playerCreateError);
-          const playerCreateErrorMessage = Lang.getRef('newCommand.season.error_player_create_failed', Language.Default, { discordId: discordUserId });
-          await intr.editReply({ content: playerCreateErrorMessage });
+          const playerCreateErrorInstruction: MessageInstruction = {
+            type: 'error',
+            key: 'newCommand.season.error_player_create_failed',
+            data: { discordId: discordUserId },
+            formatting: { ephemeral: true }
+          };
+          await MessageAdapter.processInstruction(playerCreateErrorInstruction, intr, Language.Default);
           return;
         }
       }
@@ -132,35 +138,54 @@ export class NewCommand implements Command {
       try {
         const instruction: MessageInstruction = await this.seasonService.createSeason(seasonOptions);
 
+        // Map service keys to command-specific keys if needed
         if (instruction.type === 'success') {
-          const successReply = Lang.getRef('newCommand.season.create_success_channel', Language.Default, { ...instruction.data, mentionUser: intr.user.toString() });
-          await intr.editReply({ content: successReply });
-        } else { // Handle error case
-          let langKey = instruction.key; // Use service key directly
-          if (instruction.key === 'season_create_error_creator_not_found') {
-            langKey = 'newCommand.season.error_creator_not_found';
+          // Add user mention to the success data
+          const enhancedInstruction: MessageInstruction = {
+            ...instruction,
+            key: 'newCommand.season.create_success_channel',
+            data: { ...instruction.data, mentionUser: intr.user.toString() }
+          };
+          await MessageAdapter.processInstruction(enhancedInstruction, intr, Language.Default);
+        } else {
+          // Map service error keys to command-specific keys
+          let mappedKey = instruction.key;
+          if (instruction.key === 'season_create_error_creator_player_not_found') {
+            mappedKey = 'newCommand.season.error_creator_not_found';
           } else if (instruction.key === 'season_create_error_min_max_players') {
-            langKey = 'newCommand.season.error_min_max_players';
+            mappedKey = 'newCommand.season.error_min_max_players';
           } else if (instruction.key === 'season_create_error_prisma_unique_constraint' || instruction.key === 'season_create_error_prisma') {
-            langKey = 'newCommand.season.error_db';
+            mappedKey = 'newCommand.season.error_db';
           } else if (instruction.key === 'season_create_error_unknown') {
-            langKey = 'newCommand.season.error_unknown_service';
+            mappedKey = 'newCommand.season.error_unknown_service';
           } else {
-            langKey = 'newCommand.season.error_generic_service'; 
+            mappedKey = 'newCommand.season.error_generic_service';
           }
-          const errorMessage = Lang.getRef(langKey, Language.Default, instruction.data);
-          await intr.editReply({ content: errorMessage });
+          
+          const mappedInstruction: MessageInstruction = {
+            ...instruction,
+            key: mappedKey
+          };
+          await MessageAdapter.processInstruction(mappedInstruction, intr, Language.Default);
         }
       } catch (error) {
         console.error("Critical error in /new season command processing:", error);
-        const criticalErrorMessage = Lang.getRef('common.error.critical_command', Language.Default);
-        await intr.editReply({ content: criticalErrorMessage });
+        const criticalErrorInstruction: MessageInstruction = {
+          type: 'error',
+          key: 'common.error.critical_command',
+          formatting: { ephemeral: true }
+        };
+        await MessageAdapter.processInstruction(criticalErrorInstruction, intr, Language.Default);
       } finally {
         // await prisma.$disconnect(); // Removed disconnect for local Prisma client
       }
     } else {
-      const unknownSubcommandMessage = Lang.getRef('newCommand.error_unknown_subcommand', Language.Default);
-      await intr.editReply({ content: unknownSubcommandMessage });
+      const unknownSubcommandInstruction: MessageInstruction = {
+        type: 'error',
+        key: 'newCommand.error_unknown_subcommand',
+        formatting: { ephemeral: true }
+      };
+      await MessageAdapter.processInstruction(unknownSubcommandInstruction, intr, Language.Default);
     }
   }
 }

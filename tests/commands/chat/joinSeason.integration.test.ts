@@ -119,9 +119,15 @@ describe('JoinSeasonCommand - Integration Tests', () => {
     vi.clearAllMocks();
     
     // Create a mock interaction object directly
+    // Since the command has deferType = CommandDeferType.HIDDEN, 
+    // the interaction should be deferred before execute() is called
     interaction = {
       deferReply: vi.fn().mockResolvedValue(undefined),
       editReply: vi.fn().mockResolvedValue(undefined),
+      reply: vi.fn().mockResolvedValue(undefined),
+      followUp: vi.fn().mockResolvedValue(undefined),
+      replied: false,
+      deferred: true, // Set to true to simulate deferred interaction
       options: {
         getString: vi.fn()
       },
