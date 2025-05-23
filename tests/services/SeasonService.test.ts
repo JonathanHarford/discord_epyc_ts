@@ -757,4 +757,392 @@ describe('SeasonService', () => {
     expect(turns.length).toBe(initialPlayers);
     expect(turns.every(turn => turn.status === 'OFFERED')).toBe(true);
   });
+
+     describe('Season Completion Announcement', () => {
+     let completedSeason: Season;
+     let seasonPlayers: Player[];
+     let seasonGames: Game[];
+
+    beforeEach(async () => {
+      // Create a completed season with games and turns for testing
+      const seasonConfig = await prisma.seasonConfig.create({
+        data: {
+          id: nanoid(),
+          minPlayers: 2,
+          maxPlayers: 4,
+          turnPattern: 'writing,drawing',
+        },
+      });
+
+      completedSeason = await prisma.season.create({
+        data: {
+          id: `completed-season-${nanoid()}`,
+          status: 'COMPLETED',
+          creatorId: testPlayer.id,
+          configId: seasonConfig.id,
+          guildId: '123456789012345678', // Mock guild ID
+          channelId: '987654321098765432', // Mock channel ID
+        },
+      });
+
+             // Create players for the season
+       seasonPlayers = [];
+       for (let i = 0; i < 3; i++) {
+         const player = await prisma.player.create({
+           data: {
+             discordUserId: `completion-player-${i}-${nanoid()}`,
+             name: `Player ${i + 1}`,
+           },
+         });
+         seasonPlayers.push(player);
+        
+        await prisma.playersOnSeasons.create({
+          data: {
+            seasonId: completedSeason.id,
+            playerId: player.id,
+          },
+        });
+      }
+
+      // Create games for the season
+      seasonGames = [];
+      for (let i = 0; i < 2; i++) {
+        const game = await prisma.game.create({
+          data: {
+            id: `completion-game-${i}-${nanoid()}`,
+            status: 'COMPLETED',
+            seasonId: completedSeason.id,
+            completedAt: new Date(),
+          },
+        });
+        seasonGames.push(game);
+
+        // Create turns for each game
+        for (let j = 0; j < seasonPlayers.length; j++) {
+          await prisma.turn.create({
+            data: {
+              id: `completion-turn-${i}-${j}-${nanoid()}`,
+              turnNumber: j + 1,
+              type: j % 2 === 0 ? 'WRITING' : 'DRAWING',
+              status: 'COMPLETED',
+              gameId: game.id,
+              playerId: seasonPlayers[j].id,
+              textContent: j % 2 === 0 ? `Test text content ${j}` : null,
+              imageUrl: j % 2 === 1 ? `https://example.com/image${j}.png` : null,
+              completedAt: new Date(),
+            },
+          });
+        }
+      }
+    });
+
+    describe('getSeasonCompletionResults', () => {
+      it('should retrieve and format season completion results correctly', async () => {
+        const results = await seasonService.getSeasonCompletionResults(completedSeason.id);
+
+        expect(results).not.toBeNull();
+        expect(results!.seasonId).toBe(completedSeason.id);
+        expect(results!.seasonStatus).toBe('COMPLETED');
+        expect(results!.totalGames).toBe(2);
+        expect(results!.totalPlayers).toBe(3);
+        expect(results!.totalTurns).toBe(6); // 2 games * 3 players
+        expect(results!.completedTurns).toBe(6); // All turns completed
+        expect(results!.completionPercentage).toBe(100);
+        expect(results!.games).toHaveLength(2);
+
+        // Check game formatting
+        const firstGame = results!.games[0];
+        expect(firstGame.gameNumber).toBe(1);
+        expect(firstGame.turns).toHaveLength(3);
+        expect(firstGame.turns[0].type).toBe('WRITING');
+        expect(firstGame.turns[0].content).toContain('Test text content');
+        expect(firstGame.turns[1].type).toBe('DRAWING');
+        expect(firstGame.turns[1].content).toBe('[Image]');
+      });
+
+      it('should return null for non-existent season', async () => {
+        const results = await seasonService.getSeasonCompletionResults('non-existent-season');
+        expect(results).toBeNull();
+      });
+
+      it('should return null for non-completed season', async () => {
+        // Create an active season
+        const activeSeasonConfig = await prisma.seasonConfig.create({
+          data: { id: nanoid() },
+        });
+
+        const activeSeason = await prisma.season.create({
+          data: {
+            id: `active-season-${nanoid()}`,
+            status: 'ACTIVE',
+            creatorId: testPlayer.id,
+            configId: activeSeasonConfig.id,
+          },
+        });
+
+        const results = await seasonService.getSeasonCompletionResults(activeSeason.id);
+        expect(results).toBeNull();
+      });
+
+      it('should handle seasons with skipped turns correctly', async () => {
+        // Create a season with some skipped turns
+        const seasonConfig = await prisma.seasonConfig.create({
+          data: { id: nanoid() },
+        });
+
+        const seasonWithSkips = await prisma.season.create({
+          data: {
+            id: `season-with-skips-${nanoid()}`,
+            status: 'COMPLETED',
+            creatorId: testPlayer.id,
+            configId: seasonConfig.id,
+          },
+        });
+
+        const player = await prisma.player.create({
+          data: {
+            discordUserId: `skip-player-${nanoid()}`,
+            name: 'Skip Player',
+          },
+        });
+
+        await prisma.playersOnSeasons.create({
+          data: {
+            seasonId: seasonWithSkips.id,
+            playerId: player.id,
+          },
+        });
+
+        const game = await prisma.game.create({
+          data: {
+            id: `skip-game-${nanoid()}`,
+            status: 'COMPLETED',
+            seasonId: seasonWithSkips.id,
+          },
+        });
+
+        // Create one completed turn and one skipped turn
+        await prisma.turn.create({
+          data: {
+            id: `completed-turn-${nanoid()}`,
+            turnNumber: 1,
+            type: 'WRITING',
+            status: 'COMPLETED',
+            gameId: game.id,
+            playerId: player.id,
+            textContent: 'Completed text',
+            completedAt: new Date(),
+          },
+        });
+
+        await prisma.turn.create({
+          data: {
+            id: `skipped-turn-${nanoid()}`,
+            turnNumber: 2,
+            type: 'DRAWING',
+            status: 'SKIPPED',
+            gameId: game.id,
+            playerId: player.id,
+            skippedAt: new Date(),
+          },
+        });
+
+        const results = await seasonService.getSeasonCompletionResults(seasonWithSkips.id);
+
+        expect(results).not.toBeNull();
+        expect(results!.totalTurns).toBe(2);
+        expect(results!.completedTurns).toBe(1); // Only one completed
+        expect(results!.completionPercentage).toBe(50);
+        
+        const gameResult = results!.games[0];
+        expect(gameResult.turns).toHaveLength(2);
+        expect(gameResult.turns[0].content).toBe('Completed text');
+        expect(gameResult.turns[1].content).toBe('[Skipped]');
+      });
+    });
+
+    describe('createSeasonCompletionAnnouncement', () => {
+      it('should create a properly formatted announcement message', async () => {
+        const results = await seasonService.getSeasonCompletionResults(completedSeason.id);
+        expect(results).not.toBeNull();
+
+        const announcement = seasonService.createSeasonCompletionAnnouncement(results!);
+
+        expect(announcement).not.toBeNull();
+        expect(announcement!.type).toBe('success');
+        expect(announcement!.key).toBe('season.completion.announcement');
+        expect(announcement!.data).toMatchObject({
+          seasonId: completedSeason.id,
+          totalGames: 2,
+          totalPlayers: 3,
+          totalTurns: 6,
+          completedTurns: 6,
+          completionPercentage: 100,
+        });
+
+        // Check that progress bar is included
+        expect(announcement!.data!.progressBar).toBeDefined();
+        expect(typeof announcement!.data!.progressBar).toBe('string');
+
+        // Check that game results are formatted
+        expect(announcement!.data!.gameResults).toBeDefined();
+        expect(announcement!.data!.gameResults).toContain('**Game 1**');
+        expect(announcement!.data!.gameResults).toContain('**Game 2**');
+      });
+
+      it('should create correct progress bar for different completion percentages', async () => {
+        // Test with 50% completion
+        const partialResults = {
+          seasonId: 'test-season',
+          seasonStatus: 'COMPLETED',
+          createdAt: new Date(),
+          completedAt: new Date(),
+          daysElapsed: 5,
+          totalGames: 2,
+          totalPlayers: 2,
+          totalTurns: 4,
+          completedTurns: 2,
+          completionPercentage: 50,
+          games: [],
+          creator: { name: 'Test Creator', discordUserId: '123' }
+        };
+
+        const announcement = seasonService.createSeasonCompletionAnnouncement(partialResults);
+        expect(announcement).not.toBeNull();
+
+        const progressBar = announcement!.data!.progressBar as string;
+        expect(progressBar).toHaveLength(50); // Total blocks
+        
+        // Should have 25 filled blocks (50% of 50) and 25 empty blocks
+        const filledCount = (progressBar.match(/■/g) || []).length;
+        const emptyCount = (progressBar.match(/□/g) || []).length;
+        expect(filledCount).toBe(25);
+        expect(emptyCount).toBe(25);
+      });
+
+      it('should format game results with proper Discord mentions', async () => {
+        const results = await seasonService.getSeasonCompletionResults(completedSeason.id);
+        expect(results).not.toBeNull();
+
+        const announcement = seasonService.createSeasonCompletionAnnouncement(results!);
+        const gameResults = announcement!.data!.gameResults as string;
+
+        // Check for Discord user mentions
+        seasonPlayers.forEach(player => {
+          expect(gameResults).toContain(`<@${player.discordUserId}>`);
+        });
+
+        // Check for proper content formatting
+        expect(gameResults).toContain('[Image]'); // Drawing turns
+        expect(gameResults).toContain('"'); // Writing turns should be quoted
+      });
+    });
+
+    describe('deliverSeasonCompletionAnnouncement', () => {
+      it('should prepare channel delivery for seasons with guild and channel info', async () => {
+        const announcement = await seasonService.deliverSeasonCompletionAnnouncement(completedSeason.id);
+
+        expect(announcement).not.toBeNull();
+        expect(announcement!.formatting?.channel).toBe('987654321098765432');
+        expect(announcement!.context?.guildId).toBe('123456789012345678');
+        expect(announcement!.type).toBe('success');
+        expect(announcement!.key).toBe('season.completion.announcement');
+      });
+
+      it('should prepare DM delivery for seasons without origin info', async () => {
+        // Create a season without guild/channel info (legacy or DM-created)
+        const legacySeasonConfig = await prisma.seasonConfig.create({
+          data: { id: nanoid() },
+        });
+
+        const legacySeason = await prisma.season.create({
+          data: {
+            id: `legacy-season-${nanoid()}`,
+            status: 'COMPLETED',
+            creatorId: testPlayer.id,
+            configId: legacySeasonConfig.id,
+            // No guildId or channelId
+          },
+        });
+
+                 // Add players to the legacy season
+         const legacyPlayers: Player[] = [];
+         for (let i = 0; i < 2; i++) {
+           const player = await prisma.player.create({
+             data: {
+               discordUserId: `legacy-player-${i}-${nanoid()}`,
+               name: `Legacy Player ${i}`,
+             },
+           });
+           legacyPlayers.push(player);
+          
+          await prisma.playersOnSeasons.create({
+            data: {
+              seasonId: legacySeason.id,
+              playerId: player.id,
+            },
+          });
+        }
+
+        // Create a completed game for the legacy season
+        const legacyGame = await prisma.game.create({
+          data: {
+            id: `legacy-game-${nanoid()}`,
+            status: 'COMPLETED',
+            seasonId: legacySeason.id,
+            completedAt: new Date(),
+          },
+        });
+
+        // Create turns for the game
+        for (let i = 0; i < legacyPlayers.length; i++) {
+          await prisma.turn.create({
+            data: {
+              id: `legacy-turn-${i}-${nanoid()}`,
+              turnNumber: i + 1,
+              type: 'WRITING',
+              status: 'COMPLETED',
+              gameId: legacyGame.id,
+              playerId: legacyPlayers[i].id,
+              textContent: `Legacy text ${i}`,
+              completedAt: new Date(),
+            },
+          });
+        }
+
+        const announcement = await seasonService.deliverSeasonCompletionAnnouncement(legacySeason.id);
+
+        expect(announcement).not.toBeNull();
+        expect(announcement!.formatting?.dm).toBe(true);
+        expect(announcement!.data!.deliveryMethod).toBe('dm');
+        expect(announcement!.data!.recipients).toEqual(
+          legacyPlayers.map(p => p.discordUserId)
+        );
+        expect(announcement!.data!.recipientCount).toBe(2);
+      });
+
+      it('should return null for non-existent season', async () => {
+        const announcement = await seasonService.deliverSeasonCompletionAnnouncement('non-existent');
+        expect(announcement).toBeNull();
+      });
+
+      it('should return null for non-completed season', async () => {
+        const activeSeasonConfig = await prisma.seasonConfig.create({
+          data: { id: nanoid() },
+        });
+
+        const activeSeason = await prisma.season.create({
+          data: {
+            id: `active-for-announcement-${nanoid()}`,
+            status: 'ACTIVE',
+            creatorId: testPlayer.id,
+            configId: activeSeasonConfig.id,
+          },
+        });
+
+        const announcement = await seasonService.deliverSeasonCompletionAnnouncement(activeSeason.id);
+        expect(announcement).toBeNull();
+      });
+    });
+  });
 }); 

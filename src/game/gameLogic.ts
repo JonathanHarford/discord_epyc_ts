@@ -495,15 +495,17 @@ export async function checkGameCompletion(
 /**
  * Checks if a season is completed.
  * A season is completed if all its games are in "COMPLETED" status.
- * If completed, updates the season status to "COMPLETED".
+ * If completed, updates the season status to "COMPLETED" and triggers completion announcement.
  * @param seasonId - The ID of the season to check.
  * @param prisma - Prisma client instance.
- * @returns Promise<{ completed: boolean; season?: Season | null }>
+ * @param seasonService - Optional SeasonService instance for sending completion announcements.
+ * @returns Promise<{ completed: boolean; season?: Season | null; announcementSent?: boolean }>
  */
 export const checkSeasonCompletion = async (
   seasonId: string,
-  prisma: PrismaClient
-): Promise<{ completed: boolean; season?: Season | null }> => {
+  prisma: PrismaClient,
+  seasonService?: any // Using 'any' to avoid circular dependency issues
+): Promise<{ completed: boolean; season?: Season | null; announcementSent?: boolean }> => {
   try {
     const season = await prisma.season.findUnique({
       where: { id: seasonId },
@@ -526,7 +528,25 @@ export const checkSeasonCompletion = async (
           where: { id: seasonId },
           data: { status: 'COMPLETED' },
         });
-        return { completed: true, season: updatedSeason };
+        
+        // Trigger completion announcement for empty season
+        let announcementSent = false;
+        if (seasonService && typeof seasonService.deliverSeasonCompletionAnnouncement === 'function') {
+          try {
+            const announcement = await seasonService.deliverSeasonCompletionAnnouncement(seasonId);
+            if (announcement) {
+              console.log(`Season ${seasonId} completion announcement prepared for delivery.`);
+              announcementSent = true;
+              // Note: The actual delivery will be handled by the messaging system
+            } else {
+              console.warn(`Season ${seasonId} completion announcement could not be prepared.`);
+            }
+          } catch (announcementError) {
+            console.error(`Error preparing completion announcement for season ${seasonId}:`, announcementError);
+          }
+        }
+        
+        return { completed: true, season: updatedSeason, announcementSent };
       }
       return { completed: false, season }; // Or true, depending on desired logic for empty seasons
     }
@@ -543,7 +563,28 @@ export const checkSeasonCompletion = async (
         data: { status: 'COMPLETED' },
       });
       console.log(`Season ${seasonId} is completed. Status updated.`);
-      return { completed: true, season: updatedSeason };
+      
+      // Trigger completion announcement
+      let announcementSent = false;
+      if (seasonService && typeof seasonService.deliverSeasonCompletionAnnouncement === 'function') {
+        try {
+          const announcement = await seasonService.deliverSeasonCompletionAnnouncement(seasonId);
+          if (announcement) {
+            console.log(`Season ${seasonId} completion announcement prepared for delivery.`);
+            announcementSent = true;
+            // Note: The actual delivery will be handled by the messaging system
+            // The announcement MessageInstruction should be processed by the calling code
+          } else {
+            console.warn(`Season ${seasonId} completion announcement could not be prepared.`);
+          }
+        } catch (announcementError) {
+          console.error(`Error preparing completion announcement for season ${seasonId}:`, announcementError);
+        }
+      } else {
+        console.log(`Season ${seasonId} completed but no SeasonService provided for announcement.`);
+      }
+      
+      return { completed: true, season: updatedSeason, announcementSent };
     } else {
       console.log(`Season ${seasonId} is not yet completed. Not all games are in 'COMPLETED' status.`);
       return { completed: false, season };

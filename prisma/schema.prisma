@@ -37,8 +37,13 @@ model Season {
   creatorId       String
   creator         Player   @relation("CreatedSeasons", fields: [creatorId], references: [id], onDelete: Restrict)
 
+  // Origin tracking for announcements
+  guildId         String?  // Discord guild ID where season was created (null for DMs)
+  channelId       String?  // Discord channel ID where season was created (null for DMs)
+
   @@index([status])
   @@index([creatorId])
+  @@index([guildId])
 }
 
 model PlayersOnSeasons {

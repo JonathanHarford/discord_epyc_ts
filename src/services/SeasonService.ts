@@ -97,6 +97,9 @@ export class SeasonService {
           config: {
             connect: { id: newConfig.id },
           },
+          // Store origin information for announcements
+          ...(options.guildId && { guildId: options.guildId }),
+          ...(options.channelId && { channelId: options.channelId }),
         };
 
         const newSeason = await tx.season.create({
@@ -711,6 +714,318 @@ export class SeasonService {
       );
     }
   }
+
+  /**
+   * Retrieves and formats the complete results of a completed season.
+   * This includes all games and their turn sequences for announcement purposes.
+   * @param seasonId The ID of the completed season
+   * @returns Formatted season results or null if season not found/not completed
+   */
+  async getSeasonCompletionResults(seasonId: string): Promise<SeasonCompletionResults | null> {
+    console.log(`SeasonService.getSeasonCompletionResults: Retrieving results for season ${seasonId}`);
+    
+    try {
+      // Get the season with all its games and turns
+      const season = await this.prisma.season.findUnique({
+        where: { id: seasonId },
+        include: {
+          config: true,
+          creator: {
+            select: {
+              name: true,
+              discordUserId: true
+            }
+          },
+          games: {
+            include: {
+              turns: {
+                include: {
+                  player: {
+                    select: {
+                      id: true,
+                      name: true,
+                      discordUserId: true
+                    }
+                  }
+                },
+                orderBy: {
+                  turnNumber: 'asc'
+                }
+              }
+            },
+            orderBy: {
+              createdAt: 'asc' // Order games by creation time
+            }
+          },
+          players: {
+            include: {
+              player: {
+                select: {
+                  id: true,
+                  name: true,
+                  discordUserId: true
+                }
+              }
+            }
+          }
+        }
+      });
+
+      if (!season) {
+        console.error(`SeasonService.getSeasonCompletionResults: Season ${seasonId} not found`);
+        return null;
+      }
+
+      if (season.status !== 'COMPLETED') {
+        console.warn(`SeasonService.getSeasonCompletionResults: Season ${seasonId} is not completed (status: ${season.status})`);
+        return null;
+      }
+
+      // Format the games and their turn sequences
+      const formattedGames: FormattedGame[] = season.games.map((game, index) => {
+        const gameNumber = index + 1;
+        
+        // Filter and format turns that are completed or skipped
+        const completedTurns = game.turns
+          .filter(turn => turn.status === 'COMPLETED' || turn.status === 'SKIPPED')
+          .map(turn => ({
+            turnNumber: turn.turnNumber,
+            type: turn.type as 'WRITING' | 'DRAWING',
+            status: turn.status as 'COMPLETED' | 'SKIPPED',
+            playerName: turn.player?.name || 'Unknown Player',
+            playerDiscordId: turn.player?.discordUserId || '',
+            content: turn.status === 'COMPLETED' 
+              ? (turn.type === 'WRITING' ? turn.textContent : '[Image]')
+              : '[Skipped]',
+            createdAt: turn.createdAt,
+            completedAt: turn.completedAt
+          }));
+
+        return {
+          gameNumber,
+          gameId: game.id,
+          status: game.status,
+          turns: completedTurns,
+          completedAt: game.completedAt
+        };
+      });
+
+      // Calculate season duration and completion stats
+      const totalTurns = formattedGames.reduce((sum, game) => sum + game.turns.length, 0);
+      const completedTurns = formattedGames.reduce((sum, game) => 
+        sum + game.turns.filter(turn => turn.status === 'COMPLETED').length, 0
+      );
+      
+      const seasonDuration = season.updatedAt.getTime() - season.createdAt.getTime();
+      const daysElapsed = Math.ceil(seasonDuration / (1000 * 60 * 60 * 24));
+
+      const results: SeasonCompletionResults = {
+        seasonId: season.id,
+        seasonStatus: season.status,
+        createdAt: season.createdAt,
+        completedAt: season.updatedAt,
+        daysElapsed,
+        totalGames: season.games.length,
+        totalPlayers: season.players.length,
+        totalTurns,
+        completedTurns,
+        completionPercentage: totalTurns > 0 ? Math.round((completedTurns / totalTurns) * 100) : 0,
+        games: formattedGames,
+        creator: {
+          name: season.creator.name,
+          discordUserId: season.creator.discordUserId
+        }
+      };
+
+      console.log(`SeasonService.getSeasonCompletionResults: Successfully formatted results for season ${seasonId} with ${results.totalGames} games and ${results.totalTurns} turns`);
+      return results;
+
+    } catch (error) {
+      console.error(`SeasonService.getSeasonCompletionResults: Error retrieving results for season ${seasonId}:`, error);
+      return null;
+    }
+  }
+
+  /**
+   * Creates a MessageInstruction for season completion announcement.
+   * This method formats the season results into a Discord-ready announcement message.
+   * @param seasonResults The formatted season completion results
+   * @returns MessageInstruction for the announcement or null if results are invalid
+   */
+  createSeasonCompletionAnnouncement(seasonResults: SeasonCompletionResults): MessageInstruction | null {
+    console.log(`SeasonService.createSeasonCompletionAnnouncement: Creating announcement for season ${seasonResults.seasonId}`);
+    
+    try {
+      // Create the progress bar (similar to the one shown in SEASON_FLOWS.md)
+      const progressBar = this.createProgressBar(seasonResults.completionPercentage);
+      
+      // Format the game results text
+      const gameResultsText = this.formatGameResults(seasonResults.games);
+      
+      // Create the announcement message instruction
+      const announcement = MessageHelpers.embedMessage(
+        'success',
+        'season.completion.announcement',
+        {
+          seasonId: seasonResults.seasonId,
+          daysElapsed: seasonResults.daysElapsed,
+          completionPercentage: seasonResults.completionPercentage,
+          progressBar,
+          totalGames: seasonResults.totalGames,
+          totalPlayers: seasonResults.totalPlayers,
+          totalTurns: seasonResults.totalTurns,
+          completedTurns: seasonResults.completedTurns,
+          gameResults: gameResultsText,
+          creatorName: seasonResults.creator.name
+        },
+        false // Not ephemeral - this is a public announcement
+      );
+
+      console.log(`SeasonService.createSeasonCompletionAnnouncement: Successfully created announcement for season ${seasonResults.seasonId}`);
+      return announcement;
+
+    } catch (error) {
+      console.error(`SeasonService.createSeasonCompletionAnnouncement: Error creating announcement for season ${seasonResults.seasonId}:`, error);
+      return null;
+    }
+  }
+
+  /**
+   * Creates a visual progress bar for the season completion percentage.
+   * @param percentage Completion percentage (0-100)
+   * @returns String representation of the progress bar
+   */
+  private createProgressBar(percentage: number): string {
+    const totalBlocks = 50; // Total number of blocks in the progress bar
+    const filledBlocks = Math.round((percentage / 100) * totalBlocks);
+    const emptyBlocks = totalBlocks - filledBlocks;
+    
+    const filled = '■'.repeat(filledBlocks);
+    const empty = '□'.repeat(emptyBlocks);
+    
+    return `${filled}${empty}`;
+  }
+
+  /**
+   * Formats the game results into a readable text format for the announcement.
+   * @param games Array of formatted games
+   * @returns Formatted string containing all game results
+   */
+  private formatGameResults(games: FormattedGame[]): string {
+    const gameTexts = games.map(game => {
+      const turnTexts = game.turns.map(turn => {
+        // Format player mention and content
+        const playerMention = `<@${turn.playerDiscordId}>`;
+        let content = turn.content;
+        
+        // Handle different content types
+        if (turn.status === 'SKIPPED') {
+          content = '[Skipped]';
+        } else if (turn.type === 'DRAWING' && turn.status === 'COMPLETED') {
+          content = '[Image]';
+        } else if (turn.type === 'WRITING' && turn.status === 'COMPLETED') {
+          // Wrap text content in quotes
+          content = `"${turn.content}"`;
+        }
+        
+        return `${playerMention}: ${content}`;
+      }).join('\n');
+      
+      return `**Game ${game.gameNumber}**\n${turnTexts}`;
+    });
+    
+         return gameTexts.join('\n\n');
+   }
+
+  /**
+   * Handles the delivery of season completion announcements.
+   * Determines the appropriate delivery target (channel or DM) and sends the announcement.
+   * @param seasonId The ID of the completed season
+   * @returns MessageInstruction for delivery or null if delivery cannot be determined
+   */
+  async deliverSeasonCompletionAnnouncement(seasonId: string): Promise<MessageInstruction | null> {
+    console.log(`SeasonService.deliverSeasonCompletionAnnouncement: Preparing announcement for season ${seasonId}`);
+    
+    try {
+      // Get the season completion results
+      const seasonResults = await this.getSeasonCompletionResults(seasonId);
+      if (!seasonResults) {
+        console.error(`SeasonService.deliverSeasonCompletionAnnouncement: Could not retrieve results for season ${seasonId}`);
+        return null;
+      }
+
+      // Create the announcement message
+      const announcement = this.createSeasonCompletionAnnouncement(seasonResults);
+      if (!announcement) {
+        console.error(`SeasonService.deliverSeasonCompletionAnnouncement: Could not create announcement for season ${seasonId}`);
+        return null;
+      }
+
+      // Get the season with origin information
+      const season = await this.prisma.season.findUnique({
+        where: { id: seasonId },
+        include: {
+          players: {
+            include: {
+              player: {
+                select: {
+                  discordUserId: true
+                }
+              }
+            }
+          }
+        }
+      });
+
+      if (!season) {
+        console.error(`SeasonService.deliverSeasonCompletionAnnouncement: Season ${seasonId} not found`);
+        return null;
+      }
+
+             // Determine delivery strategy based on origin
+       if (season.guildId && season.channelId) {
+         // Season was created in a channel - post announcement there
+         console.log(`SeasonService.deliverSeasonCompletionAnnouncement: Delivering to channel ${season.channelId} in guild ${season.guildId}`);
+         return {
+           ...announcement,
+           formatting: {
+             ...announcement.formatting,
+             channel: season.channelId
+           },
+           context: {
+             ...announcement.context,
+             guildId: season.guildId
+           }
+         };
+       } else {
+         // Season was created in DM or origin unknown - send DM to all players
+         console.log(`SeasonService.deliverSeasonCompletionAnnouncement: Delivering via DM to ${season.players.length} players`);
+         
+         // For DM delivery, we'll return a special instruction that the messaging system can handle
+         // The messaging system will need to handle sending to multiple recipients
+         const playerDiscordIds = season.players.map(p => p.player.discordUserId);
+         
+         return {
+           ...announcement,
+           formatting: {
+             ...announcement.formatting,
+             dm: true
+           },
+           // Store recipient information in the data for the messaging system to use
+           data: {
+             ...announcement.data,
+             deliveryMethod: 'dm',
+             recipients: playerDiscordIds,
+             recipientCount: playerDiscordIds.length
+           }
+         };
+       }
+
+    } catch (error) {
+      console.error(`SeasonService.deliverSeasonCompletionAnnouncement: Error preparing announcement for season ${seasonId}:`, error);
+      return null;
+    }
+  }
 }
 
 export interface NewSeasonOptions {
@@ -724,5 +1039,45 @@ export interface NewSeasonOptions {
   // writingWarning?: string | null; // Add if used by service/DB
   drawingTimeout?: string | null;
   // drawingWarning?: string | null; // Add if used by service/DB
+  // Origin tracking for announcements
+  guildId?: string | null; // Discord guild ID where season was created (null for DMs)
+  channelId?: string | null; // Discord channel ID where season was created (null for DMs)
   // Add any other fields from PRD/schema that can be set at creation
+}
+
+export interface FormattedTurn {
+  turnNumber: number;
+  type: 'WRITING' | 'DRAWING';
+  status: 'COMPLETED' | 'SKIPPED';
+  playerName: string;
+  playerDiscordId: string;
+  content: string; // Text content, '[Image]', or '[Skipped]'
+  createdAt: Date;
+  completedAt: Date | null;
+}
+
+export interface FormattedGame {
+  gameNumber: number;
+  gameId: string;
+  status: string;
+  turns: FormattedTurn[];
+  completedAt: Date | null;
+}
+
+export interface SeasonCompletionResults {
+  seasonId: string;
+  seasonStatus: string;
+  createdAt: Date;
+  completedAt: Date;
+  daysElapsed: number;
+  totalGames: number;
+  totalPlayers: number;
+  totalTurns: number;
+  completedTurns: number;
+  completionPercentage: number;
+  games: FormattedGame[];
+  creator: {
+    name: string;
+    discordUserId: string;
+  };
 } 

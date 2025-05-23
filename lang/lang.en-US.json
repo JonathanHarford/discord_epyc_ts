@@ -441,6 +441,27 @@
             "database_error": "Database error occurred while updating configuration. Error code: {{errorCode}}",
             "unknown_error": "An unknown error occurred while updating configuration: {{message}}",
             "no_updates_provided": "No configuration updates were provided. Please specify at least one setting to update."
+        },
+        "season": {
+            "completion": {
+                "announcement": {
+                    "title": "**{{seasonId}}** COMPLETED 🎉",
+                    "description": "Day {{daysElapsed}} {{progressBar}} {{completionPercentage}}%",
+                    "fields": [
+                        {
+                            "name": "Season Summary",
+                            "value": "**Games:** {{totalGames}}\n**Players:** {{totalPlayers}}\n**Turns:** {{completedTurns}}/{{totalTurns}} completed"
+                        },
+                        {
+                            "name": "Game Results",
+                            "value": "{{gameResults}}"
+                        }
+                    ],
+                    "footer": {
+                        "text": "Season created by {{creatorName}}"
+                    }
+                }
+            }
         }
     }
 }
