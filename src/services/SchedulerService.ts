@@ -333,6 +333,9 @@ export class SchedulerService {
             case 'turn-claim-timeout':
                 await this.handleClaimTimeoutJob(jobId, jobData);
                 break;
+            case 'turn-submission-timeout':
+                await this.handleSubmissionTimeoutJob(jobId, jobData);
+                break;
             default:
                 Logger.warn(`No handler implemented for job type '${jobType}' (job ID: '${jobId}'). Job will be marked as failed.`);
                 throw new Error(`No handler for job type: ${jobType}`);
@@ -417,5 +420,56 @@ export class SchedulerService {
         }
 
         Logger.info(`Successfully handled claim timeout for turn ${turnId}`);
+    }
+
+    /**
+     * Handle a submission timeout job.
+     * @param jobId The job ID (format: "turn-submission-timeout-{turnId}").
+     * @param jobData The job data containing turnId and playerId.
+     */
+    private async handleSubmissionTimeoutJob(jobId: string, jobData?: any): Promise<void> {
+        // Extract turn ID from job ID (format: "turn-submission-timeout-{turnId}")
+        const turnId = jobId.replace('turn-submission-timeout-', '');
+        
+        if (!turnId) {
+            throw new Error(`Invalid submission timeout job ID format: ${jobId}`);
+        }
+
+        // Validate job data
+        if (!jobData || !jobData.turnId || !jobData.playerId) {
+            throw new Error(`Invalid job data for submission timeout job ${jobId}: missing turnId or playerId`);
+        }
+
+        const { turnId: dataTransId, playerId } = jobData;
+        
+        // Ensure turnId from job ID matches turnId from job data
+        if (turnId !== dataTransId) {
+            throw new Error(`Turn ID mismatch in submission timeout job ${jobId}: ${turnId} vs ${dataTransId}`);
+        }
+
+        Logger.info(`Handling submission timeout job for turn ${turnId}, player ${playerId}`);
+
+        // Check if we have the required dependencies
+        if (!this.dependencies.discordClient || !this.dependencies.turnService || !this.dependencies.turnOfferingService) {
+            throw new Error(`Missing dependencies for submission timeout handler. Required: discordClient, turnService, turnOfferingService`);
+        }
+
+        // Import and create the SubmissionTimeoutHandler
+        const { SubmissionTimeoutHandler } = await import('../handlers/SubmissionTimeoutHandler.js');
+        const submissionTimeoutHandler = new SubmissionTimeoutHandler(
+            this.prisma,
+            this.dependencies.discordClient,
+            this.dependencies.turnService,
+            this.dependencies.turnOfferingService
+        );
+
+        // Execute the submission timeout handling
+        const result = await submissionTimeoutHandler.handleSubmissionTimeout(turnId, playerId);
+
+        if (!result.success) {
+            throw new Error(`Submission timeout handling failed for turn ${turnId}: ${result.error}`);
+        }
+
+        Logger.info(`Successfully handled submission timeout for turn ${turnId}`);
     }
 } 
