@@ -13,6 +13,7 @@ import { newCommandData } from './chat/new-command.js';
 import { joinSeasonCommandData } from './chat/joinSeason.js';
 import { statusCommandData } from './chat/status-command.js';
 import { adminCommandData } from './chat/admin-command-data.js';
+import { configCommandData } from './chat/config-command-data.js';
 
 export const ChatCommandMetadata: {
     [command: string]: RESTPostAPIChatInputApplicationCommandsJSONBody;
@@ -77,6 +78,7 @@ export const ChatCommandMetadata: {
     JOIN_SEASON: joinSeasonCommandData.toJSON(),
     STATUS: statusCommandData.toJSON(),
     ADMIN: adminCommandData.toJSON(),
+    CONFIG: configCommandData.toJSON(),
 };
 
 export const MessageCommandMetadata: {

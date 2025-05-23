@@ -1,6 +1,6 @@
 # Task ID: 25
 # Title: Implement Basic Configuration Command ('/config seasons')
-# Status: pending
+# Status: in-progress
 # Dependencies: 2, 5
 # Priority: medium
 # Description: Implement the `/config seasons [options]` slash command handler in `src/commands/chat`. This handler should allow administrators or authorized users to view the current default configuration settings for seasons (e.g., timeouts, min/max players). Optionally, allow setting these defaults, which would require persisting them (e.g., in the database or a config file).
@@ -9,3 +9,54 @@
 
 # Test Strategy:
 Implement integration tests that interact with a test database to verify command behavior without Discord interaction. Implement unit tests for the core logic layer of the command handler. Additionally, manually test the command using `/config seasons` to view current settings and, if setting is implemented, test updating a setting and verifying the change is reflected via the command and potentially direct database inspection.
+
+# Subtasks:
+## 1. Create ConfigService for Season Configuration Management [done]
+### Dependencies: None
+### Description: Create a new ConfigService to handle viewing and updating default season configurations, including methods to get guild default config and update configuration settings.
+### Details:
+
+
+## 2. Define Config Command Data Structure [done]
+### Dependencies: None
+### Description: Create the slash command data structure for /config seasons with subcommands for view and set operations, including proper option definitions.
+### Details:
+
+
+## 3. Implement Config Command Handler [done]
+### Dependencies: 25.1, 25.2
+### Description: Create the command handler class that processes /config seasons commands, including permission checks, subcommand routing, and integration with ConfigService.
+### Details:
+
+
+## 4. Add Language Keys for Config Command [done]
+### Dependencies: None
+### Description: Add the necessary language keys to lang-keys.ts and corresponding entries in language files for config command messages, errors, and responses.
+### Details:
+
+
+## 5. Register Config Command [done]
+### Dependencies: 25.2, 25.3
+### Description: Register the new config command in the command system and ensure it's properly exported and available.
+### Details:
+<info added on 2025-05-23T18:46:07.594Z>
+Successfully registered the ConfigCommand in the bot system.
+
+Implementation Details:
+- Added ConfigCommand and AdminCommand imports to start-bot.ts
+- Added both command instances to the commands array in start-bot.ts
+- ConfigCommand is now properly instantiated with no dependencies (uses prisma directly)
+- AdminCommand was also added as it was missing from the registration
+
+Files Modified:
+- src/start-bot.ts: Added imports and command instantiation
+
+The config command is now fully registered and will be available when the bot starts. The command registration is complete and follows the established patterns in the codebase.
+</info added on 2025-05-23T18:46:07.594Z>
+
+## 6. Implement Tests for Config Command [pending]
+### Dependencies: 25.1, 25.3, 25.4
+### Description: Create comprehensive unit and integration tests for the ConfigService and config command handler, covering view/set operations, permission checks, and error scenarios.
+### Details:
+
+

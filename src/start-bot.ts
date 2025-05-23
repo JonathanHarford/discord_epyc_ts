@@ -4,7 +4,7 @@ import { createRequire } from 'node:module';
 import schedule from 'node-schedule';
 
 import { Button } from './buttons/index.js';
-import { DevCommand, HelpCommand, InfoCommand, TestCommand } from './commands/chat/index.js';
+import { DevCommand, HelpCommand, InfoCommand, TestCommand, AdminCommand, ConfigCommand } from './commands/chat/index.js';
 import NewCommand from './commands/chat/new-command.js';
 import JoinSeasonCommand from './commands/chat/joinSeason.js';
 import StatusCommand from './commands/chat/status-command.js';
@@ -84,6 +84,8 @@ async function start(): Promise<void> {
         new NewCommand(prisma, seasonService),
         new JoinSeasonCommand(prisma, seasonService),
         new StatusCommand(prisma, seasonService, turnService),
+        new AdminCommand(),
+        new ConfigCommand(),
 
         // Message Context Commands
         new ViewDateSent(),

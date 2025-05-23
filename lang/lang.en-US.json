@@ -215,7 +215,8 @@
             "info": "info",
             "test": "test",
             "status": "status",
-            "admin": "admin"
+            "admin": "admin",
+            "config": "config"
         },
         "userCommands": {
             "viewDateJoined": "View Date Joined"
@@ -235,7 +236,8 @@
             "test": "Run the test command.",
             "new": "Create a new season. Use this command to start a new game flow.",
             "status": "Get status information for a season.",
-            "admin": "Administrative commands for managing the bot."
+            "admin": "Administrative commands for managing the bot.",
+            "config": "Configuration commands for managing bot settings."
         },
         "argDescs": {
             "devCommand": "Command.",
@@ -406,6 +408,39 @@
                 ]
             },
             "list_players_error": "An error occurred while retrieving players. Error: {{error}}"
+        },
+        "config": {
+            "view_success": {
+                "title": "Season Configuration for Guild {{GUILD_ID}}",
+                "description": "Current default season configuration settings:",
+                "fields": [
+                    {
+                        "name": "Turn Settings",
+                        "value": "**Pattern:** {{TURN_PATTERN}}\n**Claim Timeout:** {{CLAIM_TIMEOUT}}"
+                    },
+                    {
+                        "name": "Writing Settings",
+                        "value": "**Timeout:** {{WRITING_TIMEOUT}}\n**Warning:** {{WRITING_WARNING}}"
+                    },
+                    {
+                        "name": "Drawing Settings",
+                        "value": "**Timeout:** {{DRAWING_TIMEOUT}}\n**Warning:** {{DRAWING_WARNING}}"
+                    },
+                    {
+                        "name": "Season Settings",
+                        "value": "**Open Duration:** {{OPEN_DURATION}}\n**Min Players:** {{MIN_PLAYERS}}\n**Max Players:** {{MAX_PLAYERS}}"
+                    },
+                    {
+                        "name": "Info",
+                        "value": "**Guild Default:** {{IS_GUILD_DEFAULT}}\n**Last Updated:** {{LAST_UPDATED}}"
+                    }
+                ]
+            },
+            "update_success": "Configuration updated successfully for guild {{guildId}}!\n**Updated fields:** {{updatedFields}}",
+            "validation_error": "Invalid configuration value for **{{field}}**: {{error}}",
+            "database_error": "Database error occurred while updating configuration. Error code: {{errorCode}}",
+            "unknown_error": "An unknown error occurred while updating configuration: {{message}}",
+            "no_updates_provided": "No configuration updates were provided. Please specify at least one setting to update."
         }
     }
 }

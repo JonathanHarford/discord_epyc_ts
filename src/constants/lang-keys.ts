@@ -55,6 +55,14 @@ export const LangKeys = {
       ListPlayersSuccess: 'admin.list_players_success',
       ListPlayersError: 'admin.list_players_error',
     },
+    Config: {
+      ViewSuccess: 'config.view_success',
+      UpdateSuccess: 'config.update_success',
+      ValidationError: 'config.validation_error',
+      DatabaseError: 'config.database_error',
+      UnknownError: 'config.unknown_error',
+      NotAdmin: 'data.validationEmbeds.adminOnly',
+    },
     // Add other commands here in the future
   },
 } as const; 

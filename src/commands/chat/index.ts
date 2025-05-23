@@ -6,3 +6,4 @@ export { NewCommand } from './new-command.js';
 export { JoinSeasonCommand } from './joinSeason.js';
 export { StatusCommand } from './status-command.js';
 export { AdminCommand } from './admin-command.js';
+export { ConfigCommand } from './config-command.js';
