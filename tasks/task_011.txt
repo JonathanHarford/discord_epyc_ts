@@ -1,6 +1,6 @@
 # Task ID: 11
 # Title: Implement '/ready' Command Handling (DM)
-# Status: pending
+# Status: in-progress
 # Dependencies: 5, 9, 10
 # Priority: medium
 # Description: Implement the handler for the `/ready` command when used in a Direct Message. This handler should validate that the user has a turn currently in the OFFERED state. If valid, call `TurnService.claimTurn` to update the turn state to PENDING (ASSIGNED), cancel the associated claim timeout timer via the Task Scheduler, and schedule the appropriate submission timeout timer (writing or drawing). Send a confirmation DM to the player.
@@ -10,6 +10,6 @@
 # Test Strategy:
 Implement the following testing types:
 
-1.  **Unit Tests:** Test the core logic components of the command handler in isolation, mocking external dependencies like the database, TurnService, and Task Scheduler. Verify correct validation, calls to services, and timer interactions.
+1.  **Unit Tests:** Test the core logic components of the command handler in isolation, mocking the Task Scheduler (but never the database) if needed. Verify correct validation, calls to services, and timer interactions.
 2.  **Integration Tests:** Test the command handler's interaction with the database using a test database instance. Verify that the turn state is correctly updated to PENDING (ASSIGNED) and that appropriate data is persisted.
 3.  **End-to-End/Manual Testing:** Offer a turn to a test player. Have the player use `/ready` in DM. Verify the turn state changes to PENDING in the DB. Verify the claim timer is cancelled and a submission timer is scheduled via the Task Scheduler (manual verification or logging). Test using `/ready` when no turn is offered and verify an appropriate error message is returned to the user.

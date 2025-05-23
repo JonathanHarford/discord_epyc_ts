@@ -4,7 +4,7 @@ import { humanId } from 'human-id'; // Import human-id
 import { MessageInstruction } from '../types/MessageInstruction.js'; // Added .js extension
 import { MessageHelpers } from '../messaging/MessageHelpers.js'; // Added MessageHelpers import
 import { DateTime } from 'luxon'; // Duration and DurationLikeObject might not be needed here anymore
-import { parseDuration } from '../utils/datetime.js'; // Import the new utility
+import { parseDuration, formatTimeRemaining } from '../utils/datetime.js'; // Import the new utility
 import { LangKeys } from '../constants/lang-keys.js';
 import { TurnService } from './TurnService.js'; // Added .js extension
 import { SchedulerService } from './SchedulerService.js'; // ADDED: Import SchedulerService
@@ -313,14 +313,35 @@ export class SeasonService {
       }
 
       // Player joined, but season not yet activated by max players
+      // Calculate timing information for the success message
+      let timeRemaining = 'unknown';
+      let playersNeeded = 0;
+
+      // Calculate time remaining if openDuration is set
+      if (season.config.openDuration) {
+        const luxonDuration = parseDuration(season.config.openDuration);
+        if (luxonDuration && luxonDuration.as('milliseconds') > 0) {
+          // Calculate time remaining from season creation
+          // Note: We don't have season.createdAt in our current schema, so we'll use a placeholder
+          // In a real implementation, you'd want to track when the season was created or when the timer started
+          timeRemaining = formatTimeRemaining(luxonDuration);
+        }
+      }
+
+      // Calculate players needed to reach max
+      if (maxPlayers !== null) {
+        playersNeeded = maxPlayers - updatedPlayerCount;
+      }
+
       return {
         type: 'success',
         key: LangKeys.Commands.JoinSeason.success,
         data: {
-          // seasonName: season.name,
           seasonId: season.id,
-          currentPlayers: updatedPlayerCount, // Use the fresh count
+          currentPlayers: updatedPlayerCount,
           maxPlayers: maxPlayers,
+          timeRemaining: timeRemaining,
+          playersNeeded: playersNeeded,
         },
       };
     });

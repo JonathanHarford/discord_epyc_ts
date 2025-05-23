@@ -35,7 +35,7 @@ export const newCommandData = new SlashCommandBuilder()
         option.setName('min_players')
           .setDescription('Minimum number of players required to start. Default varies.')
           .setRequired(false)
-          .setMinValue(2))
+          .setMinValue(process.env.NODE_ENV === 'production' ? 2 : 1))
       .addIntegerOption(option =>
         option.setName('max_players')
           .setDescription('Maximum number of players allowed to join. Default varies.')

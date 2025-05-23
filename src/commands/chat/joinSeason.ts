@@ -14,7 +14,7 @@ export const joinSeasonCommandData = new SlashCommandBuilder()
   .setName('join')
   .setDescription('Join an existing season')
   .addStringOption(option =>
-    option.setName('season_id')
+    option.setName('season')
       .setDescription('The ID of the season to join')
       .setRequired(true));
 
@@ -34,9 +34,9 @@ export class JoinSeasonCommand implements Command {
 
   public async execute(interaction: ChatInputCommandInteraction, data: EventData): Promise<void> {
     console.log(`[JoinSeasonCommand] Executing /join command for user: ${interaction.user.id}, username: ${interaction.user.username}`);
-    const seasonId = interaction.options.getString('season_id', true);
+    const seasonId = interaction.options.getString('season', true);
     const discordUserId = interaction.user.id;
-    console.log(`[JoinSeasonCommand] Received season_id: ${seasonId}, discordUserId: ${discordUserId}`);
+    console.log(`[JoinSeasonCommand] Received season: ${seasonId}, discordUserId: ${discordUserId}`);
 
     try {
       const season = await this.seasonService.findSeasonById(seasonId);

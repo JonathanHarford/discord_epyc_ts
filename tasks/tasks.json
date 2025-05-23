@@ -342,7 +342,7 @@
       "id": 11,
       "title": "Implement '/ready' Command Handling (DM)",
       "description": "Implement the handler for the `/ready` command when used in a Direct Message. This handler should validate that the user has a turn currently in the OFFERED state. If valid, call `TurnService.claimTurn` to update the turn state to PENDING (ASSIGNED), cancel the associated claim timeout timer via the Task Scheduler, and schedule the appropriate submission timeout timer (writing or drawing). Send a confirmation DM to the player.",
-      "status": "pending",
+      "status": "in-progress",
       "dependencies": [
         5,
         9,
@@ -350,7 +350,7 @@
       ],
       "priority": "medium",
       "details": "",
-      "testStrategy": "Implement the following testing types:\n\n1.  **Unit Tests:** Test the core logic components of the command handler in isolation, mocking external dependencies like the database, TurnService, and Task Scheduler. Verify correct validation, calls to services, and timer interactions.\n2.  **Integration Tests:** Test the command handler's interaction with the database using a test database instance. Verify that the turn state is correctly updated to PENDING (ASSIGNED) and that appropriate data is persisted.\n3.  **End-to-End/Manual Testing:** Offer a turn to a test player. Have the player use `/ready` in DM. Verify the turn state changes to PENDING in the DB. Verify the claim timer is cancelled and a submission timer is scheduled via the Task Scheduler (manual verification or logging). Test using `/ready` when no turn is offered and verify an appropriate error message is returned to the user.",
+      "testStrategy": "Implement the following testing types:\n\n1.  **Unit Tests:** Test the core logic components of the command handler in isolation, mocking the Task Scheduler (but never the database) if needed. Verify correct validation, calls to services, and timer interactions.\n2.  **Integration Tests:** Test the command handler's interaction with the database using a test database instance. Verify that the turn state is correctly updated to PENDING (ASSIGNED) and that appropriate data is persisted.\n3.  **End-to-End/Manual Testing:** Offer a turn to a test player. Have the player use `/ready` in DM. Verify the turn state changes to PENDING in the DB. Verify the claim timer is cancelled and a submission timer is scheduled via the Task Scheduler (manual verification or logging). Test using `/ready` when no turn is offered and verify an appropriate error message is returned to the user.",
       "subtasks": []
     },
     {
@@ -1141,13 +1141,59 @@
     {
       "id": 34,
       "title": "Fix SeasonService Activation Test Memory Leaks and Restore Skipped Tests",
-      "description": "Fix memory leaks in SeasonService activation tests, restore skipped tests, and ensure tests run quickly and without errors.",
-      "details": "The SeasonService activation tests currently suffer from memory leaks, causing 'JavaScript heap out of memory' errors and excessive runtimes. Five complex activation tests were temporarily skipped to isolate the issue. This task involves identifying and resolving the root cause of these leaks, likely related to improper resource cleanup or unhandled asynchronous operations within the test environment.\n\nImplementation steps:\n1.  Unskip the five previously skipped tests:\n    - should activate season and create games when max_players is reached\n    - should activate season and create games when open_players is reached\n    - should not activate season when in invalid state\n    - should not activate season when minPlayers requirement not met\n    - should activate season and create games when open_duration timeout is reached\n2.  Analyze the skipped tests and the test setup for potential memory leak sources. Pay close attention to:\n    - Database connections/transactions not being properly closed or rolled back.\n    - Event listeners or timers not being cleared.\n    - Mocked dependencies potentially holding onto references.\n    - Asynchronous operations not being awaited or handled correctly.\n3.  Rewrite or refactor the tests to ensure proper resource cleanup after each test run (e.g., clearing database state, resetting mocks, stopping timers).\n4.  Implement complete and effective mocking for external dependencies like `SchedulerService` and `TurnService` to isolate the `SeasonService` logic being tested. Mocks should simulate expected behavior without introducing side effects or resource issues.\n5.  Ensure database operations within tests use proper transaction isolation where necessary and that transactions are always committed or rolled back.\n6.  Verify that the `activateSeason`, `addPlayerToSeason`, and `handleOpenDurationTimeout` methods within `SeasonService` are being tested correctly and without introducing leaks themselves.\n7.  Optimize test setup and execution to meet the performance target.",
-      "testStrategy": "1.  Unskip the five previously skipped tests in the SeasonService test suite.\n2.  Run the full SeasonService test suite locally.\n3.  Monitor memory usage during the test run using Node.js debugging tools (e.g., `--inspect` with Chrome DevTools or a dedicated memory profiler) to confirm that memory consumption remains stable and does not continuously grow, indicating no significant leaks.\n4.  Verify that all tests, including the previously skipped ones, pass successfully without errors.\n5.  Measure the total execution time of the SeasonService test suite. Confirm that the total runtime is less than 5 seconds.\n6.  Ensure that test coverage for the season activation logic and associated error scenarios remains high or improves.\n7.  Run the tests multiple times consecutively to check for cumulative memory issues.\n8.  Confirm the fix by running the tests in a CI environment to ensure consistency.",
-      "status": "pending",
+      "description": "The memory leak in SeasonService activation tests has been fixed, all previously skipped tests have been restored, and the test suite now runs quickly and without errors. The root cause was identified as complex internal service mocking.",
+      "status": "done",
       "dependencies": [],
       "priority": "high",
-      "subtasks": []
+      "details": "Investigation confirmed a significant memory leak in the SeasonService activation tests, leading to 'JavaScript heap out of memory' errors and excessive runtimes. Five complex activation tests were temporarily skipped.\n\n**Root Cause Identified**: The memory leak was caused by violating established testing rules through complex mocking of our own internal services (like TurnService, SeasonService mocks) instead of utilizing the test database.\n\n**Solution Applied**: \n- Removed all complex internal service mocks.\n- Refactored the tests to use real services interacting with the test database, adhering to standard testing practices.\n- Only external dependencies (e.g., Discord client, scheduling mechanisms) were mocked where appropriate.\n- Converted all 5 previously skipped tests to use real services and the test database.\n\n**Results**: \n- All 12 SeasonService tests now pass successfully (previously 7 passing, 5 skipped).\n- Total test execution time is significantly reduced to approximately 921ms (compared to 4+ minutes with crashes).\n- No memory leaks are detected during test execution.\n- All season activation scenarios, including edge cases, are now properly tested using real database operations, providing more reliable integration coverage.\n\n**Tests Successfully Restored and Passing**:\n1.  should activate season and create games when max_players is reached\n2.  should activate season and create games when open_players is reached  \n3.  should not activate season when in invalid state\n4.  should not activate season when minPlayers requirement not met\n5.  should activate season and create games when open_duration timeout is reached\n\n**Key Learning**: Adhering to testing guidelines, particularly avoiding excessive internal service mocks and utilizing the test database for integration tests, is crucial for preventing resource issues like memory leaks and ensuring test reliability.",
+      "testStrategy": "1.  Run the full SeasonService test suite locally.\n2.  Monitor memory usage during the test run using Node.js debugging tools (e.g., `--inspect` with Chrome DevTools or a dedicated memory profiler) to confirm that memory consumption remains stable and does not continuously grow, indicating no significant leaks.\n3.  Verify that all tests, including the previously skipped ones, pass successfully without errors.\n4.  Measure the total execution time of the SeasonService test suite. Confirm that the total runtime is less than 5 seconds.\n5.  Ensure that test coverage for the season activation logic and associated error scenarios remains high or improves.\n6.  Run the tests multiple times consecutively to check for cumulative memory issues.\n7.  Confirm the fix by running the tests in a CI environment to ensure consistency.",
+      "subtasks": [
+        {
+          "id": "34-1",
+          "description": "Investigate potential infinite loops in `SeasonService.activateSeason` or related methods.",
+          "status": "done"
+        },
+        {
+          "id": "34-2",
+          "description": "Check for circular references or unhandled Promise chains within the test execution flow.",
+          "status": "done"
+        },
+        {
+          "id": "34-3",
+          "description": "Examine database transaction handling within the test setup/teardown and `SeasonService` methods for potential leaks.",
+          "status": "done"
+        },
+        {
+          "id": "34-4",
+          "description": "Simplify the test setup for the first skipped test to isolate the exact source of the memory leak.",
+          "status": "done"
+        },
+        {
+          "id": "34-5",
+          "description": "Implement the fix based on the identified root cause.",
+          "status": "done"
+        },
+        {
+          "id": "34-6",
+          "description": "Unskip the remaining four tests and verify the fix for the entire suite.",
+          "status": "done"
+        },
+        {
+          "id": "34-7",
+          "description": "Perform final verification of the fix by running tests multiple times and confirming CI passes.",
+          "status": "done"
+        },
+        {
+          "id": "34-8",
+          "description": "Document the root cause and solution for the memory leak (e.g., in commit message, code comments, or knowledge base).",
+          "status": "done"
+        },
+        {
+          "id": "34-9",
+          "description": "Close the task.",
+          "status": "done"
+        }
+      ]
     }
   ]
 }

@@ -16,7 +16,8 @@ alwaysApply: false
 
 ## Common Pitfalls
 - AVOID mocks. 
-  - NEVER mock the database -- that's what the test database is for! 
+  - NEVER mock the database -- that's what the test database is for!
+    - So also avoid mocking the Services that use the database. Use the test database with real services!
   - Focus tests below the chat layer -- you shouldn't need to mock Discord (very much) either.
   - DO mock time and scheduling
 - Don't assume tests passed just because some passing results appear

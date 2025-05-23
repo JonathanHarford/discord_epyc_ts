@@ -329,8 +329,8 @@
             "voteEmbed": "[Vote for {{COM:bot.name}}!]({{COM:links.vote}})"
         },
         "joinSeason": {
-            "success": "You have successfully joined season with ID: **{{seasonId}}**!",
-            "seasonNotFound": "Season with ID '{{seasonId}}' not found.",
+            "success": "You have successfully joined season with ID: **{{seasonId}}**!\nThe season will start in {{timeRemaining}}, or once {{playersNeeded}} more players join!",
+            "seasonNotFound": "Season '{{seasonId}}' not found.",
             "notOpen": "Season with ID '{{seasonId}}' is not currently open for joining.",
             "alreadyJoined": "You have already joined season with ID '{{seasonId}}'.",
             "full": "Season with ID '{{seasonId}}' is full.",

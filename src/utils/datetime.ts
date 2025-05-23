@@ -132,4 +132,33 @@ export const durationStr = (duration: Duration): string => {
   }
 
   return result;
+};
+
+/**
+ * Formats a time remaining duration into a human-readable format (e.g., "5d7h3m").
+ * Similar to durationStr but optimized for displaying time remaining.
+ * Omits seconds and zero components for cleaner display.
+ *
+ * @param duration The Luxon Duration object to format.
+ * @returns The formatted time remaining string.
+ */
+export const formatTimeRemaining = (duration: Duration): string => {
+  // Shift the duration to the units we care about for time remaining display
+  const shifted = duration.shiftTo('days', 'hours', 'minutes', 'seconds');
+
+  const days = Math.floor(shifted.get('days'));
+  const hours = Math.floor(shifted.get('hours'));
+  const minutes = Math.floor(shifted.get('minutes'));
+
+  let result = '';
+  if (days > 0) result += `${days}d`;
+  if (hours > 0) result += `${hours}h`;
+  if (minutes > 0) result += `${minutes}m`;
+
+  if (result === '') {
+    // If less than a minute remaining, show "less than 1m"
+    return 'less than 1m';
+  }
+
+  return result;
 }; 
