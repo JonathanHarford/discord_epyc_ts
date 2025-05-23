@@ -383,7 +383,29 @@
             "terminate_season_error_not_found": "Season '{{seasonId}}' not found.",
             "terminate_season_error_already_terminated": "Season '{{seasonId}}' is already terminated.",
             "terminate_season_error_database": "A database error occurred while terminating season '{{seasonId}}'. Error code: {{errorCode}}",
-            "terminate_season_error_unknown": "An unknown error occurred while terminating season '{{seasonId}}'. {{message}}"
+            "terminate_season_error_unknown": "An unknown error occurred while terminating season '{{seasonId}}'. {{message}}",
+            "list_seasons_success": {
+                "title": "Seasons List{{#if statusFilter}} ({{statusFilter}}){{/if}}",
+                "description": "Found **{{totalCount}}** season{{#unless (eq totalCount 1)}}s{{/unless}}{{#if statusFilter}} with status **{{statusFilter}}**{{/if}}",
+                "fields": [
+                    {
+                        "name": "Seasons",
+                        "value": "{{#if seasons}}{{#each seasons}}**{{id}}** ({{status}})\n• Creator: {{creatorName}}\n• Players: {{playerCount}}/{{maxPlayers}} (min: {{minPlayers}})\n• Games: {{gameCount}}\n• Created: {{createdAt}}\n\n{{/each}}{{else}}No seasons found.{{/if}}"
+                    }
+                ]
+            },
+            "list_seasons_error": "An error occurred while retrieving seasons. Error: {{error}}",
+            "list_players_success": {
+                "title": "Players List{{#if seasonFilter}} (Season: {{seasonFilter}}){{/if}}{{#if bannedFilter}} (Banned Only){{/if}}",
+                "description": "Found **{{totalCount}}** player{{#unless (eq totalCount 1)}}s{{/unless}}{{#if seasonFilter}} in season **{{seasonFilter}}**{{/if}}{{#if bannedFilter}} that are banned{{/if}}",
+                "fields": [
+                    {
+                        "name": "Players",
+                        "value": "{{#if players}}{{#each players}}**{{name}}** ({{discordUserId}}){{#if isBanned}} 🚫{{/if}}\n• ID: {{id}}\n• Seasons: {{seasonCount}}, Turns: {{turnCount}}\n{{#if recentSeasons}}• Recent: {{#each recentSeasons}}{{id}} ({{status}}){{#unless @last}}, {{/unless}}{{/each}}\n{{/if}}• Created: {{createdAt}}\n\n{{/each}}{{else}}No players found.{{/if}}"
+                    }
+                ]
+            },
+            "list_players_error": "An error occurred while retrieving players. Error: {{error}}"
         }
     }
 }

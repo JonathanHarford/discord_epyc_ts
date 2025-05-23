@@ -652,6 +652,65 @@ export class SeasonService {
       );
     }
   }
+
+  /**
+   * List all seasons, optionally filtered by status
+   * @param statusFilter Optional status to filter by
+   * @returns A MessageInstruction with the list of seasons
+   */
+  async listSeasons(statusFilter?: string): Promise<MessageInstruction> {
+    console.log(`SeasonService.listSeasons: Listing seasons${statusFilter ? ` with status ${statusFilter}` : ''}`);
+    
+    try {
+      const whereClause = statusFilter ? { status: statusFilter } : {};
+      
+      const seasons = await this.prisma.season.findMany({
+        where: whereClause,
+        include: {
+          config: true,
+          creator: {
+            select: {
+              name: true,
+              discordUserId: true
+            }
+          },
+          _count: {
+            select: {
+              players: true,
+              games: true
+            }
+          }
+        },
+        orderBy: {
+          createdAt: 'desc'
+        }
+      });
+
+      return MessageHelpers.commandSuccess(
+        'admin.list_seasons_success',
+        {
+          seasons: seasons.map(season => ({
+            id: season.id,
+            status: season.status,
+            creatorName: season.creator.name,
+            playerCount: season._count.players,
+            gameCount: season._count.games,
+            maxPlayers: season.config.maxPlayers,
+            minPlayers: season.config.minPlayers,
+            createdAt: season.createdAt.toISOString()
+          })),
+          totalCount: seasons.length,
+          statusFilter: statusFilter || 'all'
+        }
+      );
+    } catch (error) {
+      console.error('Error in SeasonService.listSeasons:', error);
+      return MessageHelpers.commandError(
+        'admin.list_seasons_error',
+        { error: error instanceof Error ? error.message : 'Unknown error' }
+      );
+    }
+  }
 }
 
 export interface NewSeasonOptions {

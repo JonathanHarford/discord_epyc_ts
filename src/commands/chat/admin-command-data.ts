@@ -47,4 +47,42 @@ export const adminCommandData = new SlashCommandBuilder()
                             .setRequired(true)
                     )
             )
+    )
+    .addSubcommandGroup(subcommandGroup =>
+        subcommandGroup
+            .setName('list')
+            .setDescription('List various entities')
+            .addSubcommand(subcommand =>
+                subcommand
+                    .setName('seasons')
+                    .setDescription('List all seasons')
+                    .addStringOption(option =>
+                        option.setName('status')
+                            .setDescription('Filter seasons by status')
+                            .setRequired(false)
+                            .addChoices(
+                                { name: 'Setup', value: 'SETUP' },
+                                { name: 'Pending Start', value: 'PENDING_START' },
+                                { name: 'Open', value: 'OPEN' },
+                                { name: 'Active', value: 'ACTIVE' },
+                                { name: 'Completed', value: 'COMPLETED' },
+                                { name: 'Terminated', value: 'TERMINATED' }
+                            )
+                    )
+            )
+            .addSubcommand(subcommand =>
+                subcommand
+                    .setName('players')
+                    .setDescription('List all players')
+                    .addStringOption(option =>
+                        option.setName('season')
+                            .setDescription('Filter players by season ID')
+                            .setRequired(false)
+                    )
+                    .addBooleanOption(option =>
+                        option.setName('banned')
+                            .setDescription('Show only banned players')
+                            .setRequired(false)
+                    )
+            )
     ); 

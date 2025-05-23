@@ -1,4 +1,6 @@
 import { PrismaClient, Player } from '@prisma/client';
+import { MessageInstruction } from '../types/MessageInstruction.js';
+import { MessageHelpers } from '../messaging/MessageHelpers.js';
 
 export class PlayerService {
   private prisma: PrismaClient;
@@ -108,6 +110,95 @@ export class PlayerService {
     } catch (error) {
       console.error('Error in PlayerService.getPlayerByDiscordId:', error);
       return null;
+    }
+  }
+
+  /**
+   * List all players, optionally filtered by season ID and banned status
+   * @param seasonId Optional season ID to filter players by
+   * @param bannedOnly Optional flag to show only banned players
+   * @returns A MessageInstruction with the list of players
+   */
+  async listPlayers(seasonId?: string, bannedOnly?: boolean): Promise<MessageInstruction> {
+    console.log(`PlayerService.listPlayers: Listing players${seasonId ? ` for season ${seasonId}` : ''}${bannedOnly ? ' (banned only)' : ''}`);
+    
+    try {
+      let whereClause: any = {};
+      
+      // Filter by banned status if specified
+      if (bannedOnly === true) {
+        whereClause.bannedAt = { not: null };
+      } else if (bannedOnly === false) {
+        whereClause.bannedAt = null;
+      }
+      
+      // Filter by season if specified
+      if (seasonId) {
+        whereClause.seasons = {
+          some: {
+            seasonId: seasonId
+          }
+        };
+      }
+
+      const players = await this.prisma.player.findMany({
+        where: whereClause,
+        include: {
+          _count: {
+            select: {
+              seasons: true,
+              turns: true
+            }
+          },
+          seasons: {
+            include: {
+              season: {
+                select: {
+                  id: true,
+                  status: true
+                }
+              }
+            },
+            ...(seasonId ? { where: { seasonId } } : { take: 5 }),
+            orderBy: {
+              joinedAt: 'desc'
+            }
+          }
+        },
+        orderBy: {
+          createdAt: 'desc'
+        }
+      });
+
+      return MessageHelpers.commandSuccess(
+        'admin.list_players_success',
+        {
+          players: players.map(player => ({
+            id: player.id,
+            name: player.name,
+            discordUserId: player.discordUserId,
+            isBanned: player.bannedAt !== null,
+            bannedAt: player.bannedAt?.toISOString(),
+            seasonCount: player._count.seasons,
+            turnCount: player._count.turns,
+            recentSeasons: player.seasons.map(s => ({ 
+              id: s.season.id, 
+              status: s.season.status,
+              joinedAt: s.joinedAt.toISOString()
+            })),
+            createdAt: player.createdAt.toISOString()
+          })),
+          totalCount: players.length,
+          seasonFilter: seasonId || null,
+          bannedFilter: bannedOnly
+        }
+      );
+    } catch (error) {
+      console.error('Error in PlayerService.listPlayers:', error);
+      return MessageHelpers.commandError(
+        'admin.list_players_error',
+        { error: error instanceof Error ? error.message : 'Unknown error' }
+      );
     }
   }
 } 

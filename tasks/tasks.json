@@ -875,7 +875,7 @@
       "id": 24,
       "title": "Implement Admin Commands: List Seasons/Players",
       "description": "Implement the `/admin list seasons` and `/admin list players` slash command handlers in `src/commands/chat`. These handlers should include permission checks. They should query the database via the service layer to retrieve lists of active seasons and players (potentially filtered by season or status) and display this information.",
-      "status": "pending",
+      "status": "in-progress",
       "dependencies": [
         2,
         5

@@ -58,6 +58,10 @@ export class AdminCommand implements Command {
                 await this.handlePlayerCommand(intr, data);
                 break;
             }
+            case 'list': {
+                await this.handleListCommand(intr, data);
+                break;
+            }
             default: {
                 const notImplementedInstruction = MessageHelpers.embedMessage('warning', 'errorEmbeds.notImplemented', {}, true);
                 await MessageAdapter.processInstruction(notImplementedInstruction, intr, data.lang);
@@ -175,6 +179,64 @@ export class AdminCommand implements Command {
                 ERROR: error instanceof Error ? error.message : 'Unknown error'
             }, true);
             
+            await MessageAdapter.processInstruction(errorInstruction, intr, data.lang);
+        }
+    }
+
+    private async handleListCommand(intr: ChatInputCommandInteraction, data: EventData): Promise<void> {
+        const subcommand = intr.options.getSubcommand();
+        
+        switch (subcommand) {
+            case 'seasons': {
+                await this.handleListSeasonsCommand(intr, data);
+                break;
+            }
+            case 'players': {
+                await this.handleListPlayersCommand(intr, data);
+                break;
+            }
+            default: {
+                const notImplementedInstruction = MessageHelpers.embedMessage('warning', 'errorEmbeds.notImplemented', {}, true);
+                await MessageAdapter.processInstruction(notImplementedInstruction, intr, data.lang);
+                return;
+            }
+        }
+    }
+
+    private async handleListSeasonsCommand(intr: ChatInputCommandInteraction, data: EventData): Promise<void> {
+        const statusFilter = intr.options.getString('status');
+
+        try {
+            const result = await this.seasonService.listSeasons(statusFilter || undefined);
+            await MessageAdapter.processInstruction(result, intr, data.lang);
+        } catch (error) {
+            console.error('Error in admin list seasons command:', error);
+            const errorInstruction = MessageHelpers.embedMessage('error', 'errorEmbeds.command', {
+                ERROR_CODE: 'ADMIN_LIST_SEASONS_ERROR',
+                GUILD_ID: intr.guild?.id ?? 'N/A',
+                SHARD_ID: intr.guild?.shardId?.toString() ?? 'N/A'
+            }, true);
+            await MessageAdapter.processInstruction(errorInstruction, intr, data.lang);
+        }
+    }
+
+    private async handleListPlayersCommand(intr: ChatInputCommandInteraction, data: EventData): Promise<void> {
+        const seasonFilter = intr.options.getString('season');
+        const bannedFilter = intr.options.getBoolean('banned');
+
+        try {
+            const result = await this.playerService.listPlayers(
+                seasonFilter || undefined, 
+                bannedFilter || undefined
+            );
+            await MessageAdapter.processInstruction(result, intr, data.lang);
+        } catch (error) {
+            console.error('Error in admin list players command:', error);
+            const errorInstruction = MessageHelpers.embedMessage('error', 'errorEmbeds.command', {
+                ERROR_CODE: 'ADMIN_LIST_PLAYERS_ERROR',
+                GUILD_ID: intr.guild?.id ?? 'N/A',
+                SHARD_ID: intr.guild?.shardId?.toString() ?? 'N/A'
+            }, true);
             await MessageAdapter.processInstruction(errorInstruction, intr, data.lang);
         }
     }

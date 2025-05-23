@@ -50,6 +50,10 @@ export const LangKeys = {
       TerminateSeasonErrorAlreadyTerminated: 'admin.terminate_season_error_already_terminated',
       TerminateSeasonErrorDatabase: 'admin.terminate_season_error_database',
       TerminateSeasonErrorUnknown: 'admin.terminate_season_error_unknown',
+      ListSeasonsSuccess: 'admin.list_seasons_success',
+      ListSeasonsError: 'admin.list_seasons_error',
+      ListPlayersSuccess: 'admin.list_players_success',
+      ListPlayersError: 'admin.list_players_error',
     },
     // Add other commands here in the future
   },
