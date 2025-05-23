@@ -2,6 +2,7 @@ import { Message } from 'discord.js';
 import { createRequire } from 'node:module';
 import { EventHandler } from './index.js';
 import { Logger } from '../services/index.js';
+import { ErrorHandler } from '../utils/index.js';
 
 const require = createRequire(import.meta.url);
 let Logs = require('../../lang/logs.json');
@@ -34,7 +35,12 @@ export class DirectMessageHandler implements EventHandler {
             // Route the DM to the appropriate handler based on context
             await this.routeDM(msg, contextType);
         } catch (error) {
-            Logger.error(Logs.error.directMessage || 'Error processing direct message', error);
+            // Use the new standardized error handler for DMs
+            await ErrorHandler.handleDMError(
+                error instanceof Error ? error : new Error(String(error)),
+                msg,
+                { contextType: 'DM_PROCESSING' }
+            );
         }
     }
 
@@ -90,10 +96,18 @@ export class DirectMessageHandler implements EventHandler {
      * @param msg The direct message to handle
      */
     private async handleReadyCommand(msg: Message): Promise<void> {
-        // This is a placeholder implementation
-        // Actual implementation will be added in a future task
-        Logger.info(`Received /ready command from ${msg.author.tag}`);
-        await msg.reply('Ready command received. This feature is not fully implemented yet.');
+        const wrappedHandler = ErrorHandler.wrapDMHandler(
+            async () => {
+                // This is a placeholder implementation
+                // Actual implementation will be added in a future task
+                Logger.info(`Received /ready command from ${msg.author.tag}`);
+                await msg.reply('Ready command received. This feature is not fully implemented yet.');
+            },
+            msg,
+            { dmContextType: DMContextType.READY_COMMAND }
+        );
+        
+        await wrappedHandler();
     }
 
     /**
@@ -101,10 +115,18 @@ export class DirectMessageHandler implements EventHandler {
      * @param msg The direct message to handle
      */
     private async handleTurnSubmission(msg: Message): Promise<void> {
-        // This is a placeholder implementation
-        // Actual implementation will be added in a future task
-        Logger.info(`Received potential turn submission from ${msg.author.tag}`);
-        await msg.reply('Turn submission received. This feature is not fully implemented yet.');
+        const wrappedHandler = ErrorHandler.wrapDMHandler(
+            async () => {
+                // This is a placeholder implementation
+                // Actual implementation will be added in a future task
+                Logger.info(`Received potential turn submission from ${msg.author.tag}`);
+                await msg.reply('Turn submission received. This feature is not fully implemented yet.');
+            },
+            msg,
+            { dmContextType: DMContextType.TURN_SUBMISSION }
+        );
+        
+        await wrappedHandler();
     }
 
     /**
@@ -112,8 +134,16 @@ export class DirectMessageHandler implements EventHandler {
      * @param msg The direct message to handle
      */
     private async handleOtherDM(msg: Message): Promise<void> {
-        // This is a placeholder implementation
-        Logger.info(`Received unrecognized DM from ${msg.author.tag}`);
-        await msg.reply("I'm not sure what you're trying to do. If you're trying to join a game, please use the appropriate commands in a server channel.");
+        const wrappedHandler = ErrorHandler.wrapDMHandler(
+            async () => {
+                // This is a placeholder implementation
+                Logger.info(`Received unrecognized DM from ${msg.author.tag}`);
+                await msg.reply("I'm not sure what you're trying to do. If you're trying to join a game, please use the appropriate commands in a server channel.");
+            },
+            msg,
+            { dmContextType: DMContextType.OTHER }
+        );
+        
+        await wrappedHandler();
     }
 } 

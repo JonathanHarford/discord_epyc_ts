@@ -14,7 +14,7 @@ import { Command, CommandDeferType } from '../commands/index.js';
 import { DiscordLimits } from '../constants/index.js';
 import { EventData } from '../models/internal-models.js';
 import { EventDataService, Lang, Logger } from '../services/index.js';
-import { CommandUtils, InteractionUtils } from '../utils/index.js';
+import { CommandUtils, ErrorHandler, InteractionUtils } from '../utils/index.js';
 
 const require = createRequire(import.meta.url);
 let Config = require('../../config/config.json');
@@ -142,28 +142,20 @@ export class CommandHandler implements EventHandler {
                 await command.execute(intr, data);
             }
         } catch (error) {
-            await this.sendError(intr, data);
-
-            // Log command error
-            Logger.error(
-                intr.channel instanceof TextChannel ||
-                    intr.channel instanceof NewsChannel ||
-                    intr.channel instanceof ThreadChannel
-                    ? Logs.error.commandGuild
-                          .replaceAll('{INTERACTION_ID}', intr.id)
-                          .replaceAll('{COMMAND_NAME}', commandName)
-                          .replaceAll('{USER_TAG}', intr.user.tag)
-                          .replaceAll('{USER_ID}', intr.user.id)
-                          .replaceAll('{CHANNEL_NAME}', intr.channel.name)
-                          .replaceAll('{CHANNEL_ID}', intr.channel.id)
-                          .replaceAll('{GUILD_NAME}', intr.guild?.name)
-                          .replaceAll('{GUILD_ID}', intr.guild?.id)
-                    : Logs.error.commandOther
-                          .replaceAll('{INTERACTION_ID}', intr.id)
-                          .replaceAll('{COMMAND_NAME}', commandName)
-                          .replaceAll('{USER_TAG}', intr.user.tag)
-                          .replaceAll('{USER_ID}', intr.user.id),
-                error
+            // Use the new standardized error handler
+            await ErrorHandler.handleCommandError(
+                error instanceof Error ? error : new Error(String(error)),
+                intr,
+                data,
+                {
+                    commandName,
+                    channelName: intr.channel instanceof TextChannel ||
+                        intr.channel instanceof NewsChannel ||
+                        intr.channel instanceof ThreadChannel
+                        ? intr.channel.name
+                        : undefined,
+                    guildName: intr.guild?.name
+                }
             );
         }
     }

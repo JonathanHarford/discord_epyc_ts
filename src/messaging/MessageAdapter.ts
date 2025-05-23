@@ -15,6 +15,8 @@ import { MessageInstruction } from '../types/MessageInstruction.js';
 import { Lang } from '../services/lang.js';
 import { Language } from '../models/enum-helpers/language.js';
 import { MessageUtils } from '../utils/message-utils.js';
+import { ErrorEventBus, ErrorEventType } from '../events/error-event-bus.js';
+import { ErrorHandler, ErrorType, ErrorSeverity } from '../utils/error-handler.js';
 
 /**
  * Platform-agnostic message adapter that converts MessageInstruction objects
@@ -156,6 +158,19 @@ export class MessageAdapter {
       }
     } catch (error) {
       console.error('[MessageAdapter] Failed to send interaction response:', error);
+      
+      // Try a fallback approach for critical errors
+      if (instruction.type === 'error' && !interaction.replied && !interaction.deferred) {
+        try {
+          await interaction.reply({
+            content: 'An error occurred while processing your request.',
+            ephemeral: true
+          });
+        } catch (fallbackError) {
+          console.error('[MessageAdapter] Fallback response also failed:', fallbackError);
+        }
+      }
+      
       throw error;
     }
   }
@@ -215,5 +230,75 @@ export class MessageAdapter {
       data,
       formatting
     };
+  }
+
+  /**
+   * Handle errors that occur during message processing
+   * @param error The error that occurred
+   * @param interaction Optional interaction for error reporting
+   * @param context Additional context
+   */
+  public static async handleMessageError(
+    error: Error,
+    interaction?: CommandInteraction,
+    context?: Record<string, any>
+  ): Promise<void> {
+    console.error('[MessageAdapter] Message processing error:', error, context);
+    
+    // Create error info and publish to event bus
+    const errorInfo = ErrorHandler.createCustomError(
+      ErrorType.DISCORD_API,
+      'MESSAGE_ADAPTER_ERROR',
+      error.message,
+      'There was an error processing your message. Please try again.',
+      context
+    );
+    
+    const eventBus = ErrorEventBus.getInstance();
+    eventBus.publishError(
+      ErrorEventType.MESSAGE_ERROR,
+      errorInfo,
+      { source: 'MessageAdapter', ...context },
+      interaction?.user.id,
+      interaction?.guild?.id,
+      interaction?.channel?.id
+    );
+    
+    if (interaction && !interaction.replied && !interaction.deferred) {
+      try {
+        await interaction.reply({
+          content: 'Sorry, there was an error processing your message. Please try again.',
+          ephemeral: true
+        });
+      } catch (replyError) {
+        console.error('[MessageAdapter] Failed to send error reply:', replyError);
+      }
+    }
+  }
+
+  /**
+   * Safely process a message instruction with error handling
+   * @param instruction The message instruction to process
+   * @param interaction Optional Discord interaction for replies
+   * @param langCode Language code for localization
+   * @param discordClient Optional Discord client for DM sending
+   * @returns Promise that resolves when message is sent
+   */
+  public static async safeProcessInstruction(
+    instruction: MessageInstruction,
+    interaction?: CommandInteraction,
+    langCode: string = Language.Default,
+    discordClient?: any
+  ): Promise<boolean> {
+    try {
+      await this.processInstruction(instruction, interaction, langCode, discordClient);
+      return true;
+    } catch (error) {
+      await this.handleMessageError(error instanceof Error ? error : new Error(String(error)), interaction, {
+        instructionType: instruction.type,
+        instructionKey: instruction.key
+      });
+      return false;
+    }
   }
 } 
