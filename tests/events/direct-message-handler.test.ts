@@ -8,6 +8,7 @@ import { Logger } from '../../src/services/index.js';
 import { TurnService } from '../../src/services/TurnService.js';
 import { PlayerService } from '../../src/services/PlayerService.js';
 import { SchedulerService } from '../../src/services/SchedulerService.js';
+import { TurnOfferingService } from '../../src/services/TurnOfferingService.js';
 
 // Mock the Logger
 vi.mock('../../src/services/index.js', () => ({
@@ -35,15 +36,10 @@ describe('DirectMessageHandler - Integration Tests', () => {
     let turnService: TurnService;
     let playerService: PlayerService;
     let mockSchedulerService: SchedulerService;
+    let turnOfferingService: TurnOfferingService;
 
     beforeAll(async () => {
         prisma = new PrismaClient();
-        
-        // Create mock scheduler service (we don't want real timers in tests)
-        mockSchedulerService = {
-            scheduleJob: vi.fn().mockReturnValue(true),
-            cancelJob: vi.fn().mockReturnValue(true),
-        } as unknown as SchedulerService;
         
         // Create mock Discord client for TurnService
         const mockDiscordClient = {
@@ -54,12 +50,21 @@ describe('DirectMessageHandler - Integration Tests', () => {
             }
         } as any;
         
+        // Create mock scheduler service (we don't want real timers in tests)
+        mockSchedulerService = {
+            scheduleJob: vi.fn().mockReturnValue(true),
+            cancelJob: vi.fn().mockReturnValue(true),
+        } as unknown as SchedulerService;
+        
         // Create real services with test database
         turnService = new TurnService(prisma, mockDiscordClient);
         playerService = new PlayerService(prisma);
         
+        // Create real turn offering service with test database
+        turnOfferingService = new TurnOfferingService(prisma, mockDiscordClient, turnService, mockSchedulerService);
+        
         // Create handler instance with real services
-        handler = new DirectMessageHandler(turnService, playerService, mockSchedulerService);
+        handler = new DirectMessageHandler(turnService, playerService, mockSchedulerService, turnOfferingService);
         
         // Clean database
         await prisma.$transaction([

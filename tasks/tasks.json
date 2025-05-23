@@ -449,7 +449,7 @@
       "id": 14,
       "title": "Implement Turn Offering Mechanism",
       "description": "Implement the mechanism that triggers the selection and offering of the next turn. This should be called after a turn is COMPLETED or SKIPPED, or when a season is activated. It uses the Next Player Logic (Task 13) to find the next player, calls `TurnService.offerTurn` to update the state, sends the DM notification to the selected player, and schedules the claim timeout timer via the Task Scheduler.",
-      "status": "in-progress",
+      "status": "done",
       "dependencies": [
         5,
         9,
@@ -462,37 +462,37 @@
         {
           "id": "14.1",
           "description": "Implement the core logic for triggering and executing the turn offering process.",
-          "status": "pending"
+          "status": "done"
         },
         {
           "id": "14.2",
           "description": "Integrate with Next Player Logic (Task 13) to get the next player.",
-          "status": "pending"
+          "status": "done"
         },
         {
           "id": "14.3",
           "description": "Implement the call to `TurnService.offerTurn` to update game state.",
-          "status": "pending"
+          "status": "done"
         },
         {
           "id": "14.4",
           "description": "Implement sending the Discord DM notification to the selected player.",
-          "status": "pending"
+          "status": "done"
         },
         {
           "id": "14.5",
           "description": "Implement scheduling the turn claim timeout timer via the Task Scheduler.",
-          "status": "pending"
+          "status": "done"
         },
         {
           "id": "14.6",
           "description": "Write Unit Tests for the turn offering logic layer.",
-          "status": "pending"
+          "status": "done"
         },
         {
           "id": "14.7",
           "description": "Write Integration Tests for the turn offering mechanism against a test database.",
-          "status": "pending"
+          "status": "done"
         }
       ]
     },

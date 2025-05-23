@@ -31,15 +31,18 @@ export class DirectMessageHandler implements EventHandler {
     private turnService: TurnService;
     private playerService: PlayerService;
     private schedulerService: SchedulerService;
+    private turnOfferingService: TurnOfferingService;
 
     constructor(
         turnService: TurnService,
         playerService: PlayerService,
-        schedulerService: SchedulerService
+        schedulerService: SchedulerService,
+        turnOfferingService: TurnOfferingService
     ) {
         this.turnService = turnService;
         this.playerService = playerService;
         this.schedulerService = schedulerService;
+        this.turnOfferingService = turnOfferingService;
     }
 
     /**
@@ -461,9 +464,23 @@ export class DirectMessageHandler implements EventHandler {
                     Logger.warn(`No submission timeout job found to cancel for turn ${turnToSubmit.id}`);
                 }
 
-                // 8. TODO: Trigger the process to find and offer the next turn (Task 14)
-                // For now, just log that this step is needed
-                Logger.info(`Turn ${turnToSubmit.id} completed. Next turn offering logic will be implemented in Task 14.`);
+                // 8. Trigger the turn offering mechanism to find and offer the next turn
+                try {
+                    const offeringResult = await this.turnOfferingService.offerNextTurn(
+                        turnToSubmit.gameId,
+                        'turn_completed'
+                    );
+                    
+                    if (offeringResult.success) {
+                        Logger.info(`Successfully offered next turn ${offeringResult.turn?.id} to player ${offeringResult.player?.id} after turn ${turnToSubmit.id} completion`);
+                    } else {
+                        Logger.warn(`Failed to offer next turn after turn ${turnToSubmit.id} completion: ${offeringResult.error}`);
+                        // Don't fail the entire submission process if turn offering fails
+                    }
+                } catch (offeringError) {
+                    Logger.error(`Error in turn offering after turn ${turnToSubmit.id} completion:`, offeringError);
+                    // Don't fail the entire submission process if turn offering fails
+                }
 
                 // 9. Send confirmation DM to the player
                 const successInstruction = MessageHelpers.commandSuccess(

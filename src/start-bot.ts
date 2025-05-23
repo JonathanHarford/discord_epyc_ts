@@ -39,6 +39,7 @@ import {
     SchedulerService,
     SeasonService,
     TurnService,
+    TurnOfferingService,
 } from './services/index.js';
 import { Trigger } from './triggers/index.js';
 import { checkCommandLangKeyCoverage } from './utils/command-langkey-coverage.js';
@@ -71,6 +72,7 @@ async function start(): Promise<void> {
     const schedulerService = new SchedulerService(prisma);
     const turnService = new TurnService(prisma, client);
     const seasonService = new SeasonService(prisma, turnService, schedulerService);
+    const turnOfferingService = new TurnOfferingService(prisma, client, turnService, schedulerService);
     
     // Load persisted jobs on startup
     await schedulerService.loadPersistedJobs();
@@ -119,7 +121,7 @@ async function start(): Promise<void> {
     let buttonHandler = new ButtonHandler(buttons, eventDataService);
     let triggerHandler = new TriggerHandler(triggers, eventDataService);
     let playerService = new PlayerService(prisma);
-    let directMessageHandler = new DirectMessageHandler(turnService, playerService, schedulerService);
+    let directMessageHandler = new DirectMessageHandler(turnService, playerService, schedulerService, turnOfferingService);
     let messageHandler = new MessageHandler(triggerHandler, directMessageHandler);
     let reactionHandler = new ReactionHandler(reactions, eventDataService);
 
