@@ -1,5 +1,5 @@
 import { PrismaClient, Player, Turn, Game, Season, PlayersOnSeasons } from '@prisma/client';
-import { Logger } from '../services/logger'; // Import the logger
+import { Logger } from '../services/logger.js'; // Import the logger
 
 /**
  * Activates a season and its first game.
