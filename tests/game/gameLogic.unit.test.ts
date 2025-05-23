@@ -1,7 +1,23 @@
 import { describe, it, expect, beforeEach, afterAll, vi } from 'vitest';
-import { PrismaClient, Player, Turn, Game, Season, PlayersOnSeasons } from '@prisma/client';
-import { selectNextPlayer, checkGameCompletion } from '../../src/game/gameLogic.js';
+import { PrismaClient, Player, Turn, Game, Season, PlayersOnSeasons, SeasonConfig } from '@prisma/client';
+import { 
+  selectNextPlayer, 
+  checkGameCompletion,
+  activateSeasonPlaceholder as activateSeason, // Renamed import
+  checkSeasonCompletionPlaceholder as checkSeasonCompletionFull, // Renamed import, alias to avoid conflict
+  applyShouldRule1
+} from '../../src/game/gameLogic.js';
 import { nanoid } from 'nanoid';
+
+// Mock logger
+vi.mock('../../src/services/logger', () => ({
+  Logger: {
+    info: vi.fn(),
+    warn: vi.fn(),
+    error: vi.fn(),
+    debug: vi.fn(),
+  },
+}));
 
 // Use a separate Prisma client for tests
 const prisma = new PrismaClient();
@@ -94,6 +110,281 @@ describe('Next Player Logic Unit Tests', () => {
     await prisma.$disconnect();
   });
 
+  // testPlayers, testSeason, testGame are already declared in the outer scope
+  // and initialized in beforeEach. We can reuse them or create specific ones inside test blocks.
+
+  describe('activateSeason', () => {
+    let localTestSeason: Season;
+    let seasonConfig: SeasonConfig;
+
+    beforeEach(async () => {
+      seasonConfig = await prisma.seasonConfig.create({
+        data: { turnPattern: 'writing,drawing', openDuration: '1d', minPlayers: 1, maxPlayers: 10 }
+      });
+      localTestSeason = await prisma.season.create({
+        data: {
+          status: 'SETUP',
+          creatorId: testPlayers[0].id,
+          configId: seasonConfig.id,
+        },
+      });
+    });
+
+    it('should activate the season and its first game', async () => {
+      const game1 = await prisma.game.create({
+        data: { seasonId: localTestSeason.id, status: 'SETUP', turns: { create: [] } },
+      });
+      await prisma.game.create({ // second game, should remain SETUP
+        data: { seasonId: localTestSeason.id, status: 'SETUP', createdAt: new Date(Date.now() + 1000) }, // ensure it's not the first
+      });
+      
+      const result = await activateSeason(localTestSeason.id, prisma);
+
+      expect(result).not.toBeNull();
+      expect(result?.status).toBe('ACTIVE');
+
+      const dbSeason = await prisma.season.findUnique({ where: { id: localTestSeason.id } });
+      expect(dbSeason?.status).toBe('ACTIVE');
+
+      const dbGame1 = await prisma.game.findUnique({ where: { id: game1.id } });
+      expect(dbGame1?.status).toBe('ACTIVE');
+      
+      const games = await prisma.game.findMany({ where: { seasonId: localTestSeason.id } });
+      expect(games.find(g => g.id !== game1.id)?.status).toBe('SETUP');
+    });
+
+    it('should return null if season not found', async () => {
+      const result = await activateSeason('non-existent-id', prisma);
+      expect(result).toBeNull();
+    });
+
+    it('should return null if season has no games', async () => {
+      const result = await activateSeason(localTestSeason.id, prisma);
+      expect(result).toBeNull();
+      const dbSeason = await prisma.season.findUnique({ where: { id: localTestSeason.id } });
+      expect(dbSeason?.status).toBe('SETUP');
+    });
+  });
+
+  describe('checkSeasonCompletion (Full Season Check)', () => {
+    let localTestSeason: Season;
+    let seasonConfig: SeasonConfig;
+
+    beforeEach(async () => {
+      seasonConfig = await prisma.seasonConfig.create({
+        data: { turnPattern: 'writing,drawing', openDuration: '1d', minPlayers: 1, maxPlayers: 10 }
+      });
+      localTestSeason = await prisma.season.create({
+        data: {
+          status: 'ACTIVE', // Start as active for these tests
+          creatorId: testPlayers[0].id,
+          configId: seasonConfig.id,
+        },
+      });
+    });
+
+    it('should mark season as COMPLETED if all its games are COMPLETED', async () => {
+      await prisma.game.createMany({
+        data: [
+          { seasonId: localTestSeason.id, status: 'COMPLETED' },
+          { seasonId: localTestSeason.id, status: 'COMPLETED' },
+        ],
+      });
+
+      const result = await checkSeasonCompletionFull(localTestSeason.id, prisma);
+      expect(result.completed).toBe(true);
+      expect(result.season?.status).toBe('COMPLETED');
+      const dbSeason = await prisma.season.findUnique({ where: { id: localTestSeason.id } });
+      expect(dbSeason?.status).toBe('COMPLETED');
+    });
+
+    it('should not mark season as COMPLETED if some games are not COMPLETED', async () => {
+      await prisma.game.createMany({
+        data: [
+          { seasonId: localTestSeason.id, status: 'COMPLETED' },
+          { seasonId: localTestSeason.id, status: 'ACTIVE' },
+        ],
+      });
+
+      const result = await checkSeasonCompletionFull(localTestSeason.id, prisma);
+      expect(result.completed).toBe(false);
+      expect(result.season?.status).toBe('ACTIVE');
+    });
+
+    it('should mark season with no games as COMPLETED if status is ACTIVE (not SETUP/PENDING)', async () => {
+      // Season is already ACTIVE and has no games by default in this beforeEach
+      const result = await checkSeasonCompletionFull(localTestSeason.id, prisma);
+      expect(result.completed).toBe(true);
+      expect(result.season?.status).toBe('COMPLETED');
+    });
+    
+    it('should NOT mark season with no games as COMPLETED if status is PENDING', async () => {
+      await prisma.season.update({ where: { id: localTestSeason.id }, data: { status: 'PENDING' } });
+      const result = await checkSeasonCompletionFull(localTestSeason.id, prisma);
+      expect(result.completed).toBe(false);
+      expect(result.season?.status).toBe('PENDING');
+    });
+    
+    it('should NOT mark season with no games as COMPLETED if status is SETUP', async () => {
+      await prisma.season.update({ where: { id: localTestSeason.id }, data: { status: 'SETUP' } });
+      const result = await checkSeasonCompletionFull(localTestSeason.id, prisma);
+      expect(result.completed).toBe(false); // As per current logic, setup + no games does not mean completed
+      expect(result.season?.status).toBe('SETUP');
+    });
+
+    it('should return completed: false if season not found', async () => {
+      const result = await checkSeasonCompletionFull('non-existent-id', prisma);
+      expect(result.completed).toBe(false);
+      expect(result.season).toBeNull();
+    });
+  });
+  
+  describe('applyShouldRule1', () => {
+    // Minimal PlayerTurnStats structure needed for this rule
+    const createPlayerStats = (playerId: string): any => ({
+      playerId,
+      player: { id: playerId, name: `P-${playerId}` } as Player,
+      // Other stats are not directly used by applyShouldRule1 but might be by other rules
+      totalWritingTurns: 0,
+      totalDrawingTurns: 0,
+      pendingTurns: 0,
+      hasPlayedInGame: false,
+    });
+
+    let playerAStats: any;
+    let playerBStats: any; // Not a candidate, but an ID for Player B
+    let playerCStats: any;
+    
+    let playerAId: string;
+    let playerBId: string;
+    let playerCId: string;
+
+    beforeEach(() => {
+      playerAId = `playerA-${nanoid()}`;
+      playerBId = `playerB-${nanoid()}`;
+      playerCId = `playerC-${nanoid()}`;
+
+      playerAStats = createPlayerStats(playerAId);
+      playerBStats = createPlayerStats(playerBId); // For ID reference mostly
+      playerCStats = createPlayerStats(playerCId);
+    });
+
+    const turnTypeWriting = 'WRITING';
+
+    it('should not filter if no previous completed/skipped turn in current game', () => {
+      const candidates = [playerAStats, playerCStats];
+      const currentGameTurns: Turn[] = []; // No previous turn
+      const allSeasonGames: Game[] = [];
+
+      const result = applyShouldRule1(candidates, turnTypeWriting, currentGameTurns, allSeasonGames);
+      expect(result).toEqual(candidates);
+    });
+
+    it('should not filter Player A if they have not followed Player B before with the same turn type', () => {
+      const candidates = [playerAStats, playerCStats];
+      const currentGameTurns = [
+        { turnNumber: 1, playerId: playerBId, status: 'COMPLETED', type: turnTypeWriting },
+      ] as Turn[];
+      const allSeasonGames = [
+        { id: 'game1', turns: [ // A different game or irrelevant turns
+          { turnNumber: 1, playerId: playerAId, status: 'COMPLETED', type: 'DRAWING', previousTurnId: null },
+          { turnNumber: 2, playerId: playerBId, status: 'COMPLETED', type: turnTypeWriting, previousTurnId: 'turnA1' },
+        ]}
+      ] as (Game & { turns: Turn[] })[];
+
+      const result = applyShouldRule1(candidates, turnTypeWriting, currentGameTurns, allSeasonGames);
+      expect(result).toContain(playerAStats);
+    });
+
+    it('should filter Player A if they followed Player B for the same turnType once before', () => {
+      const candidates = [playerAStats, playerCStats];
+      // Current game: Player B just finished a WRITING turn
+      const currentGameTurns = [
+        { turnNumber: 1, playerId: playerBId, status: 'COMPLETED', type: turnTypeWriting },
+      ] as Turn[];
+      
+      // Season history: Player A already followed Player B with a WRITING turn in game1
+      const allSeasonGames = [
+        { 
+          id: 'game1', 
+          turns: [
+            { turnNumber: 1, playerId: playerBId, status: 'COMPLETED', type: turnTypeWriting },
+            { turnNumber: 2, playerId: playerAId, status: 'COMPLETED', type: turnTypeWriting, previousTurnId: 'game1turn1' }, // A followed B
+          ]
+        },
+      ] as (Game & { turns: Turn[] })[];
+
+      const result = applyShouldRule1(candidates, turnTypeWriting, currentGameTurns, allSeasonGames);
+      expect(result).not.toContain(playerAStats);
+      expect(result).toContain(playerCStats); // Player C should still be a candidate
+    });
+
+    it('should NOT filter Player A if they followed Player B for a DIFFERENT turnType', () => {
+      const candidates = [playerAStats, playerCStats];
+      const currentGameTurns = [
+        { turnNumber: 1, playerId: playerBId, status: 'COMPLETED', type: turnTypeWriting }, // Current turn is WRITING
+      ] as Turn[];
+      const allSeasonGames = [
+        { 
+          id: 'game1', 
+          turns: [
+            { turnNumber: 1, playerId: playerBId, status: 'COMPLETED', type: 'DRAWING' }, // B made a DRAWING turn
+            { turnNumber: 2, playerId: playerAId, status: 'COMPLETED', type: 'DRAWING', previousTurnId: 'game1turn1' }, // A followed with DRAWING
+          ]
+        },
+      ] as (Game & { turns: Turn[] })[];
+
+      const result = applyShouldRule1(candidates, turnTypeWriting, currentGameTurns, allSeasonGames);
+      expect(result).toContain(playerAStats);
+    });
+    
+    it('should return original candidates if all candidates would be filtered (SHOULD rule)', () => {
+      const candidates = [playerAStats, playerCStats];
+      const currentGameTurns = [
+        { turnNumber: 1, playerId: playerBId, status: 'COMPLETED', type: turnTypeWriting },
+      ] as Turn[];
+      const allSeasonGames = [
+        { 
+          id: 'game1', 
+          turns: [ // Player A followed B
+            { turnNumber: 1, playerId: playerBId, status: 'COMPLETED', type: turnTypeWriting },
+            { turnNumber: 2, playerId: playerAId, status: 'COMPLETED', type: turnTypeWriting, previousTurnId: 'g1t1' },
+          ]
+        },
+        { 
+          id: 'game2', 
+          turns: [ // Player C also followed B
+            { turnNumber: 1, playerId: playerBId, status: 'COMPLETED', type: turnTypeWriting },
+            { turnNumber: 2, playerId: playerCId, status: 'COMPLETED', type: turnTypeWriting, previousTurnId: 'g2t1' },
+          ]
+        },
+      ] as (Game & { turns: Turn[] })[];
+
+      const result = applyShouldRule1(candidates, turnTypeWriting, currentGameTurns, allSeasonGames);
+      expect(result).toEqual(candidates); // Should return original as all would be filtered
+    });
+
+    it('should correctly identify sequences considering turn status (COMPLETED/SKIPPED)', () => {
+       const candidates = [playerAStats];
+       const currentGameTurns = [
+        { turnNumber: 1, playerId: playerBId, status: 'SKIPPED', type: turnTypeWriting }, // Player B was skipped
+      ] as Turn[];
+       const allSeasonGames = [
+        { 
+          id: 'game1', 
+          turns: [
+            { turnNumber: 1, playerId: playerBId, status: 'SKIPPED', type: turnTypeWriting }, // B was skipped
+            { turnNumber: 2, playerId: playerAId, status: 'COMPLETED', type: turnTypeWriting, previousTurnId: 'g1t1' }, // A followed
+          ]
+        },
+      ] as (Game & { turns: Turn[] })[];
+      
+      const result = applyShouldRule1(candidates, turnTypeWriting, currentGameTurns, allSeasonGames);
+      expect(result).toEqual([]); // Player A should be filtered
+    });
+  });
+
+  // Existing tests for selectNextPlayer and checkGameCompletion (for individual games) follow
   describe('Basic Functionality', () => {
     it('should return error when game not found', async () => {
       const result = await selectNextPlayer('non-existent-game', 'WRITING', prisma);

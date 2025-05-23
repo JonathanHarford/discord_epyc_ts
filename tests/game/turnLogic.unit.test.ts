@@ -1,0 +1,319 @@
+import { describe, it, expect, beforeEach, afterAll, vi } from 'vitest';
+import { PrismaClient, Player, Season, Game, Turn, SeasonConfig } from '@prisma/client';
+import { 
+  claimTurnPlaceholder as claimTurn,
+  submitTurnPlaceholder as submitTurn,
+  offerTurnPlaceholder as offerTurn,
+  skipTurnPlaceholder as skipTurn,
+  dismissOfferPlaceholder as dismissOffer,
+} from '../../src/game/turnLogic.js';
+import { nanoid } from 'nanoid';
+
+// Mock logger
+vi.mock('../../src/services/logger', () => ({
+  Logger: {
+    info: vi.fn(),
+    warn: vi.fn(),
+    error: vi.fn(),
+    debug: vi.fn(),
+  },
+}));
+
+const prisma = new PrismaClient();
+
+describe('TurnLogic Unit Tests', () => {
+  let testPlayer1: Player;
+  let testPlayer2: Player;
+  let testSeason: Season;
+  let testGame: Game;
+  let testTurn: Turn; // Will be re-created in specific describe blocks
+
+  beforeEach(async () => {
+    // Clear the database before each test
+    await prisma.playersOnSeasons.deleteMany();
+    await prisma.turn.deleteMany();
+    await prisma.game.deleteMany();
+    await prisma.season.deleteMany();
+    await prisma.player.deleteMany();
+    await prisma.seasonConfig.deleteMany();
+
+    testPlayer1 = await prisma.player.create({
+      data: { discordUserId: `player1-${nanoid()}`, name: 'Player One' },
+    });
+    testPlayer2 = await prisma.player.create({
+      data: { discordUserId: `player2-${nanoid()}`, name: 'Player Two' },
+    });
+
+    const seasonConfig = await prisma.seasonConfig.create({
+      data: { turnPattern: 'writing,drawing', openDuration: '1d', minPlayers: 1, maxPlayers: 10 },
+    });
+
+    testSeason = await prisma.season.create({
+      data: {
+        status: 'ACTIVE',
+        creatorId: testPlayer1.id,
+        configId: seasonConfig.id,
+      },
+    });
+
+    testGame = await prisma.game.create({
+      data: {
+        seasonId: testSeason.id,
+        status: 'ACTIVE',
+      },
+    });
+  });
+
+  afterAll(async () => {
+    await prisma.$disconnect();
+  });
+
+  describe('offerTurn', () => {
+    beforeEach(async () => {
+      testTurn = await prisma.turn.create({
+        data: {
+          gameId: testGame.id,
+          turnNumber: 1,
+          type: 'WRITING',
+          status: 'AVAILABLE',
+        },
+      });
+    });
+
+    it('should successfully offer an AVAILABLE turn to a player', async () => {
+      const result = await offerTurn(testTurn.id, testPlayer1.id, prisma);
+      expect(result).not.toBeNull();
+      expect(result?.status).toBe('OFFERED');
+      expect(result?.playerId).toBe(testPlayer1.id);
+      expect(result?.offeredAt).toBeInstanceOf(Date);
+
+      const dbTurn = await prisma.turn.findUnique({ where: { id: testTurn.id } });
+      expect(dbTurn?.status).toBe('OFFERED');
+      expect(dbTurn?.playerId).toBe(testPlayer1.id);
+    });
+
+    it('should return null if turn not found', async () => {
+      const result = await offerTurn('non-existent-turn', testPlayer1.id, prisma);
+      expect(result).toBeNull();
+    });
+
+    it('should return null if turn is not in AVAILABLE state', async () => {
+      await prisma.turn.update({ where: { id: testTurn.id }, data: { status: 'COMPLETED' } });
+      const result = await offerTurn(testTurn.id, testPlayer1.id, prisma);
+      expect(result).toBeNull();
+    });
+  });
+
+  describe('claimTurn', () => {
+    beforeEach(async () => {
+      testTurn = await prisma.turn.create({
+        data: {
+          gameId: testGame.id,
+          turnNumber: 1,
+          type: 'WRITING',
+          status: 'OFFERED',
+          playerId: testPlayer1.id, // Offered to player1
+          offeredAt: new Date(),
+        },
+      });
+    });
+
+    it('should successfully claim an OFFERED turn by the correct player', async () => {
+      const result = await claimTurn(testTurn.id, testPlayer1.id, prisma);
+      expect(result).not.toBeNull();
+      expect(result?.status).toBe('PENDING');
+      expect(result?.playerId).toBe(testPlayer1.id);
+      expect(result?.claimedAt).toBeInstanceOf(Date);
+
+      const dbTurn = await prisma.turn.findUnique({ where: { id: testTurn.id } });
+      expect(dbTurn?.status).toBe('PENDING');
+    });
+    
+    it('should successfully claim a turn that was offered to NULL player (general offer)', async () => {
+        await prisma.turn.update({ where: { id: testTurn.id }, data: { playerId: null } });
+        const result = await claimTurn(testTurn.id, testPlayer2.id, prisma);
+        expect(result).not.toBeNull();
+        expect(result?.status).toBe('PENDING');
+        expect(result?.playerId).toBe(testPlayer2.id);
+    });
+
+    it('should return null if turn not found', async () => {
+      const result = await claimTurn('non-existent-turn', testPlayer1.id, prisma);
+      expect(result).toBeNull();
+    });
+
+    it('should return null if turn is not in OFFERED state', async () => {
+      await prisma.turn.update({ where: { id: testTurn.id }, data: { status: 'PENDING' } });
+      const result = await claimTurn(testTurn.id, testPlayer1.id, prisma);
+      expect(result).toBeNull();
+    });
+
+    it('should return null if turn is claimed by a player it was not offered to', async () => {
+      const result = await claimTurn(testTurn.id, testPlayer2.id, prisma); // testTurn offered to player1
+      expect(result).toBeNull();
+    });
+  });
+
+  describe('submitTurn', () => {
+    beforeEach(async () => {
+      testTurn = await prisma.turn.create({
+        data: {
+          gameId: testGame.id,
+          turnNumber: 1,
+          type: 'WRITING', // Default to WRITING, can be overridden
+          status: 'PENDING',
+          playerId: testPlayer1.id,
+          claimedAt: new Date(),
+        },
+      });
+    });
+
+    it('should successfully submit a PENDING WRITING turn with textContent', async () => {
+      const submissionData = { textContent: 'This is my story.' };
+      const result = await submitTurn(testTurn.id, testPlayer1.id, submissionData, prisma);
+      
+      expect(result).not.toBeNull();
+      expect(result?.status).toBe('COMPLETED');
+      expect(result?.textContent).toBe(submissionData.textContent);
+      expect(result?.imageUrl).toBeNull();
+      expect(result?.completedAt).toBeInstanceOf(Date);
+
+      const dbTurn = await prisma.turn.findUnique({ where: { id: testTurn.id } });
+      expect(dbTurn?.status).toBe('COMPLETED');
+      expect(dbTurn?.textContent).toBe(submissionData.textContent);
+    });
+
+    it('should successfully submit a PENDING DRAWING turn with imageUrl', async () => {
+      await prisma.turn.update({ where: { id: testTurn.id }, data: { type: 'DRAWING' } });
+      const submissionData = { imageUrl: 'http://example.com/image.png' };
+      const result = await submitTurn(testTurn.id, testPlayer1.id, submissionData, prisma);
+
+      expect(result).not.toBeNull();
+      expect(result?.status).toBe('COMPLETED');
+      expect(result?.imageUrl).toBe(submissionData.imageUrl);
+      expect(result?.textContent).toBeNull();
+      
+      const dbTurn = await prisma.turn.findUnique({ where: { id: testTurn.id } });
+      expect(dbTurn?.status).toBe('COMPLETED');
+      expect(dbTurn?.imageUrl).toBe(submissionData.imageUrl);
+    });
+
+    it('should return null if turn not found', async () => {
+      const result = await submitTurn('non-existent-turn', testPlayer1.id, { textContent: 'abc' }, prisma);
+      expect(result).toBeNull();
+    });
+
+    it('should return null if turn is not PENDING', async () => {
+      await prisma.turn.update({ where: { id: testTurn.id }, data: { status: 'COMPLETED' } });
+      const result = await submitTurn(testTurn.id, testPlayer1.id, { textContent: 'abc' }, prisma);
+      expect(result).toBeNull();
+    });
+
+    it('should return null if submitted by wrong player', async () => {
+      const result = await submitTurn(testTurn.id, testPlayer2.id, { textContent: 'abc' }, prisma);
+      expect(result).toBeNull();
+    });
+
+    it('should return null for WRITING turn if textContent is missing', async () => {
+      const result = await submitTurn(testTurn.id, testPlayer1.id, { imageUrl: 'abc' }, prisma); // Missing textContent
+      expect(result).toBeNull();
+    });
+
+    it('should return null for DRAWING turn if imageUrl is missing', async () => {
+      await prisma.turn.update({ where: { id: testTurn.id }, data: { type: 'DRAWING' } });
+      const result = await submitTurn(testTurn.id, testPlayer1.id, { textContent: 'abc' }, prisma); // Missing imageUrl
+      expect(result).toBeNull();
+    });
+  });
+
+  describe('skipTurn', () => {
+    it('should successfully mark an OFFERED turn as SKIPPED', async () => {
+      testTurn = await prisma.turn.create({
+        data: { gameId: testGame.id, turnNumber: 1, type: 'WRITING', status: 'OFFERED', playerId: testPlayer1.id },
+      });
+      const result = await skipTurn(testTurn.id, prisma);
+      expect(result?.status).toBe('SKIPPED');
+      expect(result?.skippedAt).toBeInstanceOf(Date);
+      const dbTurn = await prisma.turn.findUnique({ where: { id: testTurn.id } });
+      expect(dbTurn?.status).toBe('SKIPPED');
+    });
+
+    it('should successfully mark a PENDING turn as SKIPPED', async () => {
+      testTurn = await prisma.turn.create({
+        data: { gameId: testGame.id, turnNumber: 1, type: 'WRITING', status: 'PENDING', playerId: testPlayer1.id },
+      });
+      const result = await skipTurn(testTurn.id, prisma);
+      expect(result?.status).toBe('SKIPPED');
+      const dbTurn = await prisma.turn.findUnique({ where: { id: testTurn.id } });
+      expect(dbTurn?.status).toBe('SKIPPED');
+    });
+    
+    it('should return the turn unchanged if already COMPLETED', async () => {
+      testTurn = await prisma.turn.create({
+        data: { gameId: testGame.id, turnNumber: 1, type: 'WRITING', status: 'COMPLETED', playerId: testPlayer1.id },
+      });
+      const result = await skipTurn(testTurn.id, prisma);
+      expect(result?.status).toBe('COMPLETED');
+      expect(result?.skippedAt).toBeNull();
+    });
+
+    it('should return the turn unchanged if already SKIPPED', async () => {
+      testTurn = await prisma.turn.create({
+        data: { gameId: testGame.id, turnNumber: 1, type: 'WRITING', status: 'SKIPPED', playerId: testPlayer1.id, skippedAt: new Date()},
+      });
+      const result = await skipTurn(testTurn.id, prisma);
+      expect(result?.status).toBe('SKIPPED');
+      expect(result?.skippedAt).toEqual(testTurn.skippedAt);
+    });
+    
+    it('should return null if turn not found', async () => {
+      const result = await skipTurn('non-existent-turn', prisma);
+      expect(result).toBeNull();
+    });
+  });
+
+  describe('dismissOffer', () => {
+    beforeEach(async () => {
+      testTurn = await prisma.turn.create({
+        data: {
+          gameId: testGame.id,
+          turnNumber: 1,
+          type: 'WRITING',
+          status: 'OFFERED',
+          playerId: testPlayer1.id, // Offered to player1
+          offeredAt: new Date(),
+        },
+      });
+    });
+
+    it('should successfully dismiss an OFFERED turn', async () => {
+      const result = await dismissOffer(testTurn.id, testPlayer1.id, prisma);
+      expect(result).not.toBeNull();
+      expect(result?.status).toBe('AVAILABLE');
+      expect(result?.playerId).toBeNull();
+      expect(result?.offeredAt).toBeNull();
+      expect(result?.claimedAt).toBeNull();
+
+      const dbTurn = await prisma.turn.findUnique({ where: { id: testTurn.id } });
+      expect(dbTurn?.status).toBe('AVAILABLE');
+      expect(dbTurn?.playerId).toBeNull();
+    });
+
+    it('should return null if turn not found', async () => {
+      const result = await dismissOffer('non-existent-turn', testPlayer1.id, prisma);
+      expect(result).toBeNull();
+    });
+
+    it('should return null if turn is not in OFFERED state', async () => {
+      await prisma.turn.update({ where: { id: testTurn.id }, data: { status: 'PENDING' } });
+      const result = await dismissOffer(testTurn.id, testPlayer1.id, prisma);
+      expect(result).toBeNull();
+    });
+
+    it('should return null if dismissed by a player it was not offered to', async () => {
+      // Turn is offered to testPlayer1
+      const result = await dismissOffer(testTurn.id, testPlayer2.id, prisma);
+      expect(result).toBeNull();
+    });
+  });
+});

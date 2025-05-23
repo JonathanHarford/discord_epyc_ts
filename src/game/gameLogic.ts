@@ -1,8 +1,62 @@
 import { PrismaClient, Player, Turn, Game, Season, PlayersOnSeasons } from '@prisma/client';
+import { Logger } from '../../services/logger'; // Import the logger
 
-export const activateSeasonPlaceholder = () => {
-  // TODO: Implement activateSeasonPlaceholder logic
-  console.log('activateSeasonPlaceholder called');
+/**
+ * Activates a season and its first game.
+ * Sets the season status to "ACTIVE" and the first game's status to "ACTIVE".
+ * @param seasonId - The ID of the season to activate.
+ * @param prisma - Prisma client instance.
+ * @returns Promise<Season | null> - The updated season or null if not found/no games.
+ */
+export const activateSeasonPlaceholder = async (
+  seasonId: string,
+  prisma: PrismaClient
+): Promise<Season | null> => {
+  try {
+    // Find the season and its games
+    const season = await prisma.season.findUnique({
+      where: { id: seasonId },
+      include: {
+        games: {
+          orderBy: { // Assuming games can be ordered by creation or a specific sequence number
+            createdAt: 'asc',
+          },
+        },
+      },
+    });
+
+    if (!season) {
+      console.error(`Season with ID ${seasonId} not found.`);
+      return null;
+    }
+
+    if (season.games.length === 0) {
+      console.error(`Season with ID ${seasonId} has no games to activate.`);
+      // Potentially throw an error or handle as a specific case
+      return null; 
+    }
+
+    // Update season status to ACTIVE
+    const updatedSeason = await prisma.season.update({
+      where: { id: seasonId },
+      data: { status: 'ACTIVE' },
+    });
+
+    // Activate the first game
+    const firstGame = season.games[0];
+    await prisma.game.update({
+      where: { id: firstGame.id },
+      data: { status: 'ACTIVE' },
+    });
+
+    console.log(`Season ${seasonId} activated successfully. First game ${firstGame.id} activated.`);
+    return updatedSeason;
+
+  } catch (error) {
+    console.error(`Error activating season ${seasonId}:`, error);
+    // Consider re-throwing the error or returning a more specific error object
+    return null;
+  }
 };
 
 // Types for the Next Player Logic
@@ -103,8 +157,9 @@ export async function selectNextPlayer(
     const selectedPlayer = applyShouldRules(
       eligiblePlayers,
       turnType,
-      game.turns,
-      seasonPlayers.length
+      game.turns, // current game's turns
+      seasonPlayers.length,
+      allSeasonGames // Pass all season games
     );
 
     return {
@@ -204,14 +259,15 @@ function applyMustRules(playerStats: PlayerTurnStats[]): PlayerTurnStats[] {
 function applyShouldRules(
   eligiblePlayers: PlayerTurnStats[],
   turnType: 'WRITING' | 'DRAWING',
-  gameTurns: (Turn & { player: Player | null })[],
-  totalPlayersInSeason: number
+  gameTurns: (Turn & { player: Player | null })[], // current game's turns
+  totalPlayersInSeason: number,
+  allSeasonGames: (Game & { turns: (Turn & { player: Player | null })[] })[] // Added allSeasonGames
 ): PlayerTurnStats {
   let candidates = [...eligiblePlayers];
 
   // SHOULD Rule 1: Player A SHOULD NOT be ASSIGNED an <X>ing turn following Player B more than once per season
-  // This requires checking the previous turn in this specific game
-  candidates = applyShouldRule1(candidates, turnType, gameTurns);
+  // This requires checking the previous turn in this specific game and across all season games
+  candidates = applyShouldRule1(candidates, turnType, gameTurns, allSeasonGames);
 
   // SHOULD Rule 2: Players SHOULD NOT be given an <X>ing turn if they've already been ASSIGNED n/2 <X>ing turns
   candidates = applyShouldRule2(candidates, turnType, totalPlayersInSeason);
@@ -236,30 +292,65 @@ function applyShouldRules(
 function applyShouldRule1(
   candidates: PlayerTurnStats[],
   turnType: 'WRITING' | 'DRAWING',
-  gameTurns: (Turn & { player: Player | null })[]
+  currentGameTurns: (Turn & { player: Player | null })[], // Renamed for clarity
+  allSeasonGames: (Game & { turns: (Turn & { player: Player | null })[] })[]
 ): PlayerTurnStats[] {
-  // Find the most recent completed turn in this game
-  const completedTurns = gameTurns
-    .filter(turn => turn.status === 'COMPLETED')
+  // Find Player B (previous player) from the current game's most recent COMPLETED or SKIPPED turn
+  const completedOrSkippedCurrentGameTurns = currentGameTurns
+    .filter(turn => turn.status === 'COMPLETED' || turn.status === 'SKIPPED')
     .sort((a, b) => b.turnNumber - a.turnNumber);
 
-  if (completedTurns.length === 0) {
-    // No previous turns, all candidates are equally valid
+  if (completedOrSkippedCurrentGameTurns.length === 0) {
+    // No previous completed/skipped turn in this game, so rule doesn't apply for this specific assignment.
     return candidates;
   }
 
-  const lastCompletedTurn = completedTurns[0];
-  const previousPlayerId = lastCompletedTurn.playerId;
+  const playerBId = completedOrSkippedCurrentGameTurns[0].playerId;
 
-  if (!previousPlayerId) {
+  if (!playerBId) {
+    // Previous turn had no player (should not happen for completed/skipped turns). Rule doesn't apply.
     return candidates;
   }
 
-  // TODO: Implement cross-game tracking for this rule
-  // For now, we'll skip this rule as it requires complex season-wide tracking
-  // This would need to track all turn sequences across all games in the season
-  
-  return candidates;
+  const validCandidates = candidates.filter(candidatePlayerA => {
+    let timesPlayerAFollowedPlayerB = 0;
+
+    // Check across all games in the season for past instances
+    for (const game of allSeasonGames) {
+      // Get COMPLETED or SKIPPED turns for this game, sorted by turn number to establish sequence
+      const historicalGameTurns = game.turns
+        .filter(t => t.status === 'COMPLETED' || t.status === 'SKIPPED')
+        .sort((a, b) => a.turnNumber - b.turnNumber);
+
+      for (let i = 0; i < historicalGameTurns.length; i++) {
+        const currentTurnInLoop = historicalGameTurns[i];
+
+        // Is this a turn by Player A (the candidate) of the correct type?
+        if (
+          currentTurnInLoop.playerId === candidatePlayerA.playerId &&
+          currentTurnInLoop.type === turnType
+        ) {
+          // Was the immediately preceding turn in this historical game by Player B?
+          if (i > 0) { // Check if there is a preceding turn
+            const previousTurnInLoop = historicalGameTurns[i - 1];
+            if (previousTurnInLoop.playerId === playerBId) {
+              timesPlayerAFollowedPlayerB++;
+            }
+          }
+        }
+      }
+    }
+
+    // Rule: Player A SHOULD NOT be ASSIGNED ... more than once.
+    // This means if they have already followed Player B *once* (timesPlayerAFollowedPlayerB === 1),
+    // assigning them the current turn would be the *second* time, thus violating the rule.
+    // If timesPlayerAFollowedPlayerB is 0, this current assignment would be the first time, which is allowed.
+    return timesPlayerAFollowedPlayerB === 0;
+  });
+
+  // If filtering results in an empty list (all candidates would violate the rule),
+  // return the original list of candidates (it's a SHOULD rule).
+  return validCandidates.length > 0 ? validCandidates : candidates;
 }
 
 /**
@@ -359,20 +450,23 @@ export async function checkGameCompletion(
     });
 
     if (!game) {
-      console.error(`Game with ID ${gameId} not found`);
+      Logger.warn(`Game with ID ${gameId} not found during completion check.`);
       return false;
     }
 
     if (!game.season) {
-      console.error(`Game ${gameId} has no associated season`);
+      Logger.warn(`Game ${gameId} has no associated season during completion check.`);
       return false;
     }
 
     const seasonPlayers = game.season.players.map(p => p.player);
     
     if (seasonPlayers.length === 0) {
-      console.error(`Season ${game.seasonId} has no players`);
-      return false;
+      // This might be a valid state if a season can exist without players, or an error.
+      // Using warn as it's potentially an unexpected state for a game completion check.
+      Logger.warn(`Season ${game.seasonId} associated with game ${gameId} has no players during completion check.`);
+      return false; // Or true, depending on how game completion is defined for a game with no players in season.
+                     // Current logic implies it cannot be completed if no players to complete turns.
     }
 
     // Check if every player in the season has either COMPLETED or SKIPPED a turn in this game
@@ -385,17 +479,78 @@ export async function checkGameCompletion(
       playersWithCompletedOrSkippedTurns.has(player.id)
     );
 
-    console.log(`Game ${gameId} completion check: ${allPlayersCompleted ? 'COMPLETED' : 'NOT COMPLETED'} (${playersWithCompletedOrSkippedTurns.size}/${seasonPlayers.length} players have finished turns)`);
+    Logger.info(
+      `Game ${gameId} completion status: ${allPlayersCompleted ? 'COMPLETED' : 'NOT COMPLETED'}. ` +
+      `Players with finished turns: ${playersWithCompletedOrSkippedTurns.size}/${seasonPlayers.length}.`
+    );
     
     return allPlayersCompleted;
 
   } catch (error) {
-    console.error('Error in checkGameCompletion:', error);
+    void Logger.error(`Error in checkGameCompletion for gameId ${gameId}:`, error);
     return false;
   }
 }
 
-export const checkSeasonCompletionPlaceholder = () => {
-  // TODO: Implement checkSeasonCompletionPlaceholder logic
-  console.log('checkSeasonCompletionPlaceholder called');
+/**
+ * Checks if a season is completed.
+ * A season is completed if all its games are in "COMPLETED" status.
+ * If completed, updates the season status to "COMPLETED".
+ * @param seasonId - The ID of the season to check.
+ * @param prisma - Prisma client instance.
+ * @returns Promise<{ completed: boolean; season?: Season | null }>
+ */
+export const checkSeasonCompletionPlaceholder = async (
+  seasonId: string,
+  prisma: PrismaClient
+): Promise<{ completed: boolean; season?: Season | null }> => {
+  try {
+    const season = await prisma.season.findUnique({
+      where: { id: seasonId },
+      include: {
+        games: true, // Fetch all games for the season
+      },
+    });
+
+    if (!season) {
+      console.error(`Season with ID ${seasonId} not found.`);
+      return { completed: false, season: null };
+    }
+
+    if (season.games.length === 0) {
+      console.log(`Season ${seasonId} has no games. Considering it completed by default if it's not in SETUP or PENDING.`);
+      // If a season has no games, and it's past initial setup, it could be considered completed.
+      // Or handle as an error/specific state depending on business logic.
+      if (season.status !== 'SETUP' && season.status !== 'PENDING') {
+        const updatedSeason = await prisma.season.update({
+          where: { id: seasonId },
+          data: { status: 'COMPLETED' },
+        });
+        return { completed: true, season: updatedSeason };
+      }
+      return { completed: false, season }; // Or true, depending on desired logic for empty seasons
+    }
+
+    // Check if all games are completed
+    const allGamesCompleted = season.games.every(
+      (game) => game.status === 'COMPLETED'
+    );
+
+    if (allGamesCompleted) {
+      // If all games are completed, update the season status
+      const updatedSeason = await prisma.season.update({
+        where: { id: seasonId },
+        data: { status: 'COMPLETED' },
+      });
+      console.log(`Season ${seasonId} is completed. Status updated.`);
+      return { completed: true, season: updatedSeason };
+    } else {
+      console.log(`Season ${seasonId} is not yet completed. Not all games are in 'COMPLETED' status.`);
+      return { completed: false, season };
+    }
+  } catch (error) {
+    console.error(`Error checking season completion for ${seasonId}:`, error);
+    // Consider re-throwing or returning a more specific error object
+    return { completed: false, season: null };
+  }
 }; 
