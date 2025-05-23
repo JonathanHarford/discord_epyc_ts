@@ -38,6 +38,11 @@ export const LangKeys = {
       success: 'joinSeason.success',
       genericError: 'joinSeason.genericError',
     },
+    Status: {
+      seasonNotFound: 'status.seasonNotFound',
+      seasonStatus: 'status.seasonStatus',
+      genericError: 'status.genericError',
+    },
     // Add other commands here in the future
   },
 } as const; 

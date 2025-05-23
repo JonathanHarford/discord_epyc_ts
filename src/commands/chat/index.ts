@@ -4,3 +4,4 @@ export { InfoCommand } from './info-command.js';
 export { TestCommand } from './test-command.js';
 export { NewCommand } from './new-command.js';
 export { JoinSeasonCommand } from './joinSeason.js';
+export { StatusCommand } from './status-command.js';

@@ -745,7 +745,7 @@
       "id": 21,
       "title": "Implement '/status season' Command",
       "description": "Implement the `/status season:<name>` slash command handler in `src/commands/chat`. This handler should parse the season identifier, query the database via the `SeasonService` to get the current state of the season and its games (e.g., how many turns are left per game, which turns are pending/offered), format this information using the messaging layer (Task 27), and send it as a response.",
-      "status": "pending",
+      "status": "done",
       "dependencies": [
         2,
         5
@@ -757,27 +757,27 @@
         {
           "id": "21-1",
           "description": "Implement the core command handler logic for `/status season`.",
-          "status": "pending"
+          "status": "done"
         },
         {
           "id": "21-2",
           "description": "Integrate with `SeasonService` to fetch season and game data.",
-          "status": "pending"
+          "status": "done"
         },
         {
           "id": "21-3",
           "description": "Format the retrieved data using the messaging layer.",
-          "status": "pending"
+          "status": "done"
         },
         {
           "id": "21-4",
           "description": "Implement integration tests for the command's database interaction and data retrieval.",
-          "status": "pending"
+          "status": "done"
         },
         {
           "id": "21-5",
           "description": "Implement unit tests for the command's logic layer (parsing, data processing, formatting).",
-          "status": "pending"
+          "status": "done"
         }
       ]
     },

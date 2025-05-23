@@ -209,7 +209,8 @@
             "dev": "dev",
             "help": "help",
             "info": "info",
-            "test": "test"
+            "test": "test",
+            "status": "status"
         },
         "userCommands": {
             "viewDateJoined": "View Date Joined"
@@ -219,19 +220,22 @@
         },
         "arguments": {
             "command": "command",
-            "option": "option"
+            "option": "option",
+            "season": "season"
         },
         "commandDescs": {
             "dev": "Developer use only.",
             "help": "Find help or contact support.",
             "info": "View bot info.",
             "test": "Run the test command.",
-            "new": "Create a new season. Use this command to start a new game flow."
+            "new": "Create a new season. Use this command to start a new game flow.",
+            "status": "Get status information for a season."
         },
         "argDescs": {
             "devCommand": "Command.",
             "helpOption": "Option.",
-            "infoOption": "Option."
+            "infoOption": "Option.",
+            "season": "The ID of the season to check status for."
         },
         "fields": {
             "commands": "Commands",
@@ -336,6 +340,20 @@
             "full": "Season with ID '{{seasonId}}' is full.",
             "playerNotFound": "Your player profile could not be found. Please try again later or contact support.",
             "genericError": "An unknown error occurred while trying to join season '{{seasonId}}'. Error: {{errorMessage}}"
+        },
+        "status": {
+            "seasonNotFound": "Season '{{seasonId}}' not found.",
+            "seasonStatus": {
+                "title": "Season Status: {{seasonId}}",
+                "description": "**Status:** {{seasonStatus}}\n**Players:** {{playerCount}}/{{maxPlayers}} (min: {{minPlayers}})\n**Games:** {{gameCount}}",
+                "fields": [
+                    {
+                        "name": "Game Details",
+                        "value": "{{#each games}}**Game {{gameId}}** ({{gameStatus}})\n• Turns: {{completedTurns}}/{{totalTurns}} completed\n• Pending: {{pendingTurns}}, Offered: {{offeredTurns}}\n{{#if currentTurn}}• Current: Turn {{currentTurn.turnNumber}} ({{currentTurn.type}}) - {{currentTurn.status}} to {{currentTurn.playerName}}\n{{/if}}\n{{/each}}"
+                    }
+                ]
+            },
+            "genericError": "An error occurred while retrieving status for season '{{seasonId}}'. Error: {{errorMessage}}"
         },
         "newCommand.season": {
             "create_success_channel": "{{mentionUser}} has started a new season with ID: **{{seasonId}}**\nSeason will remain open for joining for {{openDuration}}.\nUse `/join season:{{seasonId}}` to join!",

@@ -11,6 +11,7 @@ import { Language } from '../models/enum-helpers/index.js';
 import { Lang } from '../services/index.js';
 import { newCommandData } from './chat/new-command.js';
 import { joinSeasonCommandData } from './chat/joinSeason.js';
+import { statusCommandData } from './chat/status-command.js';
 
 export const ChatCommandMetadata: {
     [command: string]: RESTPostAPIChatInputApplicationCommandsJSONBody;
@@ -73,6 +74,7 @@ export const ChatCommandMetadata: {
     },
     NEW: newCommandData.toJSON(),
     JOIN_SEASON: joinSeasonCommandData.toJSON(),
+    STATUS: statusCommandData.toJSON(),
 };
 
 export const MessageCommandMetadata: {

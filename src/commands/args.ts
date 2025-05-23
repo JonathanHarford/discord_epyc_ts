@@ -57,4 +57,11 @@ export class Args {
             },
         ],
     };
+    public static readonly SEASON: APIApplicationCommandBasicOption = {
+        name: Lang.getRef('arguments.season', Language.Default),
+        name_localizations: Lang.getRefLocalizationMap('arguments.season'),
+        description: Lang.getRef('argDescs.season', Language.Default),
+        description_localizations: Lang.getRefLocalizationMap('argDescs.season'),
+        type: ApplicationCommandOptionType.String,
+    };
 }
