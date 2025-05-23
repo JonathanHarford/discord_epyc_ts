@@ -1,6 +1,6 @@
 # Task ID: 14
 # Title: Implement Turn Offering Mechanism
-# Status: pending
+# Status: in-progress
 # Dependencies: 5, 9, 13
 # Priority: medium
 # Description: Implement the mechanism that triggers the selection and offering of the next turn. This should be called after a turn is COMPLETED or SKIPPED, or when a season is activated. It uses the Next Player Logic (Task 13) to find the next player, calls `TurnService.offerTurn` to update the state, sends the DM notification to the selected player, and schedules the claim timeout timer via the Task Scheduler.

@@ -35,6 +35,7 @@ import {
     EventDataService,
     JobService,
     Logger,
+    PlayerService,
     SchedulerService,
     SeasonService,
     TurnService,
@@ -117,7 +118,8 @@ async function start(): Promise<void> {
     let commandHandler = new CommandHandler(commands, eventDataService);
     let buttonHandler = new ButtonHandler(buttons, eventDataService);
     let triggerHandler = new TriggerHandler(triggers, eventDataService);
-    let directMessageHandler = new DirectMessageHandler();
+    let playerService = new PlayerService(prisma);
+    let directMessageHandler = new DirectMessageHandler(turnService, playerService, schedulerService);
     let messageHandler = new MessageHandler(triggerHandler, directMessageHandler);
     let reactionHandler = new ReactionHandler(reactions, eventDataService);
 

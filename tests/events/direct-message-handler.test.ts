@@ -3,6 +3,9 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 import { DirectMessageHandler, DMContextType } from '../../src/events/direct-message-handler.js';
 import { Logger } from '../../src/services/index.js';
+import { TurnService } from '../../src/services/TurnService.js';
+import { PlayerService } from '../../src/services/PlayerService.js';
+import { SchedulerService } from '../../src/services/SchedulerService.js';
 
 // Mock the Logger
 vi.mock('../../src/services/index.js', () => ({
@@ -12,19 +15,32 @@ vi.mock('../../src/services/index.js', () => ({
     },
 }));
 
+// Mock the services
+vi.mock('../../src/services/TurnService.js');
+vi.mock('../../src/services/PlayerService.js');
+vi.mock('../../src/services/SchedulerService.js');
+
 describe('DirectMessageHandler', () => {
     let handler: DirectMessageHandler;
     let mockMessage: Message;
     let mockUser: User;
     let mockClient: Client;
     let mockDMChannel: DMChannel;
+    let mockTurnService: TurnService;
+    let mockPlayerService: PlayerService;
+    let mockSchedulerService: SchedulerService;
 
     beforeEach(() => {
         // Reset mocks
         vi.resetAllMocks();
 
+        // Create mock services
+        mockTurnService = {} as TurnService;
+        mockPlayerService = {} as PlayerService;
+        mockSchedulerService = {} as SchedulerService;
+
         // Create handler instance
-        handler = new DirectMessageHandler();
+        handler = new DirectMessageHandler(mockTurnService, mockPlayerService, mockSchedulerService);
 
         // Create mock objects
         mockUser = {
@@ -67,7 +83,7 @@ describe('DirectMessageHandler', () => {
 
             // Assert
             expect(Logger.info).toHaveBeenCalledWith(expect.stringContaining('Routing DM'));
-            expect(Logger.info).toHaveBeenCalledWith(expect.stringContaining('Received /ready command'));
+            expect(Logger.info).toHaveBeenCalledWith(expect.stringContaining('Processing /ready command'));
             expect(mockMessage.reply).toHaveBeenCalled();
         });
 
@@ -80,7 +96,7 @@ describe('DirectMessageHandler', () => {
 
             // Assert
             expect(Logger.info).toHaveBeenCalledWith(expect.stringContaining('Routing DM'));
-            expect(Logger.info).toHaveBeenCalledWith(expect.stringContaining('potential turn submission'));
+            expect(Logger.info).toHaveBeenCalledWith(expect.stringContaining('Processing turn submission'));
             expect(mockMessage.reply).toHaveBeenCalled();
         });
 
@@ -96,7 +112,7 @@ describe('DirectMessageHandler', () => {
 
             // Assert
             expect(Logger.info).toHaveBeenCalledWith(expect.stringContaining('Routing DM'));
-            expect(Logger.info).toHaveBeenCalledWith(expect.stringContaining('potential turn submission'));
+            expect(Logger.info).toHaveBeenCalledWith(expect.stringContaining('Processing turn submission'));
             expect(mockMessage.reply).toHaveBeenCalled();
         });
 

@@ -1,6 +1,6 @@
 # Task ID: 11
 # Title: Implement '/ready' Command Handling (DM)
-# Status: in-progress
+# Status: done
 # Dependencies: 5, 9, 10
 # Priority: medium
 # Description: Implement the handler for the `/ready` command when used in a Direct Message. This handler should validate that the user has a turn currently in the OFFERED state. If valid, call `TurnService.claimTurn` to update the turn state to PENDING (ASSIGNED), cancel the associated claim timeout timer via the Task Scheduler, and schedule the appropriate submission timeout timer (writing or drawing). Send a confirmation DM to the player.

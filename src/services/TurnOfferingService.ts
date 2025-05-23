@@ -1,0 +1,335 @@
+import { PrismaClient, Turn, Player, Game } from '@prisma/client';
+import { Client as DiscordClient } from 'discord.js';
+import { Logger } from './logger.js';
+import { TurnService } from './TurnService.js';
+import { SchedulerService } from './SchedulerService.js';
+import { selectNextPlayer } from '../game/gameLogic.js';
+import { MessageHelpers } from '../messaging/MessageHelpers.js';
+import { MessageAdapter } from '../messaging/MessageAdapter.js';
+import { Language } from '../models/enum-helpers/language.js';
+
+export interface TurnOfferingResult {
+    success: boolean;
+    turn?: Turn;
+    player?: Player;
+    error?: string;
+}
+
+/**
+ * Service responsible for managing the turn offering mechanism.
+ * This service handles the process of finding the next player and offering them a turn.
+ */
+export class TurnOfferingService {
+    private prisma: PrismaClient;
+    private discordClient: DiscordClient;
+    private turnService: TurnService;
+    private schedulerService: SchedulerService;
+
+    constructor(
+        prisma: PrismaClient,
+        discordClient: DiscordClient,
+        turnService: TurnService,
+        schedulerService: SchedulerService
+    ) {
+        this.prisma = prisma;
+        this.discordClient = discordClient;
+        this.turnService = turnService;
+        this.schedulerService = schedulerService;
+    }
+
+    /**
+     * Offers the next available turn in a game to the appropriate player.
+     * This is the main entry point for the turn offering mechanism.
+     * 
+     * @param gameId - The ID of the game to offer a turn for
+     * @param triggerReason - The reason this offering was triggered (for logging)
+     * @returns Promise<TurnOfferingResult> - The result of the offering process
+     */
+    async offerNextTurn(
+        gameId: string,
+        triggerReason: 'turn_completed' | 'turn_skipped' | 'season_activated' | 'claim_timeout' = 'turn_completed'
+    ): Promise<TurnOfferingResult> {
+        try {
+            Logger.info(`TurnOfferingService: Starting turn offering process for game ${gameId}, trigger: ${triggerReason}`);
+
+            // 1. Find the next available turn in the game
+            const nextAvailableTurn = await this.findNextAvailableTurn(gameId);
+            if (!nextAvailableTurn) {
+                Logger.info(`TurnOfferingService: No available turns found for game ${gameId}`);
+                return { success: false, error: 'No available turns found in game' };
+            }
+
+            // 2. Use Next Player Logic to determine the next player
+            const nextPlayerResult = await selectNextPlayer(
+                gameId,
+                nextAvailableTurn.type as 'WRITING' | 'DRAWING',
+                this.prisma
+            );
+
+            if (!nextPlayerResult.success || !nextPlayerResult.playerId || !nextPlayerResult.player) {
+                Logger.warn(`TurnOfferingService: Failed to select next player for game ${gameId}: ${nextPlayerResult.error}`);
+                return { 
+                    success: false, 
+                    error: `Failed to select next player: ${nextPlayerResult.error}` 
+                };
+            }
+
+            // 3. Offer the turn to the selected player using TurnService
+            const offerResult = await this.turnService.offerTurn(
+                nextAvailableTurn.id,
+                nextPlayerResult.playerId
+            );
+
+            if (!offerResult.success || !offerResult.turn) {
+                Logger.error(`TurnOfferingService: Failed to offer turn ${nextAvailableTurn.id} to player ${nextPlayerResult.playerId}: ${offerResult.error}`);
+                return {
+                    success: false,
+                    error: `Failed to offer turn: ${offerResult.error}`
+                };
+            }
+
+            // 4. Send DM notification to the selected player
+            const dmResult = await this.sendTurnOfferDM(
+                nextPlayerResult.player,
+                offerResult.turn,
+                gameId
+            );
+
+            if (!dmResult) {
+                Logger.warn(`TurnOfferingService: Failed to send DM to player ${nextPlayerResult.playerId}, but turn was offered successfully`);
+                // Don't fail the entire process if DM fails
+            }
+
+            // 5. Schedule claim timeout timer
+            const timeoutResult = await this.scheduleClaimTimeout(
+                offerResult.turn.id,
+                nextPlayerResult.playerId
+            );
+
+            if (!timeoutResult) {
+                Logger.warn(`TurnOfferingService: Failed to schedule claim timeout for turn ${offerResult.turn.id}, but turn was offered successfully`);
+                // Don't fail the entire process if timeout scheduling fails
+            }
+
+            Logger.info(`TurnOfferingService: Successfully offered turn ${offerResult.turn.id} to player ${nextPlayerResult.playerId} for game ${gameId}`);
+            
+            return {
+                success: true,
+                turn: offerResult.turn,
+                player: nextPlayerResult.player
+            };
+
+        } catch (error) {
+            Logger.error(`TurnOfferingService: Error in offerNextTurn for game ${gameId}:`, error);
+            return {
+                success: false,
+                error: error instanceof Error ? error.message : 'Unknown error occurred'
+            };
+        }
+    }
+
+    /**
+     * Finds the next available turn in a game.
+     * Returns the first AVAILABLE turn ordered by turn number.
+     * 
+     * @param gameId - The ID of the game to search
+     * @returns Promise<Turn | null> - The next available turn or null if none found
+     */
+    private async findNextAvailableTurn(gameId: string): Promise<Turn | null> {
+        try {
+            const availableTurn = await this.prisma.turn.findFirst({
+                where: {
+                    gameId: gameId,
+                    status: 'AVAILABLE'
+                },
+                orderBy: {
+                    turnNumber: 'asc'
+                }
+            });
+
+            return availableTurn;
+        } catch (error) {
+            Logger.error(`TurnOfferingService: Error finding next available turn for game ${gameId}:`, error);
+            return null;
+        }
+    }
+
+    /**
+     * Sends a DM notification to a player about their turn offer.
+     * 
+     * @param player - The player to send the DM to
+     * @param turn - The turn that was offered
+     * @param gameId - The ID of the game
+     * @returns Promise<boolean> - True if DM was sent successfully
+     */
+    private async sendTurnOfferDM(
+        player: Player,
+        turn: Turn,
+        gameId: string
+    ): Promise<boolean> {
+        try {
+            // Get game and season information for the DM
+            const gameWithSeason = await this.prisma.game.findUnique({
+                where: { id: gameId },
+                include: { season: true }
+            });
+
+            if (!gameWithSeason) {
+                Logger.error(`TurnOfferingService: Game ${gameId} not found when sending DM`);
+                return false;
+            }
+
+            // Create message instruction using MessageHelpers
+            const turnOfferInstruction = MessageHelpers.commandSuccess(
+                'turn_offer.new_turn_available',
+                {
+                    gameId: gameId,
+                    seasonId: gameWithSeason.season?.id,
+                    turnNumber: turn.turnNumber,
+                    turnType: turn.type,
+                    claimTimeoutMinutes: 1440 // TODO: Get from season config, default 24 hours
+                },
+                false // Not ephemeral for DMs
+            );
+
+            // Configure for DM
+            turnOfferInstruction.formatting = { ...turnOfferInstruction.formatting, dm: true };
+            turnOfferInstruction.context = { userId: player.discordUserId };
+
+            // Send the DM using MessageAdapter
+            await MessageAdapter.processInstruction(
+                turnOfferInstruction,
+                undefined,
+                Language.Default,
+                this.discordClient
+            );
+
+            Logger.info(`TurnOfferingService: Successfully sent turn offer DM to player ${player.id} (${player.discordUserId})`);
+            return true;
+
+        } catch (error) {
+            Logger.error(`TurnOfferingService: Error sending turn offer DM to player ${player.id}:`, error);
+            return false;
+        }
+    }
+
+    /**
+     * Schedules a claim timeout timer for a turn offer.
+     * 
+     * @param turnId - The ID of the turn
+     * @param playerId - The ID of the player who was offered the turn
+     * @returns Promise<boolean> - True if timeout was scheduled successfully
+     */
+    private async scheduleClaimTimeout(
+        turnId: string,
+        playerId: string
+    ): Promise<boolean> {
+        try {
+            // TODO: Get actual timeout values from season config
+            const claimTimeoutMinutes = 1440; // 24 hours default
+            const claimTimeoutDate = new Date(Date.now() + claimTimeoutMinutes * 60 * 1000);
+            
+            const claimTimeoutJobId = `turn-claim-timeout-${turnId}`;
+            
+            const jobScheduled = await this.schedulerService.scheduleJob(
+                claimTimeoutJobId,
+                claimTimeoutDate,
+                async () => {
+                    // TODO: This should call the claim timeout handler (Task 16)
+                    Logger.info(`Claim timeout triggered for turn ${turnId}, player ${playerId}`);
+                    // For now, just log - actual handler will be implemented in Task 16
+                    // The handler should dismiss the offer and potentially offer to next player
+                },
+                { turnId: turnId, playerId: playerId },
+                'turn-claim-timeout'
+            );
+
+            if (jobScheduled) {
+                Logger.info(`TurnOfferingService: Scheduled claim timeout for turn ${turnId} at ${claimTimeoutDate.toISOString()}`);
+                return true;
+            } else {
+                Logger.warn(`TurnOfferingService: Failed to schedule claim timeout for turn ${turnId}`);
+                return false;
+            }
+
+        } catch (error) {
+            Logger.error(`TurnOfferingService: Error scheduling claim timeout for turn ${turnId}:`, error);
+            return false;
+        }
+    }
+
+    /**
+     * Checks if a game has any more available turns.
+     * 
+     * @param gameId - The ID of the game to check
+     * @returns Promise<boolean> - True if there are available turns
+     */
+    async hasAvailableTurns(gameId: string): Promise<boolean> {
+        try {
+            const availableTurnCount = await this.prisma.turn.count({
+                where: {
+                    gameId: gameId,
+                    status: 'AVAILABLE'
+                }
+            });
+
+            return availableTurnCount > 0;
+        } catch (error) {
+            Logger.error(`TurnOfferingService: Error checking available turns for game ${gameId}:`, error);
+            return false;
+        }
+    }
+
+    /**
+     * Gets statistics about turn offering for a game.
+     * Useful for debugging and monitoring.
+     * 
+     * @param gameId - The ID of the game
+     * @returns Promise<object> - Statistics about the game's turns
+     */
+    async getTurnOfferingStats(gameId: string): Promise<{
+        totalTurns: number;
+        availableTurns: number;
+        offeredTurns: number;
+        pendingTurns: number;
+        completedTurns: number;
+        skippedTurns: number;
+    }> {
+        try {
+            const [
+                totalTurns,
+                availableTurns,
+                offeredTurns,
+                pendingTurns,
+                completedTurns,
+                skippedTurns
+            ] = await Promise.all([
+                this.prisma.turn.count({ where: { gameId } }),
+                this.prisma.turn.count({ where: { gameId, status: 'AVAILABLE' } }),
+                this.prisma.turn.count({ where: { gameId, status: 'OFFERED' } }),
+                this.prisma.turn.count({ where: { gameId, status: 'PENDING' } }),
+                this.prisma.turn.count({ where: { gameId, status: 'COMPLETED' } }),
+                this.prisma.turn.count({ where: { gameId, status: 'SKIPPED' } })
+            ]);
+
+            return {
+                totalTurns,
+                availableTurns,
+                offeredTurns,
+                pendingTurns,
+                completedTurns,
+                skippedTurns
+            };
+        } catch (error) {
+            Logger.error(`TurnOfferingService: Error getting turn stats for game ${gameId}:`, error);
+            return {
+                totalTurns: 0,
+                availableTurns: 0,
+                offeredTurns: 0,
+                pendingTurns: 0,
+                completedTurns: 0,
+                skippedTurns: 0
+            };
+        }
+    }
+} 
