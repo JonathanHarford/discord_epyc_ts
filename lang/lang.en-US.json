@@ -153,6 +153,10 @@
                 "description": "This action can only be done by developers.",
                 "color": "{{COM:colors.warning}}"
             },
+            "adminOnly": {
+                "description": "This action can only be done by administrators.",
+                "color": "{{COM:colors.warning}}"
+            },
             "missingClientPerms": {
                 "description": [
                     "I don't have all permissions required to run that command here! Please check the server and channel permissions to make sure I have the following permissions.",
@@ -210,7 +214,8 @@
             "help": "help",
             "info": "info",
             "test": "test",
-            "status": "status"
+            "status": "status",
+            "admin": "admin"
         },
         "userCommands": {
             "viewDateJoined": "View Date Joined"
@@ -229,7 +234,8 @@
             "info": "View bot info.",
             "test": "Run the test command.",
             "new": "Create a new season. Use this command to start a new game flow.",
-            "status": "Get status information for a season."
+            "status": "Get status information for a season.",
+            "admin": "Administrative commands for managing the bot."
         },
         "argDescs": {
             "devCommand": "Command.",
@@ -371,6 +377,13 @@
         "common.error": {
             "critical_command": "A critical unexpected error occurred. Please contact support."
         },
-        "newCommand.error_unknown_subcommand": "That subcommand for 'new' isn't recognized. Please check the command and try again."
+        "newCommand.error_unknown_subcommand": "That subcommand for 'new' isn't recognized. Please check the command and try again.",
+        "admin": {
+            "terminate_season_success": "Season **{{seasonId}}** has been successfully terminated.\n**Previous Status:** {{previousStatus}}\n**Players:** {{playerCount}}\n**Games:** {{gameCount}}",
+            "terminate_season_error_not_found": "Season '{{seasonId}}' not found.",
+            "terminate_season_error_already_terminated": "Season '{{seasonId}}' is already terminated.",
+            "terminate_season_error_database": "A database error occurred while terminating season '{{seasonId}}'. Error code: {{errorCode}}",
+            "terminate_season_error_unknown": "An unknown error occurred while terminating season '{{seasonId}}'. {{message}}"
+        }
     }
 }

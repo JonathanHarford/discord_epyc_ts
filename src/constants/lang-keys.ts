@@ -43,6 +43,14 @@ export const LangKeys = {
       seasonStatus: 'status.seasonStatus',
       genericError: 'status.genericError',
     },
+    Admin: {
+      NotAdmin: 'data.validationEmbeds.adminOnly',
+      TerminateSeasonSuccess: 'admin.terminate_season_success',
+      TerminateSeasonErrorNotFound: 'admin.terminate_season_error_not_found',
+      TerminateSeasonErrorAlreadyTerminated: 'admin.terminate_season_error_already_terminated',
+      TerminateSeasonErrorDatabase: 'admin.terminate_season_error_database',
+      TerminateSeasonErrorUnknown: 'admin.terminate_season_error_unknown',
+    },
     // Add other commands here in the future
   },
 } as const; 

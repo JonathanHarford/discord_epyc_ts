@@ -1,6 +1,6 @@
 # Task ID: 22
 # Title: Implement Admin Command: Terminate Season
-# Status: pending
+# Status: in-progress
 # Dependencies: 2, 5
 # Priority: medium
 # Description: Implement the `/admin terminate season:<id>` slash command handler in `src/commands/chat`. This handler should include permission checks to ensure only authorized users can use it. It should call the `SeasonService` to mark the specified season as TERMINATED in the database and potentially clean up or mark related games/turns appropriately.
@@ -11,11 +11,23 @@ As per TECHNICAL_ARCHITECTURE.md, this command implementation requires both inte
 Implement integration tests that use a test database to verify the command handler's interaction with the `SeasonService` and database state changes (season status, related entities). Implement unit tests for the permission checks and any specific logic within the command handler itself, mocking dependencies like the `SeasonService`. Also, perform manual testing using the `/admin terminate season` command with a test season as an admin to verify the season state changes to TERMINATED in the database. Manually test using the command without admin permissions and verify it is rejected.
 
 # Subtasks:
-## 1. undefined [pending]
+## 1. undefined [done]
 ### Dependencies: None
 ### Description: Implement the core logic for the `/admin terminate season` command handler, including permission checks.
 ### Details:
+<info added on 2025-05-23T05:47:19.145Z>
+Core logic for the `/admin terminate season` command handler has been implemented and integrated as follows:
 
+- Created `src/commands/chat/admin-command.ts` with a structured command definition using `SlashCommandBuilder`, registering the `/admin terminate season <id>` subcommand group and required string option for the season identifier.
+- Permission checks are enforced using the `Config.developers.includes(intr.user.id)` pattern, mirroring the approach used in the DevCommand for consistency and maintainability. Unauthorized users receive a language-keyed error message, ensuring clear feedback and localization support.
+- The handler integrates with `SeasonService.terminateSeason()`, initializing all required dependencies (including `TurnService`, `SchedulerService`, and the shared Prisma client) within the `execute()` method to ensure proper context and resource management.
+- Comprehensive error handling is implemented with try-catch blocks, contextual logging (including seasonId, user, and guild), and fallback to generic error messages with error codes for easier debugging and support.
+- All admin-related messages and validation responses use language keys defined in `lang/lang.en-US.json` and referenced via `LangKeys.Commands.Admin.*`, with new keys added for admin-only validation and command descriptions.
+- The command is exported and registered in both `src/commands/chat/index.ts` and `src/commands/metadata.ts`, ensuring it is available for deployment and registration as a Discord slash command.
+- Message responses are handled through `MessageAdapter.processInstruction()` for consistency across the bot's command responses.
+
+This implementation follows Discord's best practices for command handling, permission validation, and modular service integration[1][2][4].
+</info added on 2025-05-23T05:47:19.145Z>
 
 ## 2. undefined [pending]
 ### Dependencies: None

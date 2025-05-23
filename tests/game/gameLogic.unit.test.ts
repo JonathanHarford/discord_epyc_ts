@@ -38,28 +38,32 @@ describe('Next Player Logic Unit Tests', () => {
       prisma.seasonConfig.deleteMany(),
     ]);
 
-    // Create test players
+    // Create test players with deterministic IDs for consistent testing
     testPlayers = await Promise.all([
       prisma.player.create({
         data: {
+          id: 'player-a', // Deterministic ID that will sort first
           discordUserId: `player1-${nanoid()}`,
           name: 'Player 1',
         },
       }),
       prisma.player.create({
         data: {
+          id: 'player-b', // Deterministic ID that will sort second
           discordUserId: `player2-${nanoid()}`,
           name: 'Player 2',
         },
       }),
       prisma.player.create({
         data: {
+          id: 'player-c', // Deterministic ID that will sort third
           discordUserId: `player3-${nanoid()}`,
           name: 'Player 3',
         },
       }),
       prisma.player.create({
         data: {
+          id: 'player-d', // Deterministic ID that will sort fourth
           discordUserId: `player4-${nanoid()}`,
           name: 'Player 4',
         },
@@ -252,7 +256,7 @@ describe('Next Player Logic Unit Tests', () => {
     });
 
     let playerAStats: any;
-    let playerBStats: any; // Not a candidate, but an ID for Player B
+    let playerBStats: any;
     let playerCStats: any;
     
     let playerAId: string;

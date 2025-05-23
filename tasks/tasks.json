@@ -785,7 +785,7 @@
       "id": 22,
       "title": "Implement Admin Command: Terminate Season",
       "description": "Implement the `/admin terminate season:<id>` slash command handler in `src/commands/chat`. This handler should include permission checks to ensure only authorized users can use it. It should call the `SeasonService` to mark the specified season as TERMINATED in the database and potentially clean up or mark related games/turns appropriately.",
-      "status": "pending",
+      "status": "in-progress",
       "dependencies": [
         2,
         5
@@ -797,7 +797,8 @@
         {
           "id": 1,
           "description": "Implement the core logic for the `/admin terminate season` command handler, including permission checks.",
-          "status": "pending"
+          "status": "done",
+          "details": "<info added on 2025-05-23T05:47:19.145Z>\nCore logic for the `/admin terminate season` command handler has been implemented and integrated as follows:\n\n- Created `src/commands/chat/admin-command.ts` with a structured command definition using `SlashCommandBuilder`, registering the `/admin terminate season <id>` subcommand group and required string option for the season identifier.\n- Permission checks are enforced using the `Config.developers.includes(intr.user.id)` pattern, mirroring the approach used in the DevCommand for consistency and maintainability. Unauthorized users receive a language-keyed error message, ensuring clear feedback and localization support.\n- The handler integrates with `SeasonService.terminateSeason()`, initializing all required dependencies (including `TurnService`, `SchedulerService`, and the shared Prisma client) within the `execute()` method to ensure proper context and resource management.\n- Comprehensive error handling is implemented with try-catch blocks, contextual logging (including seasonId, user, and guild), and fallback to generic error messages with error codes for easier debugging and support.\n- All admin-related messages and validation responses use language keys defined in `lang/lang.en-US.json` and referenced via `LangKeys.Commands.Admin.*`, with new keys added for admin-only validation and command descriptions.\n- The command is exported and registered in both `src/commands/chat/index.ts` and `src/commands/metadata.ts`, ensuring it is available for deployment and registration as a Discord slash command.\n- Message responses are handled through `MessageAdapter.processInstruction()` for consistency across the bot's command responses.\n\nThis implementation follows Discord's best practices for command handling, permission validation, and modular service integration[1][2][4].\n</info added on 2025-05-23T05:47:19.145Z>"
         },
         {
           "id": 2,

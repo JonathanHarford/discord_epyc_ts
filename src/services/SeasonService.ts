@@ -543,6 +543,115 @@ export class SeasonService {
     // No explicit cleanup is needed here.
     console.log(`SeasonService.handleOpenDurationTimeout: Job handling complete for season ${seasonId}. SchedulerService will clean up the job.`);
   }
+
+  /**
+   * Terminates a season by setting its status to TERMINATED.
+   * This is an admin action that forcibly ends a season regardless of its current state.
+   * @param seasonId The ID of the season to terminate.
+   * @returns A MessageInstruction object indicating success or failure.
+   */
+  async terminateSeason(seasonId: string): Promise<MessageInstruction> {
+    console.log(`SeasonService.terminateSeason: Attempting to terminate season ${seasonId}`);
+
+    try {
+      // First, check if the season exists
+      const existingSeason = await this.prisma.season.findUnique({
+        where: { id: seasonId },
+        include: {
+          config: true,
+          _count: {
+            select: { players: true, games: true }
+          }
+        }
+      });
+
+      if (!existingSeason) {
+        console.error(`SeasonService.terminateSeason: Season ${seasonId} not found.`);
+        return MessageHelpers.commandError(
+          LangKeys.Commands.Admin.TerminateSeasonErrorNotFound,
+          { seasonId }
+        );
+      }
+
+      // Check if season is already terminated
+      if (existingSeason.status === 'TERMINATED') {
+        console.warn(`SeasonService.terminateSeason: Season ${seasonId} is already terminated.`);
+        return MessageHelpers.commandError(
+          LangKeys.Commands.Admin.TerminateSeasonErrorAlreadyTerminated,
+          { seasonId }
+        );
+      }
+
+      // Perform the termination within a transaction
+      const result = await this.prisma.$transaction(async (tx) => {
+        // Update season status to TERMINATED
+        const terminatedSeason = await tx.season.update({
+          where: { id: seasonId },
+          data: { 
+            status: 'TERMINATED',
+            updatedAt: new Date()
+          },
+          include: {
+            config: true,
+            _count: {
+              select: { players: true, games: true }
+            }
+          }
+        });
+
+        // Update all related games to TERMINATED status as well
+        await tx.game.updateMany({
+          where: { seasonId: seasonId },
+          data: { 
+            status: 'TERMINATED',
+            updatedAt: new Date()
+          }
+        });
+
+        // Cancel any scheduled jobs related to this season
+        const activationJobId = `season-activation-${seasonId}`;
+        const wasCancelled = await this.schedulerService.cancelJob(activationJobId);
+        if (wasCancelled) {
+          console.log(`SeasonService.terminateSeason: Canceled scheduled activation job '${activationJobId}' for season ${seasonId}.`);
+        }
+
+        return terminatedSeason;
+      });
+
+      console.log(`SeasonService.terminateSeason: Season ${seasonId} terminated successfully.`);
+      return MessageHelpers.commandSuccess(
+        LangKeys.Commands.Admin.TerminateSeasonSuccess,
+        {
+          seasonId: result.id,
+          previousStatus: existingSeason.status,
+          playerCount: result._count.players,
+          gameCount: result._count.games
+        }
+      );
+
+    } catch (error) {
+      console.error(`SeasonService.terminateSeason: Error terminating season ${seasonId}:`, error);
+      
+      if (error instanceof Prisma.PrismaClientKnownRequestError) {
+        return MessageHelpers.commandError(
+          LangKeys.Commands.Admin.TerminateSeasonErrorDatabase,
+          { 
+            seasonId, 
+            errorCode: error.code, 
+            message: error.message 
+          }
+        );
+      }
+
+      return MessageHelpers.commandError(
+        LangKeys.Commands.Admin.TerminateSeasonErrorUnknown,
+        { 
+          seasonId, 
+          message: (error instanceof Error) ? error.message : 'An unknown error occurred' 
+        }
+      );
+    }
+  }
 }
 
 export interface NewSeasonOptions {
