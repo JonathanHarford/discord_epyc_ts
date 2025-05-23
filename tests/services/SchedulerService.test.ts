@@ -300,11 +300,12 @@ describe('SchedulerService', () => {
     it('should handle concurrent job scheduling without conflicts', async () => {
       const jobCount = 50;
       const promises: Promise<boolean>[] = [];
+      const timestamp = Date.now(); // Capture timestamp once
 
       // Schedule multiple jobs concurrently
       for (let i = 0; i < jobCount; i++) {
-        const jobId = `stress-test-job-${Date.now()}-${i}`;
-        const fireDate = new Date(Date.now() + 1000 + (i * 100)); // Stagger execution times
+        const jobId = `stress-test-job-${timestamp}-${i}`;
+        const fireDate = new Date(timestamp + 1000 + (i * 100)); // Stagger execution times
         const callback = vi.fn();
         
         promises.push(schedulerService.scheduleJob(jobId, fireDate, callback));
@@ -319,7 +320,7 @@ describe('SchedulerService', () => {
       const persistedJobs = await prisma.scheduledJob.findMany({
         where: {
           jobId: {
-            startsWith: `stress-test-job-${Date.now().toString().slice(0, -3)}` // Match timestamp prefix
+            startsWith: `stress-test-job-${timestamp}` // Use the same timestamp
           }
         }
       });

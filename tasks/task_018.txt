@@ -1,6 +1,6 @@
 # Task ID: 18
 # Title: Implement Game Completion Check (Season)
-# Status: in-progress
+# Status: done
 # Dependencies: 5, 9
 # Priority: medium
 # Description: Implement the logic to check if a game within a season is completed. This check should be performed after a turn is successfully COMPLETED or SKIPPED. A game is completed when every player in the season has either COMPLETED or been SKIPPED for their turn in that specific game.
@@ -11,25 +11,25 @@ Implement the necessary logic within the game or season management service to de
 Implement unit tests for the core logic layer function that determines game completion based on player turn states. Implement integration tests against a test database to verify the end-to-end process: setting up a season and game, simulating player turns (completed and skipped), and confirming the game state correctly transitions to COMPLETED when the criteria are met. Ensure these integration tests do not interact with external services like Discord.
 
 # Subtasks:
-## 18-1. undefined [pending]
+## 18-1. undefined [done]
 ### Dependencies: None
 ### Description: Implement the core logic function to check game completion based on player turn states.
 ### Details:
 
 
-## 18-2. undefined [pending]
+## 18-2. undefined [done]
 ### Dependencies: None
 ### Description: Integrate the game completion check into the turn completion/skip process.
 ### Details:
 
 
-## 18-3. undefined [pending]
+## 18-3. undefined [done]
 ### Dependencies: None
 ### Description: Write unit tests for the game completion logic function.
 ### Details:
 
 
-## 18-4. undefined [pending]
+## 18-4. undefined [done]
 ### Dependencies: None
 ### Description: Write integration tests against a test database to verify game completion flow.
 ### Details:

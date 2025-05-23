@@ -640,7 +640,7 @@
       "id": 18,
       "title": "Implement Game Completion Check (Season)",
       "description": "Implement the logic to check if a game within a season is completed. This check should be performed after a turn is successfully COMPLETED or SKIPPED. A game is completed when every player in the season has either COMPLETED or been SKIPPED for their turn in that specific game.",
-      "status": "in-progress",
+      "status": "done",
       "dependencies": [
         5,
         9
@@ -652,22 +652,22 @@
         {
           "id": "18-1",
           "description": "Implement the core logic function to check game completion based on player turn states.",
-          "status": "pending"
+          "status": "done"
         },
         {
           "id": "18-2",
           "description": "Integrate the game completion check into the turn completion/skip process.",
-          "status": "pending"
+          "status": "done"
         },
         {
           "id": "18-3",
           "description": "Write unit tests for the game completion logic function.",
-          "status": "pending"
+          "status": "done"
         },
         {
           "id": "18-4",
           "description": "Write integration tests against a test database to verify game completion flow.",
-          "status": "pending"
+          "status": "done"
         }
       ]
     },

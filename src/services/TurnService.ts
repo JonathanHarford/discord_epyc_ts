@@ -1,6 +1,7 @@
 import { PrismaClient, Game, Player, Turn, Prisma } from '@prisma/client';
 import { Client as DiscordClient } from 'discord.js';
 import { nanoid } from 'nanoid';
+import { checkGameCompletion } from '../game/gameLogic.js';
 // TODO: Import LangService if used for messages
 // TODO: Import TaskSchedulerService if scheduling claim timeouts
 
@@ -201,6 +202,29 @@ export class TurnService {
       });
 
       console.log(`Turn ${turnId} submitted by player ${playerId}, status updated to COMPLETED`);
+
+      // Check if the game is now completed after this turn submission
+      try {
+        const isGameCompleted = await checkGameCompletion(existingTurn.gameId, this.prisma);
+        
+        if (isGameCompleted) {
+          // Update the game status to COMPLETED
+          await this.prisma.game.update({
+            where: { id: existingTurn.gameId },
+            data: {
+              status: 'COMPLETED',
+              completedAt: new Date(),
+              updatedAt: new Date()
+            }
+          });
+          
+          console.log(`Game ${existingTurn.gameId} marked as COMPLETED after turn ${turnId} submission`);
+        }
+      } catch (gameCompletionError) {
+        console.error(`Error checking game completion for game ${existingTurn.gameId} after turn ${turnId}:`, gameCompletionError);
+        // Don't fail the turn submission if game completion check fails
+      }
+
       return { success: true, turn: updatedTurn };
     } catch (error) {
       console.error(`Error in TurnService.submitTurn for turn ${turnId}, player ${playerId}:`, error);
@@ -296,6 +320,29 @@ export class TurnService {
       });
 
       console.log(`Turn ${turnId} skipped for player ${existingTurn.playerId}, status updated to SKIPPED`);
+
+      // Check if the game is now completed after this turn skip
+      try {
+        const isGameCompleted = await checkGameCompletion(existingTurn.gameId, this.prisma);
+        
+        if (isGameCompleted) {
+          // Update the game status to COMPLETED
+          await this.prisma.game.update({
+            where: { id: existingTurn.gameId },
+            data: {
+              status: 'COMPLETED',
+              completedAt: new Date(),
+              updatedAt: new Date()
+            }
+          });
+          
+          console.log(`Game ${existingTurn.gameId} marked as COMPLETED after turn ${turnId} skip`);
+        }
+      } catch (gameCompletionError) {
+        console.error(`Error checking game completion for game ${existingTurn.gameId} after turn ${turnId}:`, gameCompletionError);
+        // Don't fail the turn skip if game completion check fails
+      }
+
       return { success: true, turn: updatedTurn };
     } catch (error) {
       console.error(`Error in TurnService.skipTurn for turn ${turnId}:`, error);

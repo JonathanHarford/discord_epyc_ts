@@ -319,10 +319,81 @@ function applyShouldRule4(candidates: PlayerTurnStats[]): PlayerTurnStats[] {
   return candidates.filter(player => player.pendingTurns === minPendingTurns);
 }
 
-export const checkGameCompletionPlaceholder = () => {
-  // TODO: Implement checkGameCompletionPlaceholder logic
-  console.log('checkGameCompletionPlaceholder called');
-};
+/**
+ * Checks if a game is completed based on player turn states.
+ * A game is completed when every player in the season has either COMPLETED or been SKIPPED for their turn in that specific game.
+ * 
+ * @param gameId - The ID of the game to check for completion
+ * @param prisma - Prisma client instance for database queries
+ * @returns Promise<boolean> - True if the game is completed, false otherwise
+ */
+export async function checkGameCompletion(
+  gameId: string,
+  prisma: PrismaClient
+): Promise<boolean> {
+  try {
+    // Get the game with its season and all players in the season
+    const game = await prisma.game.findUnique({
+      where: { id: gameId },
+      include: {
+        season: {
+          include: {
+            players: {
+              include: {
+                player: true
+              }
+            }
+          }
+        },
+        turns: {
+          where: {
+            status: {
+              in: ['COMPLETED', 'SKIPPED']
+            }
+          },
+          include: {
+            player: true
+          }
+        }
+      }
+    });
+
+    if (!game) {
+      console.error(`Game with ID ${gameId} not found`);
+      return false;
+    }
+
+    if (!game.season) {
+      console.error(`Game ${gameId} has no associated season`);
+      return false;
+    }
+
+    const seasonPlayers = game.season.players.map(p => p.player);
+    
+    if (seasonPlayers.length === 0) {
+      console.error(`Season ${game.seasonId} has no players`);
+      return false;
+    }
+
+    // Check if every player in the season has either COMPLETED or SKIPPED a turn in this game
+    const playersWithCompletedOrSkippedTurns = new Set(
+      game.turns.map(turn => turn.playerId).filter(Boolean)
+    );
+
+    // Every player must have at least one COMPLETED or SKIPPED turn in this game
+    const allPlayersCompleted = seasonPlayers.every(player => 
+      playersWithCompletedOrSkippedTurns.has(player.id)
+    );
+
+    console.log(`Game ${gameId} completion check: ${allPlayersCompleted ? 'COMPLETED' : 'NOT COMPLETED'} (${playersWithCompletedOrSkippedTurns.size}/${seasonPlayers.length} players have finished turns)`);
+    
+    return allPlayersCompleted;
+
+  } catch (error) {
+    console.error('Error in checkGameCompletion:', error);
+    return false;
+  }
+}
 
 export const checkSeasonCompletionPlaceholder = () => {
   // TODO: Implement checkSeasonCompletionPlaceholder logic

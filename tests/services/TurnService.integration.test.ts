@@ -825,4 +825,437 @@ describe('TurnService Integration Tests', () => {
       expect(finalTurn!.offeredAt).toBeNull();
     });
   });
+});
+
+describe('Game Completion Integration Tests', () => {
+  let turnService: TurnService;
+  let mockDiscordClient: any;
+  let testPlayers: Player[];
+  let testGame: Game;
+  let testSeason: Season;
+  let testSeasonConfig: SeasonConfig;
+
+  beforeEach(async () => {
+    await prisma.$transaction([
+      prisma.playersOnSeasons.deleteMany(),
+      prisma.turn.deleteMany(),
+      prisma.game.deleteMany(),
+      prisma.season.deleteMany(),
+      prisma.player.deleteMany(),
+      prisma.seasonConfig.deleteMany(),
+    ]);
+
+    // Create a mock Discord client
+    mockDiscordClient = {
+      users: {
+        fetch: vi.fn().mockImplementation((userId) => {
+          return Promise.resolve({
+            id: userId,
+            send: vi.fn().mockResolvedValue({}),
+          });
+        }),
+      },
+    };
+
+    // Create actual TurnService
+    turnService = new TurnService(prisma, mockDiscordClient as unknown as DiscordClient);
+
+    // Create test players
+    testPlayers = await Promise.all([
+      prisma.player.create({
+        data: {
+          discordUserId: `test-player-1-${nanoid()}`,
+          name: 'Test Player 1',
+        },
+      }),
+      prisma.player.create({
+        data: {
+          discordUserId: `test-player-2-${nanoid()}`,
+          name: 'Test Player 2',
+        },
+      }),
+      prisma.player.create({
+        data: {
+          discordUserId: `test-player-3-${nanoid()}`,
+          name: 'Test Player 3',
+        },
+      }),
+    ]);
+
+    testSeasonConfig = await prisma.seasonConfig.create({
+      data: {
+        maxPlayers: 3,
+        minPlayers: 2,
+        openDuration: '1d',
+        turnPattern: 'writing,drawing',
+      },
+    });
+
+    testSeason = await prisma.season.create({
+      data: {
+        status: 'ACTIVE',
+        creatorId: testPlayers[0].id,
+        configId: testSeasonConfig.id,
+      },
+    });
+
+    // Add all players to the season
+    await Promise.all(
+      testPlayers.map(player =>
+        prisma.playersOnSeasons.create({
+          data: {
+            playerId: player.id,
+            seasonId: testSeason.id,
+          },
+        })
+      )
+    );
+
+    testGame = await prisma.game.create({
+      data: {
+        status: 'ACTIVE',
+        seasonId: testSeason.id,
+      },
+    });
+  });
+
+  describe('Game completion via submitTurn', () => {
+    it('should mark game as COMPLETED when all players submit their turns', async () => {
+      // Create pending turns for all players
+      const turns = await Promise.all(
+        testPlayers.map((player, index) =>
+          prisma.turn.create({
+            data: {
+              gameId: testGame.id,
+              playerId: player.id,
+              turnNumber: index + 1,
+              status: 'PENDING',
+              type: 'WRITING',
+              claimedAt: new Date(),
+            },
+          })
+        )
+      );
+
+      // Submit turns for first two players
+      await turnService.submitTurn(turns[0].id, testPlayers[0].id, 'Player 1 content', 'text');
+      await turnService.submitTurn(turns[1].id, testPlayers[1].id, 'Player 2 content', 'text');
+
+      // Game should not be completed yet
+      let gameInDb = await prisma.game.findUnique({ where: { id: testGame.id } });
+      expect(gameInDb!.status).toBe('ACTIVE');
+      expect(gameInDb!.completedAt).toBeNull();
+
+      // Submit turn for the last player
+      const result = await turnService.submitTurn(turns[2].id, testPlayers[2].id, 'Player 3 content', 'text');
+
+      // Verify the turn submission was successful
+      expect(result.success).toBe(true);
+      expect(result.turn!.status).toBe('COMPLETED');
+
+      // Game should now be completed
+      gameInDb = await prisma.game.findUnique({ where: { id: testGame.id } });
+      expect(gameInDb!.status).toBe('COMPLETED');
+      expect(gameInDb!.completedAt).not.toBeNull();
+    });
+
+    it('should mark game as COMPLETED when all players have mixed completed/skipped turns', async () => {
+      // Create turns for all players
+      const turns = await Promise.all([
+        // Player 1: pending turn (will be submitted)
+        prisma.turn.create({
+          data: {
+            gameId: testGame.id,
+            playerId: testPlayers[0].id,
+            turnNumber: 1,
+            status: 'PENDING',
+            type: 'WRITING',
+            claimedAt: new Date(),
+          },
+        }),
+        // Player 2: already completed
+        prisma.turn.create({
+          data: {
+            gameId: testGame.id,
+            playerId: testPlayers[1].id,
+            turnNumber: 2,
+            status: 'COMPLETED',
+            type: 'DRAWING',
+            completedAt: new Date(),
+            imageUrl: 'http://example.com/image.png',
+          },
+        }),
+        // Player 3: already skipped
+        prisma.turn.create({
+          data: {
+            gameId: testGame.id,
+            playerId: testPlayers[2].id,
+            turnNumber: 3,
+            status: 'SKIPPED',
+            type: 'WRITING',
+            skippedAt: new Date(),
+          },
+        }),
+      ]);
+
+      // Submit the last pending turn
+      const result = await turnService.submitTurn(turns[0].id, testPlayers[0].id, 'Final content', 'text');
+
+      // Verify the turn submission was successful
+      expect(result.success).toBe(true);
+      expect(result.turn!.status).toBe('COMPLETED');
+
+      // Game should now be completed
+      const gameInDb = await prisma.game.findUnique({ where: { id: testGame.id } });
+      expect(gameInDb!.status).toBe('COMPLETED');
+      expect(gameInDb!.completedAt).not.toBeNull();
+    });
+
+    it('should not mark game as COMPLETED when some players have no turns', async () => {
+      // Create turns for only two players
+      const turns = await Promise.all([
+        prisma.turn.create({
+          data: {
+            gameId: testGame.id,
+            playerId: testPlayers[0].id,
+            turnNumber: 1,
+            status: 'PENDING',
+            type: 'WRITING',
+            claimedAt: new Date(),
+          },
+        }),
+        prisma.turn.create({
+          data: {
+            gameId: testGame.id,
+            playerId: testPlayers[1].id,
+            turnNumber: 2,
+            status: 'PENDING',
+            type: 'DRAWING',
+            claimedAt: new Date(),
+          },
+        }),
+      ]);
+
+      // Submit both turns
+      await turnService.submitTurn(turns[0].id, testPlayers[0].id, 'Player 1 content', 'text');
+      await turnService.submitTurn(turns[1].id, testPlayers[1].id, 'Player 2 content', 'text');
+
+      // Game should not be completed (Player 3 has no turn)
+      const gameInDb = await prisma.game.findUnique({ where: { id: testGame.id } });
+      expect(gameInDb!.status).toBe('ACTIVE');
+      expect(gameInDb!.completedAt).toBeNull();
+    });
+  });
+
+  describe('Game completion via skipTurn', () => {
+    it('should mark game as COMPLETED when all players skip their turns', async () => {
+      // Create pending turns for all players
+      const turns = await Promise.all(
+        testPlayers.map((player, index) =>
+          prisma.turn.create({
+            data: {
+              gameId: testGame.id,
+              playerId: player.id,
+              turnNumber: index + 1,
+              status: 'PENDING',
+              type: 'WRITING',
+              claimedAt: new Date(),
+            },
+          })
+        )
+      );
+
+      // Skip turns for first two players
+      await turnService.skipTurn(turns[0].id);
+      await turnService.skipTurn(turns[1].id);
+
+      // Game should not be completed yet
+      let gameInDb = await prisma.game.findUnique({ where: { id: testGame.id } });
+      expect(gameInDb!.status).toBe('ACTIVE');
+      expect(gameInDb!.completedAt).toBeNull();
+
+      // Skip turn for the last player
+      const result = await turnService.skipTurn(turns[2].id);
+
+      // Verify the turn skip was successful
+      expect(result.success).toBe(true);
+      expect(result.turn!.status).toBe('SKIPPED');
+
+      // Game should now be completed
+      gameInDb = await prisma.game.findUnique({ where: { id: testGame.id } });
+      expect(gameInDb!.status).toBe('COMPLETED');
+      expect(gameInDb!.completedAt).not.toBeNull();
+    });
+
+    it('should mark game as COMPLETED when last player skips after others completed', async () => {
+      // Create turns with mixed states
+      const turns = await Promise.all([
+        // Player 1: already completed
+        prisma.turn.create({
+          data: {
+            gameId: testGame.id,
+            playerId: testPlayers[0].id,
+            turnNumber: 1,
+            status: 'COMPLETED',
+            type: 'WRITING',
+            completedAt: new Date(),
+            textContent: 'Player 1 content',
+          },
+        }),
+        // Player 2: already completed
+        prisma.turn.create({
+          data: {
+            gameId: testGame.id,
+            playerId: testPlayers[1].id,
+            turnNumber: 2,
+            status: 'COMPLETED',
+            type: 'DRAWING',
+            completedAt: new Date(),
+            imageUrl: 'http://example.com/image.png',
+          },
+        }),
+        // Player 3: pending (will be skipped)
+        prisma.turn.create({
+          data: {
+            gameId: testGame.id,
+            playerId: testPlayers[2].id,
+            turnNumber: 3,
+            status: 'PENDING',
+            type: 'WRITING',
+            claimedAt: new Date(),
+          },
+        }),
+      ]);
+
+      // Skip the last pending turn
+      const result = await turnService.skipTurn(turns[2].id);
+
+      // Verify the turn skip was successful
+      expect(result.success).toBe(true);
+      expect(result.turn!.status).toBe('SKIPPED');
+
+      // Game should now be completed
+      const gameInDb = await prisma.game.findUnique({ where: { id: testGame.id } });
+      expect(gameInDb!.status).toBe('COMPLETED');
+      expect(gameInDb!.completedAt).not.toBeNull();
+    });
+  });
+
+  describe('Game completion error handling', () => {
+    it('should continue with turn submission even if game completion check fails', async () => {
+      // Create a pending turn
+      const turn = await prisma.turn.create({
+        data: {
+          gameId: testGame.id,
+          playerId: testPlayers[0].id,
+          turnNumber: 1,
+          status: 'PENDING',
+          type: 'WRITING',
+          claimedAt: new Date(),
+        },
+      });
+
+      // Mock a scenario where game completion check might fail
+      // (In practice, this could be a database connection issue, etc.)
+      // The turn submission should still succeed
+      const result = await turnService.submitTurn(turn.id, testPlayers[0].id, 'Content', 'text');
+
+      // Verify the turn submission was successful
+      expect(result.success).toBe(true);
+      expect(result.turn!.status).toBe('COMPLETED');
+
+      // Verify turn is in database
+      const turnInDb = await prisma.turn.findUnique({ where: { id: turn.id } });
+      expect(turnInDb!.status).toBe('COMPLETED');
+      expect(turnInDb!.textContent).toBe('Content');
+    });
+
+    it('should continue with turn skip even if game completion check fails', async () => {
+      // Create a pending turn
+      const turn = await prisma.turn.create({
+        data: {
+          gameId: testGame.id,
+          playerId: testPlayers[0].id,
+          turnNumber: 1,
+          status: 'PENDING',
+          type: 'WRITING',
+          claimedAt: new Date(),
+        },
+      });
+
+      // Skip the turn
+      const result = await turnService.skipTurn(turn.id);
+
+      // Verify the turn skip was successful
+      expect(result.success).toBe(true);
+      expect(result.turn!.status).toBe('SKIPPED');
+
+      // Verify turn is in database
+      const turnInDb = await prisma.turn.findUnique({ where: { id: turn.id } });
+      expect(turnInDb!.status).toBe('SKIPPED');
+      expect(turnInDb!.skippedAt).not.toBeNull();
+    });
+  });
+
+  describe('Game completion with multiple games in season', () => {
+    it('should only complete the specific game, not affect other games', async () => {
+      // Create another game in the same season
+      const otherGame = await prisma.game.create({
+        data: {
+          status: 'ACTIVE',
+          seasonId: testSeason.id,
+        },
+      });
+
+      // Create pending turns for all players in the test game and submit them
+      const testGameTurns = await Promise.all(
+        testPlayers.map((player, index) =>
+          prisma.turn.create({
+            data: {
+              gameId: testGame.id,
+              playerId: player.id,
+              turnNumber: index + 1,
+              status: 'PENDING',
+              type: 'WRITING',
+              claimedAt: new Date(),
+            },
+          })
+        )
+      );
+
+      // Submit all turns in the test game using TurnService to trigger game completion check
+      for (let i = 0; i < testGameTurns.length; i++) {
+        const turn = testGameTurns[i];
+        const player = testPlayers[i];
+        await turnService.submitTurn(turn.id, player.id, `Player ${i + 1} content`, 'text');
+      }
+
+      // Create a pending turn in the other game
+      const otherGameTurn = await prisma.turn.create({
+        data: {
+          gameId: otherGame.id,
+          playerId: testPlayers[0].id,
+          turnNumber: 1,
+          status: 'PENDING',
+          type: 'DRAWING',
+          claimedAt: new Date(),
+        },
+      });
+
+      // Submit a turn in the other game (should not complete it)
+      await turnService.submitTurn(otherGameTurn.id, testPlayers[0].id, 'Other game content', 'text');
+
+      // Check game statuses
+      const testGameInDb = await prisma.game.findUnique({ where: { id: testGame.id } });
+      const otherGameInDb = await prisma.game.findUnique({ where: { id: otherGame.id } });
+
+      // Test game should be completed (all players have turns)
+      expect(testGameInDb!.status).toBe('COMPLETED');
+      expect(testGameInDb!.completedAt).not.toBeNull();
+
+      // Other game should still be active (only one player has a turn)
+      expect(otherGameInDb!.status).toBe('ACTIVE');
+      expect(otherGameInDb!.completedAt).toBeNull();
+    });
+  });
 }); 

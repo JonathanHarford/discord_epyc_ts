@@ -1,6 +1,6 @@
 import { describe, it, expect, beforeEach, afterAll, vi } from 'vitest';
 import { PrismaClient, Player, Turn, Game, Season, PlayersOnSeasons } from '@prisma/client';
-import { selectNextPlayer } from '../../src/game/gameLogic.js';
+import { selectNextPlayer, checkGameCompletion } from '../../src/game/gameLogic.js';
 import { nanoid } from 'nanoid';
 
 // Use a separate Prisma client for tests
@@ -620,6 +620,377 @@ describe('Next Player Logic Unit Tests', () => {
       expect(result.success).toBe(true);
       // Should prefer players with fewer writing turns (Player 2, 3, or 4 over Player 1)
       expect([testPlayers[1].id, testPlayers[2].id, testPlayers[3].id]).toContain(result.playerId);
+    });
+  });
+});
+
+describe('Game Completion Logic Unit Tests', () => {
+  let testPlayers: Player[];
+  let testSeason: Season;
+  let testGame: Game;
+
+  beforeEach(async () => {
+    // Clear the database before each test
+    await prisma.$transaction([
+      prisma.playersOnSeasons.deleteMany(),
+      prisma.turn.deleteMany(),
+      prisma.game.deleteMany(),
+      prisma.season.deleteMany(),
+      prisma.player.deleteMany(),
+      prisma.seasonConfig.deleteMany(),
+    ]);
+
+    // Create test players
+    testPlayers = await Promise.all([
+      prisma.player.create({
+        data: {
+          discordUserId: `player1-${nanoid()}`,
+          name: 'Player 1',
+        },
+      }),
+      prisma.player.create({
+        data: {
+          discordUserId: `player2-${nanoid()}`,
+          name: 'Player 2',
+        },
+      }),
+      prisma.player.create({
+        data: {
+          discordUserId: `player3-${nanoid()}`,
+          name: 'Player 3',
+        },
+      }),
+    ]);
+
+    // Create season config
+    const seasonConfig = await prisma.seasonConfig.create({
+      data: {
+        maxPlayers: 3,
+        minPlayers: 2,
+        openDuration: '1d',
+        turnPattern: 'writing,drawing',
+      },
+    });
+
+    // Create test season
+    testSeason = await prisma.season.create({
+      data: {
+        status: 'ACTIVE',
+        creatorId: testPlayers[0].id,
+        configId: seasonConfig.id,
+      },
+    });
+
+    // Add all players to the season
+    await Promise.all(
+      testPlayers.map(player =>
+        prisma.playersOnSeasons.create({
+          data: {
+            playerId: player.id,
+            seasonId: testSeason.id,
+          },
+        })
+      )
+    );
+
+    // Create test game
+    testGame = await prisma.game.create({
+      data: {
+        status: 'ACTIVE',
+        seasonId: testSeason.id,
+      },
+    });
+  });
+
+  describe('Basic Functionality', () => {
+    it('should return false when game not found', async () => {
+      const result = await checkGameCompletion('non-existent-game', prisma);
+      expect(result).toBe(false);
+    });
+
+    it('should return false when season has no players', async () => {
+      // Remove all players from season
+      await prisma.playersOnSeasons.deleteMany({
+        where: { seasonId: testSeason.id },
+      });
+
+      const result = await checkGameCompletion(testGame.id, prisma);
+      expect(result).toBe(false);
+    });
+
+    it('should return false when no players have completed or skipped turns', async () => {
+      const result = await checkGameCompletion(testGame.id, prisma);
+      expect(result).toBe(false);
+    });
+  });
+
+  describe('Game Completion Scenarios', () => {
+    it('should return true when all players have completed their turns', async () => {
+      // All players complete their turns
+      await Promise.all(
+        testPlayers.map((player, index) =>
+          prisma.turn.create({
+            data: {
+              gameId: testGame.id,
+              playerId: player.id,
+              turnNumber: index + 1,
+              status: 'COMPLETED',
+              type: 'WRITING',
+              completedAt: new Date(),
+              textContent: `Content from ${player.name}`,
+            },
+          })
+        )
+      );
+
+      const result = await checkGameCompletion(testGame.id, prisma);
+      expect(result).toBe(true);
+    });
+
+    it('should return true when all players have skipped their turns', async () => {
+      // All players skip their turns
+      await Promise.all(
+        testPlayers.map((player, index) =>
+          prisma.turn.create({
+            data: {
+              gameId: testGame.id,
+              playerId: player.id,
+              turnNumber: index + 1,
+              status: 'SKIPPED',
+              type: 'WRITING',
+              skippedAt: new Date(),
+            },
+          })
+        )
+      );
+
+      const result = await checkGameCompletion(testGame.id, prisma);
+      expect(result).toBe(true);
+    });
+
+    it('should return true when players have mixed completed and skipped turns', async () => {
+      // Player 1 completes, Player 2 skips, Player 3 completes
+      await Promise.all([
+        prisma.turn.create({
+          data: {
+            gameId: testGame.id,
+            playerId: testPlayers[0].id,
+            turnNumber: 1,
+            status: 'COMPLETED',
+            type: 'WRITING',
+            completedAt: new Date(),
+            textContent: 'Player 1 content',
+          },
+        }),
+        prisma.turn.create({
+          data: {
+            gameId: testGame.id,
+            playerId: testPlayers[1].id,
+            turnNumber: 2,
+            status: 'SKIPPED',
+            type: 'DRAWING',
+            skippedAt: new Date(),
+          },
+        }),
+        prisma.turn.create({
+          data: {
+            gameId: testGame.id,
+            playerId: testPlayers[2].id,
+            turnNumber: 3,
+            status: 'COMPLETED',
+            type: 'WRITING',
+            completedAt: new Date(),
+            textContent: 'Player 3 content',
+          },
+        }),
+      ]);
+
+      const result = await checkGameCompletion(testGame.id, prisma);
+      expect(result).toBe(true);
+    });
+
+    it('should return false when some players have not completed or skipped', async () => {
+      // Only Player 1 and Player 2 complete, Player 3 has no turn
+      await Promise.all([
+        prisma.turn.create({
+          data: {
+            gameId: testGame.id,
+            playerId: testPlayers[0].id,
+            turnNumber: 1,
+            status: 'COMPLETED',
+            type: 'WRITING',
+            completedAt: new Date(),
+            textContent: 'Player 1 content',
+          },
+        }),
+        prisma.turn.create({
+          data: {
+            gameId: testGame.id,
+            playerId: testPlayers[1].id,
+            turnNumber: 2,
+            status: 'COMPLETED',
+            type: 'DRAWING',
+            completedAt: new Date(),
+            imageUrl: 'http://example.com/image.png',
+          },
+        }),
+      ]);
+
+      const result = await checkGameCompletion(testGame.id, prisma);
+      expect(result).toBe(false);
+    });
+
+    it('should return false when players have pending or offered turns', async () => {
+      // Player 1 completes, Player 2 has pending turn, Player 3 has offered turn
+      await Promise.all([
+        prisma.turn.create({
+          data: {
+            gameId: testGame.id,
+            playerId: testPlayers[0].id,
+            turnNumber: 1,
+            status: 'COMPLETED',
+            type: 'WRITING',
+            completedAt: new Date(),
+            textContent: 'Player 1 content',
+          },
+        }),
+        prisma.turn.create({
+          data: {
+            gameId: testGame.id,
+            playerId: testPlayers[1].id,
+            turnNumber: 2,
+            status: 'PENDING',
+            type: 'DRAWING',
+            claimedAt: new Date(),
+          },
+        }),
+        prisma.turn.create({
+          data: {
+            gameId: testGame.id,
+            playerId: testPlayers[2].id,
+            turnNumber: 3,
+            status: 'OFFERED',
+            type: 'WRITING',
+            offeredAt: new Date(),
+          },
+        }),
+      ]);
+
+      const result = await checkGameCompletion(testGame.id, prisma);
+      expect(result).toBe(false);
+    });
+
+    it('should ignore turns from other games in the same season', async () => {
+      // Create another game in the same season
+      const otherGame = await prisma.game.create({
+        data: {
+          status: 'ACTIVE',
+          seasonId: testSeason.id,
+        },
+      });
+
+      // All players complete turns in the test game
+      await Promise.all(
+        testPlayers.map((player, index) =>
+          prisma.turn.create({
+            data: {
+              gameId: testGame.id,
+              playerId: player.id,
+              turnNumber: index + 1,
+              status: 'COMPLETED',
+              type: 'WRITING',
+              completedAt: new Date(),
+              textContent: `Content from ${player.name}`,
+            },
+          })
+        )
+      );
+
+      // Add some turns in the other game (should not affect the result)
+      await prisma.turn.create({
+        data: {
+          gameId: otherGame.id,
+          playerId: testPlayers[0].id,
+          turnNumber: 1,
+          status: 'PENDING',
+          type: 'DRAWING',
+          claimedAt: new Date(),
+        },
+      });
+
+      const result = await checkGameCompletion(testGame.id, prisma);
+      expect(result).toBe(true);
+    });
+
+    it('should handle players with multiple turns in the same game', async () => {
+      // Player 1 has multiple turns (completed and skipped)
+      // Player 2 has one completed turn
+      // Player 3 has one skipped turn
+      await Promise.all([
+        prisma.turn.create({
+          data: {
+            gameId: testGame.id,
+            playerId: testPlayers[0].id,
+            turnNumber: 1,
+            status: 'COMPLETED',
+            type: 'WRITING',
+            completedAt: new Date(),
+            textContent: 'Player 1 first turn',
+          },
+        }),
+        prisma.turn.create({
+          data: {
+            gameId: testGame.id,
+            playerId: testPlayers[0].id,
+            turnNumber: 4,
+            status: 'SKIPPED',
+            type: 'DRAWING',
+            skippedAt: new Date(),
+          },
+        }),
+        prisma.turn.create({
+          data: {
+            gameId: testGame.id,
+            playerId: testPlayers[1].id,
+            turnNumber: 2,
+            status: 'COMPLETED',
+            type: 'DRAWING',
+            completedAt: new Date(),
+            imageUrl: 'http://example.com/image.png',
+          },
+        }),
+        prisma.turn.create({
+          data: {
+            gameId: testGame.id,
+            playerId: testPlayers[2].id,
+            turnNumber: 3,
+            status: 'SKIPPED',
+            type: 'WRITING',
+            skippedAt: new Date(),
+          },
+        }),
+      ]);
+
+      const result = await checkGameCompletion(testGame.id, prisma);
+      expect(result).toBe(true);
+    });
+  });
+
+  describe('Error Handling', () => {
+    it('should handle database errors gracefully', async () => {
+      // Mock a database error by using an invalid game ID format
+      const result = await checkGameCompletion('', prisma);
+      expect(result).toBe(false);
+    });
+
+    it('should return false for null or undefined game ID', async () => {
+      // @ts-expect-error Testing invalid input
+      const result1 = await checkGameCompletion(null, prisma);
+      expect(result1).toBe(false);
+
+      // @ts-expect-error Testing invalid input
+      const result2 = await checkGameCompletion(undefined, prisma);
+      expect(result2).toBe(false);
     });
   });
 }); 
