@@ -31,6 +31,8 @@ describe('AdminCommand - Integration Tests', () => {
   let prisma: PrismaClient;
   let testSeasonId: string;
   let terminatedSeasonId: string;
+  let testPlayerId: string;
+  let bannedPlayerId: string;
   let commandInstance: AdminCommand;
   let mockEventData: EventData;
 
@@ -66,6 +68,26 @@ describe('AdminCommand - Integration Tests', () => {
         name: 'Creator'
       }
     });
+
+    // Create test players for ban/unban testing
+    const testPlayer = await prisma.player.create({
+      data: {
+        id: nanoid(),
+        discordUserId: 'test-player-discord-id',
+        name: 'Test Player'
+      }
+    });
+    testPlayerId = testPlayer.id;
+
+    const bannedPlayer = await prisma.player.create({
+      data: {
+        id: nanoid(),
+        discordUserId: 'banned-player-discord-id',
+        name: 'Banned Player',
+        bannedAt: new Date()
+      }
+    });
+    bannedPlayerId = bannedPlayer.id;
 
     // Create an active season for testing termination
     const testSeason = await prisma.season.create({
@@ -134,7 +156,8 @@ describe('AdminCommand - Integration Tests', () => {
       options: {
         getSubcommand: vi.fn(),
         getSubcommandGroup: vi.fn(),
-        getString: vi.fn()
+        getString: vi.fn(),
+        getUser: vi.fn()
       },
       user: {
         id: '510875521354039317', // Use the actual admin ID from config.json
@@ -153,6 +176,19 @@ describe('AdminCommand - Integration Tests', () => {
         shardId: 0
       }
     };
+  });
+
+  beforeEach(async () => {
+    // Reset test player ban states to ensure test isolation
+    await prisma.player.update({
+      where: { discordUserId: 'test-player-discord-id' },
+      data: { bannedAt: null }
+    });
+    
+    await prisma.player.update({
+      where: { discordUserId: 'banned-player-discord-id' },
+      data: { bannedAt: new Date() }
+    });
   });
 
   describe('Permission Checks', () => {
@@ -351,6 +387,250 @@ describe('AdminCommand - Integration Tests', () => {
         where: { id: testSeasonId }
       });
       expect(testSeason?.status).toBe('ACTIVE'); // Should remain unchanged
+    });
+  });
+
+  describe('Ban Player Command', () => {
+    beforeEach(() => {
+      // Set up for ban player command
+      interaction.options.getSubcommand.mockReturnValue('ban');
+      interaction.options.getSubcommandGroup.mockReturnValue('player');
+      interaction.user.id = '510875521354039317'; // Ensure admin access
+    });
+
+    it('should successfully ban an unbanned player', async () => {
+      // Mock the user option to return a test user
+      interaction.options.getUser.mockReturnValue({
+        id: 'test-player-discord-id',
+        username: 'TestPlayer'
+      });
+      interaction.options.getString.mockReturnValue('Test ban reason');
+
+      // Verify player is not banned before
+      const playerBefore = await prisma.player.findUnique({
+        where: { discordUserId: 'test-player-discord-id' }
+      });
+      expect(playerBefore?.bannedAt).toBeNull();
+
+      // Execute the command
+      await commandInstance.execute(interaction, mockEventData);
+
+      // Verify the command called editReply
+      expect(interaction.editReply).toHaveBeenCalled();
+
+      // Verify player was banned in database
+      const playerAfter = await prisma.player.findUnique({
+        where: { discordUserId: 'test-player-discord-id' }
+      });
+      expect(playerAfter?.bannedAt).not.toBeNull();
+      expect(playerAfter?.bannedAt).toBeInstanceOf(Date);
+    });
+
+    it('should handle banning a non-existent player', async () => {
+      // Mock the user option to return a non-existent user
+      interaction.options.getUser.mockReturnValue({
+        id: 'non-existent-player-discord-id',
+        username: 'NonExistentPlayer'
+      });
+      interaction.options.getString.mockReturnValue('Test ban reason');
+
+      // Execute the command
+      await commandInstance.execute(interaction, mockEventData);
+
+      // Verify the command called editReply (error response)
+      expect(interaction.editReply).toHaveBeenCalled();
+      
+      // Verify no player was created
+      const player = await prisma.player.findUnique({
+        where: { discordUserId: 'non-existent-player-discord-id' }
+      });
+      expect(player).toBeNull();
+    });
+
+    it('should handle banning an already banned player', async () => {
+      // Mock the user option to return an already banned user
+      interaction.options.getUser.mockReturnValue({
+        id: 'banned-player-discord-id',
+        username: 'BannedPlayer'
+      });
+      interaction.options.getString.mockReturnValue('Test ban reason');
+
+      // Verify player is already banned
+      const playerBefore = await prisma.player.findUnique({
+        where: { discordUserId: 'banned-player-discord-id' }
+      });
+      expect(playerBefore?.bannedAt).not.toBeNull();
+
+      // Execute the command
+      await commandInstance.execute(interaction, mockEventData);
+
+      // Verify the command called editReply (error response)
+      expect(interaction.editReply).toHaveBeenCalled();
+      
+      // Verify ban status remains unchanged
+      const playerAfter = await prisma.player.findUnique({
+        where: { discordUserId: 'banned-player-discord-id' }
+      });
+      expect(playerAfter?.bannedAt).toEqual(playerBefore?.bannedAt);
+    });
+
+    it('should ban a player without a reason', async () => {
+      // Create a fresh test player for this test
+      const freshPlayer = await prisma.player.create({
+        data: {
+          id: nanoid(),
+          discordUserId: 'fresh-player-no-reason',
+          name: 'Fresh Player No Reason'
+        }
+      });
+
+      // Mock the user option to return the fresh test user
+      interaction.options.getUser.mockReturnValue({
+        id: 'fresh-player-no-reason',
+        username: 'FreshPlayer'
+      });
+      interaction.options.getString.mockReturnValue(null); // No reason provided
+
+      // Execute the command
+      await commandInstance.execute(interaction, mockEventData);
+
+      // Verify the command called editReply
+      expect(interaction.editReply).toHaveBeenCalled();
+
+      // Verify player was banned in database
+      const playerAfter = await prisma.player.findUnique({
+        where: { discordUserId: 'fresh-player-no-reason' }
+      });
+      expect(playerAfter?.bannedAt).not.toBeNull();
+    });
+  });
+
+  describe('Unban Player Command', () => {
+    beforeEach(() => {
+      // Set up for unban player command
+      interaction.options.getSubcommand.mockReturnValue('unban');
+      interaction.options.getSubcommandGroup.mockReturnValue('player');
+      interaction.user.id = '510875521354039317'; // Ensure admin access
+    });
+
+    it('should successfully unban a banned player', async () => {
+      // Mock the user option to return a banned user
+      interaction.options.getUser.mockReturnValue({
+        id: 'banned-player-discord-id',
+        username: 'BannedPlayer'
+      });
+
+      // Verify player is banned before
+      const playerBefore = await prisma.player.findUnique({
+        where: { discordUserId: 'banned-player-discord-id' }
+      });
+      expect(playerBefore?.bannedAt).not.toBeNull();
+
+      // Execute the command
+      await commandInstance.execute(interaction, mockEventData);
+
+      // Verify the command called editReply
+      expect(interaction.editReply).toHaveBeenCalled();
+
+      // Verify player was unbanned in database
+      const playerAfter = await prisma.player.findUnique({
+        where: { discordUserId: 'banned-player-discord-id' }
+      });
+      expect(playerAfter?.bannedAt).toBeNull();
+    });
+
+    it('should handle unbanning a non-existent player', async () => {
+      // Mock the user option to return a non-existent user
+      interaction.options.getUser.mockReturnValue({
+        id: 'non-existent-player-discord-id',
+        username: 'NonExistentPlayer'
+      });
+
+      // Execute the command
+      await commandInstance.execute(interaction, mockEventData);
+
+      // Verify the command called editReply (error response)
+      expect(interaction.editReply).toHaveBeenCalled();
+      
+      // Verify no player was created
+      const player = await prisma.player.findUnique({
+        where: { discordUserId: 'non-existent-player-discord-id' }
+      });
+      expect(player).toBeNull();
+    });
+
+    it('should handle unbanning an already unbanned player', async () => {
+      // Mock the user option to return an unbanned user
+      interaction.options.getUser.mockReturnValue({
+        id: 'test-player-discord-id',
+        username: 'TestPlayer'
+      });
+
+      // Verify player is not banned before
+      const playerBefore = await prisma.player.findUnique({
+        where: { discordUserId: 'test-player-discord-id' }
+      });
+      expect(playerBefore?.bannedAt).toBeNull();
+
+      // Execute the command
+      await commandInstance.execute(interaction, mockEventData);
+
+      // Verify the command called editReply (error response)
+      expect(interaction.editReply).toHaveBeenCalled();
+      
+      // Verify ban status remains unchanged (still null)
+      const playerAfter = await prisma.player.findUnique({
+        where: { discordUserId: 'test-player-discord-id' }
+      });
+      expect(playerAfter?.bannedAt).toBeNull();
+    });
+  });
+
+  describe('Player Command Permission Checks', () => {
+    it('should deny ban command to non-admin users', async () => {
+      // Set user to non-admin
+      interaction.user.id = 'non-admin-user-id';
+      interaction.options.getSubcommand.mockReturnValue('ban');
+      interaction.options.getSubcommandGroup.mockReturnValue('player');
+      interaction.options.getUser.mockReturnValue({
+        id: 'test-player-discord-id',
+        username: 'TestPlayer'
+      });
+
+      // Execute the command
+      await commandInstance.execute(interaction, mockEventData);
+
+      // Verify the command called editReply (permission denied response)
+      expect(interaction.editReply).toHaveBeenCalled();
+      
+      // Verify no database changes occurred
+      const player = await prisma.player.findUnique({
+        where: { discordUserId: 'test-player-discord-id' }
+      });
+      expect(player?.bannedAt).toBeNull(); // Should remain unchanged
+    });
+
+    it('should deny unban command to non-admin users', async () => {
+      // Set user to non-admin
+      interaction.user.id = 'non-admin-user-id';
+      interaction.options.getSubcommand.mockReturnValue('unban');
+      interaction.options.getSubcommandGroup.mockReturnValue('player');
+      interaction.options.getUser.mockReturnValue({
+        id: 'banned-player-discord-id',
+        username: 'BannedPlayer'
+      });
+
+      // Execute the command
+      await commandInstance.execute(interaction, mockEventData);
+
+      // Verify the command called editReply (permission denied response)
+      expect(interaction.editReply).toHaveBeenCalled();
+      
+      // Verify no database changes occurred
+      const player = await prisma.player.findUnique({
+        where: { discordUserId: 'banned-player-discord-id' }
+      });
+      expect(player?.bannedAt).not.toBeNull(); // Should remain banned
     });
   });
 }); 

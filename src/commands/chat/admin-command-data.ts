@@ -17,4 +17,34 @@ export const adminCommandData = new SlashCommandBuilder()
                             .setRequired(true)
                     )
             )
+    )
+    .addSubcommandGroup(subcommandGroup =>
+        subcommandGroup
+            .setName('player')
+            .setDescription('Player management commands')
+            .addSubcommand(subcommand =>
+                subcommand
+                    .setName('ban')
+                    .setDescription('Ban a player from participating in seasons')
+                    .addUserOption(option =>
+                        option.setName('user')
+                            .setDescription('The user to ban')
+                            .setRequired(true)
+                    )
+                    .addStringOption(option =>
+                        option.setName('reason')
+                            .setDescription('Reason for the ban')
+                            .setRequired(false)
+                    )
+            )
+            .addSubcommand(subcommand =>
+                subcommand
+                    .setName('unban')
+                    .setDescription('Unban a player, allowing them to participate in seasons again')
+                    .addUserOption(option =>
+                        option.setName('user')
+                            .setDescription('The user to unban')
+                            .setRequired(true)
+                    )
+            )
     ); 
