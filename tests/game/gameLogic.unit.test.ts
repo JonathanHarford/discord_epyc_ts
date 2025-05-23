@@ -4,7 +4,7 @@ import {
   selectNextPlayer, 
   checkGameCompletion,
   activateSeasonPlaceholder as activateSeason, // Renamed import
-  checkSeasonCompletionPlaceholder as checkSeasonCompletionFull, // Renamed import, alias to avoid conflict
+  checkSeasonCompletion as checkSeasonCompletionFull, // Renamed import, alias to avoid conflict
   applyShouldRule1
 } from '../../src/game/gameLogic.js';
 import { nanoid } from 'nanoid';

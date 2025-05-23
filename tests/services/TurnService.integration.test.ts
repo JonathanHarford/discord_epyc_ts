@@ -1258,4 +1258,294 @@ describe('Game Completion Integration Tests', () => {
       expect(otherGameInDb!.completedAt).toBeNull();
     });
   });
+});
+
+describe('TurnService Season Completion Integration Tests', () => {
+  let turnService: TurnService;
+  let testPlayers: Player[];
+  let testSeason: Season;
+  let testGames: Game[];
+  let seasonConfig: SeasonConfig;
+
+  beforeEach(async () => {
+    // Clear the database before each test
+    await prisma.$transaction([
+      prisma.playersOnSeasons.deleteMany(),
+      prisma.turn.deleteMany(),
+      prisma.game.deleteMany(),
+      prisma.season.deleteMany(),
+      prisma.player.deleteMany(),
+      prisma.seasonConfig.deleteMany(),
+    ]);
+
+    // Create test players
+    testPlayers = await Promise.all([
+      prisma.player.create({
+        data: {
+          discordUserId: `player1-${nanoid()}`,
+          name: 'Player 1',
+        },
+      }),
+      prisma.player.create({
+        data: {
+          discordUserId: `player2-${nanoid()}`,
+          name: 'Player 2',
+        },
+      }),
+    ]);
+
+    // Create season config
+    seasonConfig = await prisma.seasonConfig.create({
+      data: {
+        maxPlayers: 2,
+        minPlayers: 2,
+        openDuration: '1d',
+        turnPattern: 'writing,drawing',
+      },
+    });
+
+    // Create test season
+    testSeason = await prisma.season.create({
+      data: {
+        status: 'ACTIVE',
+        creatorId: testPlayers[0].id,
+        configId: seasonConfig.id,
+      },
+    });
+
+    // Add players to the season
+    await Promise.all(
+      testPlayers.map(player =>
+        prisma.playersOnSeasons.create({
+          data: {
+            playerId: player.id,
+            seasonId: testSeason.id,
+          },
+        })
+      )
+    );
+
+    // Create test games
+    testGames = await Promise.all([
+      prisma.game.create({
+        data: {
+          status: 'ACTIVE',
+          seasonId: testSeason.id,
+        },
+      }),
+      prisma.game.create({
+        data: {
+          status: 'ACTIVE',
+          seasonId: testSeason.id,
+        },
+      }),
+    ]);
+
+    // Create a mock Discord client
+    const mockDiscordClient = {
+      users: {
+        fetch: vi.fn().mockImplementation((userId) => {
+          return Promise.resolve({
+            id: userId,
+            send: vi.fn().mockResolvedValue({}),
+          });
+        }),
+      },
+    };
+
+    // Initialize TurnService
+    turnService = new TurnService(prisma, mockDiscordClient as unknown as DiscordClient);
+  });
+
+  afterAll(async () => {
+    await prisma.$disconnect();
+  });
+
+  it('should mark season as COMPLETED when all games are completed via turn submission', async () => {
+    // Create turns for both games - one turn per player per game
+    const turns = await Promise.all([
+      // Game 1 turns
+      prisma.turn.create({
+        data: {
+          gameId: testGames[0].id,
+          playerId: testPlayers[0].id,
+          turnNumber: 1,
+          status: 'PENDING',
+          type: 'WRITING',
+        },
+      }),
+      prisma.turn.create({
+        data: {
+          gameId: testGames[0].id,
+          playerId: testPlayers[1].id,
+          turnNumber: 2,
+          status: 'PENDING',
+          type: 'WRITING',
+        },
+      }),
+      // Game 2 turns
+      prisma.turn.create({
+        data: {
+          gameId: testGames[1].id,
+          playerId: testPlayers[0].id,
+          turnNumber: 1,
+          status: 'PENDING',
+          type: 'WRITING',
+        },
+      }),
+      prisma.turn.create({
+        data: {
+          gameId: testGames[1].id,
+          playerId: testPlayers[1].id,
+          turnNumber: 2,
+          status: 'PENDING',
+          type: 'WRITING',
+        },
+      }),
+    ]);
+
+    // Submit all turns to complete both games
+    await turnService.submitTurn(turns[0].id, testPlayers[0].id, 'Test content 1', 'text');
+    await turnService.submitTurn(turns[1].id, testPlayers[1].id, 'Test content 2', 'text');
+    
+    // After completing game 1, season should still be ACTIVE
+    let updatedSeason = await prisma.season.findUnique({ where: { id: testSeason.id } });
+    expect(updatedSeason?.status).toBe('ACTIVE');
+
+    // Complete the second game
+    await turnService.submitTurn(turns[2].id, testPlayers[0].id, 'Test content 3', 'text');
+    await turnService.submitTurn(turns[3].id, testPlayers[1].id, 'Test content 4', 'text');
+
+    // Now season should be COMPLETED
+    updatedSeason = await prisma.season.findUnique({ where: { id: testSeason.id } });
+    expect(updatedSeason?.status).toBe('COMPLETED');
+
+    // Verify both games are COMPLETED
+    const updatedGames = await prisma.game.findMany({ where: { seasonId: testSeason.id } });
+    expect(updatedGames.every(game => game.status === 'COMPLETED')).toBe(true);
+  });
+
+  it('should mark season as COMPLETED when all games are completed via turn skipping', async () => {
+    // Create turns for both games
+    const turns = await Promise.all([
+      // Game 1 turns
+      prisma.turn.create({
+        data: {
+          gameId: testGames[0].id,
+          playerId: testPlayers[0].id,
+          turnNumber: 1,
+          status: 'PENDING',
+          type: 'WRITING',
+        },
+      }),
+      prisma.turn.create({
+        data: {
+          gameId: testGames[0].id,
+          playerId: testPlayers[1].id,
+          turnNumber: 2,
+          status: 'PENDING',
+          type: 'WRITING',
+        },
+      }),
+      // Game 2 turns
+      prisma.turn.create({
+        data: {
+          gameId: testGames[1].id,
+          playerId: testPlayers[0].id,
+          turnNumber: 1,
+          status: 'PENDING',
+          type: 'WRITING',
+        },
+      }),
+      prisma.turn.create({
+        data: {
+          gameId: testGames[1].id,
+          playerId: testPlayers[1].id,
+          turnNumber: 2,
+          status: 'PENDING',
+          type: 'WRITING',
+        },
+      }),
+    ]);
+
+    // Skip all turns to complete both games
+    await turnService.skipTurn(turns[0].id);
+    await turnService.skipTurn(turns[1].id);
+    
+    // After completing game 1, season should still be ACTIVE
+    let updatedSeason = await prisma.season.findUnique({ where: { id: testSeason.id } });
+    expect(updatedSeason?.status).toBe('ACTIVE');
+
+    // Complete the second game by skipping
+    await turnService.skipTurn(turns[2].id);
+    await turnService.skipTurn(turns[3].id);
+
+    // Now season should be COMPLETED
+    updatedSeason = await prisma.season.findUnique({ where: { id: testSeason.id } });
+    expect(updatedSeason?.status).toBe('COMPLETED');
+
+    // Verify both games are COMPLETED
+    const updatedGames = await prisma.game.findMany({ where: { seasonId: testSeason.id } });
+    expect(updatedGames.every(game => game.status === 'COMPLETED')).toBe(true);
+  });
+
+  it('should handle mixed turn completion and skipping', async () => {
+    // Create turns for both games
+    const turns = await Promise.all([
+      // Game 1 turns
+      prisma.turn.create({
+        data: {
+          gameId: testGames[0].id,
+          playerId: testPlayers[0].id,
+          turnNumber: 1,
+          status: 'PENDING',
+          type: 'WRITING',
+        },
+      }),
+      prisma.turn.create({
+        data: {
+          gameId: testGames[0].id,
+          playerId: testPlayers[1].id,
+          turnNumber: 2,
+          status: 'PENDING',
+          type: 'WRITING',
+        },
+      }),
+      // Game 2 turns
+      prisma.turn.create({
+        data: {
+          gameId: testGames[1].id,
+          playerId: testPlayers[0].id,
+          turnNumber: 1,
+          status: 'PENDING',
+          type: 'WRITING',
+        },
+      }),
+      prisma.turn.create({
+        data: {
+          gameId: testGames[1].id,
+          playerId: testPlayers[1].id,
+          turnNumber: 2,
+          status: 'PENDING',
+          type: 'WRITING',
+        },
+      }),
+    ]);
+
+    // Complete game 1 with mixed submission and skipping
+    await turnService.submitTurn(turns[0].id, testPlayers[0].id, 'Test content 1', 'text');
+    await turnService.skipTurn(turns[1].id);
+    
+    // Complete game 2 with mixed submission and skipping
+    await turnService.skipTurn(turns[2].id);
+    await turnService.submitTurn(turns[3].id, testPlayers[1].id, 'Test content 2', 'text');
+
+    // Season should be COMPLETED
+    const updatedSeason = await prisma.season.findUnique({ where: { id: testSeason.id } });
+    expect(updatedSeason?.status).toBe('COMPLETED');
+
+    // Verify both games are COMPLETED
+    const updatedGames = await prisma.game.findMany({ where: { seasonId: testSeason.id } });
+    expect(updatedGames.every(game => game.status === 'COMPLETED')).toBe(true);
+  });
 }); 

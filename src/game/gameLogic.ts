@@ -500,7 +500,7 @@ export async function checkGameCompletion(
  * @param prisma - Prisma client instance.
  * @returns Promise<{ completed: boolean; season?: Season | null }>
  */
-export const checkSeasonCompletionPlaceholder = async (
+export const checkSeasonCompletion = async (
   seasonId: string,
   prisma: PrismaClient
 ): Promise<{ completed: boolean; season?: Season | null }> => {

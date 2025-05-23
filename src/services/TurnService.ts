@@ -1,7 +1,7 @@
 import { PrismaClient, Game, Player, Turn, Prisma } from '@prisma/client';
 import { Client as DiscordClient } from 'discord.js';
 import { nanoid } from 'nanoid';
-import { checkGameCompletion } from '../game/gameLogic.js';
+import { checkGameCompletion, checkSeasonCompletion } from '../game/gameLogic.js';
 // TODO: Import LangService if used for messages
 // TODO: Import TaskSchedulerService if scheduling claim timeouts
 
@@ -219,6 +219,17 @@ export class TurnService {
           });
           
           console.log(`Game ${existingTurn.gameId} marked as COMPLETED after turn ${turnId} submission`);
+          
+          // Check if the season is now completed after this game completion
+          try {
+            const seasonCompletionResult = await checkSeasonCompletion(existingTurn.game.seasonId, this.prisma);
+            if (seasonCompletionResult.completed) {
+              console.log(`Season ${existingTurn.game.seasonId} marked as COMPLETED after game ${existingTurn.gameId} completion`);
+            }
+          } catch (seasonCompletionError) {
+            console.error(`Error checking season completion for season ${existingTurn.game.seasonId} after game ${existingTurn.gameId}:`, seasonCompletionError);
+            // Don't fail the turn submission if season completion check fails
+          }
         }
       } catch (gameCompletionError) {
         console.error(`Error checking game completion for game ${existingTurn.gameId} after turn ${turnId}:`, gameCompletionError);
@@ -337,6 +348,17 @@ export class TurnService {
           });
           
           console.log(`Game ${existingTurn.gameId} marked as COMPLETED after turn ${turnId} skip`);
+          
+          // Check if the season is now completed after this game completion
+          try {
+            const seasonCompletionResult = await checkSeasonCompletion(existingTurn.game.seasonId, this.prisma);
+            if (seasonCompletionResult.completed) {
+              console.log(`Season ${existingTurn.game.seasonId} marked as COMPLETED after game ${existingTurn.gameId} completion`);
+            }
+          } catch (seasonCompletionError) {
+            console.error(`Error checking season completion for season ${existingTurn.game.seasonId} after game ${existingTurn.gameId}:`, seasonCompletionError);
+            // Don't fail the turn skip if season completion check fails
+          }
         }
       } catch (gameCompletionError) {
         console.error(`Error checking game completion for game ${existingTurn.gameId} after turn ${turnId}:`, gameCompletionError);
