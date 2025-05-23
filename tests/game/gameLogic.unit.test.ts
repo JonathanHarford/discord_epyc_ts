@@ -1327,4 +1327,378 @@ describe('Game Completion Logic Unit Tests', () => {
       expect(result2).toBe(false);
     });
   });
+});
+
+describe('checkSeasonCompletion', () => {
+  let testPlayer: Player;
+  let mockSeasonService: any;
+
+  beforeEach(async () => {
+    // Create a test player for season creation
+    testPlayer = await prisma.player.create({
+      data: {
+        discordUserId: `test-completion-user-${nanoid()}`,
+        name: 'Test Completion User',
+      },
+    });
+
+    // Create a mock SeasonService for testing announcement delivery
+    mockSeasonService = {
+      deliverSeasonCompletionAnnouncement: vi.fn(),
+    };
+  });
+
+  it('should mark season as completed when all games are completed', async () => {
+    // Create a season with completed games
+    const seasonConfig = await prisma.seasonConfig.create({
+      data: { id: nanoid() },
+    });
+
+    const season = await prisma.season.create({
+      data: {
+        id: `completion-test-season-${nanoid()}`,
+        status: 'ACTIVE',
+        creatorId: testPlayer.id,
+        configId: seasonConfig.id,
+      },
+    });
+
+    // Create completed games
+    await prisma.game.createMany({
+      data: [
+        {
+          id: `completion-game-1-${nanoid()}`,
+          status: 'COMPLETED',
+          seasonId: season.id,
+        },
+        {
+          id: `completion-game-2-${nanoid()}`,
+          status: 'COMPLETED',
+          seasonId: season.id,
+        },
+      ],
+    });
+
+    const result = await checkSeasonCompletionFull(season.id, prisma);
+
+    expect(result.completed).toBe(true);
+    expect(result.season).not.toBeNull();
+    expect(result.season!.status).toBe('COMPLETED');
+  });
+
+  it('should not mark season as completed when some games are not completed', async () => {
+    // Create a season with mixed game statuses
+    const seasonConfig = await prisma.seasonConfig.create({
+      data: { id: nanoid() },
+    });
+
+    const season = await prisma.season.create({
+      data: {
+        id: `mixed-completion-season-${nanoid()}`,
+        status: 'ACTIVE',
+        creatorId: testPlayer.id,
+        configId: seasonConfig.id,
+      },
+    });
+
+    // Create games with mixed statuses
+    await prisma.game.createMany({
+      data: [
+        {
+          id: `mixed-game-1-${nanoid()}`,
+          status: 'COMPLETED',
+          seasonId: season.id,
+        },
+        {
+          id: `mixed-game-2-${nanoid()}`,
+          status: 'ACTIVE',
+          seasonId: season.id,
+        },
+      ],
+    });
+
+    const result = await checkSeasonCompletionFull(season.id, prisma);
+
+    expect(result.completed).toBe(false);
+    expect(result.season).not.toBeNull();
+    expect(result.season!.status).toBe('ACTIVE'); // Should remain unchanged
+  });
+
+  it('should trigger announcement delivery when season is completed', async () => {
+    // Mock the announcement delivery to return a valid MessageInstruction
+    const mockAnnouncement = {
+      type: 'success',
+      key: 'season.completion.announcement',
+      data: { seasonId: 'test-season' },
+    };
+    mockSeasonService.deliverSeasonCompletionAnnouncement.mockResolvedValue(mockAnnouncement);
+
+    const seasonConfig = await prisma.seasonConfig.create({
+      data: { id: nanoid() },
+    });
+
+    const season = await prisma.season.create({
+      data: {
+        id: `announcement-test-season-${nanoid()}`,
+        status: 'ACTIVE',
+        creatorId: testPlayer.id,
+        configId: seasonConfig.id,
+      },
+    });
+
+    // Create completed games
+    await prisma.game.create({
+      data: {
+        id: `announcement-game-${nanoid()}`,
+        status: 'COMPLETED',
+        seasonId: season.id,
+      },
+    });
+
+    const result = await checkSeasonCompletionFull(season.id, prisma, mockSeasonService);
+
+    expect(result.completed).toBe(true);
+    expect(result.announcementSent).toBe(true);
+    expect(mockSeasonService.deliverSeasonCompletionAnnouncement).toHaveBeenCalledWith(season.id);
+  });
+
+  it('should handle announcement delivery failures gracefully', async () => {
+    // Mock the announcement delivery to fail
+    mockSeasonService.deliverSeasonCompletionAnnouncement.mockResolvedValue(null);
+
+    const seasonConfig = await prisma.seasonConfig.create({
+      data: { id: nanoid() },
+    });
+
+    const season = await prisma.season.create({
+      data: {
+        id: `failed-announcement-season-${nanoid()}`,
+        status: 'ACTIVE',
+        creatorId: testPlayer.id,
+        configId: seasonConfig.id,
+      },
+    });
+
+    await prisma.game.create({
+      data: {
+        id: `failed-announcement-game-${nanoid()}`,
+        status: 'COMPLETED',
+        seasonId: season.id,
+      },
+    });
+
+    const consoleSpy = vi.spyOn(console, 'warn').mockImplementation(() => {});
+
+    const result = await checkSeasonCompletionFull(season.id, prisma, mockSeasonService);
+
+    expect(result.completed).toBe(true);
+    expect(result.announcementSent).toBe(false);
+    expect(consoleSpy).toHaveBeenCalled();
+
+    consoleSpy.mockRestore();
+  });
+
+  it('should handle announcement delivery errors gracefully', async () => {
+    // Mock the announcement delivery to throw an error
+    mockSeasonService.deliverSeasonCompletionAnnouncement.mockRejectedValue(new Error('Delivery failed'));
+
+    const seasonConfig = await prisma.seasonConfig.create({
+      data: { id: nanoid() },
+    });
+
+    const season = await prisma.season.create({
+      data: {
+        id: `error-announcement-season-${nanoid()}`,
+        status: 'ACTIVE',
+        creatorId: testPlayer.id,
+        configId: seasonConfig.id,
+      },
+    });
+
+    await prisma.game.create({
+      data: {
+        id: `error-announcement-game-${nanoid()}`,
+        status: 'COMPLETED',
+        seasonId: season.id,
+      },
+    });
+
+    const consoleSpy = vi.spyOn(console, 'error').mockImplementation(() => {});
+
+    const result = await checkSeasonCompletionFull(season.id, prisma, mockSeasonService);
+
+    expect(result.completed).toBe(true);
+    expect(result.announcementSent).toBe(false);
+    expect(consoleSpy).toHaveBeenCalled();
+
+    consoleSpy.mockRestore();
+  });
+
+  it('should handle seasons with no games appropriately', async () => {
+    const seasonConfig = await prisma.seasonConfig.create({
+      data: { id: nanoid() },
+    });
+
+    const season = await prisma.season.create({
+      data: {
+        id: `no-games-season-${nanoid()}`,
+        status: 'ACTIVE',
+        creatorId: testPlayer.id,
+        configId: seasonConfig.id,
+      },
+    });
+
+    // No games created for this season
+
+    const result = await checkSeasonCompletionFull(season.id, prisma, mockSeasonService);
+
+    // Based on the current logic, seasons with no games should be completed if not in SETUP/PENDING
+    expect(result.completed).toBe(true);
+    expect(result.season!.status).toBe('COMPLETED');
+  });
+
+  it('should handle non-existent seasons gracefully', async () => {
+    const consoleSpy = vi.spyOn(console, 'error').mockImplementation(() => {});
+
+    const result = await checkSeasonCompletionFull('non-existent-season', prisma);
+
+    expect(result.completed).toBe(false);
+    expect(result.season).toBeNull();
+    expect(consoleSpy).toHaveBeenCalled();
+
+    consoleSpy.mockRestore();
+  });
+
+  it('should handle database errors gracefully', async () => {
+    const consoleSpy = vi.spyOn(console, 'error').mockImplementation(() => {});
+
+    // Test with malformed season ID that might cause database issues
+    const result = await checkSeasonCompletionFull('', prisma);
+
+    expect(result.completed).toBe(false);
+    expect(result.season).toBeNull();
+    expect(consoleSpy).toHaveBeenCalled();
+
+    consoleSpy.mockRestore();
+  });
+
+  it('should work without SeasonService provided', async () => {
+    const seasonConfig = await prisma.seasonConfig.create({
+      data: { id: nanoid() },
+    });
+
+    const season = await prisma.season.create({
+      data: {
+        id: `no-service-season-${nanoid()}`,
+        status: 'ACTIVE',
+        creatorId: testPlayer.id,
+        configId: seasonConfig.id,
+      },
+    });
+
+    await prisma.game.create({
+      data: {
+        id: `no-service-game-${nanoid()}`,
+        status: 'COMPLETED',
+        seasonId: season.id,
+      },
+    });
+
+    const consoleSpy = vi.spyOn(console, 'log').mockImplementation(() => {});
+
+    const result = await checkSeasonCompletionFull(season.id, prisma); // No SeasonService provided
+
+    expect(result.completed).toBe(true);
+    expect(result.announcementSent).toBe(false);
+    expect(consoleSpy).toHaveBeenCalledWith(
+      expect.stringContaining('completed but no SeasonService provided')
+    );
+
+    consoleSpy.mockRestore();
+  });
+
+  it('should handle seasons in SETUP status with no games', async () => {
+    const seasonConfig = await prisma.seasonConfig.create({
+      data: { id: nanoid() },
+    });
+
+    const season = await prisma.season.create({
+      data: {
+        id: `setup-season-${nanoid()}`,
+        status: 'SETUP',
+        creatorId: testPlayer.id,
+        configId: seasonConfig.id,
+      },
+    });
+
+    // No games for SETUP season
+
+    const result = await checkSeasonCompletionFull(season.id, prisma);
+
+    expect(result.completed).toBe(false);
+    expect(result.season!.status).toBe('SETUP'); // Should remain unchanged
+  });
+
+  it('should handle seasons in PENDING status with no games', async () => {
+    const seasonConfig = await prisma.seasonConfig.create({
+      data: { id: nanoid() },
+    });
+
+    const season = await prisma.season.create({
+      data: {
+        id: `pending-season-${nanoid()}`,
+        status: 'PENDING',
+        creatorId: testPlayer.id,
+        configId: seasonConfig.id,
+      },
+    });
+
+    // No games for PENDING season
+
+    const result = await checkSeasonCompletionFull(season.id, prisma);
+
+    expect(result.completed).toBe(false);
+    expect(result.season!.status).toBe('PENDING'); // Should remain unchanged
+  });
+
+  it('should handle large numbers of games efficiently', async () => {
+    const startTime = Date.now();
+
+    const seasonConfig = await prisma.seasonConfig.create({
+      data: { id: nanoid() },
+    });
+
+    const season = await prisma.season.create({
+      data: {
+        id: `large-games-season-${nanoid()}`,
+        status: 'ACTIVE',
+        creatorId: testPlayer.id,
+        configId: seasonConfig.id,
+      },
+    });
+
+    // Create 100 completed games
+    const gameData: Array<{ id: string; status: 'COMPLETED'; seasonId: string }> = [];
+    for (let i = 0; i < 100; i++) {
+      gameData.push({
+        id: `large-game-${i}-${nanoid()}`,
+        status: 'COMPLETED',
+        seasonId: season.id,
+      });
+    }
+    await prisma.game.createMany({ data: gameData });
+
+    const result = await checkSeasonCompletionFull(season.id, prisma);
+
+    const endTime = Date.now();
+    const executionTime = endTime - startTime;
+
+    expect(result.completed).toBe(true);
+    expect(result.season!.status).toBe('COMPLETED');
+    
+    // Should complete efficiently
+    expect(executionTime).toBeLessThan(2000); // 2 seconds max
+    
+    console.log(`Large games completion check completed in ${executionTime}ms`);
+  });
 }); 

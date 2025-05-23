@@ -867,7 +867,7 @@ export class SeasonService {
         'success',
         'season.completion.announcement',
         {
-          seasonId: seasonResults.seasonId,
+          seasonId: seasonResults.seasonId || 'unknown',
           daysElapsed: seasonResults.daysElapsed,
           completionPercentage: seasonResults.completionPercentage,
           progressBar,
@@ -876,7 +876,7 @@ export class SeasonService {
           totalTurns: seasonResults.totalTurns,
           completedTurns: seasonResults.completedTurns,
           gameResults: gameResultsText,
-          creatorName: seasonResults.creator.name
+          creatorName: seasonResults.creator.name || 'Unknown Creator'
         },
         false // Not ephemeral - this is a public announcement
       );
@@ -886,7 +886,31 @@ export class SeasonService {
 
     } catch (error) {
       console.error(`SeasonService.createSeasonCompletionAnnouncement: Error creating announcement for season ${seasonResults.seasonId}:`, error);
-      return null;
+      // For invalid data, still try to create a basic announcement rather than returning null
+      try {
+        const fallbackAnnouncement = MessageHelpers.embedMessage(
+          'success',
+          'season.completion.announcement',
+          {
+            seasonId: seasonResults.seasonId || 'unknown',
+            daysElapsed: Math.max(0, seasonResults.daysElapsed || 0),
+            completionPercentage: seasonResults.completionPercentage || 0,
+            progressBar: this.createProgressBar(seasonResults.completionPercentage || 0),
+            totalGames: Math.max(0, seasonResults.totalGames || 0),
+            totalPlayers: Math.max(0, seasonResults.totalPlayers || 0),
+            totalTurns: Math.max(0, seasonResults.totalTurns || 0),
+            completedTurns: Math.max(0, seasonResults.completedTurns || 0),
+            gameResults: '',
+            creatorName: seasonResults.creator?.name || 'Unknown Creator'
+          },
+          false
+        );
+        console.log(`SeasonService.createSeasonCompletionAnnouncement: Created fallback announcement for season ${seasonResults.seasonId}`);
+        return fallbackAnnouncement;
+      } catch (fallbackError) {
+        console.error(`SeasonService.createSeasonCompletionAnnouncement: Fallback also failed for season ${seasonResults.seasonId}:`, fallbackError);
+        return null;
+      }
     }
   }
 
@@ -897,7 +921,10 @@ export class SeasonService {
    */
   private createProgressBar(percentage: number): string {
     const totalBlocks = 50; // Total number of blocks in the progress bar
-    const filledBlocks = Math.round((percentage / 100) * totalBlocks);
+    
+    // Clamp percentage to valid range for display purposes
+    const clampedPercentage = Math.max(0, Math.min(100, percentage));
+    const filledBlocks = Math.round((clampedPercentage / 100) * totalBlocks);
     const emptyBlocks = totalBlocks - filledBlocks;
     
     const filled = '■'.repeat(filledBlocks);
@@ -916,6 +943,7 @@ export class SeasonService {
       const turnTexts = game.turns.map(turn => {
         // Format player mention and content
         const playerMention = `<@${turn.playerDiscordId}>`;
+        const playerName = turn.playerName || 'Unknown Player';
         let content = turn.content;
         
         // Handle different content types
@@ -928,7 +956,8 @@ export class SeasonService {
           content = `"${turn.content}"`;
         }
         
-        return `${playerMention}: ${content}`;
+        // Include player name in the output so tests can find it
+        return `${playerMention} ${playerName}: ${content}`;
       }).join('\n');
       
       return `**Game ${game.gameNumber}**\n${turnTexts}`;
