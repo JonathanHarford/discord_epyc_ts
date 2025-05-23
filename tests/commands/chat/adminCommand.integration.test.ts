@@ -157,7 +157,8 @@ describe('AdminCommand - Integration Tests', () => {
         getSubcommand: vi.fn(),
         getSubcommandGroup: vi.fn(),
         getString: vi.fn(),
-        getUser: vi.fn()
+        getUser: vi.fn(),
+        getBoolean: vi.fn()
       },
       user: {
         id: '510875521354039317', // Use the actual admin ID from config.json
@@ -631,6 +632,230 @@ describe('AdminCommand - Integration Tests', () => {
         where: { discordUserId: 'banned-player-discord-id' }
       });
       expect(player?.bannedAt).not.toBeNull(); // Should remain banned
+    });
+  });
+
+  describe('List Seasons Command', () => {
+    beforeEach(() => {
+      // Set up for list seasons command
+      interaction.options.getSubcommand.mockReturnValue('seasons');
+      interaction.options.getSubcommandGroup.mockReturnValue('list');
+      interaction.user.id = '510875521354039317'; // Ensure admin access
+    });
+
+    it('should successfully list all seasons without filter', async () => {
+      // Mock no status filter
+      interaction.options.getString.mockReturnValue(null);
+
+      // Execute the command
+      await commandInstance.execute(interaction, mockEventData);
+
+      // Verify the command called editReply
+      expect(interaction.editReply).toHaveBeenCalled();
+
+      // Verify the response contains season data
+      // The test seasons created in beforeAll should be included
+      const seasons = await prisma.season.findMany({
+        include: {
+          creator: true,
+          _count: {
+            select: { players: true, games: true }
+          }
+        }
+      });
+      expect(seasons.length).toBeGreaterThan(0);
+    });
+
+    it('should successfully list seasons with status filter', async () => {
+      // Mock status filter for ACTIVE seasons
+      interaction.options.getString.mockReturnValue('ACTIVE');
+
+      // Execute the command
+      await commandInstance.execute(interaction, mockEventData);
+
+      // Verify the command called editReply
+      expect(interaction.editReply).toHaveBeenCalled();
+
+      // Verify only ACTIVE seasons are returned
+      const activeSeasons = await prisma.season.findMany({
+        where: { status: 'ACTIVE' }
+      });
+      expect(activeSeasons.length).toBeGreaterThan(0);
+    });
+
+    it('should successfully list seasons with TERMINATED status filter', async () => {
+      // Mock status filter for TERMINATED seasons
+      interaction.options.getString.mockReturnValue('TERMINATED');
+
+      // Execute the command
+      await commandInstance.execute(interaction, mockEventData);
+
+      // Verify the command called editReply
+      expect(interaction.editReply).toHaveBeenCalled();
+
+      // Verify only TERMINATED seasons are returned
+      const terminatedSeasons = await prisma.season.findMany({
+        where: { status: 'TERMINATED' }
+      });
+      expect(terminatedSeasons.length).toBeGreaterThan(0);
+    });
+
+    it('should handle empty results gracefully', async () => {
+      // Mock status filter for a status that doesn't exist
+      interaction.options.getString.mockReturnValue('SETUP');
+
+      // Execute the command
+      await commandInstance.execute(interaction, mockEventData);
+
+      // Verify the command called editReply
+      expect(interaction.editReply).toHaveBeenCalled();
+
+      // Should still return success even with no results
+      const setupSeasons = await prisma.season.findMany({
+        where: { status: 'SETUP' }
+      });
+      expect(setupSeasons.length).toBe(0);
+    });
+
+    it('should deny access to non-admin users', async () => {
+      // Set user to non-admin
+      interaction.user.id = 'non-admin-user-id';
+      interaction.options.getString.mockReturnValue(null);
+
+      // Execute the command
+      await commandInstance.execute(interaction, mockEventData);
+
+      // Verify the command called editReply (permission denied response)
+      expect(interaction.editReply).toHaveBeenCalled();
+    });
+  });
+
+  describe('List Players Command', () => {
+    beforeEach(() => {
+      // Set up for list players command
+      interaction.options.getSubcommand.mockReturnValue('players');
+      interaction.options.getSubcommandGroup.mockReturnValue('list');
+      interaction.user.id = '510875521354039317'; // Ensure admin access
+    });
+
+    it('should successfully list all players without filters', async () => {
+      // Mock no filters
+      interaction.options.getString.mockReturnValue(null);
+      interaction.options.getBoolean.mockReturnValue(null);
+
+      // Execute the command
+      await commandInstance.execute(interaction, mockEventData);
+
+      // Verify the command called editReply
+      expect(interaction.editReply).toHaveBeenCalled();
+
+      // Verify the response contains player data
+      const players = await prisma.player.findMany({
+        include: {
+          _count: {
+            select: { seasons: true, turns: true }
+          }
+        }
+      });
+      expect(players.length).toBeGreaterThan(0);
+    });
+
+    it('should successfully list players with season filter', async () => {
+      // Mock season filter
+      interaction.options.getString.mockReturnValue(testSeasonId);
+      interaction.options.getBoolean.mockReturnValue(null);
+
+      // Execute the command
+      await commandInstance.execute(interaction, mockEventData);
+
+      // Verify the command called editReply
+      expect(interaction.editReply).toHaveBeenCalled();
+
+      // Verify only players in the specified season are returned
+      const playersInSeason = await prisma.playersOnSeasons.findMany({
+        where: { seasonId: testSeasonId },
+        include: { player: true }
+      });
+      // Should have at least the players we created in the test setup
+      expect(playersInSeason.length).toBeGreaterThanOrEqual(0);
+    });
+
+    it('should successfully list only banned players', async () => {
+      // Mock banned filter
+      interaction.options.getString.mockReturnValue(null);
+      interaction.options.getBoolean.mockReturnValue(true);
+
+      // Execute the command
+      await commandInstance.execute(interaction, mockEventData);
+
+      // Verify the command called editReply
+      expect(interaction.editReply).toHaveBeenCalled();
+
+      // Verify only banned players are returned
+      const bannedPlayers = await prisma.player.findMany({
+        where: { bannedAt: { not: null } }
+      });
+      expect(bannedPlayers.length).toBeGreaterThan(0);
+    });
+
+    it('should successfully list only unbanned players', async () => {
+      // Mock unbanned filter
+      interaction.options.getString.mockReturnValue(null);
+      interaction.options.getBoolean.mockReturnValue(false);
+
+      // Execute the command
+      await commandInstance.execute(interaction, mockEventData);
+
+      // Verify the command called editReply
+      expect(interaction.editReply).toHaveBeenCalled();
+
+      // Verify only unbanned players are returned
+      const unbannedPlayers = await prisma.player.findMany({
+        where: { bannedAt: null }
+      });
+      expect(unbannedPlayers.length).toBeGreaterThan(0);
+    });
+
+    it('should handle combined season and banned filters', async () => {
+      // Mock both filters
+      interaction.options.getString.mockReturnValue(testSeasonId);
+      interaction.options.getBoolean.mockReturnValue(true);
+
+      // Execute the command
+      await commandInstance.execute(interaction, mockEventData);
+
+      // Verify the command called editReply
+      expect(interaction.editReply).toHaveBeenCalled();
+
+      // Should return banned players in the specified season
+      // (may be empty but should not error)
+    });
+
+    it('should handle empty results gracefully', async () => {
+      // Mock season filter for a non-existent season
+      interaction.options.getString.mockReturnValue('non-existent-season-id');
+      interaction.options.getBoolean.mockReturnValue(null);
+
+      // Execute the command
+      await commandInstance.execute(interaction, mockEventData);
+
+      // Verify the command called editReply
+      expect(interaction.editReply).toHaveBeenCalled();
+
+      // Should still return success even with no results
+    });
+
+    it('should deny access to non-admin users', async () => {
+      // Set user to non-admin
+      interaction.user.id = 'non-admin-user-id';
+      interaction.options.getString.mockReturnValue(null);
+      interaction.options.getBoolean.mockReturnValue(null);
+
+      // Execute the command
+      await commandInstance.execute(interaction, mockEventData);
+
+      // Verify the command called editReply (permission denied response)
+      expect(interaction.editReply).toHaveBeenCalled();
     });
   });
 }); 

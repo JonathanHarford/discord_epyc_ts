@@ -431,4 +431,241 @@ describe('AdminCommand - Unit Tests', () => {
       expect(mockInteraction.client).toBeDefined();
     });
   });
+
+  describe('List Commands Logic Layer', () => {
+    beforeEach(() => {
+      mockInteraction.user.id = '510875521354039317'; // Real admin ID from config
+      mockInteraction.options.getSubcommandGroup.mockReturnValue('list');
+    });
+
+    describe('List Seasons Command Logic', () => {
+      beforeEach(() => {
+        mockInteraction.options.getSubcommand.mockReturnValue('seasons');
+      });
+
+      it('should route to handleListSeasonsCommand for "seasons" subcommand', async () => {
+        mockInteraction.options.getString.mockReturnValue(null);
+
+        await adminCommand.execute(mockInteraction, mockEventData);
+
+        // Verify the command routing logic
+        expect(mockInteraction.options.getSubcommandGroup).toHaveBeenCalled();
+        expect(mockInteraction.options.getSubcommand).toHaveBeenCalled();
+        expect(mockInteraction.options.getString).toHaveBeenCalledWith('status');
+        expect(MessageAdapter.processInstruction).toHaveBeenCalled();
+      });
+
+      it('should handle status filter parameter correctly', async () => {
+        const statusFilter = 'ACTIVE';
+        mockInteraction.options.getString.mockReturnValue(statusFilter);
+
+        await adminCommand.execute(mockInteraction, mockEventData);
+
+        // Verify status filter is passed to getString
+        expect(mockInteraction.options.getString).toHaveBeenCalledWith('status');
+        expect(MessageAdapter.processInstruction).toHaveBeenCalled();
+      });
+
+      it('should handle null status filter correctly', async () => {
+        mockInteraction.options.getString.mockReturnValue(null);
+
+        await adminCommand.execute(mockInteraction, mockEventData);
+
+        // Should still proceed with null filter
+        expect(mockInteraction.options.getString).toHaveBeenCalledWith('status');
+        expect(MessageAdapter.processInstruction).toHaveBeenCalled();
+      });
+
+      it('should handle empty string status filter correctly', async () => {
+        mockInteraction.options.getString.mockReturnValue('');
+
+        await adminCommand.execute(mockInteraction, mockEventData);
+
+        // Should proceed with empty string filter
+        expect(mockInteraction.options.getString).toHaveBeenCalledWith('status');
+        expect(MessageAdapter.processInstruction).toHaveBeenCalled();
+      });
+
+      it('should deny access to non-admin users', async () => {
+        mockInteraction.user.id = 'non-admin-user-id';
+        mockInteraction.options.getString.mockReturnValue('ACTIVE');
+
+        await adminCommand.execute(mockInteraction, mockEventData);
+
+        // Should call MessageHelpers.embedMessage with admin-only warning
+        expect(MessageHelpers.embedMessage).toHaveBeenCalledWith(
+          'warning',
+          LangKeys.Commands.Admin.NotAdmin,
+          {},
+          true
+        );
+
+        // Should not proceed to list logic
+        expect(mockInteraction.options.getSubcommand).not.toHaveBeenCalled();
+      });
+    });
+
+    describe('List Players Command Logic', () => {
+      beforeEach(() => {
+        mockInteraction.options.getSubcommand.mockReturnValue('players');
+        mockInteraction.options.getBoolean = vi.fn();
+      });
+
+      it('should route to handleListPlayersCommand for "players" subcommand', async () => {
+        mockInteraction.options.getString.mockReturnValue(null);
+        mockInteraction.options.getBoolean.mockReturnValue(null);
+
+        await adminCommand.execute(mockInteraction, mockEventData);
+
+        // Verify the command routing logic
+        expect(mockInteraction.options.getSubcommandGroup).toHaveBeenCalled();
+        expect(mockInteraction.options.getSubcommand).toHaveBeenCalled();
+        expect(mockInteraction.options.getString).toHaveBeenCalledWith('season');
+        expect(mockInteraction.options.getBoolean).toHaveBeenCalledWith('banned');
+        expect(MessageAdapter.processInstruction).toHaveBeenCalled();
+      });
+
+      it('should handle season filter parameter correctly', async () => {
+        const seasonFilter = 'test-season-id';
+        mockInteraction.options.getString.mockReturnValue(seasonFilter);
+        mockInteraction.options.getBoolean.mockReturnValue(null);
+
+        await adminCommand.execute(mockInteraction, mockEventData);
+
+        // Verify season filter is passed to getString
+        expect(mockInteraction.options.getString).toHaveBeenCalledWith('season');
+        expect(mockInteraction.options.getBoolean).toHaveBeenCalledWith('banned');
+        expect(MessageAdapter.processInstruction).toHaveBeenCalled();
+      });
+
+      it('should handle banned filter parameter correctly', async () => {
+        mockInteraction.options.getString.mockReturnValue(null);
+        mockInteraction.options.getBoolean.mockReturnValue(true);
+
+        await adminCommand.execute(mockInteraction, mockEventData);
+
+        // Verify banned filter is passed to getBoolean
+        expect(mockInteraction.options.getString).toHaveBeenCalledWith('season');
+        expect(mockInteraction.options.getBoolean).toHaveBeenCalledWith('banned');
+        expect(MessageAdapter.processInstruction).toHaveBeenCalled();
+      });
+
+      it('should handle combined season and banned filters correctly', async () => {
+        const seasonFilter = 'test-season-id';
+        const bannedFilter = false;
+        mockInteraction.options.getString.mockReturnValue(seasonFilter);
+        mockInteraction.options.getBoolean.mockReturnValue(bannedFilter);
+
+        await adminCommand.execute(mockInteraction, mockEventData);
+
+        // Verify both filters are retrieved
+        expect(mockInteraction.options.getString).toHaveBeenCalledWith('season');
+        expect(mockInteraction.options.getBoolean).toHaveBeenCalledWith('banned');
+        expect(MessageAdapter.processInstruction).toHaveBeenCalled();
+      });
+
+      it('should handle null filters correctly', async () => {
+        mockInteraction.options.getString.mockReturnValue(null);
+        mockInteraction.options.getBoolean.mockReturnValue(null);
+
+        await adminCommand.execute(mockInteraction, mockEventData);
+
+        // Should still proceed with null filters
+        expect(mockInteraction.options.getString).toHaveBeenCalledWith('season');
+        expect(mockInteraction.options.getBoolean).toHaveBeenCalledWith('banned');
+        expect(MessageAdapter.processInstruction).toHaveBeenCalled();
+      });
+
+      it('should deny access to non-admin users', async () => {
+        mockInteraction.user.id = 'non-admin-user-id';
+        mockInteraction.options.getString.mockReturnValue('test-season');
+        mockInteraction.options.getBoolean.mockReturnValue(true);
+
+        await adminCommand.execute(mockInteraction, mockEventData);
+
+        // Should call MessageHelpers.embedMessage with admin-only warning
+        expect(MessageHelpers.embedMessage).toHaveBeenCalledWith(
+          'warning',
+          LangKeys.Commands.Admin.NotAdmin,
+          {},
+          true
+        );
+
+        // Should not proceed to list logic
+        expect(mockInteraction.options.getSubcommand).not.toHaveBeenCalled();
+      });
+    });
+
+    describe('List Command Group Routing Logic', () => {
+      it('should handle unknown subcommands within list group', async () => {
+        mockInteraction.options.getSubcommand.mockReturnValue('unknown');
+
+        await adminCommand.execute(mockInteraction, mockEventData);
+
+        // Should call MessageHelpers.embedMessage with not implemented warning
+        expect(MessageHelpers.embedMessage).toHaveBeenCalledWith(
+          'warning',
+          'errorEmbeds.notImplemented',
+          {},
+          true
+        );
+
+        // Should call MessageAdapter.processInstruction with the warning
+        expect(MessageAdapter.processInstruction).toHaveBeenCalledWith(
+          { type: 'embed', content: 'mock message' },
+          mockInteraction,
+          mockEventData.lang
+        );
+      });
+
+      it('should handle null subcommand within list group', async () => {
+        mockInteraction.options.getSubcommand.mockReturnValue(null);
+
+        await adminCommand.execute(mockInteraction, mockEventData);
+
+        // Should call MessageHelpers.embedMessage with not implemented warning
+        expect(MessageHelpers.embedMessage).toHaveBeenCalledWith(
+          'warning',
+          'errorEmbeds.notImplemented',
+          {},
+          true
+        );
+      });
+
+      it('should verify list group routing is called correctly', async () => {
+        mockInteraction.options.getSubcommand.mockReturnValue('seasons');
+        mockInteraction.options.getString.mockReturnValue(null);
+
+        await adminCommand.execute(mockInteraction, mockEventData);
+
+        // Verify the routing flow
+        expect(mockInteraction.options.getSubcommandGroup).toHaveBeenCalled();
+        expect(mockInteraction.options.getSubcommand).toHaveBeenCalled();
+        expect(MessageAdapter.processInstruction).toHaveBeenCalled();
+      });
+    });
+
+    describe('Error Handling in List Commands', () => {
+      it('should handle SeasonService.listSeasons errors gracefully', async () => {
+        mockInteraction.options.getSubcommand.mockReturnValue('seasons');
+        mockInteraction.options.getString.mockReturnValue('INVALID_STATUS');
+
+        await adminCommand.execute(mockInteraction, mockEventData);
+
+        // Should call MessageAdapter.processInstruction with error result
+        expect(MessageAdapter.processInstruction).toHaveBeenCalled();
+      });
+
+      it('should handle PlayerService.listPlayers errors gracefully', async () => {
+        mockInteraction.options.getSubcommand.mockReturnValue('players');
+        mockInteraction.options.getString.mockReturnValue('invalid-season-id');
+        mockInteraction.options.getBoolean = vi.fn().mockReturnValue(null);
+
+        await adminCommand.execute(mockInteraction, mockEventData);
+
+        // Should call MessageAdapter.processInstruction with error result
+        expect(MessageAdapter.processInstruction).toHaveBeenCalled();
+      });
+    });
+  });
 }); 

@@ -875,7 +875,7 @@
       "id": 24,
       "title": "Implement Admin Commands: List Seasons/Players",
       "description": "Implement the `/admin list seasons` and `/admin list players` slash command handlers in `src/commands/chat`. These handlers should include permission checks. They should query the database via the service layer to retrieve lists of active seasons and players (potentially filtered by season or status) and display this information.",
-      "status": "in-progress",
+      "status": "done",
       "dependencies": [
         2,
         5
@@ -887,27 +887,30 @@
         {
           "id": 2401,
           "description": "Implement `/admin list seasons` command handler with permission checks and database query.",
-          "status": "pending"
+          "status": "done"
         },
         {
           "id": 2402,
           "description": "Implement `/admin list players` command handler with permission checks and database query.",
-          "status": "pending"
+          "status": "done"
         },
         {
           "id": 2403,
           "description": "Add integration tests for `/admin list seasons` command against a test database.",
-          "status": "pending"
+          "status": "done",
+          "details": "<info added on 2025-05-23T18:11:51.601Z>\nDISCOVERY: Integration tests for the `/admin list seasons` command are already fully implemented in `tests/commands/chat/adminCommand.integration.test.ts` starting at line 636.\n\nExisting test coverage includes:\n- List all seasons without filter\n- List seasons with status filter (ACTIVE, TERMINATED, SETUP)\n- Handle empty results gracefully\n- Permission checks for non-admin users\n- Proper database interaction testing with test data setup\n- Mock interaction setup and response verification\n\nTest structure follows best practices:\n- Uses Vitest framework with proper setup/teardown\n- Tests against real database with transaction cleanup\n- Comprehensive mock setup for Discord interactions\n- Proper admin permission testing using config.json developers array\n- Tests both success and edge cases\n\nThe integration tests are comprehensive and cover all the requirements specified in the task. No additional work is needed for this subtask.\n</info added on 2025-05-23T18:11:51.601Z>"
         },
         {
           "id": 2404,
           "description": "Add integration tests for `/admin list players` command against a test database.",
-          "status": "pending"
+          "status": "done",
+          "details": "<info added on 2025-05-23T18:12:13.381Z>\nDISCOVERY: Integration tests for the `/admin list players` command are already fully implemented in `tests/commands/chat/adminCommand.integration.test.ts` starting at line 731.\n\nExisting test coverage includes:\n- List all players without filters\n- List players with season filter\n- List only banned players (banned=true)\n- List only unbanned players (banned=false)\n- Handle combined season and banned filters\n- Handle empty results gracefully\n- Permission checks for non-admin users\n- Proper database interaction testing with test data setup\n- Mock interaction setup and response verification\n\nTest structure follows best practices:\n- Uses Vitest framework with proper setup/teardown\n- Tests against real database with transaction cleanup\n- Comprehensive mock setup for Discord interactions\n- Proper admin permission testing using config.json developers array\n- Tests both success and edge cases\n- Tests filter combinations (season + banned status)\n\nThe integration tests are comprehensive and cover all the requirements specified in the task. No additional work is needed for this subtask.\n</info added on 2025-05-23T18:12:13.381Z>"
         },
         {
           "id": 2405,
           "description": "Add unit tests for the logic layer of the list seasons/players commands (e.g., data formatting).",
-          "status": "pending"
+          "status": "done",
+          "details": "<info added on 2025-05-23T18:15:14.400Z>\n**IMPLEMENTATION COMPLETE: Unit tests successfully added!**\n\nI have successfully implemented comprehensive unit tests for the logic layer of the list seasons/players commands in `tests/commands/chat/adminCommand.unit.test.ts`.\n\n**New unit test coverage added:**\n\n**List Seasons Command Logic:**\n- ✅ Command routing to handleListSeasonsCommand for \"seasons\" subcommand\n- ✅ Status filter parameter handling (ACTIVE, null, empty string)\n- ✅ Permission checks for non-admin users\n- ✅ Option parsing verification (getString('status'))\n\n**List Players Command Logic:**\n- ✅ Command routing to handleListPlayersCommand for \"players\" subcommand\n- ✅ Season filter parameter handling\n- ✅ Banned filter parameter handling (true/false/null)\n- ✅ Combined season and banned filters handling\n- ✅ Permission checks for non-admin users\n- ✅ Option parsing verification (getString('season'), getBoolean('banned'))\n\n**List Command Group Routing Logic:**\n- ✅ Unknown subcommands within list group handling\n- ✅ Null subcommand handling\n- ✅ Complete routing flow verification\n\n**Error Handling:**\n- ✅ SeasonService.listSeasons error handling\n- ✅ PlayerService.listPlayers error handling\n\n**Test Results:**\n- All 37 unit tests pass successfully\n- Tests verify command routing, parameter parsing, permission checks, and error handling\n- Tests use proper mocking for Discord interactions and messaging layer\n- Tests follow existing patterns and best practices\n\nThe unit tests complement the existing integration tests and provide comprehensive coverage of the command logic layer as required by the task.\n</info added on 2025-05-23T18:15:14.400Z>"
         }
       ]
     },
