@@ -1,6 +1,6 @@
 # Task ID: 18
 # Title: Implement Game Completion Check (Season)
-# Status: pending
+# Status: in-progress
 # Dependencies: 5, 9
 # Priority: medium
 # Description: Implement the logic to check if a game within a season is completed. This check should be performed after a turn is successfully COMPLETED or SKIPPED. A game is completed when every player in the season has either COMPLETED or been SKIPPED for their turn in that specific game.

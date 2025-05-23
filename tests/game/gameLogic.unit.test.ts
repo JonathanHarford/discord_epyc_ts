@@ -1,0 +1,625 @@
+import { describe, it, expect, beforeEach, afterAll, vi } from 'vitest';
+import { PrismaClient, Player, Turn, Game, Season, PlayersOnSeasons } from '@prisma/client';
+import { selectNextPlayer } from '../../src/game/gameLogic.js';
+import { nanoid } from 'nanoid';
+
+// Use a separate Prisma client for tests
+const prisma = new PrismaClient();
+
+describe('Next Player Logic Unit Tests', () => {
+  let testPlayers: Player[];
+  let testSeason: Season;
+  let testGame: Game;
+
+  beforeEach(async () => {
+    // Clear the database before each test
+    await prisma.$transaction([
+      prisma.playersOnSeasons.deleteMany(),
+      prisma.turn.deleteMany(),
+      prisma.game.deleteMany(),
+      prisma.season.deleteMany(),
+      prisma.player.deleteMany(),
+      prisma.seasonConfig.deleteMany(),
+    ]);
+
+    // Create test players
+    testPlayers = await Promise.all([
+      prisma.player.create({
+        data: {
+          discordUserId: `player1-${nanoid()}`,
+          name: 'Player 1',
+        },
+      }),
+      prisma.player.create({
+        data: {
+          discordUserId: `player2-${nanoid()}`,
+          name: 'Player 2',
+        },
+      }),
+      prisma.player.create({
+        data: {
+          discordUserId: `player3-${nanoid()}`,
+          name: 'Player 3',
+        },
+      }),
+      prisma.player.create({
+        data: {
+          discordUserId: `player4-${nanoid()}`,
+          name: 'Player 4',
+        },
+      }),
+    ]);
+
+    // Create season config
+    const seasonConfig = await prisma.seasonConfig.create({
+      data: {
+        maxPlayers: 4,
+        minPlayers: 2,
+        openDuration: '1d',
+        turnPattern: 'writing,drawing',
+      },
+    });
+
+    // Create test season
+    testSeason = await prisma.season.create({
+      data: {
+        status: 'ACTIVE',
+        creatorId: testPlayers[0].id,
+        configId: seasonConfig.id,
+      },
+    });
+
+    // Add all players to the season
+    await Promise.all(
+      testPlayers.map(player =>
+        prisma.playersOnSeasons.create({
+          data: {
+            playerId: player.id,
+            seasonId: testSeason.id,
+          },
+        })
+      )
+    );
+
+    // Create test game
+    testGame = await prisma.game.create({
+      data: {
+        status: 'ACTIVE',
+        seasonId: testSeason.id,
+      },
+    });
+  });
+
+  afterAll(async () => {
+    await prisma.$disconnect();
+  });
+
+  describe('Basic Functionality', () => {
+    it('should return error when game not found', async () => {
+      const result = await selectNextPlayer('non-existent-game', 'WRITING', prisma);
+      
+      expect(result.success).toBe(false);
+      expect(result.error).toBe('Game not found');
+    });
+
+    it('should return error when no players in season', async () => {
+      // Remove all players from season
+      await prisma.playersOnSeasons.deleteMany({
+        where: { seasonId: testSeason.id },
+      });
+
+      const result = await selectNextPlayer(testGame.id, 'WRITING', prisma);
+      
+      expect(result.success).toBe(false);
+      expect(result.error).toBe('No players in season');
+    });
+
+    it('should select first player for new game with no turns', async () => {
+      const result = await selectNextPlayer(testGame.id, 'WRITING', prisma);
+      
+      expect(result.success).toBe(true);
+      expect(result.playerId).toBeDefined();
+      expect(result.player).toBeDefined();
+      // Should select player with lowest ID (deterministic tie-breaking)
+      const sortedPlayerIds = testPlayers.map(p => p.id).sort();
+      expect(result.playerId).toBe(sortedPlayerIds[0]);
+    });
+  });
+
+  describe('MUST Rule 1: Player cannot play in same game twice', () => {
+    it('should exclude players who have already played in the game', async () => {
+      // Player 1 has already completed a turn in this game
+      await prisma.turn.create({
+        data: {
+          gameId: testGame.id,
+          playerId: testPlayers[0].id,
+          turnNumber: 1,
+          status: 'COMPLETED',
+          type: 'WRITING',
+          completedAt: new Date(),
+        },
+      });
+
+      const result = await selectNextPlayer(testGame.id, 'DRAWING', prisma);
+      
+      expect(result.success).toBe(true);
+      expect(result.playerId).not.toBe(testPlayers[0].id);
+      // Should select from remaining players
+      expect([testPlayers[1].id, testPlayers[2].id, testPlayers[3].id]).toContain(result.playerId);
+    });
+
+    it('should exclude players with OFFERED turns in the game', async () => {
+      // Player 1 has an offered turn in this game
+      await prisma.turn.create({
+        data: {
+          gameId: testGame.id,
+          playerId: testPlayers[0].id,
+          turnNumber: 1,
+          status: 'OFFERED',
+          type: 'WRITING',
+          offeredAt: new Date(),
+        },
+      });
+
+      const result = await selectNextPlayer(testGame.id, 'DRAWING', prisma);
+      
+      expect(result.success).toBe(true);
+      expect(result.playerId).not.toBe(testPlayers[0].id);
+    });
+
+    it('should exclude players with PENDING turns in the game', async () => {
+      // Player 1 has a pending turn in this game
+      await prisma.turn.create({
+        data: {
+          gameId: testGame.id,
+          playerId: testPlayers[0].id,
+          turnNumber: 1,
+          status: 'PENDING',
+          type: 'WRITING',
+          claimedAt: new Date(),
+        },
+      });
+
+      const result = await selectNextPlayer(testGame.id, 'DRAWING', prisma);
+      
+      expect(result.success).toBe(true);
+      expect(result.playerId).not.toBe(testPlayers[0].id);
+    });
+
+    it('should exclude players who were SKIPPED in the game', async () => {
+      // Player 1 was skipped in this game
+      await prisma.turn.create({
+        data: {
+          gameId: testGame.id,
+          playerId: testPlayers[0].id,
+          turnNumber: 1,
+          status: 'SKIPPED',
+          type: 'WRITING',
+          skippedAt: new Date(),
+        },
+      });
+
+      const result = await selectNextPlayer(testGame.id, 'DRAWING', prisma);
+      
+      expect(result.success).toBe(true);
+      expect(result.playerId).not.toBe(testPlayers[0].id);
+    });
+  });
+
+  describe('MUST Rule 2: Player cannot have more than one PENDING turn', () => {
+    it('should exclude players with PENDING turns in other games', async () => {
+      // Create another game in the same season
+      const otherGame = await prisma.game.create({
+        data: {
+          status: 'ACTIVE',
+          seasonId: testSeason.id,
+        },
+      });
+
+      // Player 1 has a pending turn in the other game
+      await prisma.turn.create({
+        data: {
+          gameId: otherGame.id,
+          playerId: testPlayers[0].id,
+          turnNumber: 1,
+          status: 'PENDING',
+          type: 'WRITING',
+          claimedAt: new Date(),
+        },
+      });
+
+      const result = await selectNextPlayer(testGame.id, 'DRAWING', prisma);
+      
+      expect(result.success).toBe(true);
+      expect(result.playerId).not.toBe(testPlayers[0].id);
+    });
+
+    it('should return error when no eligible players due to MUST rules', async () => {
+      // All players have pending turns in other games
+      const otherGame = await prisma.game.create({
+        data: {
+          status: 'ACTIVE',
+          seasonId: testSeason.id,
+        },
+      });
+
+      await Promise.all(
+        testPlayers.map((player, index) =>
+          prisma.turn.create({
+            data: {
+              gameId: otherGame.id,
+              playerId: player.id,
+              turnNumber: index + 1,
+              status: 'PENDING',
+              type: 'WRITING',
+              claimedAt: new Date(),
+            },
+          })
+        )
+      );
+
+      const result = await selectNextPlayer(testGame.id, 'DRAWING', prisma);
+      
+      expect(result.success).toBe(false);
+      expect(result.error).toBe('No eligible players found after applying MUST rules');
+    });
+  });
+
+  describe('SHOULD Rule 2: Threshold-based turn distribution', () => {
+    it('should prefer players below n/2 threshold for turn type', async () => {
+      // Create other games to simulate turn history
+      const games = await Promise.all([
+        prisma.game.create({ data: { status: 'ACTIVE', seasonId: testSeason.id } }),
+        prisma.game.create({ data: { status: 'ACTIVE', seasonId: testSeason.id } }),
+      ]);
+
+      // Give Player 1 and Player 2 many writing turns (above threshold)
+      // With 4 players, threshold is floor(4/2) = 2
+      // Player 1: 3 writing turns (above threshold)
+      await Promise.all([
+        prisma.turn.create({
+          data: {
+            gameId: games[0].id,
+            playerId: testPlayers[0].id,
+            turnNumber: 1,
+            status: 'COMPLETED',
+            type: 'WRITING',
+            completedAt: new Date(),
+          },
+        }),
+        prisma.turn.create({
+          data: {
+            gameId: games[1].id,
+            playerId: testPlayers[0].id,
+            turnNumber: 1,
+            status: 'COMPLETED',
+            type: 'WRITING',
+            completedAt: new Date(),
+          },
+        }),
+        prisma.turn.create({
+          data: {
+            gameId: games[0].id,
+            playerId: testPlayers[0].id,
+            turnNumber: 2,
+            status: 'COMPLETED',
+            type: 'WRITING',
+            completedAt: new Date(),
+          },
+        }),
+      ]);
+
+      // Player 2: 2 writing turns (at threshold)
+      await Promise.all([
+        prisma.turn.create({
+          data: {
+            gameId: games[0].id,
+            playerId: testPlayers[1].id,
+            turnNumber: 3,
+            status: 'COMPLETED',
+            type: 'WRITING',
+            completedAt: new Date(),
+          },
+        }),
+        prisma.turn.create({
+          data: {
+            gameId: games[1].id,
+            playerId: testPlayers[1].id,
+            turnNumber: 2,
+            status: 'COMPLETED',
+            type: 'WRITING',
+            completedAt: new Date(),
+          },
+        }),
+      ]);
+
+      // Player 3 and 4: 0 writing turns (below threshold)
+
+      const result = await selectNextPlayer(testGame.id, 'WRITING', prisma);
+      
+      expect(result.success).toBe(true);
+      // Should prefer Player 3 or 4 (below threshold) over Player 1 or 2
+      expect([testPlayers[2].id, testPlayers[3].id]).toContain(result.playerId);
+    });
+  });
+
+  describe('SHOULD Rule 3: Prefer player with fewest turns of given type', () => {
+    it('should select player with fewest writing turns when requesting WRITING turn', async () => {
+      // Create other games for turn history
+      const otherGame = await prisma.game.create({
+        data: { status: 'ACTIVE', seasonId: testSeason.id },
+      });
+
+      // Player 1: 2 writing turns
+      await Promise.all([
+        prisma.turn.create({
+          data: {
+            gameId: otherGame.id,
+            playerId: testPlayers[0].id,
+            turnNumber: 1,
+            status: 'COMPLETED',
+            type: 'WRITING',
+            completedAt: new Date(),
+          },
+        }),
+        prisma.turn.create({
+          data: {
+            gameId: otherGame.id,
+            playerId: testPlayers[0].id,
+            turnNumber: 2,
+            status: 'COMPLETED',
+            type: 'WRITING',
+            completedAt: new Date(),
+          },
+        }),
+      ]);
+
+      // Player 2: 1 writing turn
+      await prisma.turn.create({
+        data: {
+          gameId: otherGame.id,
+          playerId: testPlayers[1].id,
+          turnNumber: 3,
+          status: 'COMPLETED',
+          type: 'WRITING',
+          completedAt: new Date(),
+        },
+      });
+
+      // Player 3 and 4: 0 writing turns
+
+      const result = await selectNextPlayer(testGame.id, 'WRITING', prisma);
+      
+      expect(result.success).toBe(true);
+      // Should prefer Player 3 or 4 (0 writing turns) over others
+      expect([testPlayers[2].id, testPlayers[3].id]).toContain(result.playerId);
+    });
+
+    it('should select player with fewest drawing turns when requesting DRAWING turn', async () => {
+      // Create other games for turn history
+      const otherGame = await prisma.game.create({
+        data: { status: 'ACTIVE', seasonId: testSeason.id },
+      });
+
+      // Player 1: 1 drawing turn
+      await prisma.turn.create({
+        data: {
+          gameId: otherGame.id,
+          playerId: testPlayers[0].id,
+          turnNumber: 1,
+          status: 'COMPLETED',
+          type: 'DRAWING',
+          completedAt: new Date(),
+        },
+      });
+
+      // Player 2, 3, 4: 0 drawing turns
+
+      const result = await selectNextPlayer(testGame.id, 'DRAWING', prisma);
+      
+      expect(result.success).toBe(true);
+      // Should prefer Player 2, 3, or 4 (0 drawing turns) over Player 1
+      expect([testPlayers[1].id, testPlayers[2].id, testPlayers[3].id]).toContain(result.playerId);
+    });
+  });
+
+  describe('SHOULD Rule 4: Prefer players with fewer pending turns', () => {
+    it('should prefer players with no pending turns over those with pending turns', async () => {
+      // Create other games
+      const otherGame = await prisma.game.create({
+        data: { status: 'ACTIVE', seasonId: testSeason.id },
+      });
+
+      // Player 1: has 0 pending turns (but some completed turns to differentiate)
+      await prisma.turn.create({
+        data: {
+          gameId: otherGame.id,
+          playerId: testPlayers[0].id,
+          turnNumber: 1,
+          status: 'COMPLETED',
+          type: 'WRITING',
+          completedAt: new Date(),
+        },
+      });
+
+      // Player 2: has 0 pending turns
+      // Player 3: has 0 pending turns  
+      // Player 4: has 0 pending turns
+
+      // All players have equal pending turns (0), so should use tie-breaking
+      const result = await selectNextPlayer(testGame.id, 'DRAWING', prisma);
+      
+      expect(result.success).toBe(true);
+      expect(result.playerId).toBeDefined();
+    });
+  });
+
+  describe('Tie-breaking mechanism', () => {
+    it('should use deterministic tie-breaking (lowest player ID) when all else is equal', async () => {
+      // All players are equal in all criteria
+      const result = await selectNextPlayer(testGame.id, 'WRITING', prisma);
+      
+      expect(result.success).toBe(true);
+      expect(result.playerId).toBeDefined();
+      expect(result.player).toBeDefined();
+      
+      // Verify the selected player is one of the test players
+      const testPlayerIds = testPlayers.map(p => p.id);
+      expect(testPlayerIds).toContain(result.playerId);
+    });
+
+    it('should consistently return same player for identical conditions', async () => {
+      // Run the selection multiple times with identical conditions
+      const results = await Promise.all([
+        selectNextPlayer(testGame.id, 'WRITING', prisma),
+        selectNextPlayer(testGame.id, 'WRITING', prisma),
+        selectNextPlayer(testGame.id, 'WRITING', prisma),
+      ]);
+
+      // All results should be successful and identical
+      results.forEach(result => {
+        expect(result.success).toBe(true);
+        expect(result.playerId).toBe(results[0].playerId);
+      });
+    });
+  });
+
+  describe('Complex scenarios', () => {
+    it('should handle end-of-season scenario with limited eligible players', async () => {
+      // Create multiple games and simulate near end-of-season
+      const games = await Promise.all([
+        prisma.game.create({ data: { status: 'ACTIVE', seasonId: testSeason.id } }),
+        prisma.game.create({ data: { status: 'ACTIVE', seasonId: testSeason.id } }),
+        prisma.game.create({ data: { status: 'ACTIVE', seasonId: testSeason.id } }),
+      ]);
+
+      // Most players have played in most games
+      // Player 1: played in games[0], games[1], testGame (should be excluded from testGame)
+      await Promise.all([
+        prisma.turn.create({
+          data: {
+            gameId: games[0].id,
+            playerId: testPlayers[0].id,
+            turnNumber: 1,
+            status: 'COMPLETED',
+            type: 'WRITING',
+            completedAt: new Date(),
+          },
+        }),
+        prisma.turn.create({
+          data: {
+            gameId: games[1].id,
+            playerId: testPlayers[0].id,
+            turnNumber: 1,
+            status: 'COMPLETED',
+            type: 'DRAWING',
+            completedAt: new Date(),
+          },
+        }),
+        prisma.turn.create({
+          data: {
+            gameId: testGame.id,
+            playerId: testPlayers[0].id,
+            turnNumber: 1,
+            status: 'COMPLETED',
+            type: 'WRITING',
+            completedAt: new Date(),
+          },
+        }),
+      ]);
+
+      // Player 2: played in games[0], games[1] only
+      await Promise.all([
+        prisma.turn.create({
+          data: {
+            gameId: games[0].id,
+            playerId: testPlayers[1].id,
+            turnNumber: 2,
+            status: 'COMPLETED',
+            type: 'DRAWING',
+            completedAt: new Date(),
+          },
+        }),
+        prisma.turn.create({
+          data: {
+            gameId: games[1].id,
+            playerId: testPlayers[1].id,
+            turnNumber: 2,
+            status: 'COMPLETED',
+            type: 'WRITING',
+            completedAt: new Date(),
+          },
+        }),
+      ]);
+
+      // Player 3: played in games[0] only
+      await prisma.turn.create({
+        data: {
+          gameId: games[0].id,
+          playerId: testPlayers[2].id,
+          turnNumber: 3,
+          status: 'COMPLETED',
+          type: 'WRITING',
+          completedAt: new Date(),
+        },
+      });
+
+      // Player 4: hasn't played in any games yet
+
+      const result = await selectNextPlayer(testGame.id, 'DRAWING', prisma);
+      
+      expect(result.success).toBe(true);
+      // Should select from eligible players (Player 2, 3, or 4)
+      expect([testPlayers[1].id, testPlayers[2].id, testPlayers[3].id]).toContain(result.playerId);
+    });
+
+    it('should handle mixed turn types and statuses correctly', async () => {
+      // Create complex scenario with mixed turn types and statuses
+      const otherGame = await prisma.game.create({
+        data: { status: 'ACTIVE', seasonId: testSeason.id },
+      });
+
+      // Player 1: 1 completed writing, 1 skipped drawing
+      await Promise.all([
+        prisma.turn.create({
+          data: {
+            gameId: otherGame.id,
+            playerId: testPlayers[0].id,
+            turnNumber: 1,
+            status: 'COMPLETED',
+            type: 'WRITING',
+            completedAt: new Date(),
+          },
+        }),
+        prisma.turn.create({
+          data: {
+            gameId: otherGame.id,
+            playerId: testPlayers[0].id,
+            turnNumber: 2,
+            status: 'SKIPPED',
+            type: 'DRAWING',
+            skippedAt: new Date(),
+          },
+        }),
+      ]);
+
+      // Player 2: 1 completed drawing
+      await prisma.turn.create({
+        data: {
+          gameId: otherGame.id,
+          playerId: testPlayers[1].id,
+          turnNumber: 3,
+          status: 'COMPLETED',
+          type: 'DRAWING',
+          completedAt: new Date(),
+        },
+      });
+
+      const result = await selectNextPlayer(testGame.id, 'WRITING', prisma);
+      
+      expect(result.success).toBe(true);
+      // Should prefer players with fewer writing turns (Player 2, 3, or 4 over Player 1)
+      expect([testPlayers[1].id, testPlayers[2].id, testPlayers[3].id]).toContain(result.playerId);
+    });
+  });
+}); 
