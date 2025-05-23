@@ -1,5 +1,5 @@
 import { PrismaClient, Player, Turn, Game, Season, PlayersOnSeasons } from '@prisma/client';
-import { Logger } from '../../services/logger'; // Import the logger
+import { Logger } from '../services/logger'; // Import the logger
 
 /**
  * Activates a season and its first game.
@@ -289,7 +289,7 @@ function applyShouldRules(
 /**
  * SHOULD Rule 1: Player A SHOULD NOT be ASSIGNED an <X>ing turn following Player B more than once per season
  */
-function applyShouldRule1(
+export function applyShouldRule1(
   candidates: PlayerTurnStats[],
   turnType: 'WRITING' | 'DRAWING',
   currentGameTurns: (Turn & { player: Player | null })[], // Renamed for clarity
@@ -356,7 +356,7 @@ function applyShouldRule1(
 /**
  * SHOULD Rule 2: Players SHOULD NOT be given an <X>ing turn if they've already been ASSIGNED n/2 <X>ing turns
  */
-function applyShouldRule2(
+export function applyShouldRule2(
   candidates: PlayerTurnStats[],
   turnType: 'WRITING' | 'DRAWING',
   totalPlayersInSeason: number
@@ -375,7 +375,7 @@ function applyShouldRule2(
 /**
  * SHOULD Rule 3: Given an <X>ing turn, prefer the player who has been ASSIGNED the fewest <X>ing turns
  */
-function applyShouldRule3(
+export function applyShouldRule3(
   candidates: PlayerTurnStats[],
   turnType: 'WRITING' | 'DRAWING'
 ): PlayerTurnStats[] {
