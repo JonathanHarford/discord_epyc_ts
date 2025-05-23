@@ -555,7 +555,7 @@
       "id": 16,
       "title": "Implement Claim Timeout Handler",
       "description": "Implement the handler logic that is triggered by the Task Scheduler when a `claim_timeout` occurs for an OFFERED turn. This handler should call `TurnService.dismissOffer` to revert the turn state to AVAILABLE and then trigger the Turn Offering Mechanism (Task 14) to find and offer the turn to another eligible player.",
-      "status": "pending",
+      "status": "done",
       "dependencies": [
         5,
         9,
@@ -569,22 +569,22 @@
         {
           "id": "16-1",
           "description": "Implement the core handler logic for claim timeout.",
-          "status": "pending"
+          "status": "done"
         },
         {
           "id": "16-2",
           "description": "Implement integration tests for the claim timeout handler against a test database.",
-          "status": "pending"
+          "status": "done"
         },
         {
           "id": "16-3",
           "description": "Implement unit tests for the claim timeout handler logic and related `TurnService` methods.",
-          "status": "pending"
+          "status": "done"
         },
         {
           "id": "16-4",
           "description": "Perform manual testing to verify the end-to-end flow.",
-          "status": "pending"
+          "status": "done"
         }
       ]
     },
@@ -592,7 +592,7 @@
       "id": 17,
       "title": "Implement Submission Timeout Handler",
       "description": "Implement the handler logic that is triggered by the Task Scheduler when a `writing_timeout` or `drawing_timeout` occurs for a PENDING turn. This handler should call `TurnService.skipTurn` to update the turn state to SKIPPED, send a DM notification to the player informing them they were skipped, and then trigger the Turn Offering Mechanism (Task 14) to find and offer the turn to another eligible player.",
-      "status": "pending",
+      "status": "in-progress",
       "dependencies": [
         5,
         9,
@@ -743,7 +743,7 @@
         18,
         19
       ],
-      "status": "in-progress",
+      "status": "done",
       "subtasks": [
         {
           "id": 1,

@@ -234,11 +234,26 @@ export class TurnOfferingService {
             const jobScheduled = await this.schedulerService.scheduleJob(
                 claimTimeoutJobId,
                 claimTimeoutDate,
-                async () => {
-                    // TODO: This should call the claim timeout handler (Task 16)
+                async (jobData) => {
                     Logger.info(`Claim timeout triggered for turn ${turnId}, player ${playerId}`);
-                    // For now, just log - actual handler will be implemented in Task 16
-                    // The handler should dismiss the offer and potentially offer to next player
+                    
+                    // Import and create the ClaimTimeoutHandler
+                    const { ClaimTimeoutHandler } = await import('../handlers/ClaimTimeoutHandler.js');
+                    const claimTimeoutHandler = new ClaimTimeoutHandler(
+                        this.prisma,
+                        this.discordClient,
+                        this.turnService,
+                        this
+                    );
+
+                    // Execute the claim timeout handling
+                    const result = await claimTimeoutHandler.handleClaimTimeout(turnId, playerId);
+
+                    if (!result.success) {
+                        throw new Error(`Claim timeout handling failed: ${result.error}`);
+                    }
+
+                    Logger.info(`Claim timeout handling completed successfully for turn ${turnId}`);
                 },
                 { turnId: turnId, playerId: playerId },
                 'turn-claim-timeout'

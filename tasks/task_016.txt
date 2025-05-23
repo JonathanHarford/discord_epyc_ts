@@ -1,6 +1,6 @@
 # Task ID: 16
 # Title: Implement Claim Timeout Handler
-# Status: pending
+# Status: done
 # Dependencies: 5, 9, 14, 15
 # Priority: medium
 # Description: Implement the handler logic that is triggered by the Task Scheduler when a `claim_timeout` occurs for an OFFERED turn. This handler should call `TurnService.dismissOffer` to revert the turn state to AVAILABLE and then trigger the Turn Offering Mechanism (Task 14) to find and offer the turn to another eligible player.
@@ -11,25 +11,25 @@ Implement the handler logic. Ensure comprehensive testing is included, covering 
 Implement integration tests using a test database to verify the handler's interaction with the database (state changes, task scheduling). Implement unit tests for the core logic within the handler and `TurnService.dismissOffer` to ensure correct state transitions and logic execution independent of the database or external services. Additionally, perform manual testing by offering a turn to a test player, letting the timeout expire, and verifying the state change and subsequent offering attempt.
 
 # Subtasks:
-## 16-1. undefined [pending]
+## 16-1. undefined [done]
 ### Dependencies: None
 ### Description: Implement the core handler logic for claim timeout.
 ### Details:
 
 
-## 16-2. undefined [pending]
+## 16-2. undefined [done]
 ### Dependencies: None
 ### Description: Implement integration tests for the claim timeout handler against a test database.
 ### Details:
 
 
-## 16-3. undefined [pending]
+## 16-3. undefined [done]
 ### Dependencies: None
 ### Description: Implement unit tests for the claim timeout handler logic and related `TurnService` methods.
 ### Details:
 
 
-## 16-4. undefined [pending]
+## 16-4. undefined [done]
 ### Dependencies: None
 ### Description: Perform manual testing to verify the end-to-end flow.
 ### Details:

@@ -1,5 +1,6 @@
 import schedule from 'node-schedule';
 import { PrismaClient } from '@prisma/client';
+import { Client as DiscordClient } from 'discord.js';
 import { Logger } from './logger.js'; // Corrected casing for logger.js
 // import Logs from '../../lang/logs.json'; // If you have specific logs for scheduler
 
@@ -13,13 +14,30 @@ interface JobDetails {
 
 export type JobCallback = (data?: any) => void | Promise<void>;
 
+// Type for service dependencies needed for job handlers
+export interface SchedulerServiceDependencies {
+    discordClient?: DiscordClient;
+    turnService?: any; // Will be properly typed when needed
+    turnOfferingService?: any; // Will be properly typed when needed
+}
+
 export class SchedulerService {
     private scheduledJobs: Map<string, schedule.Job> = new Map();
     private prisma: PrismaClient;
+    private dependencies: SchedulerServiceDependencies = {};
 
     constructor(prisma: PrismaClient) {
         this.prisma = prisma;
         Logger.info('SchedulerService initialized.');
+    }
+
+    /**
+     * Set dependencies needed for job handlers.
+     * This allows for dependency injection after construction.
+     */
+    setDependencies(dependencies: SchedulerServiceDependencies): void {
+        this.dependencies = { ...this.dependencies, ...dependencies };
+        Logger.info('SchedulerService dependencies updated.');
     }
 
     /**
@@ -312,6 +330,9 @@ export class SchedulerService {
             case 'season-activation':
                 await this.handleSeasonActivationJob(jobId, jobData);
                 break;
+            case 'turn-claim-timeout':
+                await this.handleClaimTimeoutJob(jobId, jobData);
+                break;
             default:
                 Logger.warn(`No handler implemented for job type '${jobType}' (job ID: '${jobId}'). Job will be marked as failed.`);
                 throw new Error(`No handler for job type: ${jobType}`);
@@ -345,5 +366,56 @@ export class SchedulerService {
         // 3. Handling any errors appropriately
         
         throw new Error(`Season activation job handling not fully implemented yet`);
+    }
+
+    /**
+     * Handle a claim timeout job.
+     * @param jobId The job ID (format: "turn-claim-timeout-{turnId}").
+     * @param jobData The job data containing turnId and playerId.
+     */
+    private async handleClaimTimeoutJob(jobId: string, jobData?: any): Promise<void> {
+        // Extract turn ID from job ID (format: "turn-claim-timeout-{turnId}")
+        const turnId = jobId.replace('turn-claim-timeout-', '');
+        
+        if (!turnId) {
+            throw new Error(`Invalid claim timeout job ID format: ${jobId}`);
+        }
+
+        // Validate job data
+        if (!jobData || !jobData.turnId || !jobData.playerId) {
+            throw new Error(`Invalid job data for claim timeout job ${jobId}: missing turnId or playerId`);
+        }
+
+        const { turnId: dataTransId, playerId } = jobData;
+        
+        // Ensure turnId from job ID matches turnId from job data
+        if (turnId !== dataTransId) {
+            throw new Error(`Turn ID mismatch in claim timeout job ${jobId}: ${turnId} vs ${dataTransId}`);
+        }
+
+        Logger.info(`Handling claim timeout job for turn ${turnId}, player ${playerId}`);
+
+        // Check if we have the required dependencies
+        if (!this.dependencies.discordClient || !this.dependencies.turnService || !this.dependencies.turnOfferingService) {
+            throw new Error(`Missing dependencies for claim timeout handler. Required: discordClient, turnService, turnOfferingService`);
+        }
+
+        // Import and create the ClaimTimeoutHandler
+        const { ClaimTimeoutHandler } = await import('../handlers/ClaimTimeoutHandler.js');
+        const claimTimeoutHandler = new ClaimTimeoutHandler(
+            this.prisma,
+            this.dependencies.discordClient,
+            this.dependencies.turnService,
+            this.dependencies.turnOfferingService
+        );
+
+        // Execute the claim timeout handling
+        const result = await claimTimeoutHandler.handleClaimTimeout(turnId, playerId);
+
+        if (!result.success) {
+            throw new Error(`Claim timeout handling failed for turn ${turnId}: ${result.error}`);
+        }
+
+        Logger.info(`Successfully handled claim timeout for turn ${turnId}`);
     }
 } 

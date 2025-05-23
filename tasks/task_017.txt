@@ -1,6 +1,6 @@
 # Task ID: 17
 # Title: Implement Submission Timeout Handler
-# Status: pending
+# Status: in-progress
 # Dependencies: 5, 9, 14, 15
 # Priority: medium
 # Description: Implement the handler logic that is triggered by the Task Scheduler when a `writing_timeout` or `drawing_timeout` occurs for a PENDING turn. This handler should call `TurnService.skipTurn` to update the turn state to SKIPPED, send a DM notification to the player informing them they were skipped, and then trigger the Turn Offering Mechanism (Task 14) to find and offer the turn to another eligible player.

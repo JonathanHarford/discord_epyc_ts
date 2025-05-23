@@ -74,6 +74,13 @@ async function start(): Promise<void> {
     const seasonService = new SeasonService(prisma, turnService, schedulerService);
     const turnOfferingService = new TurnOfferingService(prisma, client, turnService, schedulerService);
     
+    // Set dependencies for SchedulerService to handle different job types
+    schedulerService.setDependencies({
+        discordClient: client,
+        turnService: turnService,
+        turnOfferingService: turnOfferingService
+    });
+    
     // Load persisted jobs on startup
     await schedulerService.loadPersistedJobs();
     
