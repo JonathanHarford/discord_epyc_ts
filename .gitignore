@@ -144,3 +144,4 @@ dev-debug.log
 *.sw?
 # OS specific
 .DS_Store
+.cursor/mcp.json
