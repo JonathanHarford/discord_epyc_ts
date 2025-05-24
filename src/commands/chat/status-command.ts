@@ -1,13 +1,10 @@
 import { SlashCommandBuilder, ChatInputCommandInteraction, PermissionsString } from 'discord.js';
 import { SeasonService, TurnService } from '../../services/index.js';
 import prisma from '../../lib/prisma.js';
-import { Language } from '../../models/enum-helpers/language.js';
 import { Command, CommandDeferType } from '../command.js';
 import { EventData } from '../../models/internal-models.js';
-import { LangKeys } from '../../constants/lang-keys.js';
-import { MessageAdapter } from '../../messaging/MessageAdapter.js';
-import { MessageHelpers } from '../../messaging/MessageHelpers.js';
-import { MessageInstruction } from '../../types/MessageInstruction.js';
+import { SimpleMessage } from '../../messaging/SimpleMessage.js';
+import { strings } from '../../lang/strings.js';
 import { PrismaClient } from '@prisma/client';
 
 export const statusCommandData = new SlashCommandBuilder()
@@ -44,13 +41,7 @@ export class StatusCommand implements Command {
       const season = await this.seasonService.findSeasonById(seasonId);
       
       if (!season) {
-        const notFoundInstruction: MessageInstruction = {
-          type: 'error',
-          key: LangKeys.Commands.Status.seasonNotFound,
-          data: { seasonId },
-          formatting: { ephemeral: true }
-        };
-        await MessageAdapter.processInstruction(notFoundInstruction, interaction, data.lang);
+        await SimpleMessage.sendError(interaction, strings.messages.status.seasonNotFound, { seasonId }, true);
         return;
       }
 
@@ -71,66 +62,46 @@ export class StatusCommand implements Command {
       });
 
       // Calculate status information
-      const statusData = {
+      const gameDetails = games.map(game => {
+        const turns = game.turns;
+        const pendingTurns = turns.filter(turn => turn.status === 'PENDING').length;
+        const offeredTurns = turns.filter(turn => turn.status === 'OFFERED').length;
+        const completedTurns = turns.filter(turn => turn.status === 'COMPLETED').length;
+        const totalTurns = turns.length;
+        
+        // Find current turn (most recent non-completed turn)
+        const currentTurn = turns.find(turn => 
+          turn.status === 'PENDING' || turn.status === 'OFFERED'
+        );
+
+        let gameInfo = `**Game ${game.id}** (${game.status})\n`;
+        gameInfo += `Turns: ${completedTurns}/${totalTurns} completed`;
+        if (pendingTurns > 0) gameInfo += `, ${pendingTurns} pending`;
+        if (offeredTurns > 0) gameInfo += `, ${offeredTurns} offered`;
+        
+        if (currentTurn) {
+          gameInfo += `\nCurrent: Turn ${currentTurn.turnNumber} (${currentTurn.type}) - ${currentTurn.player?.name || 'Unknown'} (${currentTurn.status})`;
+        }
+        
+        return gameInfo;
+      }).join('\n\n');
+
+      await SimpleMessage.sendEmbed(interaction, strings.embeds.seasonStatus, {
         seasonId: season.id,
         seasonStatus: season.status,
         playerCount: season._count.players,
         minPlayers: season.config.minPlayers,
         maxPlayers: season.config.maxPlayers,
         gameCount: games.length,
-        games: games.map(game => {
-          const turns = game.turns;
-          const pendingTurns = turns.filter(turn => turn.status === 'PENDING').length;
-          const offeredTurns = turns.filter(turn => turn.status === 'OFFERED').length;
-          const completedTurns = turns.filter(turn => turn.status === 'COMPLETED').length;
-          const totalTurns = turns.length;
-          
-          // Find current turn (most recent non-completed turn)
-          const currentTurn = turns.find(turn => 
-            turn.status === 'PENDING' || turn.status === 'OFFERED'
-          );
-
-          return {
-            gameId: game.id,
-            gameStatus: game.status,
-            totalTurns,
-            completedTurns,
-            pendingTurns,
-            offeredTurns,
-            currentTurn: currentTurn ? {
-              turnNumber: currentTurn.turnNumber,
-              type: currentTurn.type,
-              status: currentTurn.status,
-              playerName: currentTurn.player?.name || 'Unknown',
-              offeredAt: currentTurn.offeredAt,
-              claimedAt: currentTurn.claimedAt
-            } : null
-          };
-        })
-      };
-
-      // Create success instruction with formatted data
-      const successInstruction = MessageHelpers.embedMessage(
-        'info',
-        LangKeys.Commands.Status.seasonStatus,
-        statusData,
-        false // Not ephemeral, so others can see the status
-      );
-
-      await MessageAdapter.processInstruction(successInstruction, interaction, data.lang);
+        gameDetails: gameDetails || 'No games found'
+      }, false, 'info'); // Not ephemeral, so others can see the status
       
     } catch (error) {
       console.error('Error in /status command:', error);
-      const errorInstruction: MessageInstruction = {
-        type: 'error',
-        key: LangKeys.Commands.Status.genericError,
-        data: { 
-          seasonId, 
-          errorMessage: error instanceof Error ? error.message : 'Unknown error' 
-        },
-        formatting: { ephemeral: true }
-      };
-      await MessageAdapter.processInstruction(errorInstruction, interaction, data.lang);
+      await SimpleMessage.sendError(interaction, strings.messages.status.genericError, { 
+        seasonId, 
+        errorMessage: error instanceof Error ? error.message : 'Unknown error' 
+      }, true);
     }
   }
 }

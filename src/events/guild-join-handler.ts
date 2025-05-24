@@ -1,10 +1,11 @@
 import { Guild } from 'discord.js';
 import { createRequire } from 'node:module';
+import { EmbedBuilder } from 'discord.js';
 
 import { EventHandler } from './index.js';
-import { Language } from '../models/enum-helpers/index.js';
-import { EventDataService, Lang, Logger } from '../services/index.js';
+import { EventDataService, Logger } from '../services/index.js';
 import { ClientUtils, FormatUtils, MessageUtils } from '../utils/index.js';
+import { strings } from '../lang/strings.js';
 
 const require = createRequire(import.meta.url);
 let Logs = require('../../lang/logs.json');
@@ -30,38 +31,36 @@ export class GuildJoinHandler implements EventHandler {
         // Send welcome message to the server's notify channel
         let notifyChannel = await ClientUtils.findNotifyChannel(guild, data.langGuild);
         if (notifyChannel) {
-            await MessageUtils.send(
-                notifyChannel,
-                Lang.getEmbed('displayEmbeds.welcome', data.langGuild, {
-                    CMD_LINK_HELP: FormatUtils.commandMention(
-                        await ClientUtils.findAppCommand(
-                            guild.client,
-                            Lang.getRef('chatCommands.help', Language.Default)
-                        )
-                    ),
-                }).setAuthor({
+            // Create welcome embed using strings
+            const welcomeEmbed = new EmbedBuilder()
+                .setTitle(strings.embeds.welcome.title)
+                .setDescription(strings.embeds.welcome.description)
+                .addFields(...strings.embeds.welcome.fields)
+                .setColor(strings.colors.default)
+                .setTimestamp()
+                .setAuthor({
                     name: guild.name,
                     iconURL: guild.iconURL(),
-                })
-            );
+                });
+                
+            await MessageUtils.send(notifyChannel, { embeds: [welcomeEmbed] });
         }
 
         // Send welcome message to owner
         if (owner) {
-            await MessageUtils.send(
-                owner.user,
-                Lang.getEmbed('displayEmbeds.welcome', data.lang, {
-                    CMD_LINK_HELP: FormatUtils.commandMention(
-                        await ClientUtils.findAppCommand(
-                            guild.client,
-                            Lang.getRef('chatCommands.help', Language.Default)
-                        )
-                    ),
-                }).setAuthor({
+            // Create welcome embed using strings
+            const welcomeEmbed = new EmbedBuilder()
+                .setTitle(strings.embeds.welcome.title)
+                .setDescription(strings.embeds.welcome.description)
+                .addFields(...strings.embeds.welcome.fields)
+                .setColor(strings.colors.default)
+                .setTimestamp()
+                .setAuthor({
                     name: guild.name,
                     iconURL: guild.iconURL(),
-                })
-            );
+                });
+                
+            await MessageUtils.send(owner.user, { embeds: [welcomeEmbed] });
         }
     }
 }

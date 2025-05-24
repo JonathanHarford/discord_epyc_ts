@@ -4,7 +4,7 @@ import { createRequire } from 'node:module';
 import { Job } from './index.js';
 import { CustomClient } from '../extensions/index.js';
 import { BotSite } from '../models/config-models.js';
-import { HttpService, Lang, Logger } from '../services/index.js';
+import { HttpService, Logger } from '../services/index.js';
 import { ShardUtils } from '../utils/index.js';
 
 const require = createRequire(import.meta.url);
@@ -34,7 +34,7 @@ export class UpdateServerCountJob extends Job {
 
         let type = ActivityType.Streaming;
         let name = `to ${serverCount.toLocaleString()} servers`;
-        let url = Lang.getCom('links.stream');
+        let url = 'https://twitch.tv/'; // Fallback stream URL since Lang.getCom is removed
 
         await this.shardManager.broadcastEval(
             (client, context) => {

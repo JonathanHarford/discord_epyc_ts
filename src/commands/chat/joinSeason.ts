@@ -1,13 +1,10 @@
 import { SlashCommandBuilder, ChatInputCommandInteraction, PermissionsString } from 'discord.js';
 import { SeasonService } from '../../services/SeasonService.js';
 import prisma from '../../lib/prisma.js';
-import { Lang } from '../../services/lang.js';
-import { Language } from '../../models/enum-helpers/language.js';
 import { Command, CommandDeferType } from '../command.js';
 import { EventData } from '../../models/internal-models.js';
-import { LangKeys } from '../../constants/lang-keys.js';
-import { MessageAdapter } from '../../messaging/MessageAdapter.js';
-import { MessageInstruction } from '../../types/MessageInstruction.js';
+import { SimpleMessage } from '../../messaging/SimpleMessage.js';
+import { strings } from '../../lang/strings.js';
 import { PrismaClient } from '@prisma/client';
 
 export const joinSeasonCommandData = new SlashCommandBuilder()
@@ -42,25 +39,23 @@ export class JoinSeasonCommand implements Command {
       const season = await this.seasonService.findSeasonById(seasonId);
       
       if (!season) {
-        const notFoundInstruction: MessageInstruction = {
-          type: 'error',
-          key: LangKeys.Commands.JoinSeason.seasonNotFound,
-          data: { seasonId },
-          formatting: { ephemeral: true }
-        };
-        await MessageAdapter.processInstruction(notFoundInstruction, interaction, data.lang);
+        await SimpleMessage.sendError(
+          interaction,
+          strings.messages.joinSeason.seasonNotFound,
+          { seasonId },
+          true
+        );
         return;
       }
       
       const validJoinStatuses = ['SETUP', 'PENDING_START', 'OPEN'];
       if (!validJoinStatuses.includes(season.status)) {
-        const notOpenInstruction: MessageInstruction = {
-          type: 'error',
-          key: LangKeys.Commands.JoinSeason.notOpen,
-          data: { seasonId, status: season.status },
-          formatting: { ephemeral: true }
-        };
-        await MessageAdapter.processInstruction(notOpenInstruction, interaction, data.lang);
+        await SimpleMessage.sendError(
+          interaction,
+          strings.messages.joinSeason.notOpen,
+          { seasonId, status: season.status },
+          true
+        );
         return;
       }
       
@@ -78,48 +73,67 @@ export class JoinSeasonCommand implements Command {
           });
           
           const result = await this.seasonService.addPlayerToSeason(player.id, seasonId);
-          const resultInstruction: MessageInstruction = {
-            ...result,
-            data: { ...result.data, seasonId }
-          };
-          await MessageAdapter.processInstruction(resultInstruction, interaction, data.lang);
+          
+          if (result.type === 'success') {
+            await SimpleMessage.sendSuccess(
+              interaction,
+              strings.messages.joinSeason.success,
+              { ...result.data, seasonId },
+              false
+            );
+          } else {
+            await SimpleMessage.sendError(
+              interaction,
+              strings.messages.joinSeason.genericError,
+              { seasonId, errorMessage: result.key },
+              true
+            );
+          }
           
         } catch (error) {
           console.error('Error creating player record:', error);
-          const errorInstruction: MessageInstruction = {
-            type: 'error',
-            key: LangKeys.Commands.JoinSeason.genericError,
-            data: {
+          await SimpleMessage.sendError(
+            interaction,
+            strings.messages.joinSeason.genericError,
+            {
               seasonId,
               errorMessage: error instanceof Error ? error.message : 'Unknown error'
             },
-            formatting: { ephemeral: true }
-          };
-          await MessageAdapter.processInstruction(errorInstruction, interaction, data.lang);
+            true
+          );
         }
         return;
       }
       
       const result = await this.seasonService.addPlayerToSeason(player.id, seasonId);
       
-      const resultInstruction: MessageInstruction = {
-        ...result,
-        data: { ...result.data, seasonId }
-      };
-      await MessageAdapter.processInstruction(resultInstruction, interaction, data.lang);
+      if (result.type === 'success') {
+        await SimpleMessage.sendSuccess(
+          interaction,
+          strings.messages.joinSeason.success,
+          { ...result.data, seasonId },
+          false
+        );
+      } else {
+        await SimpleMessage.sendError(
+          interaction,
+          strings.messages.joinSeason.genericError,
+          { seasonId, errorMessage: result.key },
+          true
+        );
+      }
       
     } catch (error) {
       console.error('Error in /join command:', error);
-      const errorInstruction: MessageInstruction = {
-        type: 'error',
-        key: LangKeys.Commands.JoinSeason.genericError,
-        data: { 
+      await SimpleMessage.sendError(
+        interaction,
+        strings.messages.joinSeason.genericError,
+        { 
           seasonId, 
           errorMessage: error instanceof Error ? error.message : 'Unknown error' 
         },
-        formatting: { ephemeral: true }
-      };
-      await MessageAdapter.processInstruction(errorInstruction, interaction, data.lang);
+        true
+      );
     }
   }
 }

@@ -4,9 +4,7 @@ import { Logger } from './logger.js';
 import { TurnService } from './TurnService.js';
 import { SchedulerService } from './SchedulerService.js';
 import { selectNextPlayer } from '../game/gameLogic.js';
-import { MessageHelpers } from '../messaging/MessageHelpers.js';
-import { MessageAdapter } from '../messaging/MessageAdapter.js';
-import { Language } from '../models/enum-helpers/language.js';
+import { strings, interpolate } from '../lang/strings.js';
 
 export interface TurnOfferingResult {
     success: boolean;
@@ -179,31 +177,17 @@ export class TurnOfferingService {
                 return false;
             }
 
-            // Create message instruction using MessageHelpers
-            const turnOfferInstruction = MessageHelpers.commandSuccess(
-                'turn_offer.new_turn_available',
-                {
-                    gameId: gameId,
-                    seasonId: gameWithSeason.season?.id,
-                    turnNumber: turn.turnNumber,
-                    turnType: turn.type,
-                    claimTimeoutMinutes: 1440 // TODO: Get from season config, default 24 hours
-                },
-                false // Not ephemeral for DMs
-            );
+            // Get the user from Discord and send DM with turn offer
+            const user = await this.discordClient.users.fetch(player.discordUserId);
+            const message = interpolate(strings.messages.turnOffer.newTurnAvailable, {
+                gameId: gameId,
+                seasonId: gameWithSeason.season?.id,
+                turnNumber: turn.turnNumber,
+                turnType: turn.type,
+                claimTimeoutMinutes: 1440 // TODO: Get from season config, default 24 hours
+            });
 
-            // Configure for DM
-            turnOfferInstruction.formatting = { ...turnOfferInstruction.formatting, dm: true };
-            turnOfferInstruction.context = { userId: player.discordUserId };
-
-            // Send the DM using MessageAdapter
-            await MessageAdapter.processInstruction(
-                turnOfferInstruction,
-                undefined,
-                Language.Default,
-                this.discordClient
-            );
-
+            await user.send(message);
             Logger.info(`TurnOfferingService: Successfully sent turn offer DM to player ${player.id} (${player.discordUserId})`);
             return true;
 

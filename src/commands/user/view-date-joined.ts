@@ -2,16 +2,13 @@ import { DMChannel, PermissionsString, UserContextMenuCommandInteraction } from 
 import { RateLimiter } from 'discord.js-rate-limiter';
 import { DateTime } from 'luxon';
 
-import { Language } from '../../models/enum-helpers/index.js';
 import { EventData } from '../../models/internal-models.js';
-import { Lang } from '../../services/index.js';
-import { InteractionUtils } from '../../utils/index.js';
+import { strings } from '../../lang/strings.js';
 import { Command, CommandDeferType } from '../index.js';
-import { MessageHelpers } from '../../messaging/MessageHelpers.js';
-import { MessageAdapter } from '../../messaging/MessageAdapter.js';
+import { SimpleMessage } from '../../messaging/SimpleMessage.js';
 
 export class ViewDateJoined implements Command {
-    public names = [Lang.getRef('userCommands.viewDateJoined', Language.Default)];
+    public names = ["View Date Joined"];
     public cooldown = new RateLimiter(1, 5000);
     public deferType = CommandDeferType.HIDDEN;
     public requireClientPerms: PermissionsString[] = [];
@@ -23,11 +20,11 @@ export class ViewDateJoined implements Command {
             joinDate = member.joinedAt;
         } else joinDate = intr.targetUser.createdAt;
 
-        const dateJoinedInstruction = MessageHelpers.embedMessage('info', 'displayEmbeds.viewDateJoined', {
-            TARGET: intr.targetUser.toString(),
-            DATE: DateTime.fromJSDate(joinDate).toLocaleString(DateTime.DATE_HUGE),
-        }, true);
+        const dateString = DateTime.fromJSDate(joinDate).toLocaleString(DateTime.DATE_HUGE);
+        const message = intr.channel instanceof DMChannel 
+            ? `**${intr.targetUser.toString()} created account on:** ${dateString}`
+            : `**${intr.targetUser.toString()} joined server on:** ${dateString}`;
         
-        await MessageAdapter.processInstruction(dateJoinedInstruction, intr, data.lang);
+        await SimpleMessage.sendInfo(intr, message, {}, true);
     }
 }

@@ -1,7 +1,6 @@
 import { PrismaClient, Player } from '@prisma/client';
 import { MessageInstruction } from '../types/MessageInstruction.js';
 import { MessageHelpers } from '../messaging/MessageHelpers.js';
-import { LangKeys } from '../constants/lang-keys.js';
 
 export class PlayerService {
   private prisma: PrismaClient;
@@ -192,11 +191,9 @@ export class PlayerService {
         bannedFilter: bannedOnly
       };
 
-
-
       return MessageHelpers.embedMessage(
         'success',
-        LangKeys.Commands.Admin.ListPlayersSuccess,
+        'messages.admin.listPlayersSuccess',
         templateData,
         true // Admin messages should be ephemeral
       );
@@ -204,7 +201,7 @@ export class PlayerService {
       console.error('Error in PlayerService.listPlayers:', error);
       return MessageHelpers.embedMessage(
         'error',
-        LangKeys.Commands.Admin.ListPlayersError,
+        'messages.admin.listPlayersError',
         { error: error instanceof Error ? error.message : 'Unknown error' },
         true // Admin error messages should be ephemeral
       );

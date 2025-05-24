@@ -1,4 +1,6 @@
 import {
+    ApplicationCommandData,
+    ApplicationCommandOptionType,
     ApplicationCommandType,
     PermissionFlagsBits,
     PermissionsBitField,
@@ -6,9 +8,8 @@ import {
     RESTPostAPIContextMenuApplicationCommandsJSONBody,
 } from 'discord.js';
 
-import { Args } from './index.js';
-import { Language } from '../models/enum-helpers/index.js';
-import { Lang } from '../services/index.js';
+import { strings } from '../lang/strings.js';
+import { Command } from './index.js';
 import { newCommandData } from './chat/new-command.js';
 import { joinSeasonCommandData } from './chat/joinSeason.js';
 import { statusCommandData } from './chat/status-command.js';
@@ -20,59 +21,82 @@ export const ChatCommandMetadata: {
 } = {
     DEV: {
         type: ApplicationCommandType.ChatInput,
-        name: Lang.getRef('chatCommands.dev', Language.Default),
-        name_localizations: Lang.getRefLocalizationMap('chatCommands.dev'),
-        description: Lang.getRef('commandDescs.dev', Language.Default),
-        description_localizations: Lang.getRefLocalizationMap('commandDescs.dev'),
+        name: strings.commands.dev,
+        description: strings.commandDescs.dev,
         dm_permission: true,
-        default_member_permissions: PermissionsBitField.resolve([
-            PermissionFlagsBits.Administrator,
-        ]).toString(),
+        default_member_permissions: PermissionsBitField.Flags.Administrator.toString(),
         options: [
             {
-                ...Args.DEV_COMMAND,
+                name: 'command',
+                description: 'Command.',
                 required: true,
+                type: ApplicationCommandOptionType.String,
+                choices: [
+                    {
+                        name: 'info',
+                        value: 'info',
+                    },
+                ],
             },
         ],
     },
     HELP: {
         type: ApplicationCommandType.ChatInput,
-        name: Lang.getRef('chatCommands.help', Language.Default),
-        name_localizations: Lang.getRefLocalizationMap('chatCommands.help'),
-        description: Lang.getRef('commandDescs.help', Language.Default),
-        description_localizations: Lang.getRefLocalizationMap('commandDescs.help'),
+        name: strings.commands.help,
+        description: strings.commandDescs.help,
         dm_permission: true,
         default_member_permissions: undefined,
         options: [
             {
-                ...Args.HELP_OPTION,
+                name: 'option',
+                description: 'Option.',
                 required: true,
+                type: ApplicationCommandOptionType.String,
+                choices: [
+                    {
+                        name: 'Contact Support',
+                        value: 'contact-support',
+                    },
+                    {
+                        name: 'Commands',
+                        value: 'commands',
+                    },
+                ],
             },
         ],
     },
     INFO: {
         type: ApplicationCommandType.ChatInput,
-        name: Lang.getRef('chatCommands.info', Language.Default),
-        name_localizations: Lang.getRefLocalizationMap('chatCommands.info'),
-        description: Lang.getRef('commandDescs.info', Language.Default),
-        description_localizations: Lang.getRefLocalizationMap('commandDescs.info'),
+        name: strings.commands.info,
+        description: strings.commandDescs.info,
         dm_permission: true,
         default_member_permissions: undefined,
         options: [
             {
-                ...Args.INFO_OPTION,
+                name: 'option',
+                description: 'Option.',
                 required: true,
+                type: ApplicationCommandOptionType.String,
+                choices: [
+                    {
+                        name: 'About',
+                        value: 'about',
+                    },
+                    {
+                        name: 'Translate',
+                        value: 'translate',
+                    },
+                ],
             },
         ],
     },
     TEST: {
         type: ApplicationCommandType.ChatInput,
-        name: Lang.getRef('chatCommands.test', Language.Default),
-        name_localizations: Lang.getRefLocalizationMap('chatCommands.test'),
-        description: Lang.getRef('commandDescs.test', Language.Default),
-        description_localizations: Lang.getRefLocalizationMap('commandDescs.test'),
+        name: strings.commands.test,
+        description: strings.commandDescs.test,
         dm_permission: true,
         default_member_permissions: undefined,
+        options: [],
     },
     NEW: newCommandData.toJSON(),
     JOIN_SEASON: joinSeasonCommandData.toJSON(),
@@ -86,10 +110,9 @@ export const MessageCommandMetadata: {
 } = {
     VIEW_DATE_SENT: {
         type: ApplicationCommandType.Message,
-        name: Lang.getRef('messageCommands.viewDateSent', Language.Default),
-        name_localizations: Lang.getRefLocalizationMap('messageCommands.viewDateSent'),
-        default_member_permissions: undefined,
+        name: 'View Date Sent',
         dm_permission: true,
+        default_member_permissions: undefined,
     },
 };
 
@@ -98,9 +121,124 @@ export const UserCommandMetadata: {
 } = {
     VIEW_DATE_JOINED: {
         type: ApplicationCommandType.User,
-        name: Lang.getRef('userCommands.viewDateJoined', Language.Default),
-        name_localizations: Lang.getRefLocalizationMap('userCommands.viewDateJoined'),
+        name: 'View Date Joined',
+        dm_permission: false,
         default_member_permissions: undefined,
-        dm_permission: true,
     },
 };
+
+export class CommandMetadata {
+    public static async getMetaData(): Promise<ApplicationCommandData[]> {
+        return [
+            // Chat Commands
+            {
+                type: ApplicationCommandType.ChatInput,
+                name: strings.commands.dev,
+                description: strings.commandDescs.dev,
+                dmPermission: true,
+                defaultMemberPermissions: PermissionsBitField.Flags.Administrator,
+                options: [
+                    {
+                        name: 'command',
+                        description: 'Command.',
+                        required: true,
+                        type: ApplicationCommandOptionType.String,
+                        choices: [
+                            {
+                                name: 'info',
+                                value: 'info',
+                            },
+                        ],
+                    },
+                ],
+            },
+            {
+                type: ApplicationCommandType.ChatInput,
+                name: strings.commands.help,
+                description: strings.commandDescs.help,
+                dmPermission: true,
+                defaultMemberPermissions: undefined,
+                options: [
+                    {
+                        name: 'option',
+                        description: 'Option.',
+                        required: true,
+                        type: ApplicationCommandOptionType.String,
+                        choices: [
+                            {
+                                name: 'Contact Support',
+                                value: 'contact-support',
+                            },
+                            {
+                                name: 'Commands',
+                                value: 'commands',
+                            },
+                        ],
+                    },
+                ],
+            },
+            {
+                type: ApplicationCommandType.ChatInput,
+                name: strings.commands.info,
+                description: strings.commandDescs.info,
+                dmPermission: true,
+                defaultMemberPermissions: undefined,
+                options: [
+                    {
+                        name: 'option',
+                        description: 'Option.',
+                        required: true,
+                        type: ApplicationCommandOptionType.String,
+                        choices: [
+                            {
+                                name: 'About',
+                                value: 'about',
+                            },
+                            {
+                                name: 'Translate',
+                                value: 'translate',
+                            },
+                        ],
+                    },
+                ],
+            },
+            {
+                type: ApplicationCommandType.ChatInput,
+                name: strings.commands.test,
+                description: strings.commandDescs.test,
+                dmPermission: true,
+                defaultMemberPermissions: undefined,
+                options: [],
+            },
+            {
+                type: ApplicationCommandType.ChatInput,
+                name: strings.commands.status,
+                description: strings.commandDescs.status,
+                dmPermission: false,
+                defaultMemberPermissions: undefined,
+                options: [
+                    {
+                        name: 'season',
+                        description: 'The ID of the season to check status for.',
+                        required: true,
+                        type: ApplicationCommandOptionType.String,
+                    },
+                ],
+            },
+            // Message Context Commands
+            {
+                type: ApplicationCommandType.Message,
+                name: 'View Date Sent',
+                dmPermission: true,
+                defaultMemberPermissions: undefined,
+            },
+            // User Context Commands
+            {
+                type: ApplicationCommandType.User,
+                name: 'View Date Joined',
+                dmPermission: false,
+                defaultMemberPermissions: undefined,
+            },
+        ];
+    }
+}

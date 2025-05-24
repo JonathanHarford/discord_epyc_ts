@@ -16,7 +16,6 @@ import {
 } from 'discord.js';
 
 import { PermissionUtils, RegexUtils } from './index.js';
-import { Lang } from '../services/index.js';
 
 const FETCH_MEMBER_LIMIT = 20;
 const IGNORED_ERRORS = [
@@ -238,8 +237,7 @@ export class ClientUtils {
         return (await guild.channels.fetch()).find(
             channel =>
                 (channel instanceof TextChannel || channel instanceof NewsChannel) &&
-                PermissionUtils.canSend(channel, true) &&
-                Lang.getRegex('channelRegexes.bot', langCode).test(channel.name)
+                PermissionUtils.canSend(channel, true)
         ) as TextChannel | NewsChannel;
     }
 }

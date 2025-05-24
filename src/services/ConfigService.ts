@@ -1,7 +1,6 @@
 import { PrismaClient, SeasonConfig, Prisma } from '@prisma/client';
 import { MessageInstruction } from '../types/MessageInstruction.js';
 import { MessageHelpers } from '../messaging/MessageHelpers.js';
-import { LangKeys } from '../constants/lang-keys.js';
 
 export interface ConfigUpdateOptions {
   turnPattern?: string;
@@ -71,7 +70,7 @@ export class ConfigService {
       // Validate the updates
       const validationResult = this.validateConfigUpdates(updates);
       if (!validationResult.isValid) {
-        return MessageHelpers.embedMessage('error', LangKeys.Commands.Config.ValidationError, {
+        return MessageHelpers.embedMessage('error', 'messages.config.validationError', {
           field: validationResult.field,
           error: validationResult.error
         }, true);
@@ -99,7 +98,7 @@ export class ConfigService {
       }
 
       console.log(`ConfigService.updateGuildDefaultConfig: Successfully updated config for guild ${guildId}`);
-      return MessageHelpers.embedMessage('success', LangKeys.Commands.Config.UpdateSuccess, {
+      return MessageHelpers.embedMessage('success', 'messages.config.updateSuccess', {
         guildId,
         updatedFields: Object.keys(updates).join(', ')
       }, true);
@@ -108,13 +107,13 @@ export class ConfigService {
       console.error(`ConfigService.updateGuildDefaultConfig: Error updating config for guild ${guildId}:`, error);
       
       if (error instanceof Prisma.PrismaClientKnownRequestError) {
-        return MessageHelpers.embedMessage('error', LangKeys.Commands.Config.DatabaseError, {
+        return MessageHelpers.embedMessage('error', 'messages.config.databaseError', {
           errorCode: error.code,
           message: error.message
         }, true);
       }
 
-      return MessageHelpers.embedMessage('error', LangKeys.Commands.Config.UnknownError, {
+      return MessageHelpers.embedMessage('error', 'messages.config.unknownError', {
         message: error instanceof Error ? error.message : 'Unknown error'
       }, true);
     }

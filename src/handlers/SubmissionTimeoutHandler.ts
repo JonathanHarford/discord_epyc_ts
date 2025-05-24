@@ -3,9 +3,7 @@ import { Client as DiscordClient } from 'discord.js';
 import { Logger } from '../services/index.js';
 import { TurnService } from '../services/TurnService.js';
 import { TurnOfferingService } from '../services/TurnOfferingService.js';
-import { MessageHelpers } from '../messaging/MessageHelpers.js';
-import { MessageAdapter } from '../messaging/MessageAdapter.js';
-import { Language } from '../models/enum-helpers/language.js';
+import { strings, interpolate } from '../lang/strings.js';
 
 /**
  * Handler for submission timeout events.
@@ -130,31 +128,17 @@ export class SubmissionTimeoutHandler {
         turn: any    // Turn type from Prisma with game/season included
     ): Promise<boolean> {
         try {
-            // Create message instruction using MessageHelpers
-            const skipNotificationInstruction = MessageHelpers.warning(
-                'turn_timeout.submission_timeout_skipped',
-                {
-                    gameId: turn.gameId,
-                    seasonId: turn.game?.season?.id,
-                    turnNumber: turn.turnNumber,
-                    turnType: turn.type,
-                    playerName: player.name
-                },
-                false // Not ephemeral for DMs
-            );
+            // Get the user from Discord and send DM directly
+            const user = await this.discordClient.users.fetch(player.discordUserId);
+            const message = interpolate(strings.messages.turnTimeout.submissionTimeoutSkipped, {
+                gameId: turn.gameId,
+                seasonId: turn.game?.season?.id,
+                turnNumber: turn.turnNumber,
+                turnType: turn.type,
+                playerName: player.name
+            });
 
-            // Configure for DM
-            skipNotificationInstruction.formatting = { ...skipNotificationInstruction.formatting, dm: true };
-            skipNotificationInstruction.context = { userId: player.discordUserId };
-
-            // Send the DM using MessageAdapter
-            await MessageAdapter.processInstruction(
-                skipNotificationInstruction,
-                undefined,
-                Language.Default,
-                this.discordClient
-            );
-
+            await user.send(message);
             Logger.info(`SubmissionTimeoutHandler: Successfully sent skip notification DM to player ${player.id} (${player.discordUserId})`);
             return true;
 

@@ -2,16 +2,13 @@ import { MessageContextMenuCommandInteraction, PermissionsString } from 'discord
 import { RateLimiter } from 'discord.js-rate-limiter';
 import { DateTime } from 'luxon';
 
-import { Language } from '../../models/enum-helpers/index.js';
 import { EventData } from '../../models/internal-models.js';
-import { Lang } from '../../services/index.js';
-import { InteractionUtils } from '../../utils/index.js';
+import { strings } from '../../lang/strings.js';
 import { Command, CommandDeferType } from '../index.js';
-import { MessageHelpers } from '../../messaging/MessageHelpers.js';
-import { MessageAdapter } from '../../messaging/MessageAdapter.js';
+import { SimpleMessage } from '../../messaging/SimpleMessage.js';
 
 export class ViewDateSent implements Command {
-    public names = [Lang.getRef('messageCommands.viewDateSent', Language.Default)];
+    public names = ["View Date Sent"];
     public cooldown = new RateLimiter(1, 5000);
     public deferType = CommandDeferType.HIDDEN;
     public requireClientPerms: PermissionsString[] = [];
@@ -20,12 +17,10 @@ export class ViewDateSent implements Command {
         intr: MessageContextMenuCommandInteraction,
         data: EventData
     ): Promise<void> {
-        const dateSentInstruction = MessageHelpers.embedMessage('info', 'displayEmbeds.viewDateSent', {
-            DATE: DateTime.fromJSDate(intr.targetMessage.createdAt).toLocaleString(
-                DateTime.DATE_HUGE
-            ),
-        }, true);
+        const dateString = DateTime.fromJSDate(intr.targetMessage.createdAt).toLocaleString(
+            DateTime.DATE_HUGE
+        );
         
-        await MessageAdapter.processInstruction(dateSentInstruction, intr, data.lang);
+        await SimpleMessage.sendInfo(intr, `**Message sent on:** ${dateString}`, {}, true);
     }
 }

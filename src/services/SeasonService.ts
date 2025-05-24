@@ -5,7 +5,6 @@ import { MessageInstruction } from '../types/MessageInstruction.js'; // Added .j
 import { MessageHelpers } from '../messaging/MessageHelpers.js'; // Added MessageHelpers import
 import { DateTime } from 'luxon'; // Duration and DurationLikeObject might not be needed here anymore
 import { parseDuration, formatTimeRemaining } from '../utils/datetime.js'; // Import the new utility
-import { LangKeys } from '../constants/lang-keys.js';
 import { TurnService } from './TurnService.js'; // Added .js extension
 import { SchedulerService } from './SchedulerService.js'; // ADDED: Import SchedulerService
 
@@ -236,7 +235,7 @@ export class SeasonService {
 
       if (!player) {
         console.log(`SeasonService.addPlayerToSeason: Player ${playerId} not found.`);
-        return { type: 'error', key: LangKeys.Commands.JoinSeason.playerNotFound, data: { playerId } };
+        return { type: 'error', key: 'messages.season.joinPlayerNotFound', data: { playerId } };
       }
 
       // 1. Find the season (and check if it exists)
@@ -247,14 +246,14 @@ export class SeasonService {
 
       if (!season) {
         console.log(`SeasonService.addPlayerToSeason: Season ${seasonId} not found.`);
-        return { type: 'error', key: LangKeys.Commands.JoinSeason.seasonNotFound };
+        return { type: 'error', key: 'messages.season.joinSeasonNotFound' };
       }
 
       // 2. Check if season is open for joining (Define valid statuses)
       const validJoinStatuses = ['SETUP', 'PENDING_START', 'OPEN']; 
       if (!validJoinStatuses.includes(season.status)) {
         console.log(`SeasonService.addPlayerToSeason: Season ${seasonId} status (${season.status}) is not valid for joining.`);
-        return { type: 'error', key: LangKeys.Commands.JoinSeason.notOpen, data: { status: season.status /*, seasonName: season.name */ } };
+        return { type: 'error', key: 'messages.season.joinNotOpen', data: { status: season.status /*, seasonName: season.name */ } };
       }
 
       // 3. Check max player limit
@@ -262,7 +261,7 @@ export class SeasonService {
       const currentPlayerCount = season._count.players;
       if (maxPlayers !== null && currentPlayerCount >= maxPlayers) {
           console.log(`SeasonService.addPlayerToSeason: Season ${seasonId} is full (${currentPlayerCount}/${maxPlayers}).`);
-          return { type: 'error', key: LangKeys.Commands.JoinSeason.full, data: { currentPlayers: currentPlayerCount, maxPlayers: maxPlayers /*, seasonName: season.name */ } };
+          return { type: 'error', key: 'messages.season.joinFull', data: { currentPlayers: currentPlayerCount, maxPlayers: maxPlayers /*, seasonName: season.name */ } };
       }
 
       // Player finding/creation logic is removed from here. Assumes valid playerId is passed.
@@ -279,7 +278,7 @@ export class SeasonService {
 
       if (existingJoin) {
         console.log(`SeasonService.addPlayerToSeason: Player ${playerId} (ID: ${player.id}) already in season ${seasonId}.`);
-        return { type: 'error', key: LangKeys.Commands.JoinSeason.alreadyJoined, data: { /* seasonName: season.name */ } };
+        return { type: 'error', key: 'messages.season.joinAlreadyJoined', data: { /* seasonName: season.name */ } };
       }
 
       // 5. Add player to season using the transaction client (tx)
@@ -338,7 +337,7 @@ export class SeasonService {
 
       return {
         type: 'success',
-        key: LangKeys.Commands.JoinSeason.success,
+        key: 'messages.season.joinSuccess',
         data: {
           seasonId: season.id,
           currentPlayers: updatedPlayerCount,
@@ -500,7 +499,7 @@ export class SeasonService {
       
       return {
         type: 'success' as const, // Ensure type is literal for MessageInstruction
-        key: LangKeys.Commands.New.SeasonActivateSuccess,
+        key: 'messages.season.activateSuccess',
         data: {
           seasonId,
           status: 'ACTIVE',
@@ -571,7 +570,7 @@ export class SeasonService {
       if (!existingSeason) {
         console.error(`SeasonService.terminateSeason: Season ${seasonId} not found.`);
         return MessageHelpers.commandError(
-          LangKeys.Commands.Admin.TerminateSeasonErrorNotFound,
+          'messages.season.adminTerminateErrorNotFound',
           { seasonId }
         );
       }
@@ -580,7 +579,7 @@ export class SeasonService {
       if (existingSeason.status === 'TERMINATED') {
         console.warn(`SeasonService.terminateSeason: Season ${seasonId} is already terminated.`);
         return MessageHelpers.commandError(
-          LangKeys.Commands.Admin.TerminateSeasonErrorAlreadyTerminated,
+          'messages.season.adminTerminateErrorAlreadyTerminated',
           { seasonId }
         );
       }
@@ -623,7 +622,7 @@ export class SeasonService {
 
       console.log(`SeasonService.terminateSeason: Season ${seasonId} terminated successfully.`);
       return MessageHelpers.commandSuccess(
-        LangKeys.Commands.Admin.TerminateSeasonSuccess,
+        'messages.season.adminTerminateSuccess',
         {
           seasonId: result.id,
           previousStatus: existingSeason.status,
@@ -637,7 +636,7 @@ export class SeasonService {
       
       if (error instanceof Prisma.PrismaClientKnownRequestError) {
         return MessageHelpers.commandError(
-          LangKeys.Commands.Admin.TerminateSeasonErrorDatabase,
+          'messages.season.adminTerminateErrorDatabase',
           { 
             seasonId, 
             errorCode: error.code, 
@@ -647,7 +646,7 @@ export class SeasonService {
       }
 
       return MessageHelpers.commandError(
-        LangKeys.Commands.Admin.TerminateSeasonErrorUnknown,
+        'messages.season.adminTerminateErrorUnknown',
         { 
           seasonId, 
           message: (error instanceof Error) ? error.message : 'An unknown error occurred' 
@@ -712,7 +711,7 @@ export class SeasonService {
       console.error('Error in SeasonService.listSeasons:', error);
       return MessageHelpers.embedMessage(
         'error',
-        LangKeys.Commands.Admin.ListSeasonsError,
+        'messages.season.adminListSeasonsError',
         { error: error instanceof Error ? error.message : 'Unknown error' },
         true // Admin error messages should be ephemeral
       );
@@ -869,7 +868,7 @@ export class SeasonService {
       // Create the announcement message instruction
       const announcement = MessageHelpers.embedMessage(
         'success',
-        LangKeys.Game.SeasonCompletion,
+        'messages.season.completionAnnouncement',
         {
           seasonId: seasonResults.seasonId || 'unknown',
           daysElapsed: seasonResults.daysElapsed,
@@ -894,7 +893,7 @@ export class SeasonService {
       try {
         const fallbackAnnouncement = MessageHelpers.embedMessage(
           'success',
-          LangKeys.Game.SeasonCompletion,
+          'messages.season.completionFallbackAnnouncement',
           {
             seasonId: seasonResults.seasonId || 'unknown',
             daysElapsed: Math.max(0, seasonResults.daysElapsed || 0),

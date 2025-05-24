@@ -7,9 +7,8 @@ import { TurnService } from '../services/TurnService.js';
 import { PlayerService } from '../services/PlayerService.js';
 import { SchedulerService } from '../services/SchedulerService.js';
 import { TurnOfferingService } from '../services/TurnOfferingService.js';
-import { MessageHelpers } from '../messaging/MessageHelpers.js';
-import { MessageAdapter } from '../messaging/MessageAdapter.js';
-import { Language } from '../models/enum-helpers/language.js';
+import { SimpleMessage } from '../messaging/SimpleMessage.js';
+import { strings, interpolate } from '../lang/strings.js';
 
 const require = createRequire(import.meta.url);
 let Logs = require('../../lang/logs.json');
@@ -125,20 +124,7 @@ export class DirectMessageHandler implements EventHandler {
                 // 1. Find the player by Discord user ID
                 const player = await this.playerService.getPlayerByDiscordId(msg.author.id);
                 if (!player) {
-                    const errorInstruction = MessageHelpers.commandError(
-                        'ready.player_not_found',
-                        { discordUserId: msg.author.id },
-                        false // Not ephemeral for DMs
-                    );
-                    errorInstruction.formatting = { ...errorInstruction.formatting, dm: true };
-                    errorInstruction.context = { userId: msg.author.id };
-                    
-                    await MessageAdapter.processInstruction(
-                        errorInstruction,
-                        undefined,
-                        Language.Default,
-                        msg.client
-                    );
+                    await msg.author.send(strings.messages.ready.playerNotFound);
                     return;
                 }
 
@@ -146,46 +132,14 @@ export class DirectMessageHandler implements EventHandler {
                 const offeredTurns = await this.turnService.getTurnsForPlayer(player.id, 'OFFERED');
                 
                 if (offeredTurns.length === 0) {
-                    const noTurnsInstruction = MessageHelpers.commandError(
-                        'ready.no_offered_turns',
-                        { playerName: player.name },
-                        false
-                    );
-                    noTurnsInstruction.formatting = { ...noTurnsInstruction.formatting, dm: true };
-                    noTurnsInstruction.context = { userId: msg.author.id };
-                    
-                    await MessageAdapter.processInstruction(
-                        noTurnsInstruction,
-                        undefined,
-                        Language.Default,
-                        msg.client
-                    );
+                    await msg.author.send(strings.messages.ready.noOfferedTurns);
                     return;
                 }
 
                 // 3. Check if player already has a PENDING turn (can't claim multiple)
                 const pendingTurns = await this.turnService.getTurnsForPlayer(player.id, 'PENDING');
                 if (pendingTurns.length > 0) {
-                    const pendingTurn = pendingTurns[0];
-                    const alreadyPendingInstruction = MessageHelpers.commandError(
-                        'ready.already_has_pending_turn',
-                        { 
-                            gameId: pendingTurn.gameId,
-                            seasonId: (pendingTurn as any).game?.season?.id,
-                            turnNumber: pendingTurn.turnNumber,
-                            turnType: pendingTurn.type
-                        },
-                        false
-                    );
-                    alreadyPendingInstruction.formatting = { ...alreadyPendingInstruction.formatting, dm: true };
-                    alreadyPendingInstruction.context = { userId: msg.author.id };
-                    
-                    await MessageAdapter.processInstruction(
-                        alreadyPendingInstruction,
-                        undefined,
-                        Language.Default,
-                        msg.client
-                    );
+                    await msg.author.send(strings.messages.ready.alreadyHasPendingTurn);
                     return;
                 }
 
@@ -196,23 +150,7 @@ export class DirectMessageHandler implements EventHandler {
                 const claimResult = await this.turnService.claimTurn(turnToClaim.id, player.id);
                 
                 if (!claimResult.success) {
-                    const claimErrorInstruction = MessageHelpers.commandError(
-                        'ready.claim_failed',
-                        { 
-                            error: claimResult.error,
-                            turnId: turnToClaim.id
-                        },
-                        false
-                    );
-                    claimErrorInstruction.formatting = { ...claimErrorInstruction.formatting, dm: true };
-                    claimErrorInstruction.context = { userId: msg.author.id };
-                    
-                    await MessageAdapter.processInstruction(
-                        claimErrorInstruction,
-                        undefined,
-                        Language.Default,
-                        msg.client
-                    );
+                    await msg.author.send(strings.messages.ready.claimFailed);
                     return;
                 }
 
@@ -250,26 +188,13 @@ export class DirectMessageHandler implements EventHandler {
                 }
 
                 // 8. Send confirmation DM to the player
-                const successInstruction = MessageHelpers.commandSuccess(
-                    'ready.claim_success',
-                    {
-                        gameId: turnToClaim.gameId,
-                        seasonId: (turnToClaim as any).game?.season?.id,
-                        turnNumber: turnToClaim.turnNumber,
-                        turnType: turnToClaim.type,
-                        submissionTimeoutMinutes: submissionTimeoutMinutes
-                    },
-                    false
-                );
-                successInstruction.formatting = { ...successInstruction.formatting, dm: true };
-                successInstruction.context = { userId: msg.author.id };
-                
-                await MessageAdapter.processInstruction(
-                    successInstruction,
-                    undefined,
-                    Language.Default,
-                    msg.client
-                );
+                const successMessage = interpolate(strings.messages.ready.claimSuccess, {
+                    gameId: turnToClaim.gameId,
+                    seasonId: (turnToClaim as any).game?.season?.id,
+                    turnNumber: turnToClaim.turnNumber,
+                    turnType: turnToClaim.type
+                });
+                await msg.author.send(successMessage);
 
                 Logger.info(`Successfully processed /ready command for player ${player.id} (${msg.author.tag}), claimed turn ${turnToClaim.id}`);
             },
@@ -292,20 +217,7 @@ export class DirectMessageHandler implements EventHandler {
                 // 1. Find the player by Discord user ID
                 const player = await this.playerService.getPlayerByDiscordId(msg.author.id);
                 if (!player) {
-                    const errorInstruction = MessageHelpers.commandError(
-                        'submission.player_not_found',
-                        { discordUserId: msg.author.id },
-                        false // Not ephemeral for DMs
-                    );
-                    errorInstruction.formatting = { ...errorInstruction.formatting, dm: true };
-                    errorInstruction.context = { userId: msg.author.id };
-                    
-                    await MessageAdapter.processInstruction(
-                        errorInstruction,
-                        undefined,
-                        Language.Default,
-                        msg.client
-                    );
+                    await msg.author.send(interpolate(strings.messages.submission.playerNotFound, { discordUserId: msg.author.id }));
                     return;
                 }
 
@@ -313,20 +225,7 @@ export class DirectMessageHandler implements EventHandler {
                 const pendingTurns = await this.turnService.getTurnsForPlayer(player.id, 'PENDING');
                 
                 if (pendingTurns.length === 0) {
-                    const noTurnsInstruction = MessageHelpers.commandError(
-                        'submission.no_pending_turns',
-                        { playerName: player.name },
-                        false
-                    );
-                    noTurnsInstruction.formatting = { ...noTurnsInstruction.formatting, dm: true };
-                    noTurnsInstruction.context = { userId: msg.author.id };
-                    
-                    await MessageAdapter.processInstruction(
-                        noTurnsInstruction,
-                        undefined,
-                        Language.Default,
-                        msg.client
-                    );
+                    await msg.author.send(interpolate(strings.messages.submission.noPendingTurns, { playerName: player.name }));
                     return;
                 }
 
@@ -341,39 +240,13 @@ export class DirectMessageHandler implements EventHandler {
                     // Handle image submission
                     const attachment = msg.attachments.first();
                     if (!attachment) {
-                        const noAttachmentInstruction = MessageHelpers.commandError(
-                            'submission.no_attachment_found',
-                            {},
-                            false
-                        );
-                        noAttachmentInstruction.formatting = { ...noAttachmentInstruction.formatting, dm: true };
-                        noAttachmentInstruction.context = { userId: msg.author.id };
-                        
-                        await MessageAdapter.processInstruction(
-                            noAttachmentInstruction,
-                            undefined,
-                            Language.Default,
-                            msg.client
-                        );
+                        await msg.author.send(strings.messages.submission.noAttachmentFound);
                         return;
                     }
                     
                     // Validate that it's an image
                     if (!attachment.contentType?.startsWith('image/')) {
-                        const invalidFileInstruction = MessageHelpers.commandError(
-                            'submission.invalid_file_type',
-                            { fileType: attachment.contentType || 'unknown' },
-                            false
-                        );
-                        invalidFileInstruction.formatting = { ...invalidFileInstruction.formatting, dm: true };
-                        invalidFileInstruction.context = { userId: msg.author.id };
-                        
-                        await MessageAdapter.processInstruction(
-                            invalidFileInstruction,
-                            undefined,
-                            Language.Default,
-                            msg.client
-                        );
+                        await msg.author.send(interpolate(strings.messages.submission.invalidFileType, { fileType: attachment.contentType || 'unknown' }));
                         return;
                     }
                     
@@ -385,44 +258,18 @@ export class DirectMessageHandler implements EventHandler {
                     contentType = 'text';
                 } else {
                     // No valid content found
-                    const noContentInstruction = MessageHelpers.commandError(
-                        'submission.no_content_found',
-                        {},
-                        false
-                    );
-                    noContentInstruction.formatting = { ...noContentInstruction.formatting, dm: true };
-                    noContentInstruction.context = { userId: msg.author.id };
-                    
-                    await MessageAdapter.processInstruction(
-                        noContentInstruction,
-                        undefined,
-                        Language.Default,
-                        msg.client
-                    );
+                    await msg.author.send(strings.messages.submission.noContentFound);
                     return;
                 }
 
                 // 5. Validate content type matches turn type
                 if ((turnToSubmit.type === 'WRITING' && contentType !== 'text') ||
                     (turnToSubmit.type === 'DRAWING' && contentType !== 'image')) {
-                    const wrongContentTypeInstruction = MessageHelpers.commandError(
-                        'submission.wrong_content_type',
-                        { 
-                            expectedType: turnToSubmit.type === 'WRITING' ? 'text' : 'image',
-                            receivedType: contentType,
-                            turnType: turnToSubmit.type
-                        },
-                        false
-                    );
-                    wrongContentTypeInstruction.formatting = { ...wrongContentTypeInstruction.formatting, dm: true };
-                    wrongContentTypeInstruction.context = { userId: msg.author.id };
-                    
-                    await MessageAdapter.processInstruction(
-                        wrongContentTypeInstruction,
-                        undefined,
-                        Language.Default,
-                        msg.client
-                    );
+                    await msg.author.send(interpolate(strings.messages.submission.wrongContentType, { 
+                        expectedType: turnToSubmit.type === 'WRITING' ? 'text' : 'image',
+                        receivedType: contentType,
+                        turnType: turnToSubmit.type
+                    }));
                     return;
                 }
 
@@ -435,23 +282,10 @@ export class DirectMessageHandler implements EventHandler {
                 );
                 
                 if (!submitResult.success) {
-                    const submitErrorInstruction = MessageHelpers.commandError(
-                        'submission.submit_failed',
-                        { 
-                            error: submitResult.error,
-                            turnId: turnToSubmit.id
-                        },
-                        false
-                    );
-                    submitErrorInstruction.formatting = { ...submitErrorInstruction.formatting, dm: true };
-                    submitErrorInstruction.context = { userId: msg.author.id };
-                    
-                    await MessageAdapter.processInstruction(
-                        submitErrorInstruction,
-                        undefined,
-                        Language.Default,
-                        msg.client
-                    );
+                    await msg.author.send(interpolate(strings.messages.submission.submitFailed, { 
+                        error: submitResult.error,
+                        turnId: turnToSubmit.id
+                    }));
                     return;
                 }
 
@@ -483,27 +317,14 @@ export class DirectMessageHandler implements EventHandler {
                 }
 
                 // 9. Send confirmation DM to the player
-                const successInstruction = MessageHelpers.commandSuccess(
-                    'submission.submit_success',
-                    {
-                        gameId: turnToSubmit.gameId,
-                        seasonId: (turnToSubmit as any).game?.season?.id,
-                        turnNumber: turnToSubmit.turnNumber,
-                        turnType: turnToSubmit.type,
-                        contentType: contentType,
-                        contentPreview: contentType === 'text' ? content.substring(0, 100) : 'Image uploaded'
-                    },
-                    false
-                );
-                successInstruction.formatting = { ...successInstruction.formatting, dm: true };
-                successInstruction.context = { userId: msg.author.id };
-                
-                await MessageAdapter.processInstruction(
-                    successInstruction,
-                    undefined,
-                    Language.Default,
-                    msg.client
-                );
+                await msg.author.send(interpolate(strings.messages.submission.submitSuccess, {
+                    gameId: turnToSubmit.gameId,
+                    seasonId: (turnToSubmit as any).game?.season?.id,
+                    turnNumber: turnToSubmit.turnNumber,
+                    turnType: turnToSubmit.type,
+                    contentType: contentType,
+                    contentPreview: contentType === 'text' ? content.substring(0, 100) : 'Image uploaded'
+                }));
 
                 Logger.info(`Successfully processed turn submission for player ${player.id} (${msg.author.tag}), completed turn ${turnToSubmit.id}`);
             },

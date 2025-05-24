@@ -1,21 +1,18 @@
 import { ChatInputCommandInteraction, PermissionsString } from 'discord.js';
 import { createRequire } from 'node:module';
 
-import { Language } from '../../models/enum-helpers/index.js';
 import { EventData } from '../../models/internal-models.js';
-import { Lang } from '../../services/index.js';
 import { Command, CommandDeferType } from '../index.js';
-import { MessageHelpers } from '../../messaging/MessageHelpers.js';
-import { MessageAdapter } from '../../messaging/MessageAdapter.js';
+import { SimpleMessage } from '../../messaging/SimpleMessage.js';
+import { strings } from '../../lang/strings.js';
 import { ConfigService, ConfigUpdateOptions } from '../../services/ConfigService.js';
-import { LangKeys } from '../../constants/lang-keys.js';
 import prisma from '../../lib/prisma.js';
 
 const require = createRequire(import.meta.url);
 let Config = require('../../../config/config.json');
 
 export class ConfigCommand implements Command {
-    public names = [Lang.getRef('chatCommands.config', Language.Default)];
+    public names = [strings.chatCommands.config];
     public deferType = CommandDeferType.HIDDEN;
     public requireClientPerms: PermissionsString[] = [];
 
@@ -28,8 +25,7 @@ export class ConfigCommand implements Command {
     public async execute(intr: ChatInputCommandInteraction, data: EventData): Promise<void> {
         // Check if user has admin permissions (using developers array for now)
         if (!Config.developers.includes(intr.user.id)) {
-            const adminOnlyInstruction = MessageHelpers.embedMessage('warning', LangKeys.Commands.Config.NotAdmin, {}, true);
-            await MessageAdapter.processInstruction(adminOnlyInstruction, intr, data.lang);
+            await SimpleMessage.sendWarning(intr, strings.messages.admin.notAdmin, {}, true);
             return;
         }
 
@@ -38,8 +34,7 @@ export class ConfigCommand implements Command {
         if (subcommandGroup === 'seasons') {
             await this.handleSeasonsCommand(intr, data);
         } else {
-            const notImplementedInstruction = MessageHelpers.embedMessage('warning', 'errorEmbeds.notImplemented', {}, true);
-            await MessageAdapter.processInstruction(notImplementedInstruction, intr, data.lang);
+            await SimpleMessage.sendEmbed(intr, strings.embeds.errorEmbeds.notImplemented, {}, true, 'warning');
         }
     }
 
@@ -56,8 +51,7 @@ export class ConfigCommand implements Command {
                 break;
             }
             default: {
-                const notImplementedInstruction = MessageHelpers.embedMessage('warning', 'errorEmbeds.notImplemented', {}, true);
-                await MessageAdapter.processInstruction(notImplementedInstruction, intr, data.lang);
+                await SimpleMessage.sendEmbed(intr, strings.embeds.errorEmbeds.notImplemented, {}, true, 'warning');
                 return;
             }
         }
@@ -67,15 +61,14 @@ export class ConfigCommand implements Command {
         try {
             const guildId = intr.guild?.id;
             if (!guildId) {
-                const errorInstruction = MessageHelpers.embedMessage('error', 'errorEmbeds.guildOnly', {}, true);
-                await MessageAdapter.processInstruction(errorInstruction, intr, data.lang);
+                await SimpleMessage.sendError(intr, "This command can only be used in a server.", {}, true);
                 return;
             }
 
             const config = await this.configService.getGuildDefaultConfig(guildId);
             const formattedConfig = this.configService.formatConfigForDisplay(config);
 
-            const viewInstruction = MessageHelpers.embedMessage('info', LangKeys.Commands.Config.ViewSuccess, {
+            await SimpleMessage.sendEmbed(intr, strings.embeds.configView, {
                 GUILD_ID: guildId,
                 TURN_PATTERN: formattedConfig.turnPattern,
                 CLAIM_TIMEOUT: formattedConfig.claimTimeout,
@@ -88,17 +81,14 @@ export class ConfigCommand implements Command {
                 MAX_PLAYERS: formattedConfig.maxPlayers,
                 IS_GUILD_DEFAULT: formattedConfig.isGuildDefault,
                 LAST_UPDATED: formattedConfig.lastUpdated
-            }, true);
-
-            await MessageAdapter.processInstruction(viewInstruction, intr, data.lang);
+            }, true, 'info');
         } catch (error) {
             console.error('Error in config seasons view command:', error);
-            const errorInstruction = MessageHelpers.embedMessage('error', 'errorEmbeds.command', {
+            await SimpleMessage.sendEmbed(intr, strings.embeds.errorEmbeds.command, {
                 ERROR_CODE: 'CONFIG_VIEW_ERROR',
                 GUILD_ID: intr.guild?.id ?? 'N/A',
                 SHARD_ID: intr.guild?.shardId?.toString() ?? 'N/A'
-            }, true);
-            await MessageAdapter.processInstruction(errorInstruction, intr, data.lang);
+            }, true, 'error');
         }
     }
 
@@ -106,8 +96,7 @@ export class ConfigCommand implements Command {
         try {
             const guildId = intr.guild?.id;
             if (!guildId) {
-                const errorInstruction = MessageHelpers.embedMessage('error', 'errorEmbeds.guildOnly', {}, true);
-                await MessageAdapter.processInstruction(errorInstruction, intr, data.lang);
+                await SimpleMessage.sendError(intr, "This command can only be used in a server.", {}, true);
                 return;
             }
 
@@ -143,23 +132,99 @@ export class ConfigCommand implements Command {
 
             // Check if any updates were provided
             if (Object.keys(updates).length === 0) {
-                const noUpdatesInstruction = MessageHelpers.embedMessage('warning', 'config.no_updates_provided', {}, true);
-                await MessageAdapter.processInstruction(noUpdatesInstruction, intr, data.lang);
+                await SimpleMessage.sendWarning(intr, strings.messages.config.noUpdatesProvided, {}, true);
                 return;
             }
 
             // Update the configuration
             const result = await this.configService.updateGuildDefaultConfig(guildId, updates);
-            await MessageAdapter.processInstruction(result, intr, data.lang);
+            await this.handleMessageInstruction(result, intr);
 
         } catch (error) {
             console.error('Error in config seasons set command:', error);
-            const errorInstruction = MessageHelpers.embedMessage('error', 'errorEmbeds.command', {
+            await SimpleMessage.sendEmbed(intr, strings.embeds.errorEmbeds.command, {
                 ERROR_CODE: 'CONFIG_SET_ERROR',
                 GUILD_ID: intr.guild?.id ?? 'N/A',
                 SHARD_ID: intr.guild?.shardId?.toString() ?? 'N/A'
-            }, true);
-            await MessageAdapter.processInstruction(errorInstruction, intr, data.lang);
+            }, true, 'error');
         }
+    }
+
+    /**
+     * Convert MessageInstruction to SimpleMessage call
+     */
+    private async handleMessageInstruction(instruction: any, intr: ChatInputCommandInteraction): Promise<void> {
+        const ephemeral = instruction.formatting?.ephemeral ?? false;
+        
+        if (instruction.formatting?.embed) {
+            const embedData = this.getEmbedFromKey(instruction.key);
+            if (embedData) {
+                await SimpleMessage.sendEmbed(intr, embedData, instruction.data, ephemeral, instruction.type);
+            } else {
+                const content = this.getStringFromKey(instruction.key, instruction.data);
+                switch (instruction.type) {
+                    case 'success':
+                        await SimpleMessage.sendSuccess(intr, content, {}, ephemeral);
+                        break;
+                    case 'error':
+                        await SimpleMessage.sendError(intr, content, {}, ephemeral);
+                        break;
+                    case 'warning':
+                        await SimpleMessage.sendWarning(intr, content, {}, ephemeral);
+                        break;
+                    default:
+                        await SimpleMessage.sendInfo(intr, content, {}, ephemeral);
+                }
+            }
+        } else {
+            const content = this.getStringFromKey(instruction.key, instruction.data);
+            switch (instruction.type) {
+                case 'success':
+                    await SimpleMessage.sendSuccess(intr, content, {}, ephemeral);
+                    break;
+                case 'error':
+                    await SimpleMessage.sendError(intr, content, {}, ephemeral);
+                    break;
+                case 'warning':
+                    await SimpleMessage.sendWarning(intr, content, {}, ephemeral);
+                    break;
+                default:
+                    await SimpleMessage.sendInfo(intr, content, {}, ephemeral);
+            }
+        }
+    }
+
+    private getEmbedFromKey(key: string): any {
+        const parts = key.split('.');
+        let current: any = strings.embeds;
+        
+        for (const part of parts) {
+            if (current && typeof current === 'object' && part in current) {
+                current = current[part];
+            } else {
+                return null;
+            }
+        }
+        
+        return current && typeof current === 'object' ? current : null;
+    }
+
+    private getStringFromKey(key: string, data?: Record<string, any>): string {
+        const parts = key.split('.');
+        let current: any = strings;
+        
+        for (const part of parts) {
+            if (current && typeof current === 'object' && part in current) {
+                current = current[part];
+            } else {
+                console.warn(`String key not found: ${key}`);
+                return `Missing string: ${key}`;
+            }
+        }
+        
+        const result = typeof current === 'string' ? current : JSON.stringify(current);
+        return data ? result.replace(/\{(\w+)\}/g, (match, varKey) => {
+            return data[varKey] !== undefined ? String(data[varKey]) : match;
+        }) : result;
     }
 } 

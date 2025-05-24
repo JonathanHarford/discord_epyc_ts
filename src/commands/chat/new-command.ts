@@ -12,12 +12,10 @@ import { Command, CommandDeferType } from '../command.js';
 import { EventData } from '../../models/internal-models.js';
 import { SeasonService, NewSeasonOptions } from '../../services/SeasonService.js';
 import { MessageInstruction } from '../../types/MessageInstruction.js';
-import { MessageAdapter } from '../../messaging/MessageAdapter.js';
-import prisma from '../../lib/prisma.js'; // Import global Prisma client instance
-import { Lang } from '../../services/lang.js';
-import { Language } from '../../models/enum-helpers/language.js';
-import { PrismaClient } from '@prisma/client'; // ADDED: Import PrismaClient type
-
+import { SimpleMessage } from '../../messaging/SimpleMessage.js';
+import { strings, interpolate } from '../../lang/strings.js';
+import prisma from '../../lib/prisma.js';
+import { PrismaClient } from '@prisma/client';
 
 // Renamed from newSeasonCommandData to newCommandData
 export const newCommandData = new SlashCommandBuilder()
@@ -57,19 +55,18 @@ export const newCommandData = new SlashCommandBuilder()
           .setDescription('Time allowed to submit a drawing turn (e.g., "1d", "1h"). Default varies.')
           .setRequired(false))
   )
-  // .setDefaultMemberPermissions(PermissionsBitField.Flags.SendMessages) // This should be on the subcommand or handled differently for base command
-  .setDMPermission(false); // Can be true if subcommands are usable in DMs
+  .setDMPermission(false);
 
 export class NewCommand implements Command {
   public names = ['new'];
   public deferType = CommandDeferType.HIDDEN;
   public requireClientPerms: PermissionsString[] = ['SendMessages'];
 
-  private prisma: PrismaClient; // ADDED: Store Prisma client
-  private seasonService: SeasonService; // ADDED: Store SeasonService
+  private prisma: PrismaClient;
+  private seasonService: SeasonService;
 
   // Inject dependencies
-  constructor(prisma: PrismaClient, seasonService: SeasonService) { // MODIFIED: Added constructor with injected services
+  constructor(prisma: PrismaClient, seasonService: SeasonService) {
     this.prisma = prisma;
     this.seasonService = seasonService;
   }
@@ -78,21 +75,16 @@ export class NewCommand implements Command {
     const subcommand = intr.options.getSubcommand();
 
     if (subcommand === 'season') {
-      // REMOVE: Instantiate SeasonService here, use injected instance
-      // const seasonService = new SeasonService(prisma, null); // Use global prisma instance
-
       const discordUserId = intr.user.id;
-      const discordUserName = intr.user.username; // Get username for player creation
+      const discordUserName = intr.user.username;
 
       // --- Find or Create Player ---
-      // Use injected prisma instance
       let playerRecord = await this.prisma.player.findUnique({
         where: { discordUserId: discordUserId },
       });
 
       if (!playerRecord) {
         try {
-          // Use injected prisma instance
           playerRecord = await this.prisma.player.create({
             data: {
               discordUserId: discordUserId,
@@ -102,19 +94,17 @@ export class NewCommand implements Command {
           console.log(`New player record created for ${discordUserName} (ID: ${playerRecord.id}) during /new season command.`);
         } catch (playerCreateError) {
           console.error(`Failed to create player record for ${discordUserName} (Discord ID: ${discordUserId}):`, playerCreateError);
-          const playerCreateErrorInstruction: MessageInstruction = {
-            type: 'error',
-            key: 'newCommand.season.error_player_create_failed',
-            data: { discordId: discordUserId },
-            formatting: { ephemeral: true }
-          };
-          await MessageAdapter.processInstruction(playerCreateErrorInstruction, intr, Language.Default);
+          
+          await SimpleMessage.sendError(
+            intr,
+            strings.messages.newSeason.errorPlayerCreateFailed,
+            { discordId: discordUserId }
+          );
           return;
         }
       }
       const creatorPlayerId = playerRecord.id;
       // --- End Find or Create Player ---
-
 
       const openDuration = intr.options.getString('open_duration');
       const minPlayers = intr.options.getInteger('min_players');
@@ -125,7 +115,7 @@ export class NewCommand implements Command {
       const drawingTimeout = intr.options.getString('drawing_timeout');
 
       const seasonOptions: NewSeasonOptions = {
-        creatorPlayerId, // Correctly use internal player ID
+        creatorPlayerId,
         ...(openDuration !== null && { openDuration }),
         ...(minPlayers !== null && { minPlayers }),
         ...(maxPlayers !== null && { maxPlayers }),
@@ -138,54 +128,40 @@ export class NewCommand implements Command {
       try {
         const instruction: MessageInstruction = await this.seasonService.createSeason(seasonOptions);
 
-        // Map service keys to command-specific keys if needed
         if (instruction.type === 'success') {
-          // Add user mention to the success data
-          const enhancedInstruction: MessageInstruction = {
-            ...instruction,
-            key: 'newCommand.season.create_success_channel',
-            data: { ...instruction.data, mentionUser: intr.user.toString() }
-          };
-          await MessageAdapter.processInstruction(enhancedInstruction, intr, Language.Default);
+          // Send success message with user mention
+          await SimpleMessage.sendSuccess(
+            intr,
+            strings.messages.newSeason.createSuccessChannel,
+            { 
+              ...instruction.data, 
+              mentionUser: intr.user.toString() 
+            }
+          );
         } else {
-          // Map service error keys to command-specific keys
-          let mappedKey = instruction.key;
+          // Handle different error types
+          let errorMessage: string;
+          
           if (instruction.key === 'season_create_error_creator_player_not_found') {
-            mappedKey = 'newCommand.season.error_creator_not_found';
+            errorMessage = strings.messages.newSeason.errorCreatorNotFound;
           } else if (instruction.key === 'season_create_error_min_max_players') {
-            mappedKey = 'newCommand.season.error_min_max_players';
+            errorMessage = strings.messages.newSeason.errorMinMaxPlayers;
           } else if (instruction.key === 'season_create_error_prisma_unique_constraint' || instruction.key === 'season_create_error_prisma') {
-            mappedKey = 'newCommand.season.error_db';
+            errorMessage = strings.messages.newSeason.errorDatabase;
           } else if (instruction.key === 'season_create_error_unknown') {
-            mappedKey = 'newCommand.season.error_unknown_service';
+            errorMessage = strings.messages.newSeason.errorUnknownService;
           } else {
-            mappedKey = 'newCommand.season.error_generic_service';
+            errorMessage = strings.messages.newSeason.errorGenericService;
           }
           
-          const mappedInstruction: MessageInstruction = {
-            ...instruction,
-            key: mappedKey
-          };
-          await MessageAdapter.processInstruction(mappedInstruction, intr, Language.Default);
+          await SimpleMessage.sendError(intr, errorMessage, instruction.data);
         }
       } catch (error) {
         console.error("Critical error in /new season command processing:", error);
-        const criticalErrorInstruction: MessageInstruction = {
-          type: 'error',
-          key: 'common.error.critical_command',
-          formatting: { ephemeral: true }
-        };
-        await MessageAdapter.processInstruction(criticalErrorInstruction, intr, Language.Default);
-      } finally {
-        // await prisma.$disconnect(); // Removed disconnect for local Prisma client
+        await SimpleMessage.sendError(intr, strings.messages.common.errorCriticalCommand);
       }
     } else {
-      const unknownSubcommandInstruction: MessageInstruction = {
-        type: 'error',
-        key: 'newCommand.error_unknown_subcommand',
-        formatting: { ephemeral: true }
-      };
-      await MessageAdapter.processInstruction(unknownSubcommandInstruction, intr, Language.Default);
+      await SimpleMessage.sendError(intr, "That subcommand for 'new' isn't recognized. Please check the command and try again.");
     }
   }
 }

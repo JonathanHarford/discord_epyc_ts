@@ -10,7 +10,7 @@ import { FormatUtils, InteractionUtils } from './index.js';
 import { Command } from '../commands/index.js';
 import { Permission } from '../models/enum-helpers/index.js';
 import { EventData } from '../models/internal-models.js';
-import { Lang } from '../services/index.js';
+import { strings } from '../lang/strings.js';
 
 export class CommandUtils {
     public static findCommand(commands: Command[], commandParts: string[]): Command {
@@ -44,10 +44,7 @@ export class CommandUtils {
             if (limited) {
                 await InteractionUtils.send(
                     intr,
-                    Lang.getEmbed('validationEmbeds.cooldownHit', data.lang, {
-                        AMOUNT: command.cooldown.amount.toLocaleString(data.lang),
-                        INTERVAL: FormatUtils.duration(command.cooldown.interval, data.lang),
-                    })
+                    `You are being rate limited. Please wait ${command.cooldown.interval}ms before using this command again.`
                 );
                 return false;
             }
@@ -57,13 +54,13 @@ export class CommandUtils {
             (intr.channel instanceof GuildChannel || intr.channel instanceof ThreadChannel) &&
             !intr.channel.permissionsFor(intr.client.user).has(command.requireClientPerms)
         ) {
+            const missingPerms = command.requireClientPerms
+                .map(perm => `**${Permission.Data[perm].displayName()}**`)
+                .join(', ');
+            
             await InteractionUtils.send(
                 intr,
-                Lang.getEmbed('validationEmbeds.missingClientPerms', data.lang, {
-                    PERMISSIONS: command.requireClientPerms
-                        .map(perm => `**${Permission.Data[perm].displayName(data.lang)}**`)
-                        .join(', '),
-                })
+                `I'm missing the following permissions: ${missingPerms}`
             );
             return false;
         }

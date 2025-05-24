@@ -47,7 +47,8 @@
         "test:watch": "vitest",
         "test:coverage": "vitest run --coverage",
         "test:unit": "vitest run --exclude **/*.integration.test.ts",
-        "test:integration": "vitest run **/*.integration.test.ts"
+        "test:integration": "vitest run **/*.integration.test.ts",
+        "validate-lang": "pnpm run build && node --enable-source-maps scripts/validate-language-keys.js"
     },
     "dependencies": {
         "@discordjs/rest": "^2.4.3",

@@ -12,8 +12,8 @@ import {
   CommandInteraction
 } from 'discord.js';
 import { MessageInstruction } from '../types/MessageInstruction.js';
-import { Lang } from '../services/lang.js';
-import { Language } from '../models/enum-helpers/language.js';
+import { SimpleMessage } from './SimpleMessage.js';
+import { strings, interpolate } from '../lang/strings.js';
 import { MessageUtils } from '../utils/message-utils.js';
 import { ErrorEventBus, ErrorEventType } from '../events/error-event-bus.js';
 import { ErrorHandler, ErrorType, ErrorSeverity } from '../utils/error-handler.js';
@@ -28,14 +28,14 @@ export class MessageAdapter {
    * Process a MessageInstruction and send the appropriate Discord message
    * @param instruction The message instruction to process
    * @param interaction Optional Discord interaction for replies
-   * @param langCode Language code for localization
+   * @param langCode Language code for localization (deprecated, always uses 'en')
    * @param discordClient Optional Discord client for DM sending
    * @returns Promise that resolves when message is sent
    */
   public static async processInstruction(
     instruction: MessageInstruction,
     interaction?: CommandInteraction,
-    langCode: string = Language.Default,
+    langCode: string = 'en',
     discordClient?: any // TODO: Type as Discord Client when available
   ): Promise<void> {
     const messageContent = this.generateMessageContent(instruction, langCode);
@@ -55,71 +55,79 @@ export class MessageAdapter {
   /**
    * Generate the message content from a MessageInstruction
    * @param instruction The message instruction
-   * @param langCode Language code for localization
+   * @param langCode Language code for localization (deprecated, always uses 'en')
    * @returns The formatted message content
    */
   public static generateMessageContent(
     instruction: MessageInstruction,
-    langCode: string = Language.Default
+    langCode: string = 'en'
   ): BaseMessageOptions {
     if (instruction.formatting?.embed) {
-      // For embed messages, try to use Lang.getEmbed first
+      // Try to get the string from the new strings system
       try {
-        const embed = Lang.getEmbed(instruction.key, langCode as any, instruction.data);
+        const text = this.getStringFromKey(instruction.key, instruction.data);
+        const embed = this.createEmbed(instruction, text);
         return { embeds: [embed] };
       } catch (error) {
-        // If Lang.getEmbed fails, fall back to creating a simple embed with Lang.getRef
-        console.warn(`[MessageAdapter] Lang.getEmbed failed for key '${instruction.key}', falling back to simple embed:`, error);
+        // Enhanced logging for embed processing failures
+        console.error(`[MessageAdapter] Failed to get string for key '${instruction.key}':`, {
+          key: instruction.key,
+          langCode,
+          data: instruction.data,
+          error: error instanceof Error ? error.message : error,
+          stack: error instanceof Error ? error.stack : undefined
+        });
         
-        try {
-          const text = Lang.getRef(instruction.key, langCode as any, instruction.data);
-          
-          // Check if the result is a complex object (indicating wrong method usage)
-          if (typeof text === 'object' && text !== null) {
-            console.error(`[MessageAdapter] Language key '${instruction.key}' contains complex object but should be a simple string for embed content. Consider moving to displayEmbeds.* structure.`);
-            // Try to extract a meaningful string from the object
-            const fallbackText = (text as any).description || (text as any).title || JSON.stringify(text);
-            const embed = this.createEmbed(instruction, fallbackText);
-            return { embeds: [embed] };
-          }
-          
-          const embed = this.createEmbed(instruction, text);
-          return { embeds: [embed] };
-        } catch (langError) {
-          console.error(`[MessageAdapter] Lang.getRef also failed for key '${instruction.key}':`, langError);
-          
-          // Log the error and emit an error event for monitoring
-          const errorInfo = ErrorHandler.createCustomError(
-            ErrorType.LOCALIZATION_ERROR,
-            'LOCALIZATION_FAILURE',
-            `Failed to load language key: ${instruction.key}`,
-            'An error occurred while processing your request. Please try again later.',
-            { key: instruction.key, instruction, langError }
-          );
-          
-          const eventBus = ErrorEventBus.getInstance();
-          eventBus.publishError(
-            ErrorEventType.MESSAGE_ERROR,
-            errorInfo,
-            { source: 'MessageAdapter.generateMessageContent' }
-          );
-          
-          // Last resort: create a basic error embed with generic message - do not expose the internal key
-          const embed = this.createEmbed(instruction, "An error occurred while processing your request. Please try again later.");
-          return { embeds: [embed] };
-        }
+        // Log the error and emit an error event for monitoring
+        const errorInfo = ErrorHandler.createCustomError(
+          ErrorType.LOCALIZATION_ERROR,
+          'LOCALIZATION_FAILURE',
+          `Failed to load language key: ${instruction.key}`,
+          'An error occurred while processing your request. Please try again later.',
+          { key: instruction.key, instruction }
+        );
+        
+        const eventBus = ErrorEventBus.getInstance();
+        eventBus.publishError(
+          ErrorEventType.MESSAGE_ERROR,
+          errorInfo,
+          { source: 'MessageAdapter.generateMessageContent', key: instruction.key }
+        );
+        
+        // Last resort: create a basic error embed with generic message
+        const embed = this.createEmbed(instruction, "An error occurred while processing your request. Please try again later.");
+        return { embeds: [embed] };
       }
     }
     
-    const text = Lang.getRef(instruction.key, langCode as any, instruction.data);
+    const text = this.getStringFromKey(instruction.key, instruction.data);
+    return { content: text };
+  }
+
+  /**
+   * Get a string from the new strings system using a key
+   * @param key The string key (e.g., 'messages.admin.success')
+   * @param data Variables for interpolation
+   * @returns The interpolated string
+   */
+  private static getStringFromKey(key: string, data?: Record<string, any>): string {
+    // Navigate through the strings object using the key path
+    const keyParts = key.split('.');
+    let value: any = strings;
     
-    // For non-embed messages, we still need to handle complex objects gracefully
-    if (typeof text === 'object' && text !== null) {
-      console.error(`[MessageAdapter] Language key '${instruction.key}' returned complex object for non-embed message. Using fallback text.`);
-      return { content: (text as any).description || (text as any).title || JSON.stringify(text) };
+    for (const part of keyParts) {
+      if (value && typeof value === 'object' && part in value) {
+        value = value[part];
+      } else {
+        throw new Error(`String key not found: ${key}`);
+      }
     }
     
-    return { content: text };
+    if (typeof value !== 'string') {
+      throw new Error(`String key does not resolve to a string: ${key}`);
+    }
+    
+    return data ? interpolate(value, data) : value;
   }
 
   /**
@@ -337,7 +345,7 @@ export class MessageAdapter {
   public static async safeProcessInstruction(
     instruction: MessageInstruction,
     interaction?: CommandInteraction,
-    langCode: string = Language.Default,
+    langCode: string = 'en',
     discordClient?: any
   ): Promise<boolean> {
     try {

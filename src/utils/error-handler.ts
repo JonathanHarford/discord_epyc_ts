@@ -1,8 +1,7 @@
-import { CommandInteraction, Message } from 'discord.js';
+import { CommandInteraction, Message, Locale } from 'discord.js';
 import { MessageInstruction } from '../types/MessageInstruction.js';
 import { MessageAdapter } from '../messaging/MessageAdapter.js';
 import { Logger } from '../services/index.js';
-import { Language } from '../models/enum-helpers/language.js';
 import { EventData } from '../models/internal-models.js';
 import { ErrorEventBus, ErrorEventType } from '../events/error-event-bus.js';
 
@@ -140,7 +139,7 @@ export class ErrorHandler {
         const success = await MessageAdapter.safeProcessInstruction(
             instruction, 
             undefined, 
-            Language.Default, 
+            Locale.EnglishUS, 
             message.client
         );
         

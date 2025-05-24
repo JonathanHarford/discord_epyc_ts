@@ -1,24 +1,21 @@
 import { ChatInputCommandInteraction, PermissionsString, SlashCommandBuilder } from 'discord.js';
 import { createRequire } from 'node:module';
 
-import { Language } from '../../models/enum-helpers/index.js';
 import { EventData } from '../../models/internal-models.js';
-import { Lang } from '../../services/index.js';
 import { Command, CommandDeferType } from '../index.js';
-import { MessageHelpers } from '../../messaging/MessageHelpers.js';
-import { MessageAdapter } from '../../messaging/MessageAdapter.js';
+import { SimpleMessage } from '../../messaging/SimpleMessage.js';
+import { strings } from '../../lang/strings.js';
 import { SeasonService } from '../../services/SeasonService.js';
 import { TurnService } from '../../services/TurnService.js';
 import { SchedulerService } from '../../services/SchedulerService.js';
 import { PlayerService } from '../../services/PlayerService.js';
-import { LangKeys } from '../../constants/lang-keys.js';
 import prisma from '../../lib/prisma.js';
 
 const require = createRequire(import.meta.url);
 let Config = require('../../../config/config.json');
 
 export class AdminCommand implements Command {
-    public names = [Lang.getRef('chatCommands.admin', Language.Default)];
+    public names = [strings.chatCommands.admin];
     public deferType = CommandDeferType.HIDDEN;
     public requireClientPerms: PermissionsString[] = [];
 
@@ -35,8 +32,7 @@ export class AdminCommand implements Command {
     public async execute(intr: ChatInputCommandInteraction, data: EventData): Promise<void> {
         // Check if user has admin permissions (using developers array for now)
         if (!Config.developers.includes(intr.user.id)) {
-            const adminOnlyInstruction = MessageHelpers.embedMessage('warning', LangKeys.Commands.Admin.NotAdmin, {}, true);
-            await MessageAdapter.processInstruction(adminOnlyInstruction, intr, data.lang);
+            await SimpleMessage.sendWarning(intr, strings.messages.admin.notAdmin, {}, true);
             return;
         }
 
@@ -63,8 +59,7 @@ export class AdminCommand implements Command {
                 break;
             }
             default: {
-                const notImplementedInstruction = MessageHelpers.embedMessage('warning', 'errorEmbeds.notImplemented', {}, true);
-                await MessageAdapter.processInstruction(notImplementedInstruction, intr, data.lang);
+                await SimpleMessage.sendEmbed(intr, strings.embeds.errorEmbeds.notImplemented, {}, true, 'warning');
                 return;
             }
         }
@@ -81,15 +76,14 @@ export class AdminCommand implements Command {
                 
                 try {
                     const result = await this.seasonService.terminateSeason(seasonId);
-                    await MessageAdapter.processInstruction(result, intr, data.lang);
+                    await this.handleMessageInstruction(result, intr);
                 } catch (error) {
                     console.error('Error in admin terminate season command:', error);
-                    const errorInstruction = MessageHelpers.embedMessage('error', 'errorEmbeds.command', {
+                    await SimpleMessage.sendEmbed(intr, strings.embeds.errorEmbeds.command, {
                         ERROR_CODE: 'ADMIN_TERMINATE_SEASON_ERROR',
                         GUILD_ID: intr.guild?.id ?? 'N/A',
                         SHARD_ID: intr.guild?.shardId?.toString() ?? 'N/A'
-                    }, true);
-                    await MessageAdapter.processInstruction(errorInstruction, intr, data.lang);
+                    }, true, 'error');
                 }
             }
         }
@@ -108,8 +102,7 @@ export class AdminCommand implements Command {
                 break;
             }
             default: {
-                const notImplementedInstruction = MessageHelpers.embedMessage('warning', 'errorEmbeds.notImplemented', {}, true);
-                await MessageAdapter.processInstruction(notImplementedInstruction, intr, data.lang);
+                await SimpleMessage.sendEmbed(intr, strings.embeds.errorEmbeds.notImplemented, {}, true, 'warning');
                 return;
             }
         }
@@ -122,31 +115,29 @@ export class AdminCommand implements Command {
         try {
             const bannedPlayer = await this.playerService.banPlayer(targetUser.id, reason || undefined);
             
-            const successInstruction = MessageHelpers.embedMessage('success', 'admin.player.ban.success', {
-                PLAYER_NAME: bannedPlayer.name,
-                PLAYER_ID: targetUser.id,
-                REASON: reason ? `\n**Reason:** ${reason}` : ''
+            await SimpleMessage.sendSuccess(intr, strings.messages.admin.player.ban.success, {
+                playerName: bannedPlayer.name,
+                reason: reason ? `\n**Reason:** ${reason}` : ''
             }, true);
-            
-            await MessageAdapter.processInstruction(successInstruction, intr, data.lang);
         } catch (error) {
             console.error('Error in admin ban command:', error);
             
-            let errorMessage = 'admin.player.ban.error';
+            let errorMessage: string;
             if (error instanceof Error) {
                 if (error.message.includes('not found')) {
-                    errorMessage = 'admin.player.ban.notFound';
+                    errorMessage = strings.messages.admin.player.ban.notFound;
                 } else if (error.message.includes('already banned')) {
-                    errorMessage = 'admin.player.ban.alreadyBanned';
+                    errorMessage = strings.messages.admin.player.ban.alreadyBanned;
+                } else {
+                    errorMessage = strings.messages.admin.player.ban.error;
                 }
+            } else {
+                errorMessage = strings.messages.admin.player.ban.error;
             }
             
-            const errorInstruction = MessageHelpers.embedMessage('error', errorMessage, {
-                PLAYER_ID: targetUser.id,
-                ERROR: error instanceof Error ? error.message : 'Unknown error'
+            await SimpleMessage.sendError(intr, errorMessage, {
+                playerName: targetUser.displayName || targetUser.username
             }, true);
-            
-            await MessageAdapter.processInstruction(errorInstruction, intr, data.lang);
         }
     }
 
@@ -156,30 +147,28 @@ export class AdminCommand implements Command {
         try {
             const unbannedPlayer = await this.playerService.unbanPlayer(targetUser.id);
             
-            const successInstruction = MessageHelpers.embedMessage('success', 'admin.player.unban.success', {
-                PLAYER_NAME: unbannedPlayer.name,
-                PLAYER_ID: targetUser.id
+            await SimpleMessage.sendSuccess(intr, strings.messages.admin.player.unban.success, {
+                playerName: unbannedPlayer.name
             }, true);
-            
-            await MessageAdapter.processInstruction(successInstruction, intr, data.lang);
         } catch (error) {
             console.error('Error in admin unban command:', error);
             
-            let errorMessage = 'admin.player.unban.error';
+            let errorMessage: string;
             if (error instanceof Error) {
                 if (error.message.includes('not found')) {
-                    errorMessage = 'admin.player.unban.notFound';
+                    errorMessage = strings.messages.admin.player.unban.notFound;
                 } else if (error.message.includes('not currently banned')) {
-                    errorMessage = 'admin.player.unban.notBanned';
+                    errorMessage = strings.messages.admin.player.unban.notBanned;
+                } else {
+                    errorMessage = strings.messages.admin.player.unban.error;
                 }
+            } else {
+                errorMessage = strings.messages.admin.player.unban.error;
             }
             
-            const errorInstruction = MessageHelpers.embedMessage('error', errorMessage, {
-                PLAYER_ID: targetUser.id,
-                ERROR: error instanceof Error ? error.message : 'Unknown error'
+            await SimpleMessage.sendError(intr, errorMessage, {
+                playerName: targetUser.displayName || targetUser.username
             }, true);
-            
-            await MessageAdapter.processInstruction(errorInstruction, intr, data.lang);
         }
     }
 
@@ -196,8 +185,7 @@ export class AdminCommand implements Command {
                 break;
             }
             default: {
-                const notImplementedInstruction = MessageHelpers.embedMessage('warning', 'errorEmbeds.notImplemented', {}, true);
-                await MessageAdapter.processInstruction(notImplementedInstruction, intr, data.lang);
+                await SimpleMessage.sendEmbed(intr, strings.embeds.errorEmbeds.notImplemented, {}, true, 'warning');
                 return;
             }
         }
@@ -205,18 +193,17 @@ export class AdminCommand implements Command {
 
     private async handleListSeasonsCommand(intr: ChatInputCommandInteraction, data: EventData): Promise<void> {
         const statusFilter = intr.options.getString('status');
-
+        
         try {
             const result = await this.seasonService.listSeasons(statusFilter || undefined);
-            await MessageAdapter.processInstruction(result, intr, data.lang);
+            await this.handleMessageInstruction(result, intr);
         } catch (error) {
             console.error('Error in admin list seasons command:', error);
-            const errorInstruction = MessageHelpers.embedMessage('error', 'errorEmbeds.command', {
+            await SimpleMessage.sendEmbed(intr, strings.embeds.errorEmbeds.command, {
                 ERROR_CODE: 'ADMIN_LIST_SEASONS_ERROR',
                 GUILD_ID: intr.guild?.id ?? 'N/A',
                 SHARD_ID: intr.guild?.shardId?.toString() ?? 'N/A'
-            }, true);
-            await MessageAdapter.processInstruction(errorInstruction, intr, data.lang);
+            }, true, 'error');
         }
     }
 
@@ -224,22 +211,105 @@ export class AdminCommand implements Command {
         const seasonFilter = intr.options.getString('season');
         const bannedFilter = intr.options.getBoolean('banned');
 
-
-
         try {
             const result = await this.playerService.listPlayers(
                 seasonFilter || undefined, 
                 bannedFilter || undefined
             );
-            await MessageAdapter.processInstruction(result, intr, data.lang);
+            await this.handleMessageInstruction(result, intr);
         } catch (error) {
             console.error('Error in admin list players command:', error);
-            const errorInstruction = MessageHelpers.embedMessage('error', 'errorEmbeds.command', {
+            await SimpleMessage.sendEmbed(intr, strings.embeds.errorEmbeds.command, {
                 ERROR_CODE: 'ADMIN_LIST_PLAYERS_ERROR',
                 GUILD_ID: intr.guild?.id ?? 'N/A',
                 SHARD_ID: intr.guild?.shardId?.toString() ?? 'N/A'
-            }, true);
-            await MessageAdapter.processInstruction(errorInstruction, intr, data.lang);
+            }, true, 'error');
         }
+    }
+
+    /**
+     * Convert MessageInstruction to SimpleMessage call
+     */
+    private async handleMessageInstruction(instruction: any, intr: ChatInputCommandInteraction): Promise<void> {
+        // This is a temporary bridge method to handle services that still return MessageInstruction
+        // TODO: Update services to return plain data instead of MessageInstruction
+        
+        const ephemeral = instruction.formatting?.ephemeral ?? false;
+        
+        if (instruction.formatting?.embed) {
+            // Try to find the embed data in strings based on the key
+            const embedData = this.getEmbedFromKey(instruction.key);
+            if (embedData) {
+                await SimpleMessage.sendEmbed(intr, embedData, instruction.data, ephemeral, instruction.type);
+            } else {
+                // Fallback: create a simple message
+                const content = this.getStringFromKey(instruction.key, instruction.data);
+                switch (instruction.type) {
+                    case 'success':
+                        await SimpleMessage.sendSuccess(intr, content, {}, ephemeral);
+                        break;
+                    case 'error':
+                        await SimpleMessage.sendError(intr, content, {}, ephemeral);
+                        break;
+                    case 'warning':
+                        await SimpleMessage.sendWarning(intr, content, {}, ephemeral);
+                        break;
+                    default:
+                        await SimpleMessage.sendInfo(intr, content, {}, ephemeral);
+                }
+            }
+        } else {
+            // Simple text message
+            const content = this.getStringFromKey(instruction.key, instruction.data);
+            switch (instruction.type) {
+                case 'success':
+                    await SimpleMessage.sendSuccess(intr, content, {}, ephemeral);
+                    break;
+                case 'error':
+                    await SimpleMessage.sendError(intr, content, {}, ephemeral);
+                    break;
+                case 'warning':
+                    await SimpleMessage.sendWarning(intr, content, {}, ephemeral);
+                    break;
+                default:
+                    await SimpleMessage.sendInfo(intr, content, {}, ephemeral);
+            }
+        }
+    }
+
+    private getEmbedFromKey(key: string): any {
+        // Try to find embed data in strings.embeds based on the key
+        const parts = key.split('.');
+        let current: any = strings.embeds;
+        
+        for (const part of parts) {
+            if (current && typeof current === 'object' && part in current) {
+                current = current[part];
+            } else {
+                return null;
+            }
+        }
+        
+        return current && typeof current === 'object' ? current : null;
+    }
+
+    private getStringFromKey(key: string, data?: Record<string, any>): string {
+        // Try to find string in the strings object
+        const parts = key.split('.');
+        let current: any = strings;
+        
+        for (const part of parts) {
+            if (current && typeof current === 'object' && part in current) {
+                current = current[part];
+            } else {
+                console.warn(`String key not found: ${key}`);
+                return `Missing string: ${key}`;
+            }
+        }
+        
+        const result = typeof current === 'string' ? current : JSON.stringify(current);
+        return data ? result.replace(/\{(\w+)\}/g, (match, varKey) => {
+            return data[varKey] !== undefined ? String(data[varKey]) : match;
+        }) : result;
     }
 } 
