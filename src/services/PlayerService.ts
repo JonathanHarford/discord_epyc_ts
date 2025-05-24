@@ -170,7 +170,8 @@ export class PlayerService {
         }
       });
 
-      return MessageHelpers.commandSuccess(
+      return MessageHelpers.embedMessage(
+        'success',
         'admin.list_players_success',
         {
           players: players.map(player => ({
@@ -191,13 +192,16 @@ export class PlayerService {
           totalCount: players.length,
           seasonFilter: seasonId || null,
           bannedFilter: bannedOnly
-        }
+        },
+        true // Admin messages should be ephemeral
       );
     } catch (error) {
       console.error('Error in PlayerService.listPlayers:', error);
-      return MessageHelpers.commandError(
+      return MessageHelpers.embedMessage(
+        'error',
         'admin.list_players_error',
-        { error: error instanceof Error ? error.message : 'Unknown error' }
+        { error: error instanceof Error ? error.message : 'Unknown error' },
+        true // Admin error messages should be ephemeral
       );
     }
   }

@@ -62,11 +62,44 @@ export class MessageAdapter {
     instruction: MessageInstruction,
     langCode: string = Language.Default
   ): BaseMessageOptions {
+    if (instruction.formatting?.embed) {
+      // For embed messages, try to use Lang.getEmbed first
+      try {
+        const embed = Lang.getEmbed(instruction.key, langCode as any, instruction.data);
+        return { embeds: [embed] };
+      } catch (error) {
+        // If Lang.getEmbed fails, fall back to creating a simple embed with Lang.getRef
+        console.warn(`[MessageAdapter] Lang.getEmbed failed for key '${instruction.key}', falling back to simple embed:`, error);
+        
+        try {
+          const text = Lang.getRef(instruction.key, langCode as any, instruction.data);
+          
+          // Check if the result is a complex object (indicating wrong method usage)
+          if (typeof text === 'object' && text !== null) {
+            console.error(`[MessageAdapter] Language key '${instruction.key}' contains complex object but should be a simple string for embed content. Consider moving to displayEmbeds.* structure.`);
+            // Try to extract a meaningful string from the object
+            const fallbackText = (text as any).description || (text as any).title || JSON.stringify(text);
+            const embed = this.createEmbed(instruction, fallbackText);
+            return { embeds: [embed] };
+          }
+          
+          const embed = this.createEmbed(instruction, text);
+          return { embeds: [embed] };
+        } catch (langError) {
+          console.error(`[MessageAdapter] Lang.getRef also failed for key '${instruction.key}':`, langError);
+          // Last resort: create a basic error embed
+          const embed = this.createEmbed(instruction, `Error: Could not load message for key '${instruction.key}'`);
+          return { embeds: [embed] };
+        }
+      }
+    }
+    
     const text = Lang.getRef(instruction.key, langCode as any, instruction.data);
     
-    if (instruction.formatting?.embed) {
-      const embed = this.createEmbed(instruction, text);
-      return { embeds: [embed] };
+    // For non-embed messages, we still need to handle complex objects gracefully
+    if (typeof text === 'object' && text !== null) {
+      console.error(`[MessageAdapter] Language key '${instruction.key}' returned complex object for non-embed message. Using fallback text.`);
+      return { content: (text as any).description || (text as any).title || JSON.stringify(text) };
     }
     
     return { content: text };

@@ -689,7 +689,8 @@ export class SeasonService {
         }
       });
 
-      return MessageHelpers.commandSuccess(
+      return MessageHelpers.embedMessage(
+        'success',
         'admin.list_seasons_success',
         {
           seasons: seasons.map(season => ({
@@ -704,13 +705,16 @@ export class SeasonService {
           })),
           totalCount: seasons.length,
           statusFilter: statusFilter || 'all'
-        }
+        },
+        true // Admin messages should be ephemeral
       );
     } catch (error) {
       console.error('Error in SeasonService.listSeasons:', error);
-      return MessageHelpers.commandError(
+      return MessageHelpers.embedMessage(
+        'error',
         'admin.list_seasons_error',
-        { error: error instanceof Error ? error.message : 'Unknown error' }
+        { error: error instanceof Error ? error.message : 'Unknown error' },
+        true // Admin error messages should be ephemeral
       );
     }
   }
