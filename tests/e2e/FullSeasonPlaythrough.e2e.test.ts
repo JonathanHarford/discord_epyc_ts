@@ -112,10 +112,10 @@ describe('Full Season Playthrough End-to-End Test', () => {
       
       if (i === 3) {
         // Last player joining should trigger activation
-        expect(result.key).toBe('messages.newSeason.seasonActivateSuccess');
+        expect(result.key).toBe('messages.season.activateSuccess');
         console.log(`✅ Player ${i + 1} joined - Season activated!`);
       } else {
-        expect(result.key).toBe('messages.joinSeason.success');
+        expect(result.key).toBe('messages.season.joinSuccess');
         console.log(`✅ Player ${i + 1} joined`);
       }
     }

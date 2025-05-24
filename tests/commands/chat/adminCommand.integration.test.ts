@@ -1,25 +1,12 @@
 import { describe, it, expect, beforeEach, afterEach, vi, afterAll, beforeAll } from 'vitest';
-import { ChatInputCommandInteraction, PermissionsString, MessageFlags } from 'discord.js';
+import { ChatInputCommandInteraction, PermissionsString, MessageFlags, Locale } from 'discord.js';
 import { AdminCommand } from '../../../src/commands/chat/admin-command.js';
 import { PrismaClient } from '@prisma/client';
 import { nanoid } from 'nanoid';
-import { Lang } from '../../../src/services/lang.js';
-import { Language } from '../../../src/models/enum-helpers/language.js';
 import { EventData } from '../../../src/models/internal-models.js';
 import { SeasonService } from '../../../src/services/SeasonService.js';
 import { TurnService } from '../../../src/services/TurnService.js';
 import { SchedulerService } from '../../../src/services/SchedulerService.js';
-
-// Mock Lang service
-vi.mock('../../../src/services/lang.js', () => ({
-  Lang: {
-    getRef: vi.fn().mockReturnValue('admin'),
-    getRefLocalizationMap: vi.fn().mockReturnValue({})
-  },
-  Language: {
-    Default: 'en-US'
-  }
-}));
 
 // Mock config to include test user as developer/admin
 vi.mock('../../../../config/config.json', () => ({
@@ -39,7 +26,7 @@ describe('AdminCommand - Integration Tests', () => {
   beforeAll(async () => {
     prisma = new PrismaClient();
     commandInstance = new AdminCommand();
-    mockEventData = { lang: Language.Default, langGuild: Language.Default };
+    mockEventData = new EventData(Locale.EnglishUS, Locale.EnglishUS);
     
     // Clean database and set up test data
     await prisma.$transaction([

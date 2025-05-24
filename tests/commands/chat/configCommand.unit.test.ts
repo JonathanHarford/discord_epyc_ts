@@ -1,32 +1,17 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { ChatInputCommandInteraction } from 'discord.js';
+import { ChatInputCommandInteraction, Locale } from 'discord.js';
 import { EventData } from '../../../src/models/internal-models.js';
-import { Language } from '../../../src/models/enum-helpers/language.js';
-import { MessageHelpers } from '../../../src/messaging/MessageHelpers.js';
-import { MessageAdapter } from '../../../src/messaging/MessageAdapter.js';
-import { LangKeys } from '../../../src/constants/lang-keys.js';
+import { SimpleMessage } from '../../../src/messaging/SimpleMessage.js';
+import { strings } from '../../../src/lang/strings.js';
 
-// Mock the Lang service
-vi.mock('../../../src/services/lang.js', () => ({
-  Lang: {
-    getRef: vi.fn().mockReturnValue('config'),
-    getRefLocalizationMap: vi.fn().mockReturnValue({})
-  },
-  Language: {
-    Default: 'en-US'
-  }
-}));
-
-// Mock the messaging layer
-vi.mock('../../../src/messaging/MessageHelpers.js', () => ({
-  MessageHelpers: {
-    embedMessage: vi.fn().mockReturnValue({ type: 'embed', content: 'mock message' })
-  }
-}));
-
-vi.mock('../../../src/messaging/MessageAdapter.js', () => ({
-  MessageAdapter: {
-    processInstruction: vi.fn().mockResolvedValue(undefined)
+// Mock the SimpleMessage class
+vi.mock('../../../src/messaging/SimpleMessage.js', () => ({
+  SimpleMessage: {
+    sendEmbed: vi.fn().mockResolvedValue(undefined),
+    sendSuccess: vi.fn().mockResolvedValue(undefined),
+    sendError: vi.fn().mockResolvedValue(undefined),
+    sendWarning: vi.fn().mockResolvedValue(undefined),
+    sendInfo: vi.fn().mockResolvedValue(undefined)
   }
 }));
 
@@ -52,7 +37,7 @@ describe('ConfigCommand - Unit Tests', () => {
   beforeEach(() => {
     vi.clearAllMocks();
     configCommand = new ConfigCommand();
-    mockEventData = { lang: Language.Default, langGuild: Language.Default };
+    mockEventData = new EventData(Locale.EnglishUS, Locale.EnglishUS);
 
     // Create a comprehensive mock interaction
     mockInteraction = {
@@ -86,13 +71,12 @@ describe('ConfigCommand - Unit Tests', () => {
 
       await configCommand.execute(mockInteraction, mockEventData);
 
-      // Should not call MessageAdapter with admin-only warning
-      expect(MessageAdapter.processInstruction).not.toHaveBeenCalledWith(
-        expect.objectContaining({
-          content: expect.stringContaining('admin')
-        }),
+      // Should not call SimpleMessage.sendWarning with admin warning
+      expect(SimpleMessage.sendWarning).not.toHaveBeenCalledWith(
         mockInteraction,
-        mockEventData.lang
+        expect.stringContaining('admin'),
+        expect.any(Object),
+        true
       );
     });
 
@@ -101,19 +85,12 @@ describe('ConfigCommand - Unit Tests', () => {
 
       await configCommand.execute(mockInteraction, mockEventData);
 
-      // Should call MessageHelpers.embedMessage with admin-only warning
-      expect(MessageHelpers.embedMessage).toHaveBeenCalledWith(
-        'warning',
-        LangKeys.Commands.Config.NotAdmin,
+      // Should call SimpleMessage.sendWarning with admin-only warning
+      expect(SimpleMessage.sendWarning).toHaveBeenCalledWith(
+        mockInteraction,
+        strings.messages.admin.notAdmin,
         {},
         true
-      );
-
-      // Should call MessageAdapter.processInstruction with the warning
-      expect(MessageAdapter.processInstruction).toHaveBeenCalledWith(
-        { type: 'embed', content: 'mock message' },
-        mockInteraction,
-        mockEventData.lang
       );
     });
   });
@@ -138,19 +115,13 @@ describe('ConfigCommand - Unit Tests', () => {
 
       await configCommand.execute(mockInteraction, mockEventData);
 
-      // Should call MessageHelpers.embedMessage with not implemented warning
-      expect(MessageHelpers.embedMessage).toHaveBeenCalledWith(
-        'warning',
-        'errorEmbeds.notImplemented',
-        {},
-        true
-      );
-
-      // Should call MessageAdapter.processInstruction with the warning
-      expect(MessageAdapter.processInstruction).toHaveBeenCalledWith(
-        { type: 'embed', content: 'mock message' },
+      // Should call SimpleMessage.sendEmbed with not implemented warning
+      expect(SimpleMessage.sendEmbed).toHaveBeenCalledWith(
         mockInteraction,
-        mockEventData.lang
+        strings.embeds.errorEmbeds.notImplemented,
+        {},
+        true,
+        'warning'
       );
     });
 
@@ -159,12 +130,13 @@ describe('ConfigCommand - Unit Tests', () => {
 
       await configCommand.execute(mockInteraction, mockEventData);
 
-      // Should call MessageHelpers.embedMessage with not implemented warning
-      expect(MessageHelpers.embedMessage).toHaveBeenCalledWith(
-        'warning',
-        'errorEmbeds.notImplemented',
+      // Should call SimpleMessage.sendEmbed with not implemented warning
+      expect(SimpleMessage.sendEmbed).toHaveBeenCalledWith(
+        mockInteraction,
+        strings.embeds.errorEmbeds.notImplemented,
         {},
-        true
+        true,
+        'warning'
       );
     });
   });
@@ -215,10 +187,10 @@ describe('ConfigCommand - Unit Tests', () => {
       expect(mockConfigService.getGuildDefaultConfig).toHaveBeenCalledWith('test-guild-id');
       expect(mockConfigService.formatConfigForDisplay).toHaveBeenCalledWith(mockConfig);
 
-      // Should call MessageHelpers.embedMessage with view success
-      expect(MessageHelpers.embedMessage).toHaveBeenCalledWith(
-        'info',
-        LangKeys.Commands.Config.ViewSuccess,
+      // Should call SimpleMessage.sendEmbed with config view data
+      expect(SimpleMessage.sendEmbed).toHaveBeenCalledWith(
+        mockInteraction,
+        strings.embeds.configView,
         expect.objectContaining({
           GUILD_ID: 'test-guild-id',
           TURN_PATTERN: 'WDWDWD',
@@ -233,7 +205,8 @@ describe('ConfigCommand - Unit Tests', () => {
           IS_GUILD_DEFAULT: 'Yes',
           LAST_UPDATED: mockConfig.updatedAt.toISOString()
         }),
-        true
+        true,
+        'info'
       );
     });
 
@@ -242,10 +215,10 @@ describe('ConfigCommand - Unit Tests', () => {
 
       await configCommand.execute(mockInteraction, mockEventData);
 
-      // Should call MessageHelpers.embedMessage with guild only error
-      expect(MessageHelpers.embedMessage).toHaveBeenCalledWith(
-        'error',
-        'errorEmbeds.guildOnly',
+      // Should call SimpleMessage.sendError with guild only error
+      expect(SimpleMessage.sendError).toHaveBeenCalledWith(
+        mockInteraction,
+        "This command can only be used in a server.",
         {},
         true
       );
@@ -256,16 +229,17 @@ describe('ConfigCommand - Unit Tests', () => {
 
       await configCommand.execute(mockInteraction, mockEventData);
 
-      // Should call MessageHelpers.embedMessage with command error
-      expect(MessageHelpers.embedMessage).toHaveBeenCalledWith(
-        'error',
-        'errorEmbeds.command',
+      // Should call SimpleMessage.sendEmbed with command error
+      expect(SimpleMessage.sendEmbed).toHaveBeenCalledWith(
+        mockInteraction,
+        strings.embeds.errorEmbeds.command,
         expect.objectContaining({
           ERROR_CODE: 'CONFIG_VIEW_ERROR',
           GUILD_ID: 'test-guild-id',
           SHARD_ID: '0'
         }),
-        true
+        true,
+        'error'
       );
     });
   });
@@ -296,7 +270,8 @@ describe('ConfigCommand - Unit Tests', () => {
       const mockResult = {
         type: 'success' as const,
         key: 'messages.config.updateSuccess',
-        data: { guildId: 'test-guild-id', updatedFields: 'turnPattern, claimTimeout, minPlayers, maxPlayers' }
+        data: { guildId: 'test-guild-id', updatedFields: 'turnPattern, claimTimeout, minPlayers, maxPlayers' },
+        formatting: { ephemeral: false }
       };
 
       mockConfigService.updateGuildDefaultConfig.mockResolvedValue(mockResult);
@@ -314,11 +289,12 @@ describe('ConfigCommand - Unit Tests', () => {
         }
       );
 
-      // Should call MessageAdapter with the result
-      expect(MessageAdapter.processInstruction).toHaveBeenCalledWith(
-        mockResult,
+      // Should call SimpleMessage.sendSuccess (through handleMessageInstruction)
+      expect(SimpleMessage.sendSuccess).toHaveBeenCalledWith(
         mockInteraction,
-        mockEventData.lang
+        "Configuration updated successfully for guild test-guild-id!\n**Updated fields:** turnPattern, claimTimeout, minPlayers, maxPlayers",
+        {},
+        false
       );
     });
 
@@ -328,10 +304,10 @@ describe('ConfigCommand - Unit Tests', () => {
 
       await configCommand.execute(mockInteraction, mockEventData);
 
-      // Should call MessageHelpers.embedMessage with no updates warning
-      expect(MessageHelpers.embedMessage).toHaveBeenCalledWith(
-        'warning',
-        'config.no_updates_provided',
+      // Should call SimpleMessage.sendWarning with no updates warning
+      expect(SimpleMessage.sendWarning).toHaveBeenCalledWith(
+        mockInteraction,
+        strings.messages.config.noUpdatesProvided,
         {},
         true
       );
@@ -342,10 +318,10 @@ describe('ConfigCommand - Unit Tests', () => {
 
       await configCommand.execute(mockInteraction, mockEventData);
 
-      // Should call MessageHelpers.embedMessage with guild only error
-      expect(MessageHelpers.embedMessage).toHaveBeenCalledWith(
-        'error',
-        'errorEmbeds.guildOnly',
+      // Should call SimpleMessage.sendError with guild only error
+      expect(SimpleMessage.sendError).toHaveBeenCalledWith(
+        mockInteraction,
+        "This command can only be used in a server.",
         {},
         true
       );
@@ -362,16 +338,17 @@ describe('ConfigCommand - Unit Tests', () => {
 
       await configCommand.execute(mockInteraction, mockEventData);
 
-      // Should call MessageHelpers.embedMessage with command error
-      expect(MessageHelpers.embedMessage).toHaveBeenCalledWith(
-        'error',
-        'errorEmbeds.command',
+      // Should call SimpleMessage.sendEmbed with command error
+      expect(SimpleMessage.sendEmbed).toHaveBeenCalledWith(
+        mockInteraction,
+        strings.embeds.errorEmbeds.command,
         expect.objectContaining({
           ERROR_CODE: 'CONFIG_SET_ERROR',
           GUILD_ID: 'test-guild-id',
           SHARD_ID: '0'
         }),
-        true
+        true,
+        'error'
       );
     });
   });
@@ -387,12 +364,13 @@ describe('ConfigCommand - Unit Tests', () => {
 
       await configCommand.execute(mockInteraction, mockEventData);
 
-      // Should call MessageHelpers.embedMessage with not implemented warning
-      expect(MessageHelpers.embedMessage).toHaveBeenCalledWith(
-        'warning',
-        'errorEmbeds.notImplemented',
+      // Should call SimpleMessage.sendEmbed with not implemented warning
+      expect(SimpleMessage.sendEmbed).toHaveBeenCalledWith(
+        mockInteraction,
+        strings.embeds.errorEmbeds.notImplemented,
         {},
-        true
+        true,
+        'warning'
       );
     });
   });

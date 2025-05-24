@@ -1,10 +1,9 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
-import { CommandInteraction, Message, User, Guild, TextChannel } from 'discord.js';
+import { CommandInteraction, Message, User, Guild, TextChannel, Locale } from 'discord.js';
 import { ErrorHandler, ErrorType, ErrorSeverity, ErrorInfo } from '../../src/utils/error-handler.js';
 import { MessageAdapter } from '../../src/messaging/MessageAdapter.js';
 import { ErrorEventBus, ErrorEventType } from '../../src/events/error-event-bus.js';
 import { EventData } from '../../src/models/internal-models.js';
-import { Language } from '../../src/models/enum-helpers/language.js';
 
 // Mock dependencies
 vi.mock('../../src/messaging/MessageAdapter.js');
@@ -49,7 +48,7 @@ describe('ErrorHandler', () => {
         } as Partial<Message>;
 
         // Mock event data
-        mockEventData = new EventData(Language.Default, Language.Default);
+        mockEventData = new EventData(Locale.EnglishUS, Locale.EnglishUS);
 
         // Mock event bus
         mockEventBus = {
@@ -223,7 +222,7 @@ describe('ErrorHandler', () => {
                     })
                 }),
                 mockInteraction,
-                Language.Default
+                Locale.EnglishUS
             );
         });
 
@@ -300,7 +299,7 @@ describe('ErrorHandler', () => {
                     })
                 }),
                 undefined,
-                Language.Default,
+                Locale.EnglishUS,
                 mockMessage.client
             );
         });

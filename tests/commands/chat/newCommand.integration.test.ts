@@ -1,24 +1,12 @@
 import { describe, it, expect, beforeEach, afterEach, vi, afterAll, beforeAll } from 'vitest';
-import { ChatInputCommandInteraction, PermissionsString, MessageFlags } from 'discord.js';
+import { ChatInputCommandInteraction, PermissionsString, MessageFlags, Locale } from 'discord.js';
 import { NewCommand } from '../../../src/commands/chat/new-command.js';
 import { PrismaClient } from '@prisma/client';
 import { nanoid } from 'nanoid';
-import { Lang } from '../../../src/services/lang.js';
-import { Language } from '../../../src/models/enum-helpers/language.js';
 import { EventData } from '../../../src/models/internal-models.js';
 import { SeasonService } from '../../../src/services/SeasonService.js';
 import { TurnService } from '../../../src/services/TurnService.js';
 import { SchedulerService } from '../../../src/services/SchedulerService.js';
-
-// Mock Lang service
-vi.mock('../../../src/services/lang.js', () => ({
-  Lang: {
-    getRef: vi.fn().mockReturnValue('Mock response message')
-  },
-  Language: {
-    Default: 'en-US'
-  }
-}));
 
 describe('NewCommand - Integration Tests', () => {
   let interaction: any; // Using any type for the mock interaction
@@ -60,7 +48,7 @@ describe('NewCommand - Integration Tests', () => {
     // Now create the command with proper dependencies
     commandInstance = new NewCommand(prisma, seasonService);
     
-    mockEventData = { lang: Language.Default, langGuild: Language.Default };
+    mockEventData = new EventData(Locale.EnglishUS, Locale.EnglishUS);
   });
 
   afterAll(async () => {

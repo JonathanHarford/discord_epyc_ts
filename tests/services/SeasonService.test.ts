@@ -8,7 +8,6 @@ import schedule from 'node-schedule';
 import { humanId } from 'human-id';
 import { nanoid } from 'nanoid';
 import { MessageInstruction } from '../../src/types/MessageInstruction.js';
-import { LangKeys } from '../../src/constants/lang-keys.js';
 import prisma from "../../src/lib/prisma.js";
 import { truncateTables } from "../utils/testUtils";
 
@@ -385,12 +384,12 @@ describe('SeasonService', () => {
     // Test: Add first player (should not trigger activation)
     const result1 = await realSeasonService.addPlayerToSeason(player1.id, seasonId);
     expect(result1.type).toBe('success');
-    expect(result1.key).toBe(LangKeys.Commands.JoinSeason.success);
+    expect(result1.key).toBe('messages.season.joinSuccess');
 
     // Test: Add second player (should trigger activation)
     const result2 = await realSeasonService.addPlayerToSeason(player2.id, seasonId);
     expect(result2.type).toBe('success');
-    expect(result2.key).toBe('messages.newSeason.seasonActivateSuccess');
+    expect(result2.key).toBe('messages.season.activateSuccess');
 
     // Verify season was activated in the database
     const updatedSeason = await prisma.season.findUnique({
@@ -488,7 +487,7 @@ describe('SeasonService', () => {
 
     // Assert: Verify the result indicates success
     expect(activationResult.type).toBe('success');
-    expect(activationResult.key).toBe('messages.newSeason.seasonActivateSuccess');
+    expect(activationResult.key).toBe('messages.season.activateSuccess');
     expect(activationResult.data?.seasonId).toBe(season.id);
     expect(activationResult.data?.status).toBe('ACTIVE');
 
@@ -970,7 +969,7 @@ describe('SeasonService', () => {
 
         expect(announcement).not.toBeNull();
         expect(announcement!.type).toBe('success');
-        expect(announcement!.key).toBe('data.displayEmbeds.seasonCompletion');
+        expect(announcement!.key).toBe('messages.season.completionAnnouncement');
         expect(announcement!.data).toMatchObject({
           seasonId: completedSeason.id,
           totalGames: 2,
@@ -1516,7 +1515,7 @@ describe('SeasonService', () => {
 
         // Verify the complete message structure
         expect(deliveryInstruction!.type).toBe('success');
-        expect(deliveryInstruction!.key).toBe('data.displayEmbeds.seasonCompletion');
+        expect(deliveryInstruction!.key).toBe('messages.season.completionAnnouncement');
         expect(deliveryInstruction!.formatting?.channel).toBe('987654321098765432');
         expect(deliveryInstruction!.context?.guildId).toBe('123456789012345678');
         
@@ -1714,7 +1713,7 @@ describe('SeasonService', () => {
         expect(announcement!.formatting?.channel).toBe('987654321098765432');
         expect(announcement!.context?.guildId).toBe('123456789012345678');
         expect(announcement!.type).toBe('success');
-        expect(announcement!.key).toBe('data.displayEmbeds.seasonCompletion');
+        expect(announcement!.key).toBe('messages.season.completionAnnouncement');
       });
 
       it('should prepare DM delivery for seasons without origin info', async () => {
