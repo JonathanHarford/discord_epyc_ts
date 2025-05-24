@@ -390,7 +390,7 @@ describe('SeasonService', () => {
     // Test: Add second player (should trigger activation)
     const result2 = await realSeasonService.addPlayerToSeason(player2.id, seasonId);
     expect(result2.type).toBe('success');
-    expect(result2.key).toBe('season_activate_success');
+    expect(result2.key).toBe('messages.newSeason.seasonActivateSuccess');
 
     // Verify season was activated in the database
     const updatedSeason = await prisma.season.findUnique({
@@ -488,7 +488,7 @@ describe('SeasonService', () => {
 
     // Assert: Verify the result indicates success
     expect(activationResult.type).toBe('success');
-    expect(activationResult.key).toBe('season_activate_success');
+    expect(activationResult.key).toBe('messages.newSeason.seasonActivateSuccess');
     expect(activationResult.data?.seasonId).toBe(season.id);
     expect(activationResult.data?.status).toBe('ACTIVE');
 
@@ -970,7 +970,7 @@ describe('SeasonService', () => {
 
         expect(announcement).not.toBeNull();
         expect(announcement!.type).toBe('success');
-        expect(announcement!.key).toBe('season.completion.announcement');
+        expect(announcement!.key).toBe('data.displayEmbeds.seasonCompletion');
         expect(announcement!.data).toMatchObject({
           seasonId: completedSeason.id,
           totalGames: 2,
@@ -1516,7 +1516,7 @@ describe('SeasonService', () => {
 
         // Verify the complete message structure
         expect(deliveryInstruction!.type).toBe('success');
-        expect(deliveryInstruction!.key).toBe('season.completion.announcement');
+        expect(deliveryInstruction!.key).toBe('data.displayEmbeds.seasonCompletion');
         expect(deliveryInstruction!.formatting?.channel).toBe('987654321098765432');
         expect(deliveryInstruction!.context?.guildId).toBe('123456789012345678');
         
@@ -1714,7 +1714,7 @@ describe('SeasonService', () => {
         expect(announcement!.formatting?.channel).toBe('987654321098765432');
         expect(announcement!.context?.guildId).toBe('123456789012345678');
         expect(announcement!.type).toBe('success');
-        expect(announcement!.key).toBe('season.completion.announcement');
+        expect(announcement!.key).toBe('data.displayEmbeds.seasonCompletion');
       });
 
       it('should prepare DM delivery for seasons without origin info', async () => {

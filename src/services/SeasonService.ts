@@ -500,7 +500,7 @@ export class SeasonService {
       
       return {
         type: 'success' as const, // Ensure type is literal for MessageInstruction
-        key: 'season_activate_success',
+        key: LangKeys.Commands.New.SeasonActivateSuccess,
         data: {
           seasonId,
           status: 'ACTIVE',
@@ -712,7 +712,7 @@ export class SeasonService {
       console.error('Error in SeasonService.listSeasons:', error);
       return MessageHelpers.embedMessage(
         'error',
-        'admin.list_seasons_error',
+        LangKeys.Commands.Admin.ListSeasonsError,
         { error: error instanceof Error ? error.message : 'Unknown error' },
         true // Admin error messages should be ephemeral
       );
@@ -869,7 +869,7 @@ export class SeasonService {
       // Create the announcement message instruction
       const announcement = MessageHelpers.embedMessage(
         'success',
-        'season.completion.announcement',
+        LangKeys.Game.SeasonCompletion,
         {
           seasonId: seasonResults.seasonId || 'unknown',
           daysElapsed: seasonResults.daysElapsed,
@@ -894,7 +894,7 @@ export class SeasonService {
       try {
         const fallbackAnnouncement = MessageHelpers.embedMessage(
           'success',
-          'season.completion.announcement',
+          LangKeys.Game.SeasonCompletion,
           {
             seasonId: seasonResults.seasonId || 'unknown',
             daysElapsed: Math.max(0, seasonResults.daysElapsed || 0),

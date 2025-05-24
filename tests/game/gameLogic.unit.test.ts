@@ -1428,7 +1428,7 @@ describe('checkSeasonCompletion', () => {
     // Mock the announcement delivery to return a valid MessageInstruction
     const mockAnnouncement = {
       type: 'success',
-      key: 'season.completion.announcement',
+      key: 'data.displayEmbeds.seasonCompletion',
       data: { seasonId: 'test-season' },
     };
     mockSeasonService.deliverSeasonCompletionAnnouncement.mockResolvedValue(mockAnnouncement);

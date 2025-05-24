@@ -112,7 +112,7 @@ describe('ConfigService Unit Tests', () => {
 
       expect(result).toBeDefined();
       expect(result.type).toBe('success');
-      expect(result.key).toBe('config.update_success');
+      expect(result.key).toBe('messages.config.updateSuccess');
 
       // Verify the update in the database
       const updatedConfig = await prisma.seasonConfig.findFirst({
@@ -132,7 +132,7 @@ describe('ConfigService Unit Tests', () => {
       const result = await configService.updateGuildDefaultConfig(testGuildId, updates);
 
       expect(result.type).toBe('error');
-      expect(result.key).toBe('config.validation_error');
+      expect(result.key).toBe('messages.config.validationError');
       expect(result.data).toBeDefined();
       expect(result.data!.error).toContain('Must be comma-separated list of "writing" and "drawing"');
     });
@@ -146,7 +146,7 @@ describe('ConfigService Unit Tests', () => {
       const result = await configService.updateGuildDefaultConfig(testGuildId, updates);
 
       expect(result.type).toBe('error');
-      expect(result.key).toBe('config.validation_error');
+      expect(result.key).toBe('messages.config.validationError');
       expect(result.data).toBeDefined();
       expect(result.data!.error).toContain('Must be less than or equal to maxPlayers');
     });
@@ -159,7 +159,7 @@ describe('ConfigService Unit Tests', () => {
       const result = await configService.updateGuildDefaultConfig(testGuildId, updates);
 
       expect(result.type).toBe('error');
-      expect(result.key).toBe('config.validation_error');
+      expect(result.key).toBe('messages.config.validationError');
       expect(result.data).toBeDefined();
       expect(result.data!.error).toContain('Invalid duration format');
     });
@@ -178,7 +178,7 @@ describe('ConfigService Unit Tests', () => {
       const result = await mockConfigService.updateGuildDefaultConfig(testGuildId, updates);
 
       expect(result.type).toBe('error');
-      expect(result.key).toBe('config.unknown_error');
+      expect(result.key).toBe('messages.config.unknownError');
     });
 
     it('should create config if guild has no default config', async () => {
@@ -191,7 +191,7 @@ describe('ConfigService Unit Tests', () => {
       const result = await configService.updateGuildDefaultConfig(newGuildId, updates);
 
       expect(result.type).toBe('success');
-      expect(result.key).toBe('config.update_success');
+      expect(result.key).toBe('messages.config.updateSuccess');
 
       // Verify the config was created with updates
       const newConfig = await prisma.seasonConfig.findFirst({
@@ -210,7 +210,7 @@ describe('ConfigService Unit Tests', () => {
       const result = await configService.updateGuildDefaultConfig(testGuildId, updates);
 
       expect(result.type).toBe('error');
-      expect(result.key).toBe('config.validation_error');
+      expect(result.key).toBe('messages.config.validationError');
       expect(result.data).toBeDefined();
       expect(result.data!.error).toContain('Must be at least 1');
     });
@@ -223,7 +223,7 @@ describe('ConfigService Unit Tests', () => {
       const result = await configService.updateGuildDefaultConfig(testGuildId, updates);
 
       expect(result.type).toBe('error');
-      expect(result.key).toBe('config.validation_error');
+      expect(result.key).toBe('messages.config.validationError');
       expect(result.data).toBeDefined();
       expect(result.data!.error).toContain('Must be 100 or less');
     });
@@ -236,7 +236,7 @@ describe('ConfigService Unit Tests', () => {
       const result = await configService.updateGuildDefaultConfig(testGuildId, updates);
 
       expect(result.type).toBe('success');
-      expect(result.key).toBe('config.update_success');
+      expect(result.key).toBe('messages.config.updateSuccess');
     });
 
     it('should accept valid duration strings', async () => {
@@ -249,7 +249,7 @@ describe('ConfigService Unit Tests', () => {
       const result = await configService.updateGuildDefaultConfig(testGuildId, updates);
 
       expect(result.type).toBe('success');
-      expect(result.key).toBe('config.update_success');
+      expect(result.key).toBe('messages.config.updateSuccess');
     });
 
   describe('formatConfigForDisplay', () => {

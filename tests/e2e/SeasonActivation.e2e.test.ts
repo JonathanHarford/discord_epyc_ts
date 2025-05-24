@@ -116,9 +116,9 @@ describe('Season Activation End-to-End Tests', () => {
       
       // For the last player, expect activation success key
       if (isLastPlayer) {
-        expect(result.key).toBe('season_activate_success');
+        expect(result.key).toBe('messages.newSeason.seasonActivateSuccess');
       } else {
-        expect(result.key).toBe('joinSeason.success');
+        expect(result.key).toBe('messages.joinSeason.success');
       }
     }
 
@@ -148,7 +148,7 @@ describe('Season Activation End-to-End Tests', () => {
     // STEP 4: Verify that additional players cannot join after activation
     const additionalPlayerResult = await seasonService.addPlayerToSeason(testPlayers[4].id, seasonId);
     expect(additionalPlayerResult.type).toBe('error');
-    expect(additionalPlayerResult.key).toBe('joinSeason.notOpen');
+    expect(additionalPlayerResult.key).toBe('messages.joinSeason.notOpen');
   });
 
   it('should handle the full open_duration timeout activation flow', async () => {
@@ -189,7 +189,7 @@ describe('Season Activation End-to-End Tests', () => {
       
       // Verify correct result type (should all be join successes, no activation yet)
       expect(result.type).toBe('success');
-      expect(result.key).toBe('joinSeason.success');
+      expect(result.key).toBe('messages.joinSeason.success');
     }
 
     // STEP 3: Simulate the open_duration timeout by directly calling the handler
@@ -222,7 +222,7 @@ describe('Season Activation End-to-End Tests', () => {
     // STEP 5: Verify that additional players cannot join after activation
     const additionalPlayerResult = await seasonService.addPlayerToSeason(testPlayers[4].id, seasonId);
     expect(additionalPlayerResult.type).toBe('error');
-    expect(additionalPlayerResult.key).toBe('joinSeason.notOpen');
+    expect(additionalPlayerResult.key).toBe('messages.joinSeason.notOpen');
   });
   
   it('should cancel season on timeout when min players not met', async () => {
@@ -263,7 +263,7 @@ describe('Season Activation End-to-End Tests', () => {
       
       // Verify correct result type (should all be join successes)
       expect(result.type).toBe('success');
-      expect(result.key).toBe('joinSeason.success');
+      expect(result.key).toBe('messages.joinSeason.success');
     }
 
     // STEP 3: Simulate the open_duration timeout by directly calling the handler
@@ -291,6 +291,6 @@ describe('Season Activation End-to-End Tests', () => {
     // STEP 5: Verify that additional players cannot join after cancellation
     const additionalPlayerResult = await seasonService.addPlayerToSeason(testPlayers[4].id, seasonId);
     expect(additionalPlayerResult.type).toBe('error');
-    expect(additionalPlayerResult.key).toBe('joinSeason.notOpen');
+    expect(additionalPlayerResult.key).toBe('messages.joinSeason.notOpen');
   });
 }); 

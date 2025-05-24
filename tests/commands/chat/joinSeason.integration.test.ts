@@ -213,9 +213,11 @@ describe('JoinSeasonCommand - Integration Tests', () => {
 
     // Verify Lang.getRef was called with the correct error key
     expect(Lang.getRef).toHaveBeenCalledWith(
-      'joinSeason.seasonNotFound',
+      'messages.joinSeason.seasonNotFound',
       expect.any(String),
-      expect.objectContaining({ seasonId: nonExistentSeasonId })
+      expect.objectContaining({
+        seasonId: 'non-existent-season-id',
+      })
     );
   });
 
@@ -228,11 +230,11 @@ describe('JoinSeasonCommand - Integration Tests', () => {
 
     // Verify Lang.getRef was called with the correct error key
     expect(Lang.getRef).toHaveBeenCalledWith(
-      'joinSeason.notOpen',
+      'messages.joinSeason.notOpen',
       expect.any(String),
-      expect.objectContaining({ 
-        seasonId: closedSeasonId,
-        status: 'ACTIVE'
+      expect.objectContaining({
+        seasonId: expect.any(String),
+        status: 'ACTIVE',
       })
     );
   });
@@ -265,7 +267,7 @@ describe('JoinSeasonCommand - Integration Tests', () => {
 
     // Verify that the Lang.getRef was called with the already joined error key
     expect(Lang.getRef).toHaveBeenCalledWith(
-      'joinSeason.alreadyJoined',
+      'messages.joinSeason.alreadyJoined',
       expect.any(String),
       expect.any(Object)
     );

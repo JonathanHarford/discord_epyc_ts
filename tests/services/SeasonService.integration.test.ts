@@ -88,7 +88,7 @@ describe('SeasonService Integration Tests', () => {
       console.error('addPlayerToSeason failed in test:', result.key, result.data); // Log if it fails
     }
     expect(result.type).toBe('success');
-    expect(result.key).toBe('joinSeason.success'); 
+    expect(result.key).toBe('messages.joinSeason.success'); 
 
     // Verify the player was added to the season in the database
     const updatedSeason = await prisma.season.findUnique({
@@ -105,7 +105,7 @@ describe('SeasonService Integration Tests', () => {
     const player = await prisma.player.create({ data: { discordUserId: `test-${nanoid()}`, name: 'Test Player' } });
     const result = await seasonService.addPlayerToSeason(player.id, 'non-existent-season-id');
     expect(result.type).toBe('error');
-    expect(result.key).toBe('joinSeason.seasonNotFound');
+    expect(result.key).toBe('messages.joinSeason.seasonNotFound');
   });
 
   it('should return "season_join_error_not_open" when trying to join a season that is not in SETUP or OPEN state', async () => {
@@ -122,7 +122,7 @@ describe('SeasonService Integration Tests', () => {
     });
     const result = await seasonService.addPlayerToSeason(joiningPlayer.id, season.id);
     expect(result.type).toBe('error');
-    expect(result.key).toBe('joinSeason.notOpen');
+    expect(result.key).toBe('messages.joinSeason.notOpen');
   });
 
   it('should return "season_join_error_already_joined" when a player tries to join a season they are already in', async () => {
@@ -141,7 +141,7 @@ describe('SeasonService Integration Tests', () => {
 
     const result = await seasonService.addPlayerToSeason(joiningPlayer.id, season.id);
     expect(result.type).toBe('error');
-    expect(result.key).toBe('joinSeason.alreadyJoined');
+    expect(result.key).toBe('messages.joinSeason.alreadyJoined');
   });
 
   it('should return "season_join_error_full" when trying to join a season that has reached its max player limit', async () => {
@@ -161,7 +161,7 @@ describe('SeasonService Integration Tests', () => {
 
     const result = await seasonService.addPlayerToSeason(joiningPlayer.id, season.id);
     expect(result.type).toBe('error');
-    expect(result.key).toBe('joinSeason.full');
+    expect(result.key).toBe('messages.joinSeason.full');
   });
 
   it('should return "season_join_error_player_not_found" when trying to join with a non-existent player ID', async () => {
@@ -179,7 +179,7 @@ describe('SeasonService Integration Tests', () => {
 
     const result = await seasonService.addPlayerToSeason('non-existent-player-id', season.id);
     expect(result.type).toBe('error');
-    expect(result.key).toBe('joinSeason.playerNotFound');
+    expect(result.key).toBe('messages.joinSeason.playerNotFound');
   });
 
   // Integration tests for season activation (subtask 8.5)
@@ -235,7 +235,7 @@ describe('SeasonService Integration Tests', () => {
 
     // Assert: Check result
     expect(activationResult.type).toBe('success');
-    expect(activationResult.key).toBe('season_activate_success');
+    expect(activationResult.key).toBe('messages.newSeason.seasonActivateSuccess');
     
     // Verify season status was updated in the database
     const updatedSeason = await prisma.season.findUnique({

@@ -46,7 +46,7 @@ export class StatusCommand implements Command {
       if (!season) {
         const notFoundInstruction: MessageInstruction = {
           type: 'error',
-          key: 'status.seasonNotFound',
+          key: LangKeys.Commands.Status.seasonNotFound,
           data: { seasonId },
           formatting: { ephemeral: true }
         };
@@ -112,7 +112,7 @@ export class StatusCommand implements Command {
       // Create success instruction with formatted data
       const successInstruction = MessageHelpers.embedMessage(
         'info',
-        'status.seasonStatus',
+        LangKeys.Commands.Status.seasonStatus,
         statusData,
         false // Not ephemeral, so others can see the status
       );
@@ -123,7 +123,7 @@ export class StatusCommand implements Command {
       console.error('Error in /status command:', error);
       const errorInstruction: MessageInstruction = {
         type: 'error',
-        key: 'status.genericError',
+        key: LangKeys.Commands.Status.genericError,
         data: { 
           seasonId, 
           errorMessage: error instanceof Error ? error.message : 'Unknown error' 

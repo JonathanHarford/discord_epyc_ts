@@ -192,6 +192,33 @@
                         }
                     ]
                 }
+            },
+            "seasonStatus": {
+                "title": "Season Status: {{seasonId}}",
+                "description": "**Status:** {{seasonStatus}}\n**Players:** {{playerCount}}/{{maxPlayers}} (min: {{minPlayers}})\n**Games:** {{gameCount}}",
+                "fields": [
+                    {
+                        "name": "Game Details",
+                        "value": "{{#each games}}**Game {{gameId}}** ({{gameStatus}})\n• Turns: {{completedTurns}}/{{totalTurns}} completed\n• Pending: {{pendingTurns}}, Offered: {{offeredTurns}}\n{{#if currentTurn}}• Current: Turn {{currentTurn.turnNumber}} ({{currentTurn.type}}) - {{currentTurn.status}} to {{currentTurn.playerName}}\n{{/if}}\n{{/each}}"
+                    }
+                ]
+            },
+            "seasonCompletion": {
+                "title": "**{{seasonId}}** COMPLETED 🎉",
+                "description": "Day {{daysElapsed}} {{progressBar}} {{completionPercentage}}%",
+                "fields": [
+                    {
+                        "name": "Season Summary",
+                        "value": "**Games:** {{totalGames}}\n**Players:** {{totalPlayers}}\n**Turns:** {{completedTurns}}/{{totalTurns}} completed"
+                    },
+                    {
+                        "name": "Game Results",
+                        "value": "{{gameResults}}"
+                    }
+                ],
+                "footer": {
+                    "text": "Season created by {{creatorName}}"
+                }
             }
         },
         "validationEmbeds": {
@@ -353,16 +380,14 @@
             "ViewAuditLog": "View Audit Log",
             "ViewChannel": "View Channel(s)",
             "ViewCreatorMonetizationAnalytics": "View Server Subscription Insights",
-            "ViewGuildInsights": "View Server Insights",
-            "voteEmbed": "[Vote for {{COM:bot.name}}!]({{COM:links.vote}})"
+            "ViewGuildInsights": "View Server Insights"
         },
         "devCommandNames": {
             "info": "info"
         },
         "helpOptions": {
             "contactSupport": "Contact Support",
-            "commands": "Commands",
-            "voteEmbed": "[Vote for {{COM:bot.name}}!]({{COM:links.vote}})"
+            "commands": "Commands"
         },
         "helpOptionDescs": {
             "contactSupport": "❓ {{REF:helpOptions.contactSupport}} ❓",
@@ -394,124 +419,337 @@
             "termsEmbed": "[View Terms of Service]({{COM:links.terms}})",
             "voteEmbed": "[Vote for {{COM:bot.name}}!]({{COM:links.vote}})"
         },
+        "messages": {
+            "joinSeason": {
+                "success": "You have successfully joined season with ID: **{{seasonId}}**!\nThe season will start in {{timeRemaining}}, or once {{playersNeeded}} more players join!",
+                "seasonNotFound": "Season '{{seasonId}}' not found.",
+                "notOpen": "Season with ID '{{seasonId}}' is not currently open for joining.",
+                "alreadyJoined": "You have already joined season with ID '{{seasonId}}'.",
+                "full": "Season with ID '{{seasonId}}' is full.",
+                "playerNotFound": "Your player profile could not be found. Please try again later or contact support.",
+                "genericError": "An unknown error occurred while trying to join season '{{seasonId}}'. Error: {{errorMessage}}"
+            },
+            "status": {
+                "seasonNotFound": "Season '{{seasonId}}' not found.",
+                "genericError": "An error occurred while retrieving status for season '{{seasonId}}'. Error: {{errorMessage}}"
+            },
+            "newSeason": {
+                "createSuccessChannel": "{{mentionUser}} has started a new season with ID: **{{seasonId}}**\nSeason will remain open for joining for {{openDuration}}.\nUse `/join season:{{seasonId}}` to join!",
+                "seasonActivateSuccess": "🎉 **Season {{seasonId}} has been activated!** 🎉\n\n**Status:** {{status}}\n**Games Created:** {{gamesCreated}}\n**Players:** {{playersInSeason}}\n\nThe games have begun! Players will receive their first turn offers shortly.",
+                "errorMinMaxPlayers": "Minimum players ({{minPlayers}}) cannot be greater than maximum players ({{maxPlayers}}).",
+                "errorCreatorNotFound": "Your player profile could not be found (Discord ID: {{discordUserId}}). Please try again later or contact support.",
+                "errorPlayerCreateFailed": "Failed to create your player profile (Discord ID: {{discordId}}). Please try again later or contact support.",
+                "errorDatabase": "A database error occurred. Please try again later or contact support. (Details: {{details}})",
+                "errorUnknownService": "An unknown error occurred while processing your request. Please try again later or contact support. (Details: {{details}})",
+                "errorGenericService": "A generic error occurred in the service. Please try again later or contact support. (Details: {{details}})",
+                "errorUnknown": "An unknown error occurred while creating the season. Message: {{message}}"
+            },
+            "newCommand": {
+                "errorUnknownSubcommand": "That subcommand for 'new' isn't recognized. Please check the command and try again."
+            },
+            "common": {
+                "errorCriticalCommand": "A critical unexpected error occurred. Please contact support."
+            },
+            "admin": {
+                "terminateSeasonSuccess": "Season **{{seasonId}}** has been successfully terminated.\n**Previous Status:** {{previousStatus}}\n**Players:** {{playerCount}}\n**Games:** {{gameCount}}",
+                "terminateSeasonErrorNotFound": "Season '{{seasonId}}' not found.",
+                "terminateSeasonErrorAlreadyTerminated": "Season '{{seasonId}}' is already terminated.",
+                "terminateSeasonErrorDatabase": "A database error occurred while terminating season '{{seasonId}}'. Error code: {{errorCode}}",
+                "terminateSeasonErrorUnknown": "An unknown error occurred while terminating season '{{seasonId}}'. {{message}}",
+                "listSeasonsError": "An error occurred while retrieving seasons. Error: {{error}}",
+                "listPlayersError": "An error occurred while retrieving players. Error: {{error}}",
+                "playerBanSuccess": "Player {{playerName}} has been successfully banned.",
+                "playerBanError": "An error occurred while banning the player. Please try again.",
+                "playerBanNotFound": "Player not found.",
+                "playerBanAlreadyBanned": "Player {{playerName}} is already banned.",
+                "playerUnbanSuccess": "Player {{playerName}} has been successfully unbanned.",
+                "playerUnbanError": "An error occurred while unbanning the player. Please try again.",
+                "playerUnbanNotFound": "Player not found.",
+                "playerUnbanNotBanned": "Player {{playerName}} is not currently banned."
+            },
+            "config": {
+                "updateSuccess": "Configuration updated successfully for guild {{guildId}}!\n**Updated fields:** {{updatedFields}}",
+                "validationError": "Invalid configuration value for **{{field}}**: {{error}}",
+                "databaseError": "Database error occurred while updating configuration. Error code: {{errorCode}}",
+                "unknownError": "An unknown error occurred while updating configuration: {{message}}",
+                "noUpdatesProvided": "No configuration updates were provided. Please specify at least one setting to update."
+            },
+            "turnOffer": {
+                "newTurnAvailable": "🎨 **New Turn Available!** 🎨\n\n**Game:** {{gameId}}\n**Season:** {{seasonId}}\n**Turn:** {{turnNumber}} ({{turnType}})\n\nYou have **{{claimTimeoutMinutes}} minutes** to claim this turn. React with ✅ to claim it!"
+            },
+            "game": {
+                "seasonId": "Season ID: {{seasonId}}"
+            },
+            "turnTimeout": {
+                "submissionTimeoutSkipped": "Turn submission timed out and was automatically skipped."
+            },
+            "ready": {
+                "playerNotFound": "Player profile not found. Please try again later or contact support.",
+                "noOfferedTurns": "You have no offered turns available to claim.",
+                "alreadyHasPendingTurn": "You already have a pending turn to complete.",
+                "claimFailed": "Failed to claim the turn. Please try again.",
+                "claimSuccess": "Turn claimed successfully! You can now submit your response."
+            },
+            "submission": {
+                "playerNotFound": "Player profile not found. Please try again later or contact support.",
+                "noPendingTurns": "You have no pending turns to submit.",
+                "noAttachmentFound": "No attachment found. Please attach a file with your submission.",
+                "invalidFileType": "Invalid file type. Please submit a valid image file or text document.",
+                "noContentFound": "No content found in the submission. Please provide text or attach a file.",
+                "wrongContentType": "Incorrect content type for this turn. Please check the turn requirements.",
+                "submitFailed": "Failed to submit your turn. Please try again.",
+                "submitSuccess": "Turn submitted successfully!"
+            }
+        }
+    },
+    "validationEmbeds": {
+        "cooldownHit": "TODO: Cooldown Hit (key: validationEmbeds.cooldownHit)",
+        "missingClientPerms": "TODO: Missing Client Perms (key: validationEmbeds.missingClientPerms)",
+        "devOnly": "TODO: Dev Only (key: validationEmbeds.devOnly)"
+    },
+    "channelRegexes": {
+        "bot": "TODO: Bot (key: channelRegexes.bot)"
+    },
+    "turn_offer": {
+        "new_turn_available": "TODO: New_turn_available (key: turn_offer.new_turn_available)"
+    },
+    "messages": {
         "joinSeason": {
-            "success": "You have successfully joined season with ID: **{{seasonId}}**!\nThe season will start in {{timeRemaining}}, or once {{playersNeeded}} more players join!",
-            "seasonNotFound": "Season '{{seasonId}}' not found.",
-            "notOpen": "Season with ID '{{seasonId}}' is not currently open for joining.",
-            "alreadyJoined": "You have already joined season with ID '{{seasonId}}'.",
-            "full": "Season with ID '{{seasonId}}' is full.",
-            "playerNotFound": "Your player profile could not be found. Please try again later or contact support.",
-            "genericError": "An unknown error occurred while trying to join season '{{seasonId}}'. Error: {{errorMessage}}"
+            "playerNotFound": "TODO: Player Not Found (key: messages.joinSeason.playerNotFound)",
+            "seasonNotFound": "TODO: Season Not Found (key: messages.joinSeason.seasonNotFound)",
+            "notOpen": "TODO: Not Open (key: messages.joinSeason.notOpen)",
+            "full": "TODO: Full (key: messages.joinSeason.full)",
+            "alreadyJoined": "TODO: Already Joined (key: messages.joinSeason.alreadyJoined)",
+            "success": "TODO: Success (key: messages.joinSeason.success)",
+            "genericError": "TODO: Generic Error (key: messages.joinSeason.genericError)"
         },
-        "status": {
-            "seasonNotFound": "Season '{{seasonId}}' not found.",
-            "seasonStatus": {
-                "title": "Season Status: {{seasonId}}",
-                "description": "**Status:** {{seasonStatus}}\n**Players:** {{playerCount}}/{{maxPlayers}} (min: {{minPlayers}})\n**Games:** {{gameCount}}",
-                "fields": [
-                    {
-                        "name": "Game Details",
-                        "value": "{{#each games}}**Game {{gameId}}** ({{gameStatus}})\n• Turns: {{completedTurns}}/{{totalTurns}} completed\n• Pending: {{pendingTurns}}, Offered: {{offeredTurns}}\n{{#if currentTurn}}• Current: Turn {{currentTurn.turnNumber}} ({{currentTurn.type}}) - {{currentTurn.status}} to {{currentTurn.playerName}}\n{{/if}}\n{{/each}}"
-                    }
-                ]
-            },
-            "genericError": "An error occurred while retrieving status for season '{{seasonId}}'. Error: {{errorMessage}}"
-        },
-        "newCommand.season": {
-            "create_success_channel": "{{mentionUser}} has started a new season with ID: **{{seasonId}}**\nSeason will remain open for joining for {{openDuration}}.\nUse `/join season:{{seasonId}}` to join!",
-            "error_min_max_players": "Minimum players ({{minPlayers}}) cannot be greater than maximum players ({{maxPlayers}}).",
-            "error_creator_not_found": "Your player profile could not be found (Discord ID: {{discordUserId}}). Please try again later or contact support.",
-            "error_player_create_failed": "Failed to create your player profile (Discord ID: {{discordId}}). Please try again later or contact support.",
-            "error_db": "A database error occurred. Please try again later or contact support. (Details: {{details}})",
-            "error_unknown_service": "An unknown error occurred while processing your request. Please try again later or contact support. (Details: {{details}})",
-            "error_generic_service": "A generic error occurred in the service. Please try again later or contact support. (Details: {{details}})",
-            "error_unknown": "An unknown error occurred while creating the season. Message: {{message}}"
-        },
-        "newCommand": {
-            "commandDescs": {
-                "new": "Create a new season. Use this command to start a new game flow."
-            },
-            "error_unknown_subcommand": "That subcommand for 'new' isn't recognized. Please check the command and try again."
-        },
-        "common.error": {
-            "critical_command": "A critical unexpected error occurred. Please contact support."
+        "newSeason": {
+            "seasonActivateSuccess": "TODO: Season Activate Success (key: messages.newSeason.seasonActivateSuccess)",
+            "createSuccessChannel": "TODO: Create Success Channel (key: messages.newSeason.createSuccessChannel)",
+            "errorMinMaxPlayers": "TODO: Error Min Max Players (key: messages.newSeason.errorMinMaxPlayers)",
+            "errorCreatorNotFound": "TODO: Error Creator Not Found (key: messages.newSeason.errorCreatorNotFound)",
+            "errorPlayerCreateFailed": "TODO: Error Player Create Failed (key: messages.newSeason.errorPlayerCreateFailed)",
+            "errorDatabase": "TODO: Error Database (key: messages.newSeason.errorDatabase)",
+            "errorUnknownService": "TODO: Error Unknown Service (key: messages.newSeason.errorUnknownService)",
+            "errorGenericService": "TODO: Error Generic Service (key: messages.newSeason.errorGenericService)",
+            "errorUnknown": "TODO: Error Unknown (key: messages.newSeason.errorUnknown)"
         },
         "admin": {
-            "terminate_season_success": "Season **{{seasonId}}** has been successfully terminated.\n**Previous Status:** {{previousStatus}}\n**Players:** {{playerCount}}\n**Games:** {{gameCount}}",
-            "terminate_season_error_not_found": "Season '{{seasonId}}' not found.",
-            "terminate_season_error_already_terminated": "Season '{{seasonId}}' is already terminated.",
-            "terminate_season_error_database": "A database error occurred while terminating season '{{seasonId}}'. Error code: {{errorCode}}",
-            "terminate_season_error_unknown": "An unknown error occurred while terminating season '{{seasonId}}'. {{message}}",
-            "list_seasons_error": "An error occurred while retrieving seasons. Error: {{error}}",
-            "list_players_error": "An error occurred while retrieving players. Error: {{error}}",
-            "player": {
-                "ban": {
-                    "success": "Player {{playerName}} has been successfully banned.",
-                    "error": "An error occurred while banning the player. Please try again.",
-                    "notFound": "Player not found.",
-                    "alreadyBanned": "Player {{playerName}} is already banned."
-                },
-                "unban": {
-                    "success": "Player {{playerName}} has been successfully unbanned.",
-                    "error": "An error occurred while unbanning the player. Please try again.",
-                    "notFound": "Player not found.",
-                    "notBanned": "Player {{playerName}} is not currently banned."
-                }
-            }
+            "terminateSeasonErrorNotFound": "TODO: Terminate Season Error Not Found (key: messages.admin.terminateSeasonErrorNotFound)",
+            "terminateSeasonErrorAlreadyTerminated": "TODO: Terminate Season Error Already Terminated (key: messages.admin.terminateSeasonErrorAlreadyTerminated)",
+            "terminateSeasonSuccess": "TODO: Terminate Season Success (key: messages.admin.terminateSeasonSuccess)",
+            "terminateSeasonErrorDatabase": "TODO: Terminate Season Error Database (key: messages.admin.terminateSeasonErrorDatabase)",
+            "terminateSeasonErrorUnknown": "TODO: Terminate Season Error Unknown (key: messages.admin.terminateSeasonErrorUnknown)",
+            "listSeasonsError": "TODO: List Seasons Error (key: messages.admin.listSeasonsError)",
+            "listPlayersError": "TODO: List Players Error (key: messages.admin.listPlayersError)",
+            "playerBanSuccess": "TODO: Player Ban Success (key: messages.admin.playerBanSuccess)",
+            "playerBanError": "TODO: Player Ban Error (key: messages.admin.playerBanError)",
+            "playerBanNotFound": "TODO: Player Ban Not Found (key: messages.admin.playerBanNotFound)",
+            "playerBanAlreadyBanned": "TODO: Player Ban Already Banned (key: messages.admin.playerBanAlreadyBanned)",
+            "playerUnbanSuccess": "TODO: Player Unban Success (key: messages.admin.playerUnbanSuccess)",
+            "playerUnbanError": "TODO: Player Unban Error (key: messages.admin.playerUnbanError)",
+            "playerUnbanNotFound": "TODO: Player Unban Not Found (key: messages.admin.playerUnbanNotFound)",
+            "playerUnbanNotBanned": "TODO: Player Unban Not Banned (key: messages.admin.playerUnbanNotBanned)"
         },
         "config": {
-            "update_success": "Configuration updated successfully for guild {{guildId}}!\n**Updated fields:** {{updatedFields}}",
-            "validation_error": "Invalid configuration value for **{{field}}**: {{error}}",
-            "database_error": "Database error occurred while updating configuration. Error code: {{errorCode}}",
-            "unknown_error": "An unknown error occurred while updating configuration: {{message}}",
-            "no_updates_provided": "No configuration updates were provided. Please specify at least one setting to update."
+            "validationError": "TODO: Validation Error (key: messages.config.validationError)",
+            "updateSuccess": "TODO: Update Success (key: messages.config.updateSuccess)",
+            "databaseError": "TODO: Database Error (key: messages.config.databaseError)",
+            "unknownError": "TODO: Unknown Error (key: messages.config.unknownError)",
+            "noUpdatesProvided": "TODO: No Updates Provided (key: messages.config.noUpdatesProvided)"
         },
-        "season": {
-            "completion": {
-                "announcement": {
-                    "title": "**{{seasonId}}** COMPLETED 🎉",
-                    "description": "Day {{daysElapsed}} {{progressBar}} {{completionPercentage}}%",
-                    "fields": [
-                        {
-                            "name": "Season Summary",
-                            "value": "**Games:** {{totalGames}}\n**Players:** {{totalPlayers}}\n**Turns:** {{completedTurns}}/{{totalTurns}} completed"
-                        },
-                        {
-                            "name": "Game Results",
-                            "value": "{{gameResults}}"
-                        }
-                    ],
-                    "footer": {
-                        "text": "Season created by {{creatorName}}"
-                    }
-                }
-            }
+        "newCommand": {
+            "errorUnknownSubcommand": "TODO: Error Unknown Subcommand (key: messages.newCommand.errorUnknownSubcommand)"
         },
-        "turn_offer": {
-            "new_turn_available": "🎨 **New Turn Available!** 🎨\n\n**Game:** {{gameId}}\n**Season:** {{seasonId}}\n**Turn:** {{turnNumber}} ({{turnType}})\n\nYou have **{{claimTimeoutMinutes}} minutes** to claim this turn. React with ✅ to claim it!"
+        "common": {
+            "errorCriticalCommand": "TODO: Error Critical Command (key: messages.common.errorCriticalCommand)"
+        },
+        "status": {
+            "seasonNotFound": "TODO: Season Not Found (key: messages.status.seasonNotFound)",
+            "genericError": "TODO: Generic Error (key: messages.status.genericError)"
         },
         "game": {
-            "seasonId": "Season ID: {{seasonId}}"
+            "seasonId": "TODO: Season Id (key: messages.game.seasonId)"
         },
-        "turn_timeout": {
-            "submission_timeout_skipped": "Turn submission timed out and was automatically skipped."
+        "turnOffer": {
+            "newTurnAvailable": "TODO: New Turn Available (key: messages.turnOffer.newTurnAvailable)"
+        },
+        "turnTimeout": {
+            "submissionTimeoutSkipped": "TODO: Submission Timeout Skipped (key: messages.turnTimeout.submissionTimeoutSkipped)"
         },
         "ready": {
-            "player_not_found": "Player profile not found. Please try again later or contact support.",
-            "no_offered_turns": "You have no offered turns available to claim.",
-            "already_has_pending_turn": "You already have a pending turn to complete.",
-            "claim_failed": "Failed to claim the turn. Please try again.",
-            "claim_success": "Turn claimed successfully! You can now submit your response."
+            "playerNotFound": "TODO: Player Not Found (key: messages.ready.playerNotFound)",
+            "noOfferedTurns": "TODO: No Offered Turns (key: messages.ready.noOfferedTurns)",
+            "alreadyHasPendingTurn": "TODO: Already Has Pending Turn (key: messages.ready.alreadyHasPendingTurn)",
+            "claimFailed": "TODO: Claim Failed (key: messages.ready.claimFailed)",
+            "claimSuccess": "TODO: Claim Success (key: messages.ready.claimSuccess)"
         },
         "submission": {
-            "player_not_found": "Player profile not found. Please try again later or contact support.",
-            "no_pending_turns": "You have no pending turns to submit.",
-            "no_attachment_found": "No attachment found. Please attach a file with your submission.",
-            "invalid_file_type": "Invalid file type. Please submit a valid image file or text document.",
-            "no_content_found": "No content found in the submission. Please provide text or attach a file.",
-            "wrong_content_type": "Incorrect content type for this turn. Please check the turn requirements.",
-            "submit_failed": "Failed to submit your turn. Please try again.",
-            "submit_success": "Turn submitted successfully!"
+            "playerNotFound": "TODO: Player Not Found (key: messages.submission.playerNotFound)",
+            "noPendingTurns": "TODO: No Pending Turns (key: messages.submission.noPendingTurns)",
+            "noAttachmentFound": "TODO: No Attachment Found (key: messages.submission.noAttachmentFound)",
+            "invalidFileType": "TODO: Invalid File Type (key: messages.submission.invalidFileType)",
+            "noContentFound": "TODO: No Content Found (key: messages.submission.noContentFound)",
+            "wrongContentType": "TODO: Wrong Content Type (key: messages.submission.wrongContentType)",
+            "submitFailed": "TODO: Submit Failed (key: messages.submission.submitFailed)",
+            "submitSuccess": "TODO: Submit Success (key: messages.submission.submitSuccess)"
+        }
+    },
+    "game": {
+        "seasonId": "TODO: Season Id (key: game.seasonId)"
+    },
+    "turn_timeout": {
+        "submission_timeout_skipped": "TODO: Submission_timeout_skipped (key: turn_timeout.submission_timeout_skipped)"
+    },
+    "displayEmbeds": {
+        "welcome": "TODO: Welcome (key: displayEmbeds.welcome)",
+        "viewDateSent": "TODO: View Date Sent (key: displayEmbeds.viewDateSent)",
+        "viewDateJoined": "TODO: View Date Joined (key: displayEmbeds.viewDateJoined)",
+        "test": "TODO: Test (key: displayEmbeds.test)",
+        "about": "TODO: About (key: displayEmbeds.about)",
+        "translate": "TODO: Translate (key: displayEmbeds.translate)",
+        "helpContactSupport": "TODO: Help Contact Support (key: displayEmbeds.helpContactSupport)",
+        "helpCommands": "TODO: Help Commands (key: displayEmbeds.helpCommands)",
+        "devInfo": "TODO: Dev Info (key: displayEmbeds.devInfo)"
+    },
+    "chatCommands": {
+        "help": "TODO: Help (key: chatCommands.help)",
+        "dev": "TODO: Dev (key: chatCommands.dev)",
+        "info": "TODO: Info (key: chatCommands.info)",
+        "test": "TODO: Test (key: chatCommands.test)",
+        "config": "TODO: Config (key: chatCommands.config)",
+        "admin": "TODO: Admin (key: chatCommands.admin)"
+    },
+    "ready": {
+        "player_not_found": "TODO: Player_not_found (key: ready.player_not_found)",
+        "no_offered_turns": "TODO: No_offered_turns (key: ready.no_offered_turns)",
+        "already_has_pending_turn": "TODO: Already_has_pending_turn (key: ready.already_has_pending_turn)",
+        "claim_failed": "TODO: Claim_failed (key: ready.claim_failed)",
+        "claim_success": "TODO: Claim_success (key: ready.claim_success)"
+    },
+    "submission": {
+        "player_not_found": "TODO: Player_not_found (key: submission.player_not_found)",
+        "no_pending_turns": "TODO: No_pending_turns (key: submission.no_pending_turns)",
+        "no_attachment_found": "TODO: No_attachment_found (key: submission.no_attachment_found)",
+        "invalid_file_type": "TODO: Invalid_file_type (key: submission.invalid_file_type)",
+        "no_content_found": "TODO: No_content_found (key: submission.no_content_found)",
+        "wrong_content_type": "TODO: Wrong_content_type (key: submission.wrong_content_type)",
+        "submit_failed": "TODO: Submit_failed (key: submission.submit_failed)",
+        "submit_success": "TODO: Submit_success (key: submission.submit_success)"
+    },
+    "errorEmbeds": {
+        "command": "TODO: Command (key: errorEmbeds.command)",
+        "startupInProcess": "TODO: Startup In Process (key: errorEmbeds.startupInProcess)",
+        "notImplemented": "TODO: Not Implemented (key: errorEmbeds.notImplemented)",
+        "guildOnly": "TODO: Guild Only (key: errorEmbeds.guildOnly)"
+    },
+    "meta": {
+        "translators": "TODO: Translators (key: meta.translators)"
+    },
+    "messageCommands": {
+        "viewDateSent": "TODO: View Date Sent (key: messageCommands.viewDateSent)"
+    },
+    "userCommands": {
+        "viewDateJoined": "TODO: View Date Joined (key: userCommands.viewDateJoined)"
+    },
+    "argDescs": {
+        "devCommand": "TODO: Dev Command (key: argDescs.devCommand)",
+        "helpOption": "TODO: Help Option (key: argDescs.helpOption)",
+        "season": "TODO: Season (key: argDescs.season)"
+    },
+    "devCommandNames": {
+        "info": "TODO: Info (key: devCommandNames.info)"
+    },
+    "infoOptions": {
+        "about": "TODO: About (key: infoOptions.about)",
+        "translate": "TODO: Translate (key: infoOptions.translate)"
+    },
+    "permissions": {
+        "AddReactions": "TODO: Add Reactions (key: permissions.AddReactions)",
+        "Administrator": "TODO: Administrator (key: permissions.Administrator)",
+        "AttachFiles": "TODO: Attach Files (key: permissions.AttachFiles)",
+        "BanMembers": "TODO: Ban Members (key: permissions.BanMembers)",
+        "ChangeNickname": "TODO: Change Nickname (key: permissions.ChangeNickname)",
+        "Connect": "TODO: Connect (key: permissions.Connect)",
+        "CreateEvents": "TODO: Create Events (key: permissions.CreateEvents)",
+        "CreateGuildExpressions": "TODO: Create Guild Expressions (key: permissions.CreateGuildExpressions)",
+        "CreateInstantInvite": "TODO: Create Instant Invite (key: permissions.CreateInstantInvite)",
+        "CreatePrivateThreads": "TODO: Create Private Threads (key: permissions.CreatePrivateThreads)",
+        "CreatePublicThreads": "TODO: Create Public Threads (key: permissions.CreatePublicThreads)",
+        "DeafenMembers": "TODO: Deafen Members (key: permissions.DeafenMembers)",
+        "EmbedLinks": "TODO: Embed Links (key: permissions.EmbedLinks)",
+        "KickMembers": "TODO: Kick Members (key: permissions.KickMembers)",
+        "ManageChannels": "TODO: Manage Channels (key: permissions.ManageChannels)",
+        "ManageEmojisAndStickers": "TODO: Manage Emojis And Stickers (key: permissions.ManageEmojisAndStickers)",
+        "ManageEvents": "TODO: Manage Events (key: permissions.ManageEvents)",
+        "ManageGuild": "TODO: Manage Guild (key: permissions.ManageGuild)",
+        "ManageGuildExpressions": "TODO: Manage Guild Expressions (key: permissions.ManageGuildExpressions)",
+        "ManageMessages": "TODO: Manage Messages (key: permissions.ManageMessages)",
+        "ManageNicknames": "TODO: Manage Nicknames (key: permissions.ManageNicknames)",
+        "ManageRoles": "TODO: Manage Roles (key: permissions.ManageRoles)",
+        "ManageThreads": "TODO: Manage Threads (key: permissions.ManageThreads)",
+        "ManageWebhooks": "TODO: Manage Webhooks (key: permissions.ManageWebhooks)",
+        "MentionEveryone": "TODO: Mention Everyone (key: permissions.MentionEveryone)",
+        "ModerateMembers": "TODO: Moderate Members (key: permissions.ModerateMembers)",
+        "MoveMembers": "TODO: Move Members (key: permissions.MoveMembers)",
+        "MuteMembers": "TODO: Mute Members (key: permissions.MuteMembers)",
+        "PrioritySpeaker": "TODO: Priority Speaker (key: permissions.PrioritySpeaker)",
+        "ReadMessageHistory": "TODO: Read Message History (key: permissions.ReadMessageHistory)",
+        "RequestToSpeak": "TODO: Request To Speak (key: permissions.RequestToSpeak)",
+        "SendMessages": "TODO: Send Messages (key: permissions.SendMessages)",
+        "SendMessagesInThreads": "TODO: Send Messages In Threads (key: permissions.SendMessagesInThreads)",
+        "SendPolls": "TODO: Send Polls (key: permissions.SendPolls)",
+        "SendTTSMessages": "TODO: Send T T S Messages (key: permissions.SendTTSMessages)",
+        "SendVoiceMessages": "TODO: Send Voice Messages (key: permissions.SendVoiceMessages)",
+        "Speak": "TODO: Speak (key: permissions.Speak)",
+        "Stream": "TODO: Stream (key: permissions.Stream)",
+        "UseApplicationCommands": "TODO: Use Application Commands (key: permissions.UseApplicationCommands)",
+        "UseEmbeddedActivities": "TODO: Use Embedded Activities (key: permissions.UseEmbeddedActivities)",
+        "UseExternalApps": "TODO: Use External Apps (key: permissions.UseExternalApps)",
+        "UseExternalEmojis": "TODO: Use External Emojis (key: permissions.UseExternalEmojis)",
+        "UseExternalSounds": "TODO: Use External Sounds (key: permissions.UseExternalSounds)",
+        "UseExternalStickers": "TODO: Use External Stickers (key: permissions.UseExternalStickers)",
+        "UseSoundboard": "TODO: Use Soundboard (key: permissions.UseSoundboard)",
+        "UseVAD": "TODO: Use V A D (key: permissions.UseVAD)",
+        "ViewAuditLog": "TODO: View Audit Log (key: permissions.ViewAuditLog)",
+        "ViewChannel": "TODO: View Channel (key: permissions.ViewChannel)",
+        "ViewCreatorMonetizationAnalytics": "TODO: View Creator Monetization Analytics (key: permissions.ViewCreatorMonetizationAnalytics)",
+        "ViewGuildInsights": "TODO: View Guild Insights (key: permissions.ViewGuildInsights)"
+    },
+    "newCommand": {
+        "season": {
+            "error_player_create_failed": "TODO: Error_player_create_failed (key: newCommand.season.error_player_create_failed)",
+            "create_success_channel": "TODO: Create_success_channel (key: newCommand.season.create_success_channel)",
+            "error_creator_not_found": "TODO: Error_creator_not_found (key: newCommand.season.error_creator_not_found)",
+            "error_min_max_players": "TODO: Error_min_max_players (key: newCommand.season.error_min_max_players)",
+            "error_db": "TODO: Error_db (key: newCommand.season.error_db)",
+            "error_unknown_service": "TODO: Error_unknown_service (key: newCommand.season.error_unknown_service)",
+            "error_generic_service": "TODO: Error_generic_service (key: newCommand.season.error_generic_service)"
+        },
+        "error_unknown_subcommand": "TODO: Error_unknown_subcommand (key: newCommand.error_unknown_subcommand)"
+    },
+    "common": {
+        "error": {
+            "critical_command": "TODO: Critical_command (key: common.error.critical_command)"
+        }
+    },
+    "config": {
+        "no_updates_provided": "TODO: No_updates_provided (key: config.no_updates_provided)"
+    },
+    "admin": {
+        "player": {
+            "ban": {
+                "success": "TODO: Success (key: admin.player.ban.success)",
+                "error": "TODO: Error (key: admin.player.ban.error)",
+                "notFound": "TODO: Not Found (key: admin.player.ban.notFound)",
+                "alreadyBanned": "TODO: Already Banned (key: admin.player.ban.alreadyBanned)"
+            },
+            "unban": {
+                "success": "TODO: Success (key: admin.player.unban.success)",
+                "error": "TODO: Error (key: admin.player.unban.error)",
+                "notFound": "TODO: Not Found (key: admin.player.unban.notFound)",
+                "notBanned": "TODO: Not Banned (key: admin.player.unban.notBanned)"
+            }
         }
     }
 }

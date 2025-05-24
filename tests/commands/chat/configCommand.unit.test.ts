@@ -295,7 +295,7 @@ describe('ConfigCommand - Unit Tests', () => {
 
       const mockResult = {
         type: 'success' as const,
-        key: 'config.update_success',
+        key: 'messages.config.updateSuccess',
         data: { guildId: 'test-guild-id', updatedFields: 'turnPattern, claimTimeout, minPlayers, maxPlayers' }
       };
 
