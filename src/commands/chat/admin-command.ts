@@ -224,6 +224,8 @@ export class AdminCommand implements Command {
         const seasonFilter = intr.options.getString('season');
         const bannedFilter = intr.options.getBoolean('banned');
 
+
+
         try {
             const result = await this.playerService.listPlayers(
                 seasonFilter || undefined, 

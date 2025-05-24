@@ -691,7 +691,7 @@ export class SeasonService {
 
       return MessageHelpers.embedMessage(
         'success',
-        'admin.list_seasons_success',
+        'data.displayEmbeds.admin.listSeasonsSuccess',
         {
           seasons: seasons.map(season => ({
             id: season.id,

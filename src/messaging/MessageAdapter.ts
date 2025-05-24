@@ -87,8 +87,25 @@ export class MessageAdapter {
           return { embeds: [embed] };
         } catch (langError) {
           console.error(`[MessageAdapter] Lang.getRef also failed for key '${instruction.key}':`, langError);
-          // Last resort: create a basic error embed
-          const embed = this.createEmbed(instruction, `Error: Could not load message for key '${instruction.key}'`);
+          
+          // Log the error and emit an error event for monitoring
+          const errorInfo = ErrorHandler.createCustomError(
+            ErrorType.LOCALIZATION_ERROR,
+            'LOCALIZATION_FAILURE',
+            `Failed to load language key: ${instruction.key}`,
+            'An error occurred while processing your request. Please try again later.',
+            { key: instruction.key, instruction, langError }
+          );
+          
+          const eventBus = ErrorEventBus.getInstance();
+          eventBus.publishError(
+            ErrorEventType.MESSAGE_ERROR,
+            errorInfo,
+            { source: 'MessageAdapter.generateMessageContent' }
+          );
+          
+          // Last resort: create a basic error embed with generic message - do not expose the internal key
+          const embed = this.createEmbed(instruction, "An error occurred while processing your request. Please try again later.");
           return { embeds: [embed] };
         }
       }

@@ -142,6 +142,56 @@
                         ]
                     }
                 ]
+            },
+            "admin": {
+                "listSeasonsSuccess": {
+                    "title": "Seasons List{{#if statusFilter}} ({{statusFilter}}){{/if}}",
+                    "description": "Found **{{totalCount}}** season{{#unless (eq totalCount 1)}}s{{/unless}}{{#if statusFilter}} with status **{{statusFilter}}**{{/if}}",
+                    "fields": [
+                        {
+                            "name": "Seasons",
+                            "value": "{{#if seasons}}{{#each seasons}}**{{id}}** ({{status}})\n• Creator: {{creatorName}}\n• Players: {{playerCount}}/{{maxPlayers}} (min: {{minPlayers}})\n• Games: {{gameCount}}\n• Created: {{createdAt}}\n\n{{/each}}{{else}}No seasons found.{{/if}}"
+                        }
+                    ]
+                },
+                "listPlayersSuccess": {
+                    "title": "Players List{{#if seasonFilter}} (Season: {{seasonFilter}}){{/if}}{{#if bannedFilter}} (Banned Only){{/if}}",
+                    "description": "Found **{{totalCount}}** player{{#unless (eq totalCount 1)}}s{{/unless}}{{#if seasonFilter}} in season **{{seasonFilter}}**{{/if}}{{#if bannedFilter}} that are banned{{/if}}",
+                    "fields": [
+                        {
+                            "name": "Players",
+                            "value": "{{#if players}}{{#each players}}**{{name}}** ({{discordUserId}}){{#if isBanned}} 🚫{{/if}}\n• ID: {{id}}\n• Seasons: {{seasonCount}}, Turns: {{turnCount}}\n{{#if recentSeasons}}• Recent: {{#each recentSeasons}}{{id}} ({{status}}){{#unless @last}}, {{/unless}}{{/each}}\n{{/if}}• Created: {{createdAt}}\n\n{{/each}}{{else}}No players found.{{/if}}"
+                        }
+                    ]
+                }
+            },
+            "config": {
+                "viewSuccess": {
+                    "title": "Season Configuration for Guild {{GUILD_ID}}",
+                    "description": "Current default season configuration settings:",
+                    "fields": [
+                        {
+                            "name": "Turn Settings",
+                            "value": "**Pattern:** {{TURN_PATTERN}}\n**Claim Timeout:** {{CLAIM_TIMEOUT}}"
+                        },
+                        {
+                            "name": "Writing Settings",
+                            "value": "**Timeout:** {{WRITING_TIMEOUT}}\n**Warning:** {{WRITING_WARNING}}"
+                        },
+                        {
+                            "name": "Drawing Settings",
+                            "value": "**Timeout:** {{DRAWING_TIMEOUT}}\n**Warning:** {{DRAWING_WARNING}}"
+                        },
+                        {
+                            "name": "Season Settings",
+                            "value": "**Open Duration:** {{OPEN_DURATION}}\n**Min Players:** {{MIN_PLAYERS}}\n**Max Players:** {{MAX_PLAYERS}}"
+                        },
+                        {
+                            "name": "Info",
+                            "value": "**Guild Default:** {{IS_GUILD_DEFAULT}}\n**Last Updated:** {{LAST_UPDATED}}"
+                        }
+                    ]
+                }
             }
         },
         "validationEmbeds": {
@@ -386,56 +436,10 @@
             "terminate_season_error_already_terminated": "Season '{{seasonId}}' is already terminated.",
             "terminate_season_error_database": "A database error occurred while terminating season '{{seasonId}}'. Error code: {{errorCode}}",
             "terminate_season_error_unknown": "An unknown error occurred while terminating season '{{seasonId}}'. {{message}}",
-            "list_seasons_success": {
-                "title": "Seasons List{{#if statusFilter}} ({{statusFilter}}){{/if}}",
-                "description": "Found **{{totalCount}}** season{{#unless (eq totalCount 1)}}s{{/unless}}{{#if statusFilter}} with status **{{statusFilter}}**{{/if}}",
-                "fields": [
-                    {
-                        "name": "Seasons",
-                        "value": "{{#if seasons}}{{#each seasons}}**{{id}}** ({{status}})\n• Creator: {{creatorName}}\n• Players: {{playerCount}}/{{maxPlayers}} (min: {{minPlayers}})\n• Games: {{gameCount}}\n• Created: {{createdAt}}\n\n{{/each}}{{else}}No seasons found.{{/if}}"
-                    }
-                ]
-            },
             "list_seasons_error": "An error occurred while retrieving seasons. Error: {{error}}",
-            "list_players_success": {
-                "title": "Players List{{#if seasonFilter}} (Season: {{seasonFilter}}){{/if}}{{#if bannedFilter}} (Banned Only){{/if}}",
-                "description": "Found **{{totalCount}}** player{{#unless (eq totalCount 1)}}s{{/unless}}{{#if seasonFilter}} in season **{{seasonFilter}}**{{/if}}{{#if bannedFilter}} that are banned{{/if}}",
-                "fields": [
-                    {
-                        "name": "Players",
-                        "value": "{{#if players}}{{#each players}}**{{name}}** ({{discordUserId}}){{#if isBanned}} 🚫{{/if}}\n• ID: {{id}}\n• Seasons: {{seasonCount}}, Turns: {{turnCount}}\n{{#if recentSeasons}}• Recent: {{#each recentSeasons}}{{id}} ({{status}}){{#unless @last}}, {{/unless}}{{/each}}\n{{/if}}• Created: {{createdAt}}\n\n{{/each}}{{else}}No players found.{{/if}}"
-                    }
-                ]
-            },
             "list_players_error": "An error occurred while retrieving players. Error: {{error}}"
         },
         "config": {
-            "view_success": {
-                "title": "Season Configuration for Guild {{GUILD_ID}}",
-                "description": "Current default season configuration settings:",
-                "fields": [
-                    {
-                        "name": "Turn Settings",
-                        "value": "**Pattern:** {{TURN_PATTERN}}\n**Claim Timeout:** {{CLAIM_TIMEOUT}}"
-                    },
-                    {
-                        "name": "Writing Settings",
-                        "value": "**Timeout:** {{WRITING_TIMEOUT}}\n**Warning:** {{WRITING_WARNING}}"
-                    },
-                    {
-                        "name": "Drawing Settings",
-                        "value": "**Timeout:** {{DRAWING_TIMEOUT}}\n**Warning:** {{DRAWING_WARNING}}"
-                    },
-                    {
-                        "name": "Season Settings",
-                        "value": "**Open Duration:** {{OPEN_DURATION}}\n**Min Players:** {{MIN_PLAYERS}}\n**Max Players:** {{MAX_PLAYERS}}"
-                    },
-                    {
-                        "name": "Info",
-                        "value": "**Guild Default:** {{IS_GUILD_DEFAULT}}\n**Last Updated:** {{LAST_UPDATED}}"
-                    }
-                ]
-            },
             "update_success": "Configuration updated successfully for guild {{guildId}}!\n**Updated fields:** {{updatedFields}}",
             "validation_error": "Invalid configuration value for **{{field}}**: {{error}}",
             "database_error": "Database error occurred while updating configuration. Error code: {{errorCode}}",
@@ -462,6 +466,9 @@
                     }
                 }
             }
+        },
+        "turn_offer": {
+            "new_turn_available": "🎨 **New Turn Available!** 🎨\n\n**Game:** {{gameId}}\n**Season:** {{seasonId}}\n**Turn:** {{turnNumber}} ({{turnType}})\n\nYou have **{{claimTimeoutMinutes}} minutes** to claim this turn. React with ✅ to claim it!"
         }
     }
 }

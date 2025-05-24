@@ -1,6 +1,7 @@
 import { PrismaClient, Player } from '@prisma/client';
 import { MessageInstruction } from '../types/MessageInstruction.js';
 import { MessageHelpers } from '../messaging/MessageHelpers.js';
+import { LangKeys } from '../constants/lang-keys.js';
 
 export class PlayerService {
   private prisma: PrismaClient;
@@ -170,36 +171,40 @@ export class PlayerService {
         }
       });
 
+      const templateData = {
+        players: players.map(player => ({
+          id: player.id,
+          name: player.name,
+          discordUserId: player.discordUserId,
+          isBanned: player.bannedAt !== null,
+          bannedAt: player.bannedAt?.toISOString(),
+          seasonCount: player._count.seasons,
+          turnCount: player._count.turns,
+          recentSeasons: player.seasons.map(s => ({ 
+            id: s.season.id, 
+            status: s.season.status,
+            joinedAt: s.joinedAt.toISOString()
+          })),
+          createdAt: player.createdAt.toISOString()
+        })),
+        totalCount: players.length,
+        ...(seasonId && { seasonFilter: seasonId }),
+        bannedFilter: bannedOnly
+      };
+
+
+
       return MessageHelpers.embedMessage(
         'success',
-        'admin.list_players_success',
-        {
-          players: players.map(player => ({
-            id: player.id,
-            name: player.name,
-            discordUserId: player.discordUserId,
-            isBanned: player.bannedAt !== null,
-            bannedAt: player.bannedAt?.toISOString(),
-            seasonCount: player._count.seasons,
-            turnCount: player._count.turns,
-            recentSeasons: player.seasons.map(s => ({ 
-              id: s.season.id, 
-              status: s.season.status,
-              joinedAt: s.joinedAt.toISOString()
-            })),
-            createdAt: player.createdAt.toISOString()
-          })),
-          totalCount: players.length,
-          seasonFilter: seasonId || null,
-          bannedFilter: bannedOnly
-        },
+        LangKeys.Commands.Admin.ListPlayersSuccess,
+        templateData,
         true // Admin messages should be ephemeral
       );
     } catch (error) {
       console.error('Error in PlayerService.listPlayers:', error);
       return MessageHelpers.embedMessage(
         'error',
-        'admin.list_players_error',
+        LangKeys.Commands.Admin.ListPlayersError,
         { error: error instanceof Error ? error.message : 'Unknown error' },
         true // Admin error messages should be ephemeral
       );
