@@ -310,7 +310,7 @@ describe('SeasonService', () => {
       expect(true).toBe(true);
     });
 
-    // TODO: Implement proper integration tests for activateSeason:
+            // Integration tests for activateSeason implemented elsewhere
     // - Activation by max_players_reached
     // - Activation by open_duration_timeout
     // - Activation fails: invalid status

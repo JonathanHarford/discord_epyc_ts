@@ -1,3 +1,3 @@
 export class GameService {
-  // TODO: Implement GameService methods
+  // GameService implementation tracked in Task 36
 } 

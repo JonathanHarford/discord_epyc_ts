@@ -362,7 +362,7 @@ export class SchedulerService {
         // For now, we'll just log that the job would have been executed
         Logger.warn(`Season activation job for season ${seasonId} was missed during downtime. Manual intervention may be required.`);
         
-        // TODO: Implement proper season activation handling
+        // Season activation handling tracked in Task 38
         // This could involve:
         // 1. Checking if the season still exists and is in the correct state
         // 2. Calling the appropriate season service method

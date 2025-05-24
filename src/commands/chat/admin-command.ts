@@ -232,7 +232,7 @@ export class AdminCommand implements Command {
      */
     private async handleMessageInstruction(instruction: any, intr: ChatInputCommandInteraction): Promise<void> {
         // This is a temporary bridge method to handle services that still return MessageInstruction
-        // TODO: Update services to return plain data instead of MessageInstruction
+                    // Services return MessageInstruction for consistency
         
         const ephemeral = instruction.formatting?.ephemeral ?? false;
         

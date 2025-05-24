@@ -99,22 +99,22 @@ async function start(): Promise<void> {
         // User Context Commands
         new ViewDateJoined(),
 
-        // TODO: Add new commands here
+        // Add new commands here as needed
     ];
 
     // Buttons
     let buttons: Button[] = [
-        // TODO: Add new buttons here
+        // Add new buttons here as needed
     ];
 
     // Reactions
     let reactions: Reaction[] = [
-        // TODO: Add new reactions here
+        // Add new reactions here as needed
     ];
 
     // Triggers
     let triggers: Trigger[] = [
-        // TODO: Add new triggers here
+        // Add new triggers here as needed
     ];
 
     // Event handlers
@@ -130,7 +130,7 @@ async function start(): Promise<void> {
 
     // Jobs
     let jobs: Job[] = [
-        // TODO: Add new jobs here. These are different from scheduled tasks via SchedulerService.
+        // Add new jobs here as needed. These are different from scheduled tasks via SchedulerService.
     ];
 
     // Bot

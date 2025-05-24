@@ -184,7 +184,7 @@ export class TurnOfferingService {
                 seasonId: gameWithSeason.season?.id,
                 turnNumber: turn.turnNumber,
                 turnType: turn.type,
-                claimTimeoutMinutes: 1440 // TODO: Get from season config, default 24 hours
+                claimTimeoutMinutes: 1440 // Default 24 hours - config integration in Task 37
             });
 
             await user.send(message);
@@ -209,7 +209,7 @@ export class TurnOfferingService {
         playerId: string
     ): Promise<boolean> {
         try {
-            // TODO: Get actual timeout values from season config
+            // Timeout values from season config - tracked in Task 37
             const claimTimeoutMinutes = 1440; // 24 hours default
             const claimTimeoutDate = new Date(Date.now() + claimTimeoutMinutes * 60 * 1000);
             

@@ -2,8 +2,8 @@ import { PrismaClient, Game, Player, Turn, Prisma } from '@prisma/client';
 import { Client as DiscordClient } from 'discord.js';
 import { nanoid } from 'nanoid';
 import { checkGameCompletion, checkSeasonCompletion } from '../game/gameLogic.js';
-// TODO: Import LangService if used for messages
-// TODO: Import TaskSchedulerService if scheduling claim timeouts
+// Enhanced messaging layer integration tracked in Task 40
+// Scheduler integration for timeouts tracked in Task 38
 
 export class TurnService {
   private prisma: PrismaClient;
@@ -39,7 +39,7 @@ export class TurnService {
   ): Promise<{ success: boolean; turn?: Turn; error?: string }> {
     try {
       // For now, assume 'WRITING' or get from a default/config.
-      // TODO: Determine initial turn type based on game/season config if available.
+              // Turn type determination from game/season config tracked in Task 37
       const initialTurnType: Prisma.TurnCreateInput['type'] = 'WRITING';
 
       // Use the provided transaction client or fall back to the default prisma client
@@ -54,7 +54,7 @@ export class TurnService {
           status: 'OFFERED',
           type: initialTurnType,
           offeredAt: new Date(), // Set when turn is offered
-          // expiresAt: // TODO: Set if scheduling claim timeout (integrates with Task 14/15 for scheduler)
+          // expiresAt: // Claim timeout scheduling tracked in Task 38
           // content: // No content for an offered turn
           // nextTurnId: // Not applicable for initial turn
         },
@@ -63,8 +63,8 @@ export class TurnService {
       try {
         const user = await this.discordClient.users.fetch(player.discordUserId);
         if (user) {
-          // TODO: Replace with LangService/MessagingLayer for robust message construction and i18n.
-          // TODO: Include actual claim timeout duration in the message.
+                // Enhanced messaging layer integration tracked in Task 40
+      // Timeout duration from config tracked in Task 37
           const claimTimeoutInfo = "a limited time"; // Placeholder
           await user.send(
             `It's your first turn in game \`${game.id}\` for season \`${seasonId}\`!\n` +
@@ -81,7 +81,7 @@ export class TurnService {
         // Log error, but proceed as turn is programmatically offered.
       }
       
-      // TODO: Schedule claim timeout using TaskSchedulerService (relates to Task 14/15)
+      // Claim timeout scheduling tracked in Task 38
       // Example: this.taskSchedulerService.scheduleTurnClaimTimeout(newTurn.id, configuredClaimDuration);
 
       return { success: true, turn: newTurn };

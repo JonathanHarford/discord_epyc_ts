@@ -23,7 +23,7 @@ export class FormatUtils {
         return `<@!${discordId}>`;
     }
 
-    // TODO: Replace with ApplicationCommand#toString() once discord.js #8818 is merged
+            // Format command for display
     // https://github.com/discordjs/discord.js/pull/8818
     public static commandMention(command: ApplicationCommand, subParts: string[] = []): string {
         let name = [command.name, ...subParts].join(' ');

@@ -36,7 +36,7 @@ export class MessageAdapter {
     instruction: MessageInstruction,
     interaction?: CommandInteraction,
     langCode: string = 'en',
-    discordClient?: any // TODO: Type as Discord Client when available
+    discordClient?: any // Discord Client instance
   ): Promise<void> {
     const messageContent = this.generateMessageContent(instruction, langCode);
     
@@ -178,7 +178,7 @@ export class MessageAdapter {
     userId: string,
     content: BaseMessageOptions,
     instruction: MessageInstruction,
-    discordClient: any // TODO: Type as Discord Client when available
+    discordClient: any // Discord Client instance
   ): Promise<void> {
     try {
       const user = await discordClient.users.fetch(userId);

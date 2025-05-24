@@ -1522,6 +1522,85 @@
           "testStrategy": "Execute automated end-to-end tests (if available). Perform extensive manual testing covering all user flows and features, specifically verifying text output."
         }
       ]
+    },
+    {
+      "id": 36,
+      "title": "Implement GameService Methods",
+      "description": "Implement the actual GameService class with methods that support the game logic infrastructure, replacing the placeholder.",
+      "details": "Create the `GameService.ts` file and define the `GameService` class. This service will be responsible for managing the lifecycle of individual games within a season. Key responsibilities will include: creating new game instances when a season starts or a previous game ends (if applicable), coordinating the flow of turns by interacting with `TurnService`, checking the status of a game (e.g., completed), and providing methods for other parts of the application (like command handlers or event listeners) to interact with the current game state. Define core methods such as `createGame(seasonId: string): Promise<Game>`, `getGameStatus(gameId: string): Promise<GameStatus>`, `handleTurnCompletion(turnId: string): Promise<void>`, etc. Ensure the service adheres to the established service structure and principles (Task 5).",
+      "testStrategy": "Implement comprehensive unit tests for the `GameService` methods, mocking dependencies like `SeasonService` and `TurnService` to isolate the logic being tested. Verify that methods correctly update game state, interact with dependent services as expected, and handle various scenarios (e.g., game completion). Additionally, create integration tests that involve `GameService` interacting with actual (or mocked) `SeasonService` and `TurnService` instances to ensure correct coordination between services.",
+      "status": "pending",
+      "dependencies": [
+        5
+      ],
+      "priority": "high",
+      "subtasks": []
+    },
+    {
+      "id": 37,
+      "title": "Implement Timeout Configuration Integration from Season Config",
+      "description": "Integrate season-specific timeout values into TurnOfferingService and direct-message-handler.ts to replace hardcoded values.",
+      "details": "This task involves replacing hardcoded timeout durations in key parts of the application with values dynamically loaded from the active season's configuration settings.  Specifically:\n\n1.  Identify the mechanism for accessing the current season's configuration parameters (e.g., via `SeasonService`, `GameService`, or directly from the database context associated with a turn).\n2.  Modify `src/services/TurnOfferingService.ts`:\n    -   Locate the hardcoded timeout values (referenced around lines 186 and 211 in the prompt's context).\n    -   Replace these hardcoded numbers with logic that retrieves the appropriate 'claim_timeout' duration from the current season's configuration.\n3.  Modify `src/handlers/direct-message-handler.ts`:\n    -   Locate the hardcoded timeout value (referenced around line 166 in the prompt's context).\n    -   Replace this hardcoded number with logic that retrieves the appropriate 'submission_timeout' duration (either writing or drawing, depending on the turn type) from the current season's configuration.\n4.  Ensure robust error handling or fallback mechanisms are in place if season configuration values are missing or invalid (e.g., use a sensible default).",
+      "testStrategy": "1.  Unit tests for `TurnOfferingService` and `direct-message-handler.ts` mocking the configuration retrieval to ensure the correct configured values are used.\n2.  Integration tests:\n    -   Create a season with explicitly set, non-default `claim_timeout` and `submission_timeout` values.\n    -   Trigger the turn offering mechanism for a turn in this season and verify that the scheduled claim timeout matches the configured value.\n    -   Have a player claim a turn (writing or drawing) in this season and verify that the scheduled submission timeout matches the configured value.\n    -   Repeat tests with different season configurations to confirm values are loaded correctly per season.\n3.  Test edge cases, such as seasons created without explicit timeout configurations (should fall back to defaults if implemented).",
+      "status": "pending",
+      "dependencies": [
+        1,
+        5,
+        10,
+        14
+      ],
+      "priority": "high",
+      "subtasks": []
+    },
+    {
+      "id": 38,
+      "title": "Complete Scheduler Integration for Timeouts",
+      "description": "Integrate the task scheduler into TurnService, direct-message-handler, and SchedulerService to handle claim timeouts, submission timeouts, and season activation timeouts based on existing TODO comments.",
+      "details": "Locate the TODO comments in `TurnService.ts` (around lines 56 and 83), `direct-message-handler.ts` (around line 175), and `SchedulerService.ts` (around line 364). Implement the necessary logic to interact with the integrated Task Scheduler (Task 15). In TurnService, schedule claim timeouts when a turn is offered and potentially handle setting expiration times. In direct-message-handler, ensure the submission timeout handler is correctly registered and triggered by the scheduler. In SchedulerService, implement the logic to schedule and handle the season activation timeout, transitioning the season from PENDING to ACTIVE if the timeout occurs before max players are reached. Utilize the timeout configuration values integrated in Task 37.",
+      "testStrategy": "Create a test season with short `claim_timeout`, `writing_timeout`, `drawing_timeout`, and `open_duration` values (e.g., 1 minute). Test the claim timeout by offering a turn and waiting for the timeout to occur, verifying the turn reverts to AVAILABLE and is re-offered. Test submission timeouts by claiming a turn (writing/drawing) and waiting for the timeout, verifying the turn is skipped. Test season activation timeout by creating a season with a short `open_duration` but less than max players, waiting for the timeout, and verifying the season transitions to ACTIVE and turns are offered.",
+      "status": "pending",
+      "dependencies": [
+        5,
+        8,
+        9,
+        10,
+        15,
+        37
+      ],
+      "priority": "high",
+      "subtasks": []
+    },
+    {
+      "id": 39,
+      "title": "Implement Season Activation Error Handling and Notifications",
+      "description": "Implement error handling for season activation failures and send notifications for both success and failure events within the SeasonService.",
+      "details": "Locate the TODO comments in `SeasonService` related to season activation success (line 535) and failure (line 538). For successful activation, implement the logic to send a notification (e.g., to the season creator or a designated channel) confirming the season is now active and ready for turns. For activation failures, implement robust error handling using try-catch blocks or similar mechanisms. Log the error details using the application's standard logging framework. Implement logic to send a notification to configured admin users or channels, including relevant error information to aid debugging. Ensure that activation failures are handled gracefully without crashing the application.",
+      "testStrategy": "Write unit tests for the `SeasonService` activation method, mocking dependencies like the database, scheduler, and notification service. Test the success path: verify that the success notification method is called with the correct parameters. Test failure paths: simulate errors during database operations, scheduler calls, or other steps in the activation process. Verify that errors are logged correctly and that the admin notification method is called with appropriate error details. Conduct integration tests by setting up a test season and manually triggering or waiting for activation, verifying success notifications. Introduce controlled failures in a test environment to confirm error logging and admin notifications function as expected.",
+      "status": "pending",
+      "dependencies": [
+        3,
+        5,
+        8,
+        10
+      ],
+      "priority": "medium",
+      "subtasks": []
+    },
+    {
+      "id": 40,
+      "title": "Implement Enhanced Messaging in TurnService",
+      "description": "Replace basic string messages in TurnService with enhanced messaging using a messaging layer/utility, incorporating dynamic data like claim timeout duration.",
+      "details": "Modify the `TurnService` class, specifically addressing TODO comments related to message construction (e.g., lines 65-66 in the original context). Instead of using simple string literals for messages sent via DM (like turn offers or timeout notifications), integrate with a messaging utility or framework. This utility should allow for structured message creation, potentially supporting i18n in the future. For messages related to turn offers and claim timeouts, fetch the actual configured claim timeout duration (available via Task 37) and include it dynamically in the message text. Ensure the messages are clear and informative for the player.",
+      "testStrategy": "1. Manually trigger a turn offer scenario (e.g., via season activation or completing a previous turn). Verify the DM sent to the player uses the new messaging format and correctly displays the claim timeout duration. 2. Configure different claim timeout durations in season settings or configuration. Repeat the turn offer scenario and confirm the displayed timeout duration in the message updates accordingly. 3. If a basic messaging utility is implemented, ensure it handles simple string replacement correctly.",
+      "status": "pending",
+      "dependencies": [
+        5,
+        10,
+        37,
+        38
+      ],
+      "priority": "medium",
+      "subtasks": []
     }
   ]
 }

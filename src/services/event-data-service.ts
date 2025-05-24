@@ -18,7 +18,7 @@ export class EventDataService {
             args?: Omit<CommandInteractionOptionResolver, 'getMessage' | 'getFocused'>;
         } = {}
     ): Promise<EventData> {
-        // TODO: Retrieve any data you want to pass along in events
+        // Retrieve any data needed for events
 
         // Event language - simplified to just use English locale
         let lang: Locale = Locale.EnglishUS;

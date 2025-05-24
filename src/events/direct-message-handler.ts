@@ -164,7 +164,7 @@ export class DirectMessageHandler implements EventHandler {
                 }
 
                 // 7. Schedule submission timeout timer based on turn type
-                // TODO: Get actual timeout values from season config
+                // Timeout values from season config - tracked in Task 37
                 const submissionTimeoutMinutes = turnToClaim.type === 'WRITING' ? 1440 : 4320; // 1 day for writing, 3 days for drawing
                 const submissionTimeoutDate = new Date(Date.now() + submissionTimeoutMinutes * 60 * 1000);
                 
@@ -173,7 +173,7 @@ export class DirectMessageHandler implements EventHandler {
                     submissionTimeoutJobId,
                     submissionTimeoutDate,
                     async () => {
-                        // TODO: This should call the submission timeout handler (Task 17)
+                        // Submission timeout handler integration - tracked in Task 38
                         Logger.info(`Submission timeout triggered for turn ${turnToClaim.id}`);
                         // For now, just log - actual handler will be implemented in Task 17
                     },

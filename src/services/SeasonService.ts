@@ -533,10 +533,10 @@ export class SeasonService {
 
     if (result.type === 'success') {
       console.log(`SeasonService.handleOpenDurationTimeout: Season ${seasonId} activated successfully by timeout.`);
-      // TODO: Potentially send a notification (e.g., via Discord bot if applicable)
+              // Success notification implementation tracked in Task 39
     } else {
       console.error(`SeasonService.handleOpenDurationTimeout: Failed to activate season ${seasonId} by timeout. Error: ${result.key}`, result.data);
-      // TODO: Handle activation failure (e.g., log, notify admin)
+              // Activation failure handling tracked in Task 39
       // If min_players not met, activateSeason already sets status to CANCELLED.
     }
     // Remove the job from the map as it has been handled (either successfully or failed activation)

@@ -1,0 +1,26 @@
+# Task ID: 37
+# Title: Implement Timeout Configuration Integration from Season Config
+# Status: pending
+# Dependencies: 1, 5, 10, 14
+# Priority: high
+# Description: Integrate season-specific timeout values into TurnOfferingService and direct-message-handler.ts to replace hardcoded values.
+# Details:
+This task involves replacing hardcoded timeout durations in key parts of the application with values dynamically loaded from the active season's configuration settings.  Specifically:
+
+1.  Identify the mechanism for accessing the current season's configuration parameters (e.g., via `SeasonService`, `GameService`, or directly from the database context associated with a turn).
+2.  Modify `src/services/TurnOfferingService.ts`:
+    -   Locate the hardcoded timeout values (referenced around lines 186 and 211 in the prompt's context).
+    -   Replace these hardcoded numbers with logic that retrieves the appropriate 'claim_timeout' duration from the current season's configuration.
+3.  Modify `src/handlers/direct-message-handler.ts`:
+    -   Locate the hardcoded timeout value (referenced around line 166 in the prompt's context).
+    -   Replace this hardcoded number with logic that retrieves the appropriate 'submission_timeout' duration (either writing or drawing, depending on the turn type) from the current season's configuration.
+4.  Ensure robust error handling or fallback mechanisms are in place if season configuration values are missing or invalid (e.g., use a sensible default).
+
+# Test Strategy:
+1.  Unit tests for `TurnOfferingService` and `direct-message-handler.ts` mocking the configuration retrieval to ensure the correct configured values are used.
+2.  Integration tests:
+    -   Create a season with explicitly set, non-default `claim_timeout` and `submission_timeout` values.
+    -   Trigger the turn offering mechanism for a turn in this season and verify that the scheduled claim timeout matches the configured value.
+    -   Have a player claim a turn (writing or drawing) in this season and verify that the scheduled submission timeout matches the configured value.
+    -   Repeat tests with different season configurations to confirm values are loaded correctly per season.
+3.  Test edge cases, such as seasons created without explicit timeout configurations (should fall back to defaults if implemented).

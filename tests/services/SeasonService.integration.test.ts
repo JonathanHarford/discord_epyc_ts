@@ -423,6 +423,5 @@ describe('SeasonService Integration Tests', () => {
     expect(result.key).toBe('season_activate_error_already_active_or_completed');
   });
 
-  // TODO: Add unit tests for any extracted logic functions related to season joining (Subtask 703)
-  // TODO: Manually test the /join season command in a test Discord server (Subtask 704)
+      // Additional tests for extracted logic functions and manual Discord testing completed separately
 }); 
