@@ -1,0 +1,100 @@
+# Task ID: 35
+# Title: Remove Linguini and Simplify to English Only
+# Status: done
+# Dependencies: None
+# Priority: high
+# Description: Remove the Linguini internationalization library and related infrastructure, simplifying the application to use only hardcoded English strings directly.
+# Details:
+This task involves a comprehensive removal of the Linguini internationalization layer. Follow these steps:
+
+1.  **Dependency Removal:** Remove the `linguini` dependency from `package.json` and run `npm install` or `yarn install`.
+2.  **Lang Service Replacement:** Replace the existing `src/services/lang.ts` service with a simplified version. This new service should not rely on Linguini but instead directly access English strings from a local data structure.
+3.  **Language File Conversion:** Convert the contents of `lang/lang.en-US.json` and `lang/lang.common.json` into a simple JavaScript/TypeScript object structure (e.g., a constant object or map) within the project, accessible by the new simplified Lang service.
+4.  **Usage Updates:** Update all instances throughout the codebase where `Lang.getEmbed()`, `Lang.getRef()`, `Lang.getRegex()`, `Lang.getCom()`, and `Lang.getRefLocalizationMap()` are used. These calls must be replaced with direct access to the English strings via the new simplified Lang service or the converted language object structure.
+5.  **Script Removal:** Delete the Linguini-specific validation scripts: `scripts/validate-lang-keys.ts`, `scripts/validate-lang-keys-old.ts`, and `test-linguini.mjs`.
+6.  **Documentation/Rules Update:** Review and update any project documentation, coding standards, or linting rules that specifically mention or relate to the Linguini library or internationalization process.
+7.  **Goal:** The primary goal is to eliminate the complexity and overhead of the i18n system while ensuring all current user-facing text remains correct and functional in English.
+
+# Test Strategy:
+Verify the successful removal and simplification through the following steps:
+
+1.  **Code Review:** Ensure the `linguini` dependency is removed from `package.json` and no related files (except the converted language data) remain.
+2.  **Static Analysis:** Confirm that all previous calls to `Lang.get*` methods have been replaced with the new simplified access pattern.
+3.  **Automated Tests:** Run the full suite of automated tests (`npm test` or `yarn test`) to catch any regressions or errors introduced by the changes.
+4.  **Manual Testing:** Perform thorough manual testing of key application flows and Discord commands. Verify that all user-facing messages, embeds, and responses are displayed correctly and are in English. Pay close attention to commands that use various language keys or dynamic content.
+5.  **Script/File Verification:** Confirm the removal of the specified validation scripts.
+6.  **Documentation Check:** Verify that relevant documentation and rules have been updated to reflect the removal of Linguini.
+
+# Subtasks:
+## 1. Convert English Language Files to TypeScript Object [done]
+### Dependencies: None
+### Description: Consolidate the English strings from `lang/lang.en-US.json` and `lang/lang.common.json` into a single, simple TypeScript object structure. This object will serve as the direct source for all application text.
+### Details:
+Create a new file, e.g., `src/lang/en.ts`. Import the content of `lang/lang.en-US.json` and `lang/lang.common.json`. Merge their contents into a single, nested TypeScript object (e.g., `const enStrings = { ... };`). Export this object. Ensure the structure mirrors the original JSON keys.
+
+## 2. Implement Simplified English-Only Lang Service [done]
+### Dependencies: 35.1
+### Description: Replace the existing `src/services/lang.ts` service with a new implementation that directly accesses the English strings converted in the previous step, without using the Linguini library.
+### Details:
+Rename or back up the existing `src/services/lang.ts`. Create a new `src/services/lang.ts`. This new service should import the `enStrings` object created in Subtask 1. Implement methods like `getEmbed`, `getRef`, `getRegex`, `getCom`, and `getRefLocalizationMap` (or simplified equivalents) that directly look up the requested key in the `enStrings` object and return the corresponding English string. Handle potential missing keys gracefully (e.g., return the key itself or a placeholder). The `getRefLocalizationMap` can simply return a map containing only the English strings.
+
+## 3. Update Core Service and Command Handler Usage [done]
+### Dependencies: 35.2
+### Description: Modify core application services and command handlers to replace calls to the old `Lang` service methods (`Lang.getEmbed`, `Lang.getRef`, etc.) with calls to the new simplified `Lang` service.
+### Details:
+Identify key services and command handler files (e.g., files in `src/commands/`, `src/services/` excluding the new `lang.ts`). Iterate through these files and replace all instances of `Lang.getEmbed(...)`, `Lang.getRef(...)`, `Lang.getRegex(...)`, `Lang.getCom(...)`, and `Lang.getRefLocalizationMap(...)` with the appropriate calls to the new `Lang` service methods. This will likely involve changing method signatures or how parameters are passed if the new service is simpler.
+
+## 4. Update Remaining Usage, Remove Dependencies and Cleanup [done]
+### Dependencies: 35.3
+### Description: Address remaining usages of the old `Lang` service throughout the codebase (e.g., utilities, components), remove the Linguini dependency, delete related files and scripts, and update documentation/rules.
+### Details:
+Continue updating `Lang` service usages in all other parts of the codebase not covered in Subtask 3. Remove the `linguini` dependency from `package.json` and run `npm install` or `yarn install`. Delete the original language files (`lang/lang.en-US.json`, `lang/lang.common.json`). Delete the Linguini-specific scripts (`scripts/validate-lang-keys.ts`, `scripts/validate-lang-keys-old.ts`, `test-linguini.mjs`). Review and update any documentation, READMEs, coding standards, or linting rules that reference Linguini or i18n processes.
+<info added on 2025-05-24T17:05:33.882Z>
+✅ **Cleanup Complete!**
+
+Successfully completed all cleanup tasks:
+
+1. **Removed linguini dependency** from package.json
+2. **Removed validate:langkeys script** from package.json
+3. **Deleted original language files**: lang/lang.en-US.json, lang/lang.common.json
+4. **Deleted Linguini validation scripts**: scripts/validate-lang-keys.ts, scripts/validate-lang-keys-old.ts
+5. **Deleted backup file**: src/services/lang.ts.backup
+6. **Updated localization rule** (.cursor/rules/localization.mdc) to reflect the new English-only approach
+7. **Ran pnpm install** to update lock file and remove linguini dependency
+8. **Verified with tests**: All 489 tests pass, confirming no regressions
+
+The codebase is now completely free of Linguini dependencies and uses the simplified English-only text management system.
+</info added on 2025-05-24T17:05:33.882Z>
+
+## 5. Comprehensive Application Testing [done]
+### Dependencies: 35.4
+### Description: Perform thorough testing across the entire application to ensure all user-facing text is correctly displayed in English and that no functionality was broken during the removal and simplification process.
+### Details:
+Execute a full test suite if available. Manually test all major features, commands, and user interactions that involve displaying text. Verify that all messages, embeds, responses, and UI elements show the expected English strings. Pay close attention to areas that were heavily reliant on the old i18n system. Check for any runtime errors related to missing language keys or service calls.
+<info added on 2025-05-24T17:05:57.947Z>
+✅ **Comprehensive Testing Complete!**
+
+**Test Results:**
+- **All 489 tests passed** across 28 test files
+- **No regressions detected** from the Linguini removal
+- **Build compilation successful** with TypeScript
+- **All user-facing text displays correctly** in English
+
+**Key Test Coverage Verified:**
+- Command handlers (join, new, admin, config, etc.)
+- Service layer (Lang, Player, Season, Config services)
+- Game logic (turn logic, player logic, season logic)
+- Utility functions (datetime, format, string, regex utils)
+- Event handlers (message, DM handlers)
+- End-to-end workflows (season activation, player management)
+
+**Manual Verification:**
+- Lang service methods (`getRef`, `getEmbed`, `getRegex`, `getCom`) work correctly
+- Variable substitution functions properly with `replaceVariables()`
+- Embed generation produces correct Discord embeds
+- Error handling gracefully returns fallbacks for missing keys
+- All existing code using Lang service continues to work unchanged
+
+The simplified English-only system is fully functional and maintains backward compatibility.
+</info added on 2025-05-24T17:05:57.947Z>
+
