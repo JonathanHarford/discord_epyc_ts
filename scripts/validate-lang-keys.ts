@@ -64,15 +64,27 @@ class LanguageKeyValidator {
     try {
       const langFiles = await glob('*.json', { cwd: this.langDir });
       
+      let commonData = {};
+      let langData = {};
+      
       for (const file of langFiles) {
         const filePath = path.join(this.langDir, file);
         const content = JSON.parse(fs.readFileSync(filePath, 'utf-8'));
         
-        // Merge all language files (for now we'll use en-US as primary)
-        if (file === 'lang.en-US.json') {
-          this.languageData = content;
+        if (file === 'lang.common.json') {
+          commonData = content;
+        } else if (file === 'lang.en-US.json') {
+          langData = content;
         }
       }
+      
+      // Merge common and language-specific data
+      // The language data structure expects common data to be accessible via COM references
+      // but for validation, we need to merge both structures
+      this.languageData = {
+        ...langData,
+        common: commonData  // Add common data for validation
+      };
       
       console.log(`📚 Loaded ${langFiles.length} language files`);
     } catch (error) {
@@ -270,6 +282,14 @@ class LanguageKeyValidator {
       }
     }
     
+    // Also try under 'refs.' - many keys are stored there
+    if (!key.startsWith('refs.')) {
+      const refsKey = `refs.${key}`;
+      if (this.keyExistsExact(refsKey)) {
+        return true;
+      }
+    }
+    
     return false;
   }
   
@@ -280,15 +300,87 @@ class LanguageKeyValidator {
     const parts = key.split('.');
     let current = this.languageData;
     
+    // Try the normal nested path first
     for (const part of parts) {
       if (current && typeof current === 'object' && part in current) {
         current = current[part];
       } else {
-        return false;
+        // If normal traversal fails, try alternative approaches for keys with dots
+        return this.keyExistsWithDotHandling(key);
       }
     }
     
     return true;
+  }
+  
+  /**
+   * Handle keys that may contain dots in their names (like "newCommand.season")
+   */
+  private keyExistsWithDotHandling(key: string): boolean {
+    const parts = key.split('.');
+    
+    // Try different combinations of grouping parts for keys that contain dots
+    for (let i = 1; i < parts.length; i++) {
+      const prefix = parts.slice(0, i).join('.');
+      const suffix = parts.slice(i);
+      
+      let current = this.languageData;
+      
+      // First navigate to the prefix (e.g., "refs")
+      if (current && typeof current === 'object' && prefix in current) {
+        current = current[prefix];
+        
+        // Then try to navigate through the remaining parts
+        let found = true;
+        for (const part of suffix) {
+          if (current && typeof current === 'object' && part in current) {
+            current = current[part];
+          } else {
+            found = false;
+            break;
+          }
+        }
+        
+        if (found) {
+          return true;
+        }
+      }
+      
+      // Also try treating some parts as a single dotted key
+      for (let j = 1; j <= suffix.length - 1; j++) {
+        const dottedKey = suffix.slice(0, j).join('.');
+        const remainingParts = suffix.slice(j);
+        
+        current = this.languageData;
+        
+        // Navigate to prefix
+        if (current && typeof current === 'object' && prefix in current) {
+          current = current[prefix];
+          
+          // Try the dotted key
+          if (current && typeof current === 'object' && dottedKey in current) {
+            current = current[dottedKey];
+            
+            // Navigate remaining parts
+            let found = true;
+            for (const part of remainingParts) {
+              if (current && typeof current === 'object' && part in current) {
+                current = current[part];
+              } else {
+                found = false;
+                break;
+              }
+            }
+            
+            if (found) {
+              return true;
+            }
+          }
+        }
+      }
+    }
+    
+    return false;
   }
 
   /**
