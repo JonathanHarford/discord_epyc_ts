@@ -246,6 +246,10 @@
             "notImplemented": {
                 "description": "This feature has not been implemented yet!",
                 "color": "{{COM:colors.warning}}"
+            },
+            "guildOnly": {
+                "description": "This command can only be used in a server.",
+                "color": "{{COM:colors.warning}}"
             }
         },
         "channelRegexes": {
@@ -423,13 +427,15 @@
             "error_generic_service": "A generic error occurred in the service. Please try again later or contact support. (Details: {{details}})",
             "error_unknown": "An unknown error occurred while creating the season. Message: {{message}}"
         },
-        "newCommand.commandDescs": {
-            "new": "Create a new season. Use this command to start a new game flow."
+        "newCommand": {
+            "commandDescs": {
+                "new": "Create a new season. Use this command to start a new game flow."
+            },
+            "error_unknown_subcommand": "That subcommand for 'new' isn't recognized. Please check the command and try again."
         },
         "common.error": {
             "critical_command": "A critical unexpected error occurred. Please contact support."
         },
-        "newCommand.error_unknown_subcommand": "That subcommand for 'new' isn't recognized. Please check the command and try again.",
         "admin": {
             "terminate_season_success": "Season **{{seasonId}}** has been successfully terminated.\n**Previous Status:** {{previousStatus}}\n**Players:** {{playerCount}}\n**Games:** {{gameCount}}",
             "terminate_season_error_not_found": "Season '{{seasonId}}' not found.",
@@ -437,7 +443,21 @@
             "terminate_season_error_database": "A database error occurred while terminating season '{{seasonId}}'. Error code: {{errorCode}}",
             "terminate_season_error_unknown": "An unknown error occurred while terminating season '{{seasonId}}'. {{message}}",
             "list_seasons_error": "An error occurred while retrieving seasons. Error: {{error}}",
-            "list_players_error": "An error occurred while retrieving players. Error: {{error}}"
+            "list_players_error": "An error occurred while retrieving players. Error: {{error}}",
+            "player": {
+                "ban": {
+                    "success": "Player {{playerName}} has been successfully banned.",
+                    "error": "An error occurred while banning the player. Please try again.",
+                    "notFound": "Player not found.",
+                    "alreadyBanned": "Player {{playerName}} is already banned."
+                },
+                "unban": {
+                    "success": "Player {{playerName}} has been successfully unbanned.",
+                    "error": "An error occurred while unbanning the player. Please try again.",
+                    "notFound": "Player not found.",
+                    "notBanned": "Player {{playerName}} is not currently banned."
+                }
+            }
         },
         "config": {
             "update_success": "Configuration updated successfully for guild {{guildId}}!\n**Updated fields:** {{updatedFields}}",
@@ -469,6 +489,29 @@
         },
         "turn_offer": {
             "new_turn_available": "🎨 **New Turn Available!** 🎨\n\n**Game:** {{gameId}}\n**Season:** {{seasonId}}\n**Turn:** {{turnNumber}} ({{turnType}})\n\nYou have **{{claimTimeoutMinutes}} minutes** to claim this turn. React with ✅ to claim it!"
+        },
+        "game": {
+            "seasonId": "Season ID: {{seasonId}}"
+        },
+        "turn_timeout": {
+            "submission_timeout_skipped": "Turn submission timed out and was automatically skipped."
+        },
+        "ready": {
+            "player_not_found": "Player profile not found. Please try again later or contact support.",
+            "no_offered_turns": "You have no offered turns available to claim.",
+            "already_has_pending_turn": "You already have a pending turn to complete.",
+            "claim_failed": "Failed to claim the turn. Please try again.",
+            "claim_success": "Turn claimed successfully! You can now submit your response."
+        },
+        "submission": {
+            "player_not_found": "Player profile not found. Please try again later or contact support.",
+            "no_pending_turns": "You have no pending turns to submit.",
+            "no_attachment_found": "No attachment found. Please attach a file with your submission.",
+            "invalid_file_type": "Invalid file type. Please submit a valid image file or text document.",
+            "no_content_found": "No content found in the submission. Please provide text or attach a file.",
+            "wrong_content_type": "Incorrect content type for this turn. Please check the turn requirements.",
+            "submit_failed": "Failed to submit your turn. Please try again.",
+            "submit_success": "Turn submitted successfully!"
         }
     }
 }
