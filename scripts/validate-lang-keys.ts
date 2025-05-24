@@ -193,10 +193,42 @@ class LanguageKeyValidator {
    */
   private isValidKey(key: string): boolean {
     // Must start with a letter and contain only letters, numbers, dots, and underscores
-    return /^[a-zA-Z][a-zA-Z0-9._]*$/.test(key) && 
-           key.includes('.') && 
-           !key.startsWith('.') && 
-           !key.endsWith('.');
+    if (!/^[a-zA-Z][a-zA-Z0-9._]*$/.test(key) || 
+        !key.includes('.') || 
+        key.startsWith('.') || 
+        key.endsWith('.')) {
+      return false;
+    }
+
+    // Simple exclusions for obvious non-language-key patterns
+    const exclusions = [
+      /^discord\.js$/,           // Library name
+      /^discord\.js-rate-limiter$/, // Library name
+      /\.(js|ts)$/,              // File extensions
+    ];
+
+    // Check if key matches any exclusion pattern
+    if (exclusions.some(pattern => pattern.test(key))) {
+      return false;
+    }
+
+    // Language keys for this Discord bot typically follow these patterns
+    const parts = key.split('.');
+    const firstPart = parts[0].toLowerCase();
+    
+    // Valid Discord bot language key categories from the codebase
+    const validCategories = [
+      'commands', 'errors', 'messages', 'validation', 'display',
+      'admin', 'permissions', 'help', 'info', 'config', 'season',
+      'player', 'turn', 'submission', 'game', 'ready', 'status',
+      'joinseaseon', 'newcommand', 'common', 'channelregexes',
+      'turn_offer', 'turn_timeout', 'chatcommands', 'messagecommands',
+      'usercommands', 'argdescs', 'devcommandnames', 'helpoptions',
+      'infooptions', 'displayembeds', 'validationembeds', 'errorembeds'
+    ];
+    
+    // Accept if it starts with a known category
+    return validCategories.includes(firstPart);
   }
 
   /**
@@ -224,6 +256,27 @@ class LanguageKeyValidator {
    * Check if a key exists in the language data
    */
   private keyExists(key: string): boolean {
+    // First try the exact key
+    if (this.keyExistsExact(key)) {
+      return true;
+    }
+    
+    // If key doesn't start with 'data.', try adding it
+    // This handles cases where Lang service automatically looks under 'data.'
+    if (!key.startsWith('data.')) {
+      const dataKey = `data.${key}`;
+      if (this.keyExistsExact(dataKey)) {
+        return true;
+      }
+    }
+    
+    return false;
+  }
+  
+  /**
+   * Check if a key exists exactly as specified in the language data
+   */
+  private keyExistsExact(key: string): boolean {
     const parts = key.split('.');
     let current = this.languageData;
     
