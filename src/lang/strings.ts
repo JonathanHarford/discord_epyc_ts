@@ -37,6 +37,7 @@ export const strings = {
     info: "info",
     test: "test",
     new: "new",
+    join: "join",
     status: "status",
     admin: "admin",
     config: "config"
@@ -51,6 +52,7 @@ export const strings = {
     info: "info",
     test: "test",
     new: "new",
+    join: "join",
     status: "status"
   },
 
@@ -61,6 +63,7 @@ export const strings = {
     info: "View bot info.",
     test: "Run the test command.",
     new: "Create a new season. Use this command to start a new game flow.",
+    join: "Join an existing season.",
     status: "Get status information for a season.",
     admin: "Administrative commands for managing the bot.",
     config: "Configuration commands for managing bot settings."
