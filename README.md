@@ -1,133 +1,221 @@
-# Discord Bot TypeScript Template
+# EPYC Discord Bot
 
-[![discord.js](https://img.shields.io/github/package-json/dependency-version/KevinNovak/Discord-Bot-TypeScript-Template/discord.js)](https://discord.js.org/)
-[![License](https://img.shields.io/badge/license-MIT-blue)](https://opensource.org/licenses/MIT)
-[![Stars](https://img.shields.io/github/stars/KevinNovak/Discord-Bot-TypeScript-Template.svg)](https://github.com/KevinNovak/Discord-Bot-TypeScript-Template/stargazers)
-[![Pull Requests](https://img.shields.io/badge/Pull%20Requests-Welcome!-brightgreen)](https://github.com/KevinNovak/Discord-Bot-TypeScript-Template/pulls)
+A Discord bot implementation of _Eat Poop You Cat_ (aka _Broken Picture Telephone_ aka _Telepictionary_ aka _The Caption Game_ aka _Doodle or Die_ aka _Drawception_ aka _Telestrations_ aka _Scribblish_ aka _Gartic Phone_), an _exquisite corpse_ party game that combines elements of Telephone and Pictionary.
 
-**Discord bot** - A discord.js bot template written with TypeScript.
+## What is EPYC?
 
-## Introduction
+EPYC (Eat Poop You Cat) is a party game where:
 
-This template was created to give developers a starting point for new Discord bots, so that much of the initial setup can be avoided and developers can instead focus on meaningful bot features. Developers can simply copy this repo, follow the [setup instructions](#setup) below, and have a working bot with many [boilerplate features](#features) already included!
+1. **Initial Turn**: The first player writes a sentence or phrase
+2. **Drawing Turn**: The second player draws an illustration based solely on that sentence
+3. **Describing Turn**: The third player writes a sentence based solely on the drawing (without seeing the original sentence)
+4. **Alternating Turns**: This pattern continues, alternating between writing and drawing
+5. **Reveal**: At the end, the full sequence is revealed, showing how the original sentence evolved through the game
 
-For help using this template, feel free to [join our support server](https://discord.gg/c9kQktCbsE)!
+## How is this different from other EPYC apps?
 
-[![Discord Shield](https://discord.com/api/guilds/660711235766976553/widget.png?style=shield)](https://discord.gg/c9kQktCbsE)
+- It's played entirely in Discord
+- You're not limited to a crappy 8-color drawing widget. Use Procreate, Photoshop, or draw by hand and snap a photo!
+- Instead of a single game played with strangers over a few minutes, you simultaneously play as many games as there are players over the course of days, weeks, or months.
 
 ## Features
 
-### Built-In Bot Features:
+### Season Games (Primary Mode)
+- **Season Creation**: Start a new season with `/new season` command
+- **Player Joining**: Players join seasons with `/join season:<id>`
+- **Automatic Turn Distribution**: Bot intelligently assigns turns to players via DM
+- **Turn Claiming**: Players use `/ready` in DMs to claim offered turns
+- **Content Submission**: Players submit text or images directly in DMs
+- **Timeout Management**: Configurable timeouts for claiming and submitting turns
+- **Season Completion**: Full game sequences revealed when season completes
 
--   Basic command structure.
--   Rate limits and command cooldowns.
--   Welcome message when joining a server.
--   Shows server count in bot status.
--   Posts server count to popular bot list websites.
--   Support for multiple languages.
+### Game Management
+- **Multiple Concurrent Games**: Each season creates one game per player
+- **Turn Tracking**: Sophisticated turn state management (AVAILABLE → OFFERED → PENDING → COMPLETED)
+- **Player Logic**: Smart algorithm ensures fair turn distribution and game balance
+- **Progress Monitoring**: `/status season:<id>` shows current progress
 
-### Developer Friendly:
+### Administrative Features
+- **Season Termination**: Admins can terminate seasons with `/admin terminate season:<id>`
+- **Player Management**: Ban/unban players with `/admin ban` and `/admin unban`
+- **Season Listing**: View all seasons with `/admin list seasons`
+- **Configuration**: Customize season defaults with `/config seasons`
 
--   Written with TypeScript.
--   Uses the [discord.js](https://discord.js.org/) framework.
--   Built-in debugging setup for VSCode.
--   Written with [ESM](https://nodejs.org/api/esm.html#introduction) for future compatibility with packages.
--   Support for running with the [PM2](https://pm2.keymetrics.io/) process manger.
--   Support for running with [Docker](https://www.docker.com/).
+### Technical Features
+- **Database-Driven**: PostgreSQL with Prisma ORM for reliable data management
+- **Scheduled Jobs**: Automatic timeout handling and season activation
+- **Discord Integration**: Rich DM interactions and slash command support
+- **Comprehensive Testing**: Unit, integration, and end-to-end tests
+- **TypeScript**: Fully typed for reliability and maintainability
 
-### Scales as Your Bot Grows:
+## Game Flow
 
--   Supports [sharding](https://discordjs.guide/sharding/) which is required when your bot is in 2500+ servers.
--   Supports [clustering](https://github.com/KevinNovak/Discord-Bot-TypeScript-Template-Master-Api) which allows you to run your bot on multiple machines.
+### Starting a Season
+1. Player uses `/new season` in a Discord channel or DM
+2. Other players join with `/join season:<id>`
+3. Season activates when `max_players` is reached or `open_duration` expires
+4. Bot creates one game per player and offers initial writing turns
+
+### Playing Turns
+1. Bot DMs players when turns are offered
+2. Players use `/ready` to claim turns
+3. Players submit content (text for writing turns, images for drawing turns)
+4. Bot processes submission and offers next turn to appropriate player
+5. Process continues until all games complete
+
+### Season Completion
+- Season completes when all games finish (each player has participated in each game)
+- Bot reveals full sequences showing how each original sentence evolved
+- Results posted in the channel where season started (or DM'd if started in DM)
 
 ## Commands
 
-This bot has a few example commands which can be modified as needed.
+### Player Commands
+- `/new season [options]` - Start a new season
+- `/join season:<id>` - Join an existing season  
+- `/status season:<id>` - Check season progress
+- `/ready` - Claim an offered turn (DM only)
 
-### Help Command
+### Admin Commands
+- `/admin terminate season:<id>` - End a season prematurely
+- `/admin ban user:@user [reason]` - Ban a player
+- `/admin unban user:@user` - Unban a player
+- `/admin list seasons [status]` - List seasons
+- `/admin list players [options]` - List players
 
-A `/help` command to get help on different areas of the bot or to contact support:
-
-![](https://i.imgur.com/UUA4WzL.png)
-
-![](https://i.imgur.com/YtDdmTe.png)
-
-![](https://i.imgur.com/JXMisap.png)
-
-### Info Command
-
-A `/info` command to get information about the bot or links to different resources.
-
-![](https://i.imgur.com/0kKOaWM.png)
-
-### Test Command
-
-A generic command, `/test`, which can be copied to create additional commands.
-
-![](https://i.imgur.com/lqjkNKM.png)
-
-### Dev Command
-
-A `/dev` command which can only be run by the bot developer. Shows developer information, but can be extended to perform developer-only actions.
-
-![](https://i.imgur.com/2o1vEno.png)
-
-### Welcome Message
-
-A welcome message is sent to the server and owner when the bot is added.
-
-![](https://i.imgur.com/QBw8H8v.png)
+### Configuration Commands
+- `/config seasons view` - View current default settings
+- `/config seasons set [options]` - Update default settings
 
 ## Setup
 
-1. Copy example config files.
-    - Navigate to the `config` folder of this project.
-    - Copy all files ending in `.example.json` and remove the `.example` from the copied file names.
-        - Ex: `config.example.json` should be copied and renamed as `config.json`.
-2. Obtain a bot token.
-    - You'll need to create a new bot in your [Discord Developer Portal](https://discord.com/developers/applications/).
-        - See [here](https://www.writebots.com/discord-bot-token/) for detailed instructions.
-        - At the end you should have a **bot token**.
-3. Modify the config file.
-    - Open the `config/config.json` file.
-    - You'll need to edit the following values:
-        - `client.id` - Your discord bot's [user ID](https://techswift.org/2020/04/22/how-to-find-your-user-id-on-discord/).
-        - `client.token` - Your discord bot's token.
-4. Install packages.
-    - Navigate into the downloaded source files and type `npm install`.
-5. Register commands.
-    - In order to use slash commands, they first [have to be registered](https://discordjs.guide/creating-your-bot/command-deployment.html).
-    - Type `npm run commands:register` to register the bot's commands.
-        - Run this script any time you change a command name, structure, or add/remove commands.
-        - This is so Discord knows what your commands look like.
-        - It may take up to an hour for command changes to appear.
+### Prerequisites
+- Node.js 18+ and pnpm
+- PostgreSQL database
+- Discord bot token
 
-## Start Scripts
+### Installation
 
-You can run the bot in multiple modes:
+1. **Clone and install dependencies**
+   ```bash
+   git clone <repository-url>
+   cd epyc_discord_bot
+   pnpm install
+   ```
 
-1. Normal Mode
-    - Type `npm start`.
-    - Starts a single instance of the bot.
-2. Manager Mode
-    - Type `npm run start:manager`.
-    - Starts a shard manager which will spawn multiple bot shards.
-3. PM2 Mode
-    - Type `npm run start:pm2`.
-    - Similar to Manager Mode but uses [PM2](https://pm2.keymetrics.io/) to manage processes.
+2. **Database setup**
+   ```bash
+   # Set up your PostgreSQL database
+   # Copy .env.example to .env and configure DATABASE_URL
+   cp .env.example .env
+   
+   # Run database migrations
+   pnpm prisma migrate deploy
+   ```
 
-## Bots Using This Template
+3. **Discord bot setup**
+   - Create a bot in [Discord Developer Portal](https://discord.com/developers/applications/)
+   - Copy `config/config.example.json` to `config/config.json`
+   - Add your bot token and client ID to the config file
 
-A list of Discord bots using this template.
+4. **Register commands**
+   ```bash
+   pnpm run commands:register
+   ```
 
-| Bot                                                                    | Servers                                                       |
-| ---------------------------------------------------------------------- | ------------------------------------------------------------- |
-| [Birthday Bot](https://top.gg/bot/656621136808902656)                  | ![](https://top.gg/api/widget/servers/656621136808902656.svg) |
-| [QOTD Bot](https://top.gg/bot/713586207119900693)                      | ![](https://top.gg/api/widget/servers/713586207119900693.svg) |
-| [Friend Time](https://top.gg/bot/471091072546766849)                   | ![](https://top.gg/api/widget/servers/471091072546766849.svg) |
-| [Bento](https://top.gg/bot/787041583580184609)                         | ![](https://top.gg/api/widget/servers/787041583580184609.svg) |
-| [NFT-Info](https://top.gg/bot/902249456072818708)                      | ![](https://top.gg/api/widget/servers/902249456072818708.svg) |
-| [Skylink-IF](https://top.gg/bot/929527099922993162)                    | ![](https://top.gg/api/widget/servers/929527099922993162.svg) |
-| [Topcoder TC-101](https://github.com/topcoder-platform/tc-discord-bot) |                                                               |
+5. **Start the bot**
+   ```bash
+   pnpm start
+   ```
 
-Don't see your bot listed? [Contact us](https://discord.gg/c9kQktCbsE) to have your bot added!
+## Configuration
+
+### Season Settings
+Configure default season parameters:
+- `turn_pattern`: Order of turn types (`"writing,drawing"` or `"drawing,writing"`)
+- `claim_timeout`: Time to claim offered turns (default: `"1d"`)
+- `writing_timeout`: Time to submit writing turns (default: `"1d"`)
+- `drawing_timeout`: Time to submit drawing turns (default: `"1d"`)
+- `open_duration`: How long season stays open for joining (default: `"7d"`)
+- `min_players`: Minimum players to start season (default: `6`)
+- `max_players`: Maximum players per season (default: `20`)
+
+### Environment Variables
+- `DATABASE_URL`: PostgreSQL connection string
+- `DISCORD_TOKEN`: Bot token from Discord Developer Portal
+
+## Development
+
+### Running Tests
+```bash
+# Unit tests
+pnpm test
+
+# Integration tests  
+pnpm test:integration
+
+# End-to-end tests
+pnpm test:e2e
+
+# All tests
+pnpm test:all
+```
+
+### Database Management
+```bash
+# Generate Prisma client
+pnpm prisma generate
+
+# Run migrations
+pnpm prisma migrate dev
+
+# Reset database
+pnpm prisma migrate reset
+
+# View database
+pnpm prisma studio
+```
+
+### Development Scripts
+```bash
+# Development mode with hot reload
+pnpm dev
+
+# Build for production
+pnpm build
+
+# Register commands to specific guild (faster for testing)
+pnpm run commands:register:guild
+
+# Clear guild commands
+pnpm run commands:clear:guild
+```
+
+## Architecture
+
+### Core Services
+- **SeasonService**: Manages season lifecycle and player joining
+- **TurnService**: Handles turn claiming, submission, and state transitions
+- **TurnOfferingService**: Implements next player selection logic
+- **SchedulerService**: Manages timeouts and scheduled tasks
+- **PlayerService**: Player management and ban/unban functionality
+
+### Database Schema
+- **Season**: Season metadata and configuration
+- **Game**: Individual games within seasons
+- **Turn**: Turn data with state tracking
+- **Player**: Player information and ban status
+- **SeasonConfig**: Configurable season parameters
+
+### Key Design Principles
+- **Platform Independence**: Core logic abstracted from Discord-specific APIs
+- **Standardized Returns**: Services return platform-agnostic message instructions
+- **Comprehensive Testing**: Full test coverage including end-to-end season playthroughs
+- **Type Safety**: Full TypeScript implementation with strict typing
+
+## Future Enhancements
+
+- **OnDemand Games**: Standalone games with `/new game` and `/play` commands
+- **Turn Flagging**: Content moderation and admin review workflow
+- **Advanced Analytics**: Game statistics and player performance tracking
+
