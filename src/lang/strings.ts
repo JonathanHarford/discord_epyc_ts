@@ -146,6 +146,7 @@ export const strings = {
       joinAlreadyJoined: "You have already joined season with ID '{seasonId}'.",
       joinFull: "Season with ID '{seasonId}' is full.",
       joinPlayerNotFound: "Your player profile could not be found. Please try again later or contact support.",
+      joinSuccessButActivationFailed: "You have successfully joined season **{seasonId}** (now {playerCount} players), but there was an issue automatically starting the season. An administrator has been notified and will investigate.",
       
       // Season activation
       activateSuccess: "🎉 **Season {seasonId} has been activated!** 🎉\n\n**Status:** {status}\n**Games Created:** {gamesCreated}\n**Players:** {playersInSeason}\n\nThe games have begun! Players will receive their first turn offers shortly.",
@@ -160,7 +161,13 @@ export const strings = {
       
       // Season completion
       completionAnnouncement: "🎊 **Season {seasonId} Complete!** 🎊\n\n**Duration:** {daysElapsed} days\n**Completion:** {completionPercentage}% ({completedTurns}/{totalTurns} turns)\n**Games:** {totalGames}\n**Players:** {totalPlayers}\n\nCreated by: {creatorName}\n\n{gameResults}",
-      completionFallbackAnnouncement: "🎊 **Season {seasonId} Complete!** 🎊\n\nSeason completion details are available. Check the season status for more information."
+      completionFallbackAnnouncement: "🎊 **Season {seasonId} Complete!** 🎊\n\nSeason completion details are available. Check the season status for more information.",
+      
+      // Season activation notifications
+      activationSuccessNotification: "🎉 **Your Season is Now Active!** 🎉\n\nHi {creatorName}! Your season **{seasonId}** has been successfully activated!\n\n**Games Created:** {gamesCreated}\n**Players:** {playersInSeason}\n\nPlayers will start receiving their turn offers shortly. Good luck with your season!",
+      activationSuccessChannelNotification: "🎉 **Season {seasonId} Activated!** 🎉\n\nThe season has been automatically activated and is now ready for play!\n\n**Games Created:** {gamesCreated}\n**Players:** {playersInSeason}\n\nPlayers will receive their first turn offers shortly.",
+      activationFailureAdminNotification: "⚠️ **Season Activation Failed** ⚠️\n\n**Season ID:** {seasonId}\n**Error:** {errorKey}\n**Triggered By:** {triggeredBy}\n**Creator:** {creatorName} ({creatorDiscordId})\n**Player Count:** {playerCount}\n**Timestamp:** {timestamp}\n\n**Error Details:**\n```json\n{errorData}\n```\n\nPlease investigate and take appropriate action.",
+      activationFailureCreatorNotification: "❌ **Season Activation Failed** ❌\n\nHi {creatorName}, unfortunately your season **{seasonId}** failed to activate automatically.\n\n**Reason:** {errorType}\n**Triggered By:** {triggeredBy}\n\nAn administrator has been notified and will investigate the issue. You may try creating a new season or contact support for assistance."
     },
 
     // Config messages

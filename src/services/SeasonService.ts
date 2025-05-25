@@ -302,18 +302,49 @@ export class SeasonService {
       // 6. Check if max players reached after adding this player
       if (maxPlayers !== null && updatedPlayerCount >= maxPlayers) {
         console.log(`SeasonService.addPlayerToSeason: Max players reached for season ${seasonId} (${updatedPlayerCount}/${maxPlayers}). Triggering activation.`);
-        // Pass the current transaction client (tx) to activateSeason
-        const activationResult = await this.activateSeason(season.id, { triggeredBy: 'max_players', playerCount: updatedPlayerCount }, tx);
-        if (activationResult.type === 'success') {
-          console.log(`SeasonService.addPlayerToSeason: Season ${seasonId} activated successfully due to max players.`);
-          // Return the activation success message directly
-          return activationResult;
-        } else {
-          console.error(`SeasonService.addPlayerToSeason: Activation failed for season ${seasonId} after max players reached. Error: ${activationResult.key}`, activationResult.data);
-          // Return the activation error message
-          // This case should be handled carefully: player was added, but activation failed.
-          // For now, we return the activation error, but this might need more robust error handling or rollback.
-          return activationResult;
+        
+        try {
+          // Pass the current transaction client (tx) to activateSeason
+          const activationResult = await this.activateSeason(season.id, { triggeredBy: 'max_players', playerCount: updatedPlayerCount }, tx);
+          if (activationResult.type === 'success') {
+            console.log(`SeasonService.addPlayerToSeason: Season ${seasonId} activated successfully due to max players.`);
+            // Send success notification (outside of transaction)
+            setImmediate(async () => {
+              await this.sendSeasonActivationSuccessNotification(seasonId, activationResult);
+            });
+            // Return the activation success message directly
+            return activationResult;
+          } else {
+            console.error(`SeasonService.addPlayerToSeason: Activation failed for season ${seasonId} after max players reached. Error: ${activationResult.key}`, activationResult.data);
+            // Send failure notification (outside of transaction)
+            setImmediate(async () => {
+              await this.sendSeasonActivationFailureNotification(seasonId, activationResult, 'max_players');
+            });
+            // Return the activation error message
+            // This case should be handled carefully: player was added, but activation failed.
+            // For now, we return the activation error, but this might need more robust error handling or rollback.
+            return activationResult;
+          }
+        } catch (activationError) {
+          console.error(`SeasonService.addPlayerToSeason: Unexpected error during activation for season ${seasonId}:`, activationError);
+          // Send failure notification (outside of transaction)
+          setImmediate(async () => {
+            await this.sendSeasonActivationFailureNotification(seasonId, {
+              type: 'error' as const,
+              key: 'season_activate_error_unexpected',
+              data: { 
+                seasonId, 
+                error: activationError instanceof Error ? activationError.message : 'Unknown error',
+                triggeredBy: 'max_players'
+              }
+            }, 'max_players');
+          });
+          // Return a user-friendly error message
+          return {
+            type: 'error' as const,
+            key: 'messages.season.joinSuccessButActivationFailed',
+            data: { seasonId, playerCount: updatedPlayerCount }
+          };
         }
       }
 
@@ -534,22 +565,245 @@ export class SeasonService {
     console.log(`SeasonService.handleOpenDurationTimeout: Handling open_duration timeout for season ${seasonId}.`);
     // Activation due to timeout does not have a prior player count from an addPlayerToSeason call.
     // activateSeason will fetch the current count within its own transaction.
-    const result = await this.activateSeason(seasonId, { triggeredBy: 'open_duration_timeout' });
-    // No 'tx' is passed here, so activateSeason will create its own transaction.
+    
+    try {
+      const result = await this.activateSeason(seasonId, { triggeredBy: 'open_duration_timeout' });
+      // No 'tx' is passed here, so activateSeason will create its own transaction.
 
-    if (result.type === 'success') {
-      console.log(`SeasonService.handleOpenDurationTimeout: Season ${seasonId} activated successfully by timeout.`);
-              // Success notification implementation tracked in Task 39
-    } else {
-      console.error(`SeasonService.handleOpenDurationTimeout: Failed to activate season ${seasonId} by timeout. Error: ${result.key}`, result.data);
-              // Activation failure handling tracked in Task 39
-      // If min_players not met, activateSeason already sets status to CANCELLED.
+      if (result.type === 'success') {
+        console.log(`SeasonService.handleOpenDurationTimeout: Season ${seasonId} activated successfully by timeout.`);
+        await this.sendSeasonActivationSuccessNotification(seasonId, result);
+      } else {
+        console.error(`SeasonService.handleOpenDurationTimeout: Failed to activate season ${seasonId} by timeout. Error: ${result.key}`, result.data);
+        await this.sendSeasonActivationFailureNotification(seasonId, result, 'open_duration_timeout');
+        // If min_players not met, activateSeason already sets status to CANCELLED.
+      }
+    } catch (error) {
+      console.error(`SeasonService.handleOpenDurationTimeout: Unexpected error during season ${seasonId} activation:`, error);
+      await this.sendSeasonActivationFailureNotification(seasonId, {
+        type: 'error' as const,
+        key: 'season_activate_error_unexpected',
+        data: { 
+          seasonId, 
+          error: error instanceof Error ? error.message : 'Unknown error',
+          triggeredBy: 'open_duration_timeout'
+        }
+      }, 'open_duration_timeout');
     }
+    
     // Remove the job from the map as it has been handled (either successfully or failed activation)
     // activateSeason also tries to remove it, but this is a safeguard.
     // The SchedulerService automatically removes one-time jobs after execution.
     // No explicit cleanup is needed here.
     console.log(`SeasonService.handleOpenDurationTimeout: Job handling complete for season ${seasonId}. SchedulerService will clean up the job.`);
+  }
+
+  /**
+   * Sends a success notification when a season is successfully activated.
+   * @param seasonId The ID of the activated season
+   * @param activationResult The success result from activateSeason
+   */
+  private async sendSeasonActivationSuccessNotification(
+    seasonId: string, 
+    activationResult: MessageInstruction
+  ): Promise<void> {
+    try {
+      // Get season details for notification context
+      const season = await this.prisma.season.findUnique({
+        where: { id: seasonId },
+        include: {
+          creator: {
+            select: {
+              name: true,
+              discordUserId: true
+            }
+          }
+        }
+      });
+
+      if (!season) {
+        console.error(`SeasonService.sendSeasonActivationSuccessNotification: Season ${seasonId} not found`);
+        return;
+      }
+
+      // Send DM to season creator
+      if (this.turnService && season.creator) {
+        try {
+          const discordClient = (this.turnService as any).discordClient;
+          if (discordClient) {
+            const user = await discordClient.users.fetch(season.creator.discordUserId);
+            if (user) {
+              const successMessage = MessageHelpers.dmNotification(
+                'messages.season.activationSuccessNotification',
+                season.creator.discordUserId,
+                {
+                  seasonId,
+                  creatorName: season.creator.name,
+                  gamesCreated: activationResult.data?.gamesCreated || 0,
+                  playersInSeason: activationResult.data?.playersInSeason || 0
+                }
+              );
+
+              // Use MessageAdapter to send the DM
+              const { MessageAdapter } = await import('../messaging/MessageAdapter.js');
+              await MessageAdapter.processInstruction(successMessage, undefined, 'en', discordClient);
+              
+              console.log(`SeasonService.sendSeasonActivationSuccessNotification: Success notification sent to creator ${season.creator.discordUserId} for season ${seasonId}`);
+            }
+          }
+        } catch (dmError) {
+          console.error(`SeasonService.sendSeasonActivationSuccessNotification: Failed to send DM to creator for season ${seasonId}:`, dmError);
+        }
+      }
+
+      // Also send notification to channel if season was created in a channel
+      if (season.guildId && season.channelId) {
+        try {
+          const discordClient = (this.turnService as any).discordClient;
+          if (discordClient) {
+            const channel = await discordClient.channels.fetch(season.channelId);
+            if (channel && channel.isTextBased()) {
+              const channelMessage = MessageHelpers.info(
+                'messages.season.activationSuccessChannelNotification',
+                {
+                  seasonId,
+                  gamesCreated: activationResult.data?.gamesCreated || 0,
+                  playersInSeason: activationResult.data?.playersInSeason || 0
+                }
+              );
+
+              const { MessageAdapter } = await import('../messaging/MessageAdapter.js');
+              const { MessageUtils } = await import('../utils/message-utils.js');
+              
+              // Convert MessageInstruction to Discord message format
+              const messageContent = (MessageAdapter as any).generateMessageContent(channelMessage, 'en');
+              await MessageUtils.send(channel, messageContent);
+              
+              console.log(`SeasonService.sendSeasonActivationSuccessNotification: Channel notification sent to ${season.channelId} for season ${seasonId}`);
+            }
+          }
+        } catch (channelError) {
+          console.error(`SeasonService.sendSeasonActivationSuccessNotification: Failed to send channel notification for season ${seasonId}:`, channelError);
+        }
+      }
+
+    } catch (error) {
+      console.error(`SeasonService.sendSeasonActivationSuccessNotification: Error sending success notification for season ${seasonId}:`, error);
+    }
+  }
+
+  /**
+   * Sends a failure notification when season activation fails.
+   * @param seasonId The ID of the season that failed to activate
+   * @param activationResult The error result from activateSeason
+   * @param triggeredBy How the activation was triggered
+   */
+  private async sendSeasonActivationFailureNotification(
+    seasonId: string,
+    activationResult: MessageInstruction,
+    triggeredBy: string
+  ): Promise<void> {
+    try {
+             // Get admin user IDs from config
+       const { createRequire } = await import('node:module');
+       const require = createRequire(import.meta.url);
+       const Config = require('../../config/config.json');
+       const adminUserIds = Config.developers || [];
+
+      if (adminUserIds.length === 0) {
+        console.warn(`SeasonService.sendSeasonActivationFailureNotification: No admin users configured for error notifications`);
+        return;
+      }
+
+      // Get season details for notification context
+      const season = await this.prisma.season.findUnique({
+        where: { id: seasonId },
+        include: {
+          creator: {
+            select: {
+              name: true,
+              discordUserId: true
+            }
+          },
+          _count: {
+            select: { players: true }
+          }
+        }
+      });
+
+      // Send DM notifications to all admin users
+      if (this.turnService) {
+        try {
+          const discordClient = (this.turnService as any).discordClient;
+          if (discordClient) {
+            const notificationPromises = adminUserIds.map(async (adminUserId) => {
+              try {
+                const adminUser = await discordClient.users.fetch(adminUserId);
+                if (adminUser) {
+                  const errorMessage = MessageHelpers.dmNotification(
+                    'messages.season.activationFailureAdminNotification',
+                    adminUserId,
+                    {
+                      seasonId,
+                      errorKey: activationResult.key,
+                      errorData: JSON.stringify(activationResult.data, null, 2),
+                      triggeredBy,
+                      creatorName: season?.creator?.name || 'Unknown',
+                      creatorDiscordId: season?.creator?.discordUserId || 'Unknown',
+                      playerCount: season?._count?.players || 0,
+                      timestamp: new Date().toISOString()
+                    }
+                  );
+
+                  const { MessageAdapter } = await import('../messaging/MessageAdapter.js');
+                  await MessageAdapter.processInstruction(errorMessage, undefined, 'en', discordClient);
+                  
+                  console.log(`SeasonService.sendSeasonActivationFailureNotification: Error notification sent to admin ${adminUserId} for season ${seasonId}`);
+                }
+              } catch (adminDmError) {
+                console.error(`SeasonService.sendSeasonActivationFailureNotification: Failed to send DM to admin ${adminUserId} for season ${seasonId}:`, adminDmError);
+              }
+            });
+
+            await Promise.allSettled(notificationPromises);
+          }
+        } catch (clientError) {
+          console.error(`SeasonService.sendSeasonActivationFailureNotification: Error accessing Discord client for season ${seasonId}:`, clientError);
+        }
+      }
+
+      // Also notify the season creator if the season exists and it's not a min_players issue
+      if (season && season.creator && !activationResult.key.includes('min_players')) {
+        try {
+          const discordClient = (this.turnService as any).discordClient;
+          if (discordClient) {
+            const user = await discordClient.users.fetch(season.creator.discordUserId);
+            if (user) {
+              const creatorMessage = MessageHelpers.dmNotification(
+                'messages.season.activationFailureCreatorNotification',
+                season.creator.discordUserId,
+                {
+                  seasonId,
+                  creatorName: season.creator.name,
+                  errorType: activationResult.key,
+                  triggeredBy
+                }
+              );
+
+              const { MessageAdapter } = await import('../messaging/MessageAdapter.js');
+              await MessageAdapter.processInstruction(creatorMessage, undefined, 'en', discordClient);
+              
+              console.log(`SeasonService.sendSeasonActivationFailureNotification: Creator notification sent to ${season.creator.discordUserId} for season ${seasonId}`);
+            }
+          }
+        } catch (creatorDmError) {
+          console.error(`SeasonService.sendSeasonActivationFailureNotification: Failed to send DM to creator for season ${seasonId}:`, creatorDmError);
+        }
+      }
+
+    } catch (error) {
+      console.error(`SeasonService.sendSeasonActivationFailureNotification: Error sending failure notification for season ${seasonId}:`, error);
+    }
   }
 
   /**
