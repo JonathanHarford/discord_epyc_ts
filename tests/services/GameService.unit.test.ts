@@ -1,11 +1,11 @@
 import { describe, it, expect, vi, beforeEach, Mock } from 'vitest';
 import { PrismaClient, Game, Season, Player, Turn } from '@prisma/client';
 import { GameService, GameWithDetails, GameCreationResult, GameStatusResult } from '../../src/services/GameService.js';
-import * as gameLogic from '../../src/game/gameLogic.js';
+import * as pureGameLogic from '../../src/game/pureGameLogic.js';
 
-// Mock the game logic module
-vi.mock('../../src/game/gameLogic.js', () => ({
-  checkGameCompletion: vi.fn()
+// Mock the pure game logic module
+vi.mock('../../src/game/pureGameLogic.js', () => ({
+  checkGameCompletionPure: vi.fn()
 }));
 
 // Mock nanoid
@@ -28,6 +28,9 @@ describe('GameService', () => {
     };
     turn: {
       findUnique: Mock;
+      findMany: Mock;
+    };
+    player: {
       findMany: Mock;
     };
   };
@@ -75,6 +78,9 @@ describe('GameService', () => {
       },
       turn: {
         findUnique: vi.fn(),
+        findMany: vi.fn()
+      },
+      player: {
         findMany: vi.fn()
       }
     };
@@ -157,14 +163,16 @@ describe('GameService', () => {
       };
 
       mockPrisma.game.findUnique.mockResolvedValue(gameWithDetails);
-      (gameLogic.checkGameCompletion as Mock).mockResolvedValue(true);
+      mockPrisma.player.findMany.mockResolvedValue([mockPlayer]);
+      mockPrisma.turn.findMany.mockResolvedValue([]);
+      (pureGameLogic.checkGameCompletionPure as Mock).mockReturnValue({ isCompleted: true });
 
       const result: GameStatusResult = await gameService.getGameStatus('test-game-id');
 
       expect(result.success).toBe(true);
       expect(result.game?.id).toBe('test-game-id');
       expect(result.isCompleted).toBe(true);
-      expect(gameLogic.checkGameCompletion).toHaveBeenCalledWith('test-game-id', mockPrisma);
+      expect(pureGameLogic.checkGameCompletionPure).toHaveBeenCalled();
     });
 
     it('should fail when game does not exist', async () => {
@@ -174,7 +182,7 @@ describe('GameService', () => {
 
       expect(result.success).toBe(false);
       expect(result.error).toBe('Game not found');
-      expect(gameLogic.checkGameCompletion).not.toHaveBeenCalled();
+      expect(pureGameLogic.checkGameCompletionPure).not.toHaveBeenCalled();
     });
 
     it('should handle database errors gracefully', async () => {
@@ -304,14 +312,16 @@ describe('GameService', () => {
       };
 
       mockPrisma.turn.findUnique.mockResolvedValue(turnWithGame);
-      (gameLogic.checkGameCompletion as Mock).mockResolvedValue(true);
+      mockPrisma.player.findMany.mockResolvedValue([mockPlayer]);
+      mockPrisma.turn.findMany.mockResolvedValue([mockTurn]);
+      (pureGameLogic.checkGameCompletionPure as Mock).mockReturnValue({ isCompleted: true });
       mockPrisma.game.update.mockResolvedValue({ ...mockGame, status: 'COMPLETED' });
 
       const result = await gameService.handleTurnCompletion('turn-1');
 
       expect(result.success).toBe(true);
       expect(result.gameCompleted).toBe(true);
-      expect(gameLogic.checkGameCompletion).toHaveBeenCalledWith('test-game-id', mockPrisma);
+      expect(pureGameLogic.checkGameCompletionPure).toHaveBeenCalled();
     });
 
     it('should handle turn completion when game is not yet completed', async () => {
@@ -321,7 +331,9 @@ describe('GameService', () => {
       };
 
       mockPrisma.turn.findUnique.mockResolvedValue(turnWithGame);
-      (gameLogic.checkGameCompletion as Mock).mockResolvedValue(false);
+      mockPrisma.player.findMany.mockResolvedValue([mockPlayer]);
+      mockPrisma.turn.findMany.mockResolvedValue([]);
+      (pureGameLogic.checkGameCompletionPure as Mock).mockReturnValue({ isCompleted: false });
 
       const result = await gameService.handleTurnCompletion('turn-1');
 
@@ -346,7 +358,9 @@ describe('GameService', () => {
       };
 
       mockPrisma.turn.findUnique.mockResolvedValue(turnWithGame);
-      (gameLogic.checkGameCompletion as Mock).mockResolvedValue(true);
+      mockPrisma.player.findMany.mockResolvedValue([mockPlayer]);
+      mockPrisma.turn.findMany.mockResolvedValue([mockTurn]);
+      (pureGameLogic.checkGameCompletionPure as Mock).mockReturnValue({ isCompleted: true });
       mockPrisma.game.update.mockResolvedValue(null); // Simulate completion failure
 
       const result = await gameService.handleTurnCompletion('turn-1');

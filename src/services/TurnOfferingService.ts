@@ -3,7 +3,8 @@ import { Client as DiscordClient } from 'discord.js';
 import { Logger } from './logger.js';
 import { TurnService } from './TurnService.js';
 import { SchedulerService } from './SchedulerService.js';
-import { selectNextPlayer } from '../game/gameLogic.js';
+import { selectNextPlayerPure } from '../game/pureGameLogic.js';
+import type { SelectNextPlayerInput } from '../game/types.js';
 import { strings, interpolate } from '../lang/strings.js';
 import { getSeasonTimeouts } from '../utils/seasonConfig.js';
 
@@ -58,12 +59,57 @@ export class TurnOfferingService {
                 return { success: false, error: 'No available turns found in game' };
             }
 
-            // 2. Use Next Player Logic to determine the next player
-            const nextPlayerResult = await selectNextPlayer(
-                gameId,
-                nextAvailableTurn.type as 'WRITING' | 'DRAWING',
-                this.prisma
-            );
+            // 2. Gather data for Next Player Logic
+            const gameData = await this.prisma.game.findUnique({
+                where: { id: gameId },
+                include: {
+                    season: {
+                        include: {
+                            players: {
+                                include: {
+                                    player: true
+                                }
+                            },
+                            games: true,
+                            config: true
+                        }
+                    },
+                    turns: {
+                        include: {
+                            player: true
+                        }
+                    }
+                }
+            });
+
+            if (!gameData || !gameData.season) {
+                Logger.error(`TurnOfferingService: Game ${gameId} or its season not found`);
+                return { success: false, error: 'Game or season not found' };
+            }
+
+            const seasonPlayers = gameData.season.players.map(p => p.player);
+            
+            // Get all games in the season with their turns
+            const allSeasonGames = await this.prisma.game.findMany({
+                where: { seasonId: gameData.seasonId },
+                include: {
+                    turns: {
+                        include: {
+                            player: true
+                        }
+                    }
+                }
+            });
+
+            // 3. Use pure Next Player Logic to determine the next player
+            const selectNextPlayerInput: SelectNextPlayerInput = {
+                gameData: gameData,
+                seasonPlayers: seasonPlayers,
+                allSeasonGames: allSeasonGames,
+                turnType: nextAvailableTurn.type as 'WRITING' | 'DRAWING'
+            };
+
+            const nextPlayerResult = selectNextPlayerPure(selectNextPlayerInput);
 
             if (!nextPlayerResult.success || !nextPlayerResult.playerId || !nextPlayerResult.player) {
                 Logger.warn(`TurnOfferingService: Failed to select next player for game ${gameId}: ${nextPlayerResult.error}`);
@@ -73,7 +119,7 @@ export class TurnOfferingService {
                 };
             }
 
-            // 3. Offer the turn to the selected player using TurnService
+            // 4. Offer the turn to the selected player using TurnService
             const offerResult = await this.turnService.offerTurn(
                 nextAvailableTurn.id,
                 nextPlayerResult.playerId
@@ -87,7 +133,7 @@ export class TurnOfferingService {
                 };
             }
 
-            // 4. Send DM notification to the selected player
+            // 5. Send DM notification to the selected player
             const dmResult = await this.sendTurnOfferDM(
                 nextPlayerResult.player,
                 offerResult.turn,
@@ -99,7 +145,7 @@ export class TurnOfferingService {
                 // Don't fail the entire process if DM fails
             }
 
-            // 5. Schedule claim timeout timer
+            // 6. Schedule claim timeout timer
             const timeoutResult = await this.scheduleClaimTimeout(
                 offerResult.turn.id,
                 nextPlayerResult.playerId

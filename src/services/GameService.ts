@@ -1,6 +1,7 @@
 import { PrismaClient, Game, Season, Player, Turn, Prisma } from '@prisma/client';
 import { nanoid } from 'nanoid';
-import { checkGameCompletion } from '../game/gameLogic.js';
+import { checkGameCompletionPure } from '../game/pureGameLogic.js';
+import type { CheckGameCompletionInput } from '../game/types.js';
 
 // Extended Game type that includes related data
 export interface GameWithDetails extends Game {
@@ -122,8 +123,37 @@ export class GameService {
         return { success: false, error: 'Game not found' };
       }
 
-      // Check if the game is completed using existing game logic
-      const isCompleted = await checkGameCompletion(gameId, this.prisma);
+      // Check if the game is completed using pure game logic
+      const seasonPlayers = game.season ? await this.prisma.player.findMany({
+        where: {
+          seasons: {
+            some: {
+              seasonId: game.seasonId
+            }
+          }
+        }
+      }) : [];
+
+      const completedOrSkippedTurns = await this.prisma.turn.findMany({
+        where: {
+          gameId: gameId,
+          status: {
+            in: ['COMPLETED', 'SKIPPED']
+          }
+        },
+        include: {
+          player: true
+        }
+      });
+
+      const gameCompletionInput: CheckGameCompletionInput = {
+        gameId: gameId,
+        seasonPlayers: seasonPlayers,
+        completedOrSkippedTurns: completedOrSkippedTurns
+      };
+
+      const completionResult = checkGameCompletionPure(gameCompletionInput);
+      const isCompleted = completionResult.isCompleted;
 
       return {
         success: true,
@@ -280,8 +310,37 @@ export class GameService {
 
       const gameId = turn.gameId;
 
-      // Check if the game is now completed
-      const isGameCompleted = await checkGameCompletion(gameId, this.prisma);
+      // Check if the game is now completed using pure game logic
+      const seasonPlayers = await this.prisma.player.findMany({
+        where: {
+          seasons: {
+            some: {
+              seasonId: turn.game.seasonId
+            }
+          }
+        }
+      });
+
+      const completedOrSkippedTurns = await this.prisma.turn.findMany({
+        where: {
+          gameId: gameId,
+          status: {
+            in: ['COMPLETED', 'SKIPPED']
+          }
+        },
+        include: {
+          player: true
+        }
+      });
+
+      const gameCompletionInput: CheckGameCompletionInput = {
+        gameId: gameId,
+        seasonPlayers: seasonPlayers,
+        completedOrSkippedTurns: completedOrSkippedTurns
+      };
+
+      const completionResult = checkGameCompletionPure(gameCompletionInput);
+      const isGameCompleted = completionResult.isCompleted;
 
       if (isGameCompleted) {
         // Mark the game as completed
