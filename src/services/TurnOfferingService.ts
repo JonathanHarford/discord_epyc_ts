@@ -5,6 +5,7 @@ import { TurnService } from './TurnService.js';
 import { SchedulerService } from './SchedulerService.js';
 import { selectNextPlayer } from '../game/gameLogic.js';
 import { strings, interpolate } from '../lang/strings.js';
+import { getSeasonTimeouts } from '../utils/seasonConfig.js';
 
 export interface TurnOfferingResult {
     success: boolean;
@@ -177,6 +178,9 @@ export class TurnOfferingService {
                 return false;
             }
 
+            // Get season-specific timeout values
+            const timeouts = await getSeasonTimeouts(this.prisma, turn.id);
+
             // Get the user from Discord and send DM with turn offer
             const user = await this.discordClient.users.fetch(player.discordUserId);
             const message = interpolate(strings.messages.turnOffer.newTurnAvailable, {
@@ -184,7 +188,7 @@ export class TurnOfferingService {
                 seasonId: gameWithSeason.season?.id,
                 turnNumber: turn.turnNumber,
                 turnType: turn.type,
-                claimTimeoutMinutes: 1440 // Default 24 hours - config integration in Task 37
+                claimTimeoutMinutes: timeouts.claimTimeoutMinutes
             });
 
             await user.send(message);
@@ -209,9 +213,9 @@ export class TurnOfferingService {
         playerId: string
     ): Promise<boolean> {
         try {
-            // Timeout values from season config - tracked in Task 37
-            const claimTimeoutMinutes = 1440; // 24 hours default
-            const claimTimeoutDate = new Date(Date.now() + claimTimeoutMinutes * 60 * 1000);
+            // Get season-specific timeout values
+            const timeouts = await getSeasonTimeouts(this.prisma, turnId);
+            const claimTimeoutDate = new Date(Date.now() + timeouts.claimTimeoutMinutes * 60 * 1000);
             
             const claimTimeoutJobId = `turn-claim-timeout-${turnId}`;
             

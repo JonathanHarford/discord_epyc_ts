@@ -1542,7 +1542,7 @@
       "description": "Integrate season-specific timeout values into TurnOfferingService and direct-message-handler.ts to replace hardcoded values.",
       "details": "This task involves replacing hardcoded timeout durations in key parts of the application with values dynamically loaded from the active season's configuration settings.  Specifically:\n\n1.  Identify the mechanism for accessing the current season's configuration parameters (e.g., via `SeasonService`, `GameService`, or directly from the database context associated with a turn).\n2.  Modify `src/services/TurnOfferingService.ts`:\n    -   Locate the hardcoded timeout values (referenced around lines 186 and 211 in the prompt's context).\n    -   Replace these hardcoded numbers with logic that retrieves the appropriate 'claim_timeout' duration from the current season's configuration.\n3.  Modify `src/handlers/direct-message-handler.ts`:\n    -   Locate the hardcoded timeout value (referenced around line 166 in the prompt's context).\n    -   Replace this hardcoded number with logic that retrieves the appropriate 'submission_timeout' duration (either writing or drawing, depending on the turn type) from the current season's configuration.\n4.  Ensure robust error handling or fallback mechanisms are in place if season configuration values are missing or invalid (e.g., use a sensible default).",
       "testStrategy": "1.  Unit tests for `TurnOfferingService` and `direct-message-handler.ts` mocking the configuration retrieval to ensure the correct configured values are used.\n2.  Integration tests:\n    -   Create a season with explicitly set, non-default `claim_timeout` and `submission_timeout` values.\n    -   Trigger the turn offering mechanism for a turn in this season and verify that the scheduled claim timeout matches the configured value.\n    -   Have a player claim a turn (writing or drawing) in this season and verify that the scheduled submission timeout matches the configured value.\n    -   Repeat tests with different season configurations to confirm values are loaded correctly per season.\n3.  Test edge cases, such as seasons created without explicit timeout configurations (should fall back to defaults if implemented).",
-      "status": "pending",
+      "status": "in-progress",
       "dependencies": [
         1,
         5,
@@ -1550,7 +1550,52 @@
         14
       ],
       "priority": "high",
-      "subtasks": []
+      "subtasks": [
+        {
+          "id": 1,
+          "title": "Implement Season Timeout Retrieval Utility",
+          "description": "Create a utility function or service method responsible for retrieving season-specific timeout values (claim, submission_writing, submission_drawing) given a context that allows access to the current season (e.g., a Turn or Game object). This utility must implement robust error handling and fall back to sensible default values if the season configuration or specific timeout keys are missing or invalid.",
+          "dependencies": [],
+          "details": "Identify the appropriate place for this utility (e.g., a new `SeasonConfigService` or a method within an existing service like `GameService`). The function should accept a parameter (like a `Turn` or `Game` object) from which the season can be determined. Access the season's configuration data. Extract `claim_timeout`, `submission_timeout_writing`, and `submission_timeout_drawing`. If any value is missing or not a valid number, return a predefined sensible default for that specific timeout type. Consider creating constants for default timeout values.\n<info added on 2025-05-25T16:48:42.735Z>\nUser Plan:\n1. Create a new utility file `src/utils/seasonConfig.ts` with a function to get timeout values.\n2. The function will accept a turn ID and return parsed timeout values in minutes.\n3. Include proper error handling with fallback to sensible defaults.\n4. Use the existing `parseDuration` utility to convert duration strings to minutes.\n</info added on 2025-05-25T16:48:42.735Z>\n<info added on 2025-05-25T16:49:37.322Z>\n✅ Completed. Created `src/utils/seasonConfig.ts` with the `getSeasonTimeouts(prisma, turnId)` utility function. This function retrieves season-specific timeout values (claim, writing, drawing) by querying turn -> game -> season -> config. It uses the existing `parseDuration` utility to convert duration strings to minutes, includes robust error handling with fallbacks to sensible defaults (24h for claim/writing, 72h for drawing), and provides comprehensive logging. A type-safe interface `SeasonTimeouts` is used for the return values. The function accepts a turn ID and Prisma client and returns timeout values in minutes. Ready to proceed with integration into `TurnOfferingService`.\n</info added on 2025-05-25T16:49:37.322Z>",
+          "status": "done",
+          "testStrategy": "Write unit tests for the utility function covering cases where season config is present and valid, season config is missing, season config is present but timeout keys are missing, and timeout values are non-numeric. Verify that the correct values or defaults are returned."
+        },
+        {
+          "id": 2,
+          "title": "Integrate Season Config into TurnOfferingService for Claim Timeout",
+          "description": "Modify `src/services/TurnOfferingService.ts` to replace hardcoded claim timeout values with the dynamic value retrieved using the utility implemented in subtask 1. This affects the logic determining how long a turn offer is available for claiming.",
+          "dependencies": [
+            1
+          ],
+          "details": "Locate the hardcoded timeout values related to turn claiming (referenced around lines 186 and 211 in the original context). Inject or access the utility/service created in subtask 1. Before setting the claim expiration time, call the utility with the relevant context (likely the `Turn` object being offered) to get the `claim_timeout` value. Use this retrieved value instead of the hardcoded number. Ensure the code handles potential errors from the utility (though the utility should provide defaults, defensive coding is good practice).\n<info added on 2025-05-25T16:49:47.547Z>\nImport the `getSeasonTimeouts` utility created in subtask 1. Locate the hardcoded `claimTimeoutMinutes = 1440` value within the `TurnOfferingService`. Replace this hardcoded value by calling the imported `getSeasonTimeouts` utility with the appropriate context (likely the `Turn` object) to retrieve the season-specific `claim_timeout`. Update the `scheduleClaimTimeout` method to use this dynamically retrieved timeout value. Ensure proper error handling is in place in case the utility call fails, falling back to a default value if necessary.\n</info added on 2025-05-25T16:49:47.547Z>\n<info added on 2025-05-25T16:50:51.468Z>\n✅ Completed. Integrated the `getSeasonTimeouts` utility into `TurnOfferingService`. The `sendTurnOfferDM` method was updated to use the season-specific claim timeout in the DM message text, and the `scheduleClaimTimeout` method was updated to use the dynamic timeout value for scheduling the timeout date. The hardcoded 1440 value has been replaced. Implemented fallback to default timeout (24 hours) if season config is missing or invalid. Ready to proceed to subtask 3.\n</info added on 2025-05-25T16:50:51.468Z>",
+          "status": "done",
+          "testStrategy": "Perform integration tests or manual testing by creating turns in a game associated with a season that has a non-default claim timeout. Verify that the turn offer expires after the duration specified in the season config, not the old hardcoded value. Test with a season lacking the config to ensure the default is used."
+        },
+        {
+          "id": 3,
+          "title": "Integrate Season Config into DirectMessageHandler for Submission Timeout",
+          "description": "Modify `src/handlers/direct-message-handler.ts` to replace the hardcoded submission timeout value with the dynamic value retrieved using the utility implemented in subtask 1. This affects the logic determining the deadline for players to submit their drawing or writing.",
+          "dependencies": [
+            1
+          ],
+          "details": "Locate the hardcoded timeout value related to submission deadlines (referenced around line 166 in the original context). Inject or access the utility/service created in subtask 1. When calculating the submission deadline for a turn, call the utility with the relevant context (likely the `Turn` object). Based on the `turn.type` (drawing or writing), use either the `submission_timeout_drawing` or `submission_timeout_writing` value returned by the utility. Use this retrieved value instead of the hardcoded number. Ensure the code handles potential errors.\n<info added on 2025-05-25T16:55:41.650Z>\n✅ IMPLEMENTATION COMPLETED\n\nSuccessfully integrated season config into DirectMessageHandler for submission timeouts:\n\n**Changes Made:**\n1. **Added Import**: Added `getSeasonTimeouts` import from `../utils/seasonConfig.js`\n\n2. **Replaced Hardcoded Logic**: Updated the submission timeout calculation in `handleReadyCommand` method:\n   - **Before**: `const submissionTimeoutMinutes = turnToClaim.type === 'WRITING' ? 1440 : 4320;`\n   - **After**:\n     ```typescript\n     const timeouts = await getSeasonTimeouts(this.prisma, turnToClaim.id);\n     const submissionTimeoutMinutes = turnToClaim.type === 'WRITING'\n         ? timeouts.writingTimeoutMinutes\n         : timeouts.drawingTimeoutMinutes;\n     ```\n\n**Key Implementation Details:**\n- Located hardcoded values on line 169 in `src/events/direct-message-handler.ts`\n- The logic now dynamically retrieves season-specific timeout values using the utility from subtask 1\n- Maintains the same conditional logic (writing vs drawing) but uses dynamic values from season config\n- Preserves error handling through the utility's built-in fallback to defaults\n- No changes needed to the timeout scheduling logic itself - only the timeout value calculation\n\n**Error Handling:**\n- Inherits robust error handling from `getSeasonTimeouts` utility\n- Automatic fallback to sensible defaults (24h writing, 72h drawing) if season config is missing\n- Maintains existing error handling patterns in the DirectMessageHandler\n\n**Testing Notes:**\n- Ready for integration testing with different season configurations\n- Should verify both writing and drawing turn types use correct timeout values\n- Should test fallback behavior when season config is missing or invalid\n</info added on 2025-05-25T16:55:41.650Z>",
+          "status": "done",
+          "testStrategy": "Perform integration tests or manual testing by participating in turns (both drawing and writing) in a game associated with a season that has non-default submission timeouts. Verify that the submission deadline is set according to the season config values for both types, and that the default is used if the config is missing."
+        },
+        {
+          "id": 4,
+          "title": "Refine Error Handling and Add Comprehensive Tests",
+          "description": "Review the implementations in subtasks 1, 2, and 3 to ensure error handling and fallback mechanisms are robust. Add any missing unit tests for the utility and integration tests for the services/handlers to cover various scenarios, including edge cases with season configuration.",
+          "dependencies": [
+            1,
+            2,
+            3
+          ],
+          "details": "Review the utility function (subtask 1) to confirm defaults are applied correctly for all missing/invalid cases. Review `TurnOfferingService` (subtask 2) and `direct-message-handler.ts` (subtask 3) to ensure they correctly use the utility's output and handle any unexpected issues (though the utility should minimize these). Write additional unit tests for the utility if gaps were found in subtask 1. Write integration tests that simulate games with different season configurations (valid, missing keys, invalid values) and verify that claim and submission deadlines are calculated correctly in both `TurnOfferingService` and `direct-message-handler.ts`.",
+          "status": "pending",
+          "testStrategy": "Execute all new and existing tests. Manually test game flows with seasons configured with very short and very long timeouts, as well as seasons with no timeout configuration, to visually confirm deadlines are as expected."
+        }
+      ]
     },
     {
       "id": 38,

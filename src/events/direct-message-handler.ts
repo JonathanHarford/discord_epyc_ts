@@ -10,6 +10,7 @@ import { SchedulerService } from '../services/SchedulerService.js';
 import { TurnOfferingService } from '../services/TurnOfferingService.js';
 import { SimpleMessage } from '../messaging/SimpleMessage.js';
 import { strings, interpolate } from '../lang/strings.js';
+import { getSeasonTimeouts } from '../utils/seasonConfig.js';
 
 const require = createRequire(import.meta.url);
 let Logs = require('../../lang/logs.json');
@@ -171,8 +172,11 @@ export class DirectMessageHandler implements EventHandler {
                 }
 
                 // 7. Schedule submission timeout timer based on turn type
-                // Timeout values from season config - tracked in Task 37
-                const submissionTimeoutMinutes = turnToClaim.type === 'WRITING' ? 1440 : 4320; // 1 day for writing, 3 days for drawing
+                // Get season-specific timeout values
+                const timeouts = await getSeasonTimeouts(this.prisma, turnToClaim.id);
+                const submissionTimeoutMinutes = turnToClaim.type === 'WRITING' 
+                    ? timeouts.writingTimeoutMinutes 
+                    : timeouts.drawingTimeoutMinutes;
                 const submissionTimeoutDate = new Date(Date.now() + submissionTimeoutMinutes * 60 * 1000);
                 
                 const submissionTimeoutJobId = `turn-submission-timeout-${turnToClaim.id}`;

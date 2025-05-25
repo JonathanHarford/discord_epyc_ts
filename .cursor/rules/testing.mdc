@@ -14,12 +14,24 @@ alwaysApply: false
 ## Reporting Test Results
 - "All tests pass" refers ONLY to running the COMPLETE test suite with `pnpm test` without arguments
 
+## mocking
+### Never mock:
+* Any service that uses the database (instead, use the test database with real services!)
+* gameLogic
+* Lang (which doesn't exist any more)
+
+### OK but not great to mock:
+* SimpleMessage
+* Discord with caveats
+
+### Good to mock:
+* Config
+* SchedulerService
+* Logger
+* nanoid
+
 ## Common Pitfalls
-- AVOID mocks. 
-  - NEVER mock the database -- that's what the test database is for!
-    - So also avoid mocking the Services that use the database. Use the test database with real services!
-  - Focus tests below the chat layer -- you shouldn't need to mock Discord (very much) either.
-  - DO mock time and scheduling
+- Focus tests below the chat layer -- you shouldn't need to mock Discord (very much) either.
 - Don't assume tests passed just because some passing results appear
 - Don't proceed with commits or further changes until test completion
 - Be wary of partial test results in large test suites

@@ -142,8 +142,7 @@ export async function selectNextPlayer(
     const playerStats: PlayerTurnStats[] = await calculatePlayerStats(
       seasonPlayers,
       allSeasonGames,
-      gameId,
-      prisma
+      gameId
     );
 
     // 4. Apply MUST rules (hard constraints)
@@ -184,7 +183,6 @@ async function calculatePlayerStats(
   seasonPlayers: Player[],
   allSeasonGames: (Game & { turns: (Turn & { player: Player | null })[] })[],
   currentGameId: string,
-  prisma: PrismaClient
 ): Promise<PlayerTurnStats[]> {
   const stats: PlayerTurnStats[] = [];
 
