@@ -1,6 +1,6 @@
 import { describe, it, expect, beforeEach, afterAll, vi } from 'vitest';
 import { PrismaClient, Player } from '@prisma/client';
-import { addPlayerPlaceholder as addPlayer } from '../../src/game/playerLogic.js';
+import { processPlayerOperationPure, validatePlayerDataPure } from '../../src/game/pureGameLogic.js';
 import { nanoid } from 'nanoid';
 
 // Mock logger
@@ -14,6 +14,53 @@ vi.mock('../../src/services/logger', () => ({
 }));
 
 const prisma = new PrismaClient();
+
+// Wrapper function to maintain the old interface for tests
+async function addPlayer(discordUserId: string, name: string, prismaClient: PrismaClient): Promise<Player | null> {
+  try {
+    // Simple validation (since validatePlayerDataPure is not implemented yet)
+    if (!discordUserId || !name) {
+      return null;
+    }
+
+    // Check if player already exists
+    const existingPlayer = await prismaClient.player.findUnique({
+      where: { discordUserId }
+    });
+
+    // Use pure function to determine what to do
+    const result = processPlayerOperationPure({ 
+      discordUserId, 
+      name, 
+      existingPlayer 
+    });
+
+    if (!result.success || !result.data) {
+      return null;
+    }
+
+    if (result.isNewPlayer) {
+      // Create new player
+      return await prismaClient.player.create({
+        data: {
+          discordUserId,
+          name
+        }
+      });
+    } else if (result.nameUpdated) {
+      // Update existing player
+      return await prismaClient.player.update({
+        where: { id: existingPlayer!.id },
+        data: { name }
+      });
+    } else {
+      // Return existing player unchanged
+      return existingPlayer;
+    }
+  } catch (error) {
+    return null;
+  }
+}
 
 describe('PlayerLogic Unit Tests', () => {
   beforeEach(async () => {

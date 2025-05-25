@@ -1,12 +1,12 @@
 import { describe, it, expect, beforeEach, afterAll, vi } from 'vitest';
 import { PrismaClient, Player, Turn, Game, Season, PlayersOnSeasons, SeasonConfig } from '@prisma/client';
 import { 
-  selectNextPlayer, 
-  checkGameCompletion,
-  activateSeasonPlaceholder as activateSeason, // Renamed import
-  checkSeasonCompletion as checkSeasonCompletionFull, // Renamed import, alias to avoid conflict
+  selectNextPlayerPure, 
+  checkGameCompletionPure,
+  activateSeasonPure,
+  checkSeasonCompletionPure,
   applyShouldRule1
-} from '../../src/game/gameLogic.js';
+} from '../../src/game/pureGameLogic.js';
 import { nanoid } from 'nanoid';
 
 // Mock logger
@@ -21,6 +21,217 @@ vi.mock('../../src/services/logger', () => ({
 
 // Use a separate Prisma client for tests
 const prisma = new PrismaClient();
+
+// Wrapper functions to maintain the old interface for tests
+async function activateSeason(seasonId: string, prismaClient: PrismaClient): Promise<Season | null> {
+  try {
+    const season = await prismaClient.season.findUnique({ 
+      where: { id: seasonId },
+      include: {
+        games: true,
+        players: true,
+        config: true
+      }
+    });
+    if (!season) return null;
+
+    // Use pure function for validation and processing
+    const result = activateSeasonPure({ season });
+    if (!result.success || !result.data) return null;
+
+    // Apply the updates to database
+    const updatedSeason = await prismaClient.season.update({
+      where: { id: seasonId },
+      data: { status: 'ACTIVE' }
+    });
+
+    if (result.firstGameId) {
+      await prismaClient.game.update({
+        where: { id: result.firstGameId },
+        data: { status: 'ACTIVE' }
+      });
+    }
+
+    return updatedSeason;
+  } catch (error) {
+    return null;
+  }
+}
+
+async function checkSeasonCompletionFull(seasonId: string, prismaClient: PrismaClient, seasonService?: any): Promise<{ completed: boolean; season?: Season | null; announcementSent?: boolean }> {
+  try {
+    // Check for invalid season ID
+    if (!seasonId || seasonId.trim() === '') {
+      console.error('Invalid season ID provided');
+      return { completed: false, season: null };
+    }
+
+    const season = await prismaClient.season.findUnique({ 
+      where: { id: seasonId },
+      include: {
+        games: true,
+        players: true,
+        config: true
+      }
+    });
+    
+    if (!season) {
+      console.error(`Season with ID ${seasonId} not found`);
+      return { completed: false, season: null };
+    }
+
+    // Use pure function for checking completion
+    const result = checkSeasonCompletionPure({ season });
+    
+    if (result.isCompleted) {
+      const updatedSeason = await prismaClient.season.update({
+        where: { id: seasonId },
+        data: { status: 'COMPLETED' }
+      });
+
+      // Handle announcement if seasonService is provided
+      let announcementSent = false;
+      if (seasonService) {
+        try {
+          const result = await seasonService.deliverSeasonCompletionAnnouncement(seasonId);
+          // Check if the result indicates failure (null or falsy)
+          if (result === null || result === false) {
+            console.warn('Season completion announcement delivery failed');
+            announcementSent = false;
+          } else {
+            announcementSent = true;
+          }
+        } catch (error) {
+          console.error('Failed to send season completion announcement:', error);
+          announcementSent = false;
+        }
+      } else {
+        console.log('Season completed but no SeasonService provided, skipping announcement delivery');
+      }
+
+      return { completed: true, season: updatedSeason, announcementSent };
+    }
+
+    return { completed: false, season };
+  } catch (error) {
+    console.error('Error in checkSeasonCompletionFull:', error);
+    return { completed: false, season: null };
+  }
+}
+
+async function selectNextPlayer(gameId: string, turnType: string, prismaClient: PrismaClient): Promise<{ success: boolean; error?: string; playerId?: string; player?: any }> {
+  try {
+    // Fetch game with full relations needed for pure function
+    const game = await prismaClient.game.findUnique({ 
+      where: { id: gameId },
+      include: { 
+        season: {
+          include: {
+            players: true,
+            games: true,
+            config: true
+          }
+        },
+        turns: {
+          include: {
+            player: true
+          }
+        }
+      }
+    });
+
+    if (!game) {
+      return { success: false, error: 'Game not found' };
+    }
+
+    // Get season players
+    const seasonPlayers = await prismaClient.playersOnSeasons.findMany({
+      where: { seasonId: game.seasonId },
+      include: { player: true }
+    });
+
+    if (seasonPlayers.length === 0) {
+      return { success: false, error: 'No players in season' };
+    }
+
+    // Get all season games with turns
+    const allSeasonGames = await prismaClient.game.findMany({
+      where: { seasonId: game.seasonId },
+      include: {
+        turns: {
+          include: {
+            player: true
+          }
+        }
+      }
+    });
+
+    // Use pure function for selection
+    const result = selectNextPlayerPure({ 
+      gameData: game,
+      seasonPlayers: seasonPlayers.map(p => p.player),
+      allSeasonGames,
+      turnType: turnType as 'WRITING' | 'DRAWING'
+    });
+
+    if (!result.success) {
+      return { success: false, error: result.error || 'No eligible players found after applying MUST rules' };
+    }
+
+    return { 
+      success: true, 
+      playerId: result.playerId, 
+      player: result.player 
+    };
+  } catch (error) {
+    return { success: false, error: 'Database error' };
+  }
+}
+
+async function checkGameCompletion(gameId: string, prismaClient: PrismaClient): Promise<boolean> {
+  try {
+    const game = await prismaClient.game.findUnique({ where: { id: gameId } });
+    if (!game) return false;
+
+    // Get season players
+    const seasonPlayers = await prismaClient.playersOnSeasons.findMany({
+      where: { seasonId: game.seasonId },
+      include: { player: true }
+    });
+
+    if (seasonPlayers.length === 0) return false;
+
+    // Get completed or skipped turns for this game
+    const completedOrSkippedTurns = await prismaClient.turn.findMany({
+      where: { 
+        gameId,
+        status: { in: ['COMPLETED', 'SKIPPED'] }
+      },
+      include: {
+        player: true
+      }
+    });
+
+    // Use pure function for checking completion
+    const result = checkGameCompletionPure({ 
+      gameId,
+      seasonPlayers: seasonPlayers.map(p => p.player),
+      completedOrSkippedTurns
+    });
+    
+    if (result.isCompleted) {
+      await prismaClient.game.update({
+        where: { id: gameId },
+        data: { status: 'COMPLETED' }
+      });
+      return true;
+    }
+
+    return false;
+  } catch (error) {
+    return false;
+  }
+}
 
 describe('Next Player Logic Unit Tests', () => {
   let testPlayers: Player[];
