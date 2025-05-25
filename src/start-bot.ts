@@ -66,7 +66,7 @@ async function start(): Promise<void> {
     
     // Service instances with proper dependency injection
     const schedulerService = new SchedulerService(prisma);
-    const turnService = new TurnService(prisma, client);
+    const turnService = new TurnService(prisma, client, schedulerService);
     const seasonService = new SeasonService(prisma, turnService, schedulerService);
     const turnOfferingService = new TurnOfferingService(prisma, client, turnService, schedulerService);
     
@@ -74,7 +74,8 @@ async function start(): Promise<void> {
     schedulerService.setDependencies({
         discordClient: client,
         turnService: turnService,
-        turnOfferingService: turnOfferingService
+        turnOfferingService: turnOfferingService,
+        seasonService: seasonService
     });
     
     // Load persisted jobs on startup
@@ -124,7 +125,7 @@ async function start(): Promise<void> {
     let buttonHandler = new ButtonHandler(buttons, eventDataService);
     let triggerHandler = new TriggerHandler(triggers, eventDataService);
     let playerService = new PlayerService(prisma);
-    let directMessageHandler = new DirectMessageHandler(turnService, playerService, schedulerService, turnOfferingService);
+    let directMessageHandler = new DirectMessageHandler(prisma, client, turnService, playerService, schedulerService, turnOfferingService);
     let messageHandler = new MessageHandler(triggerHandler, directMessageHandler);
     let reactionHandler = new ReactionHandler(reactions, eventDataService);
 

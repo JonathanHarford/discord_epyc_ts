@@ -19,6 +19,7 @@ export interface SchedulerServiceDependencies {
     discordClient?: DiscordClient;
     turnService?: any; // Will be properly typed when needed
     turnOfferingService?: any; // Will be properly typed when needed
+    seasonService?: any; // Will be properly typed when needed
 }
 
 export class SchedulerService {
@@ -355,20 +356,17 @@ export class SchedulerService {
             throw new Error(`Invalid season activation job ID format: ${jobId}`);
         }
 
-        Logger.info(`Handling restored season activation job for season ${seasonId}`);
+        Logger.info(`Handling season activation job for season ${seasonId}`);
         
-        // Note: This is a simplified handler. In a real implementation, you would
-        // inject the SeasonService or have a way to access it to call handleOpenDurationTimeout
-        // For now, we'll just log that the job would have been executed
-        Logger.warn(`Season activation job for season ${seasonId} was missed during downtime. Manual intervention may be required.`);
-        
-        // Season activation handling tracked in Task 38
-        // This could involve:
-        // 1. Checking if the season still exists and is in the correct state
-        // 2. Calling the appropriate season service method
-        // 3. Handling any errors appropriately
-        
-        throw new Error(`Season activation job handling not fully implemented yet`);
+        // Check if we have the required dependency for season service
+        if (!this.dependencies.seasonService) {
+            throw new Error(`Missing SeasonService dependency for season activation handler`);
+        }
+
+        // Call the season service to handle the open duration timeout
+        await this.dependencies.seasonService.handleOpenDurationTimeout(seasonId);
+
+        Logger.info(`Successfully handled season activation timeout for season ${seasonId}`);
     }
 
     /**

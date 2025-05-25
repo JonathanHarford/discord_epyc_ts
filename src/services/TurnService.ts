@@ -2,25 +2,26 @@ import { PrismaClient, Game, Player, Turn, Prisma } from '@prisma/client';
 import { Client as DiscordClient } from 'discord.js';
 import { nanoid } from 'nanoid';
 import { checkGameCompletion, checkSeasonCompletion } from '../game/gameLogic.js';
+import { SchedulerService } from '../services/SchedulerService.js';
 // Enhanced messaging layer integration tracked in Task 40
 // Scheduler integration for timeouts tracked in Task 38
 
 export class TurnService {
   private prisma: PrismaClient;
   private discordClient: DiscordClient;
+  private schedulerService?: SchedulerService;
   // private langService: LangService; // Uncomment if used
-  // private taskSchedulerService: TaskSchedulerService; // Uncomment if used
 
   constructor(
     prisma: PrismaClient,
     discordClient: DiscordClient,
+    schedulerService?: SchedulerService
     // langService: LangService, // Uncomment if used
-    // taskSchedulerService: TaskSchedulerService // Uncomment if used
   ) {
     this.prisma = prisma;
     this.discordClient = discordClient;
+    this.schedulerService = schedulerService;
     // this.langService = langService; // Uncomment if used
-    // this.taskSchedulerService = taskSchedulerService; // Uncomment if used
   }
 
   /**
@@ -81,8 +82,65 @@ export class TurnService {
         // Log error, but proceed as turn is programmatically offered.
       }
       
-      // Claim timeout scheduling tracked in Task 38
-      // Example: this.taskSchedulerService.scheduleTurnClaimTimeout(newTurn.id, configuredClaimDuration);
+      // Schedule claim timeout if SchedulerService is available
+      if (this.schedulerService) {
+        try {
+          // Default claim timeout of 24 hours (hardcoded for now - Task 37 will integrate config)
+          const claimTimeoutMinutes = 1440; // 24 hours
+          const claimTimeoutDate = new Date(Date.now() + claimTimeoutMinutes * 60 * 1000);
+          
+          const claimTimeoutJobId = `turn-claim-timeout-${newTurn.id}`;
+          
+          const jobScheduled = await this.schedulerService.scheduleJob(
+            claimTimeoutJobId,
+            claimTimeoutDate,
+            async (jobData) => {
+              console.log(`Claim timeout triggered for initial turn ${newTurn.id}, player ${player.id}`);
+              
+              // Import and create the ClaimTimeoutHandler
+              const { ClaimTimeoutHandler } = await import('../handlers/ClaimTimeoutHandler.js');
+              const { TurnOfferingService } = await import('./TurnOfferingService.js');
+              
+              // Create TurnOfferingService instance for the handler
+              const turnOfferingService = new TurnOfferingService(
+                this.prisma,
+                this.discordClient,
+                this,
+                this.schedulerService!
+              );
+              
+              const claimTimeoutHandler = new ClaimTimeoutHandler(
+                this.prisma,
+                this.discordClient,
+                this,
+                turnOfferingService
+              );
+
+              // Execute the claim timeout handling
+              const result = await claimTimeoutHandler.handleClaimTimeout(newTurn.id, player.id);
+
+              if (!result.success) {
+                throw new Error(`Claim timeout handling failed: ${result.error}`);
+              }
+
+              console.log(`Claim timeout handling completed successfully for initial turn ${newTurn.id}`);
+            },
+            { turnId: newTurn.id, playerId: player.id },
+            'turn-claim-timeout'
+          );
+
+          if (jobScheduled) {
+            console.log(`Scheduled claim timeout for initial turn ${newTurn.id} at ${claimTimeoutDate.toISOString()}`);
+          } else {
+            console.warn(`Failed to schedule claim timeout for initial turn ${newTurn.id}`);
+          }
+        } catch (schedulingError) {
+          console.error(`Error scheduling claim timeout for initial turn ${newTurn.id}:`, schedulingError);
+          // Don't fail the turn creation if timeout scheduling fails
+        }
+      } else {
+        console.warn(`SchedulerService not available, claim timeout not scheduled for initial turn ${newTurn.id}`);
+      }
 
       return { success: true, turn: newTurn };
     } catch (error) {

@@ -1,6 +1,6 @@
 # Task ID: 38
 # Title: Complete Scheduler Integration for Timeouts
-# Status: pending
+# Status: done
 # Dependencies: 5, 8, 9, 10, 15, 37
 # Priority: high
 # Description: Integrate the task scheduler into TurnService, direct-message-handler, and SchedulerService to handle claim timeouts, submission timeouts, and season activation timeouts based on existing TODO comments.

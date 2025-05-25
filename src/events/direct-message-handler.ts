@@ -1,4 +1,5 @@
-import { Message } from 'discord.js';
+import { PrismaClient } from '@prisma/client';
+import { Client as DiscordClient, Message } from 'discord.js';
 import { createRequire } from 'node:module';
 import { EventHandler } from './index.js';
 import { Logger } from '../services/index.js';
@@ -27,17 +28,23 @@ export enum DMContextType {
  * Responsible for identifying the context of the DM and routing it to the appropriate handler.
  */
 export class DirectMessageHandler implements EventHandler {
+    private prisma: PrismaClient;
+    private discordClient: DiscordClient;
     private turnService: TurnService;
     private playerService: PlayerService;
     private schedulerService: SchedulerService;
     private turnOfferingService: TurnOfferingService;
 
     constructor(
+        prisma: PrismaClient,
+        discordClient: DiscordClient,
         turnService: TurnService,
         playerService: PlayerService,
         schedulerService: SchedulerService,
         turnOfferingService: TurnOfferingService
     ) {
+        this.prisma = prisma;
+        this.discordClient = discordClient;
         this.turnService = turnService;
         this.playerService = playerService;
         this.schedulerService = schedulerService;
@@ -172,10 +179,26 @@ export class DirectMessageHandler implements EventHandler {
                 const submissionJobScheduled = await this.schedulerService.scheduleJob(
                     submissionTimeoutJobId,
                     submissionTimeoutDate,
-                    async () => {
-                        // Submission timeout handler integration - tracked in Task 38
+                    async (jobData) => {
                         Logger.info(`Submission timeout triggered for turn ${turnToClaim.id}`);
-                        // For now, just log - actual handler will be implemented in Task 17
+                        
+                        // Import and create the SubmissionTimeoutHandler
+                        const { SubmissionTimeoutHandler } = await import('../handlers/SubmissionTimeoutHandler.js');
+                        const submissionTimeoutHandler = new SubmissionTimeoutHandler(
+                            this.prisma,
+                            this.discordClient,
+                            this.turnService,
+                            this.turnOfferingService
+                        );
+
+                        // Execute the submission timeout handling
+                        const result = await submissionTimeoutHandler.handleSubmissionTimeout(turnToClaim.id, player.id);
+
+                        if (!result.success) {
+                            throw new Error(`Submission timeout handling failed: ${result.error}`);
+                        }
+
+                        Logger.info(`Submission timeout handling completed successfully for turn ${turnToClaim.id}`);
                     },
                     { turnId: turnToClaim.id, playerId: player.id },
                     'turn-submission-timeout'
