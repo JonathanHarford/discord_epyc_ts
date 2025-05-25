@@ -2071,4 +2071,343 @@ describe('SeasonService', () => {
       });
     });
    });
+
+  describe('Season Activation Notifications', () => {
+    let mockDiscordClient: any;
+    let realTurnService: TurnService;
+    let testSeason: any;
+    let testSeasonConfig: any;
+
+    beforeEach(async () => {
+      // Create mock Discord client (OK to mock Discord per testing rules)
+      mockDiscordClient = {
+        users: {
+          fetch: vi.fn().mockResolvedValue({
+            id: 'test-discord-user-id',
+            send: vi.fn().mockResolvedValue({ id: 'message-id' })
+          })
+        },
+        channels: {
+          fetch: vi.fn().mockResolvedValue({
+            id: 'test-channel-id',
+            isTextBased: () => true,
+            send: vi.fn().mockResolvedValue({ id: 'message-id' })
+          })
+        }
+      };
+
+      // Use real TurnService with mocked Discord client (don't mock database services)
+      realTurnService = new TurnService(prisma, mockDiscordClient);
+
+      // Create test season config
+      testSeasonConfig = await prisma.seasonConfig.create({
+        data: {
+          id: nanoid(),
+          openDuration: '1d',
+          minPlayers: 2,
+          maxPlayers: 5,
+        },
+      });
+
+      // Create test season
+      testSeason = await prisma.season.create({
+        data: {
+          id: `test-notification-season-${nanoid()}`,
+          status: 'ACTIVE',
+          creatorId: testPlayer.id,
+          configId: testSeasonConfig.id,
+          guildId: 'test-guild-id',
+          channelId: 'test-channel-id',
+        },
+        include: {
+          creator: true,
+          config: true
+        }
+      });
+
+      // Create a new SeasonService instance with the real TurnService
+      const gameService = new GameService(prisma);
+      seasonService = new SeasonService(prisma, realTurnService, mockSchedulerService, gameService);
+    });
+
+    describe('sendSeasonActivationSuccessNotification', () => {
+      it('should send success notification to season creator via DM', async () => {
+        const activationResult = {
+          type: 'success' as const,
+          key: 'messages.season.activateSuccess',
+          data: {
+            seasonId: testSeason.id,
+            status: 'ACTIVE',
+            gamesCreated: 3,
+            playersInSeason: 3
+          }
+        };
+
+        // Call the private method via reflection
+        await (seasonService as any).sendSeasonActivationSuccessNotification(testSeason.id, activationResult);
+
+        // Verify Discord client interactions
+        expect(mockDiscordClient.users.fetch).toHaveBeenCalledWith(testPlayer.discordUserId);
+        expect(mockDiscordClient.channels.fetch).toHaveBeenCalledWith(testSeason.channelId);
+      });
+
+      it('should handle missing season gracefully', async () => {
+        const activationResult = {
+          type: 'success' as const,
+          key: 'messages.season.activateSuccess',
+          data: {
+            seasonId: 'non-existent-season',
+            status: 'ACTIVE',
+            gamesCreated: 0,
+            playersInSeason: 0
+          }
+        };
+
+        // Should not throw an error
+        await expect((seasonService as any).sendSeasonActivationSuccessNotification('non-existent-season', activationResult))
+          .resolves.not.toThrow();
+      });
+
+      it('should handle Discord client errors gracefully', async () => {
+        const activationResult = {
+          type: 'success' as const,
+          key: 'messages.season.activateSuccess',
+          data: {
+            seasonId: testSeason.id,
+            status: 'ACTIVE',
+            gamesCreated: 3,
+            playersInSeason: 3
+          }
+        };
+
+        // Mock Discord client to throw an error
+        mockDiscordClient.users.fetch.mockRejectedValue(new Error('Discord API error'));
+
+        // Should not throw an error
+        await expect((seasonService as any).sendSeasonActivationSuccessNotification(testSeason.id, activationResult))
+          .resolves.not.toThrow();
+      });
+
+      it('should send channel notification when season has channel info', async () => {
+        const activationResult = {
+          type: 'success' as const,
+          key: 'messages.season.activateSuccess',
+          data: {
+            seasonId: testSeason.id,
+            status: 'ACTIVE',
+            gamesCreated: 3,
+            playersInSeason: 3
+          }
+        };
+
+        await (seasonService as any).sendSeasonActivationSuccessNotification(testSeason.id, activationResult);
+
+        // Verify channel notification was attempted
+        expect(mockDiscordClient.channels.fetch).toHaveBeenCalledWith(testSeason.channelId);
+      });
+    });
+
+    describe('sendSeasonActivationFailureNotification', () => {
+      beforeEach(() => {
+        // Mock config.json to include admin users
+        vi.doMock('../../config/config.json', () => ({
+          developers: ['admin-user-1', 'admin-user-2']
+        }));
+      });
+
+      it('should send failure notification to admin users', async () => {
+        const activationResult = {
+          type: 'error' as const,
+          key: 'season_activate_error_min_players_not_met_on_timeout',
+          data: {
+            seasonId: testSeason.id,
+            currentPlayers: 1,
+            minPlayers: 2
+          }
+        };
+
+        await (seasonService as any).sendSeasonActivationFailureNotification(
+          testSeason.id, 
+          activationResult, 
+          'open_duration_timeout'
+        );
+
+        // Verify Discord client was used to fetch admin users
+        expect(mockDiscordClient.users.fetch).toHaveBeenCalled();
+      });
+
+      it('should send failure notification to admin users and season creator', async () => {
+        const activationResult = {
+          type: 'error' as const,
+          key: 'season_activate_error_min_players_not_met_on_timeout',
+          data: {
+            seasonId: testSeason.id,
+            currentPlayers: 1,
+            minPlayers: 2
+          }
+        };
+
+        await (seasonService as any).sendSeasonActivationFailureNotification(
+          testSeason.id, 
+          activationResult, 
+          'open_duration_timeout'
+        );
+
+        // Verify Discord client was used to fetch users (admin users and creator)
+        expect(mockDiscordClient.users.fetch).toHaveBeenCalled();
+        // The method sends to admin users first, then to creator
+        expect(mockDiscordClient.users.fetch.mock.calls.length).toBeGreaterThan(0);
+      });
+
+      it('should handle missing season gracefully', async () => {
+        const activationResult = {
+          type: 'error' as const,
+          key: 'season_activate_error_min_players_not_met_on_timeout',
+          data: {
+            seasonId: 'non-existent-season',
+            currentPlayers: 1,
+            minPlayers: 2
+          }
+        };
+
+        // Should not throw an error
+        await expect((seasonService as any).sendSeasonActivationFailureNotification(
+          'non-existent-season', 
+          activationResult, 
+          'open_duration_timeout'
+        )).resolves.not.toThrow();
+      });
+
+      it('should handle Discord client errors gracefully', async () => {
+        const activationResult = {
+          type: 'error' as const,
+          key: 'season_activate_error_min_players_not_met_on_timeout',
+          data: {
+            seasonId: testSeason.id,
+            currentPlayers: 1,
+            minPlayers: 2
+          }
+        };
+
+        // Mock Discord client to throw an error
+        mockDiscordClient.users.fetch.mockRejectedValue(new Error('Discord API error'));
+
+        // Should not throw an error
+        await expect((seasonService as any).sendSeasonActivationFailureNotification(
+          testSeason.id, 
+          activationResult, 
+          'open_duration_timeout'
+        )).resolves.not.toThrow();
+      });
+
+      it('should handle missing admin configuration gracefully', async () => {
+        // Mock config.json to have no admin users
+        vi.doMock('../../config/config.json', () => ({
+          developers: []
+        }));
+
+        const activationResult = {
+          type: 'error' as const,
+          key: 'season_activate_error_min_players_not_met_on_timeout',
+          data: {
+            seasonId: testSeason.id,
+            currentPlayers: 1,
+            minPlayers: 2
+          }
+        };
+
+        // Should not throw an error even with no admin users configured
+        await expect((seasonService as any).sendSeasonActivationFailureNotification(
+          testSeason.id, 
+          activationResult, 
+          'open_duration_timeout'
+        )).resolves.not.toThrow();
+      });
+    });
+
+    describe('Integration with activation methods', () => {
+      it('should call success notification when activation succeeds via max players', async () => {
+        // Create a new config for this test
+        const integrationConfig = await prisma.seasonConfig.create({
+          data: {
+            id: nanoid(),
+            openDuration: '1d',
+            minPlayers: 1,
+            maxPlayers: 5,
+          },
+        });
+
+        // Create a season in PENDING_START status with players
+        const pendingSeason = await prisma.season.create({
+          data: {
+            id: `test-integration-${nanoid()}`,
+            status: 'PENDING_START',
+            creatorId: testPlayer.id,
+            configId: integrationConfig.id,
+            guildId: 'test-guild-id',
+            channelId: 'test-channel-id',
+          }
+        });
+
+        // Add players to the season
+        await prisma.playersOnSeasons.create({
+          data: { playerId: testPlayer.id, seasonId: pendingSeason.id }
+        });
+
+        // Spy on the notification method
+        const notificationSpy = vi.spyOn(seasonService as any, 'sendSeasonActivationSuccessNotification');
+
+        // Trigger activation
+        const result = await seasonService.activateSeason(pendingSeason.id, {
+          triggeredBy: 'max_players',
+          playerCount: 1
+        });
+
+        expect(result.type).toBe('success');
+        expect(notificationSpy).toHaveBeenCalledWith(pendingSeason.id, expect.any(Object));
+      });
+
+      it('should call failure notification when activation fails', async () => {
+        // Create a new config for this test
+        const failureConfig = await prisma.seasonConfig.create({
+          data: {
+            id: nanoid(),
+            openDuration: '1d',
+            minPlayers: 2,
+            maxPlayers: 5,
+          },
+        });
+
+        // Create a season in PENDING_START status with insufficient players
+        const pendingSeason = await prisma.season.create({
+          data: {
+            id: `test-integration-fail-${nanoid()}`,
+            status: 'PENDING_START',
+            creatorId: testPlayer.id,
+            configId: failureConfig.id,
+          }
+        });
+
+        // Add only one player (less than minPlayers = 2)
+        await prisma.playersOnSeasons.create({
+          data: { playerId: testPlayer.id, seasonId: pendingSeason.id }
+        });
+
+        // Spy on the notification method
+        const notificationSpy = vi.spyOn(seasonService as any, 'sendSeasonActivationFailureNotification');
+
+        // Trigger timeout activation (should fail due to insufficient players)
+        const result = await seasonService.activateSeason(pendingSeason.id, {
+          triggeredBy: 'open_duration_timeout'
+        });
+
+        expect(result.type).toBe('error');
+        expect(notificationSpy).toHaveBeenCalledWith(
+          pendingSeason.id, 
+          expect.any(Object), 
+          'open_duration_timeout'
+        );
+      });
+    });
+  });
 }); 

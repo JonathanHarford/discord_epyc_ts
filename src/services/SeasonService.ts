@@ -308,18 +308,10 @@ export class SeasonService {
           const activationResult = await this.activateSeason(season.id, { triggeredBy: 'max_players', playerCount: updatedPlayerCount }, tx);
           if (activationResult.type === 'success') {
             console.log(`SeasonService.addPlayerToSeason: Season ${seasonId} activated successfully due to max players.`);
-            // Send success notification (outside of transaction)
-            setImmediate(async () => {
-              await this.sendSeasonActivationSuccessNotification(seasonId, activationResult);
-            });
             // Return the activation success message directly
             return activationResult;
           } else {
             console.error(`SeasonService.addPlayerToSeason: Activation failed for season ${seasonId} after max players reached. Error: ${activationResult.key}`, activationResult.data);
-            // Send failure notification (outside of transaction)
-            setImmediate(async () => {
-              await this.sendSeasonActivationFailureNotification(seasonId, activationResult, 'max_players');
-            });
             // Return the activation error message
             // This case should be handled carefully: player was added, but activation failed.
             // For now, we return the activation error, but this might need more robust error handling or rollback.
@@ -327,18 +319,6 @@ export class SeasonService {
           }
         } catch (activationError) {
           console.error(`SeasonService.addPlayerToSeason: Unexpected error during activation for season ${seasonId}:`, activationError);
-          // Send failure notification (outside of transaction)
-          setImmediate(async () => {
-            await this.sendSeasonActivationFailureNotification(seasonId, {
-              type: 'error' as const,
-              key: 'season_activate_error_unexpected',
-              data: { 
-                seasonId, 
-                error: activationError instanceof Error ? activationError.message : 'Unknown error',
-                triggeredBy: 'max_players'
-              }
-            }, 'max_players');
-          });
           // Return a user-friendly error message
           return {
             type: 'error' as const,
@@ -447,16 +427,18 @@ export class SeasonService {
             where: { id: seasonId },
             data: { status: 'CANCELLED' }, // Or a new status like 'ABORTED_MIN_PLAYERS'
           });
-          return { type: 'error' as const, key: 'season_activate_error_min_players_not_met_on_timeout', data: { seasonId, currentPlayers: actualPlayerCountInTx, minPlayers } };
+          const errorResult = { type: 'error' as const, key: 'season_activate_error_min_players_not_met_on_timeout', data: { seasonId, currentPlayers: actualPlayerCountInTx, minPlayers } };
+          await this.sendSeasonActivationFailureNotification(seasonId, errorResult, 'open_duration_timeout');
+          return errorResult;
         }
       } else if (triggeredBy === 'max_players') {
-        // If triggered by max_players, playerCount from params should match maxPlayers
-        // And actualPlayerCountInTx should also match for consistency
-        if (maxPlayers === null || (activationParams?.playerCount !== undefined && activationParams.playerCount < maxPlayers) || actualPlayerCountInTx < maxPlayers) {
-          console.warn(`SeasonService.activateSeason: Season ${seasonId} (max_players trigger) condition not met. Expected ${maxPlayers}, param count: ${activationParams?.playerCount}, actual in tx: ${actualPlayerCountInTx}. Activation aborted.`);
-          // This state is unexpected if triggeredBy max_players correctly.
-          // It implies a logic error or race condition if activationParams.playerCount was indeed maxPlayers.
-          return { type: 'error' as const, key: 'season_activate_error_max_players_condition_not_met', data: { seasonId, currentPlayers: actualPlayerCountInTx, expectedMax: maxPlayers, providedCount: activationParams?.playerCount } };
+        // If triggered by max_players, we should have at least minPlayers and the season should be ready for activation
+        // The actual validation is that we have enough players to start the season
+        if (minPlayers !== null && actualPlayerCountInTx < minPlayers) {
+          console.warn(`SeasonService.activateSeason: Season ${seasonId} (max_players trigger) does not meet min player requirement (${actualPlayerCountInTx}/${minPlayers}). Activation aborted.`);
+          const errorResult = { type: 'error' as const, key: 'season_activate_error_min_players_not_met_on_max_players', data: { seasonId, currentPlayers: actualPlayerCountInTx, minPlayers } };
+          await this.sendSeasonActivationFailureNotification(seasonId, errorResult, 'max_players');
+          return errorResult;
         }
       }
       
@@ -473,7 +455,9 @@ export class SeasonService {
                 where: { id: seasonId },
                 data: { status: 'CANCELLED' },
             });
-           return { type: 'error' as const, key: 'season_activate_error_zero_players_violates_minplayers', data: { seasonId, minPlayers } };
+           const errorResult = { type: 'error' as const, key: 'season_activate_error_zero_players_violates_minplayers', data: { seasonId, minPlayers } };
+           await this.sendSeasonActivationFailureNotification(seasonId, errorResult, triggeredBy || 'unknown');
+           return errorResult;
         }
       }
 
@@ -491,10 +475,12 @@ export class SeasonService {
         
         if (!gameCreationResult.success) {
           console.error(`SeasonService.activateSeason: Failed to create games for season ${seasonId}. Error: ${gameCreationResult.error}`);
-          return MessageHelpers.commandError(
+          const errorResult = MessageHelpers.commandError(
             'messages.season.activateErrorGameCreation',
             { seasonId, error: gameCreationResult.error }
           );
+          await this.sendSeasonActivationFailureNotification(seasonId, errorResult, triggeredBy || 'unknown');
+          return errorResult;
         }
 
         // Map created games to players (one game per player)
@@ -534,7 +520,7 @@ export class SeasonService {
         console.log(`SeasonService.activateSeason: No scheduled activation job found with ID '${activationJobId}' for season ${seasonId} to cancel.`);
       }
       
-      return {
+      const successResult = {
         type: 'success' as const, // Ensure type is literal for MessageInstruction
         key: 'messages.season.activateSuccess',
         data: {
@@ -544,6 +530,11 @@ export class SeasonService {
           playersInSeason: actualPlayerCountInTx,
         },
       };
+
+      // Send success notification
+      await this.sendSeasonActivationSuccessNotification(seasonId, successResult);
+
+      return successResult;
     };
 
     // Execute the logic: if a transaction client 'tx' is provided, use it. Otherwise, create a new transaction.
@@ -572,14 +563,13 @@ export class SeasonService {
 
       if (result.type === 'success') {
         console.log(`SeasonService.handleOpenDurationTimeout: Season ${seasonId} activated successfully by timeout.`);
-        await this.sendSeasonActivationSuccessNotification(seasonId, result);
       } else {
         console.error(`SeasonService.handleOpenDurationTimeout: Failed to activate season ${seasonId} by timeout. Error: ${result.key}`, result.data);
-        await this.sendSeasonActivationFailureNotification(seasonId, result, 'open_duration_timeout');
         // If min_players not met, activateSeason already sets status to CANCELLED.
       }
     } catch (error) {
       console.error(`SeasonService.handleOpenDurationTimeout: Unexpected error during season ${seasonId} activation:`, error);
+      // activateSeason should handle its own error notifications, but this is an unexpected error outside of activateSeason
       await this.sendSeasonActivationFailureNotification(seasonId, {
         type: 'error' as const,
         key: 'season_activate_error_unexpected',

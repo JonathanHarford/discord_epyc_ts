@@ -1,6 +1,6 @@
 # Task ID: 39
 # Title: Implement Season Activation Error Handling and Notifications
-# Status: in-progress
+# Status: done
 # Dependencies: 3, 5, 8, 10
 # Priority: medium
 # Description: Implement error handling for season activation failures and send notifications for both success and failure events within the SeasonService.

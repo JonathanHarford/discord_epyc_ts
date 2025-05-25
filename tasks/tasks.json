@@ -1621,7 +1621,7 @@
       "description": "Implement error handling for season activation failures and send notifications for both success and failure events within the SeasonService.",
       "details": "Locate the TODO comments in `SeasonService` related to season activation success (line 535) and failure (line 538). For successful activation, implement the logic to send a notification (e.g., to the season creator or a designated channel) confirming the season is now active and ready for turns. For activation failures, implement robust error handling using try-catch blocks or similar mechanisms. Log the error details using the application's standard logging framework. Implement logic to send a notification to configured admin users or channels, including relevant error information to aid debugging. Ensure that activation failures are handled gracefully without crashing the application.",
       "testStrategy": "Write unit tests for the `SeasonService` activation method, mocking dependencies like the database, scheduler, and notification service. Test the success path: verify that the success notification method is called with the correct parameters. Test failure paths: simulate errors during database operations, scheduler calls, or other steps in the activation process. Verify that errors are logged correctly and that the admin notification method is called with appropriate error details. Conduct integration tests by setting up a test season and manually triggering or waiting for activation, verifying success notifications. Introduce controlled failures in a test environment to confirm error logging and admin notifications function as expected.",
-      "status": "in-progress",
+      "status": "done",
       "dependencies": [
         3,
         5,
