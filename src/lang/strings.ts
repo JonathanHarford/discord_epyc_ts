@@ -346,6 +346,20 @@ export const strings = {
       ]
     },
 
+    // Admin embeds
+    admin: {
+      listSeasonsSuccess: {
+        title: "Seasons List ({totalCount} total)",
+        description: "{statusFilter}",
+        fields: [
+          {
+            name: "Seasons",
+            value: "{seasonsDetails}"
+          }
+        ]
+      }
+    },
+
     // Error embeds
     errorEmbeds: {
       notImplemented: {

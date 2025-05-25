@@ -938,22 +938,30 @@ export class SeasonService {
         }
       });
 
+      // Format the seasons data as a string
+      const seasonsDetails = seasons.length === 0 
+        ? 'No seasons found.'
+        : seasons.map(season => {
+            const createdDate = new Date(season.createdAt).toLocaleDateString();
+            return `**${season.id}** - ${season.status}\n` +
+                   `└ Created by: ${season.creator.name}\n` +
+                   `└ Players: ${season._count.players}/${season.config.maxPlayers} (min: ${season.config.minPlayers})\n` +
+                   `└ Games: ${season._count.games}\n` +
+                   `└ Created: ${createdDate}`;
+          }).join('\n\n');
+
+      // Format the status filter description
+      const statusDescription = statusFilter 
+        ? `Showing seasons with status: **${statusFilter}**`
+        : 'Showing all seasons';
+
       return MessageHelpers.embedMessage(
         'success',
-        'data.displayEmbeds.admin.listSeasonsSuccess',
+        'embeds.admin.listSeasonsSuccess',
         {
-          seasons: seasons.map(season => ({
-            id: season.id,
-            status: season.status,
-            creatorName: season.creator.name,
-            playerCount: season._count.players,
-            gameCount: season._count.games,
-            maxPlayers: season.config.maxPlayers,
-            minPlayers: season.config.minPlayers,
-            createdAt: season.createdAt.toISOString()
-          })),
           totalCount: seasons.length,
-          statusFilter: statusFilter || 'all'
+          statusFilter: statusDescription,
+          seasonsDetails: seasonsDetails
         },
         true // Admin messages should be ephemeral
       );
