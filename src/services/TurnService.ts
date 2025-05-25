@@ -4,8 +4,9 @@ import { nanoid } from 'nanoid';
 import { checkGameCompletionPure, checkSeasonCompletionPure } from '../game/pureGameLogic.js';
 import type { CheckGameCompletionInput, CheckSeasonCompletionInput } from '../game/types.js';
 import { SchedulerService } from '../services/SchedulerService.js';
-// Enhanced messaging layer integration tracked in Task 40
-// Scheduler integration for timeouts tracked in Task 38
+import { MessageAdapter } from '../messaging/MessageAdapter.js';
+import { MessageHelpers } from '../messaging/MessageHelpers.js';
+import { getSeasonTimeouts } from '../utils/seasonConfig.js';
 
 export class TurnService {
   private prisma: PrismaClient;
@@ -62,22 +63,42 @@ export class TurnService {
         },
       });
 
+      // Get season-specific timeout values once for both messaging and scheduling
+      let timeouts;
       try {
-        const user = await this.discordClient.users.fetch(player.discordUserId);
-        if (user) {
-                // Enhanced messaging layer integration tracked in Task 40
-      // Timeout duration from config tracked in Task 37
-          const claimTimeoutInfo = "a limited time"; // Placeholder
-          await user.send(
-            `It's your first turn in game \`${game.id}\` for season \`${seasonId}\`!\n` +
-            `The turn type is: **${initialTurnType}**.\n` +
-            `Please type \`/ready\` in this DM to claim your turn. You have ${claimTimeoutInfo} to claim it.`
-          );
-          console.log(`Successfully sent initial turn offer DM to player ${player.id} (${player.discordUserId}) for game ${game.id}, turn ${newTurn.id}`);
-        } else {
-          console.error(`Could not find Discord user with ID ${player.discordUserId} (Player internal ID: ${player.id}) to send initial turn offer for game ${game.id}.`);
-          // The turn is still created and offered. Admin/system might need alerting.
-        }
+        timeouts = await getSeasonTimeouts(this.prisma, newTurn.id);
+      } catch (timeoutError) {
+        console.error(`Failed to get season timeouts for turn ${newTurn.id}:`, timeoutError);
+        // Use default values if timeout retrieval fails
+        timeouts = {
+          claimTimeoutMinutes: 1440, // 24 hours default
+          writingTimeoutMinutes: 1440,
+          drawingTimeoutMinutes: 4320
+        };
+      }
+
+      try {
+        // Create enhanced message instruction for initial turn offer
+        const messageInstruction = MessageHelpers.dmNotification(
+          'messages.turnOffer.initialTurnOffer',
+          player.discordUserId,
+          {
+            gameId: game.id,
+            seasonId: seasonId,
+            turnType: initialTurnType,
+            claimTimeoutMinutes: timeouts.claimTimeoutMinutes
+          }
+        );
+
+        // Send DM using enhanced messaging layer
+        await MessageAdapter.processInstruction(
+          messageInstruction,
+          undefined, // No interaction for DMs
+          'en',
+          this.discordClient
+        );
+
+        console.log(`Successfully sent initial turn offer DM to player ${player.id} (${player.discordUserId}) for game ${game.id}, turn ${newTurn.id}`);
       } catch (dmError) {
         console.error(`Failed to send initial turn offer DM to player ${player.id} (${player.discordUserId}) for game ${game.id}:`, dmError);
         // Log error, but proceed as turn is programmatically offered.
@@ -86,9 +107,7 @@ export class TurnService {
       // Schedule claim timeout if SchedulerService is available
       if (this.schedulerService) {
         try {
-          // Default claim timeout of 24 hours (hardcoded for now - Task 37 will integrate config)
-          const claimTimeoutMinutes = 1440; // 24 hours
-          const claimTimeoutDate = new Date(Date.now() + claimTimeoutMinutes * 60 * 1000);
+          const claimTimeoutDate = new Date(Date.now() + timeouts.claimTimeoutMinutes * 60 * 1000);
           
           const claimTimeoutJobId = `turn-claim-timeout-${newTurn.id}`;
           

@@ -181,7 +181,8 @@ export const strings = {
 
     // Turn messages
     turnOffer: {
-      newTurnAvailable: "🎨 **New Turn Available!** 🎨\n\n**Game:** {gameId}\n**Season:** {seasonId}\n**Turn:** {turnNumber} ({turnType})\n\nYou have **{claimTimeoutMinutes} minutes** to claim this turn. React with ✅ to claim it!"
+      newTurnAvailable: "🎨 **New Turn Available!** 🎨\n\n**Game:** {gameId}\n**Season:** {seasonId}\n**Turn:** {turnNumber} ({turnType})\n\nYou have **{claimTimeoutMinutes} minutes** to claim this turn. React with ✅ to claim it!",
+      initialTurnOffer: "🎮 **Your First Turn!** 🎮\n\n**Game:** {gameId}\n**Season:** {seasonId}\n**Turn Type:** {turnType}\n\nIt's your first turn in this game! Please type `/ready` in this DM to claim your turn.\n\n⏰ You have **{claimTimeoutMinutes} minutes** to claim it before it's offered to another player."
     },
 
     // Game messages

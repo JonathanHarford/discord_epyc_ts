@@ -1,6 +1,6 @@
 # Task ID: 40
 # Title: Implement Enhanced Messaging in TurnService
-# Status: pending
+# Status: in-progress
 # Dependencies: 5, 10, 37, 38
 # Priority: medium
 # Description: Replace basic string messages in TurnService with enhanced messaging using a messaging layer/utility, incorporating dynamic data like claim timeout duration.
