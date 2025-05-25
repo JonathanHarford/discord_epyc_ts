@@ -1,4 +1,4 @@
-import { REST } from '@discordjs/rest';
+
 import { Options, Partials } from 'discord.js';
 import { createRequire } from 'node:module';
 import schedule from 'node-schedule';
@@ -8,12 +8,7 @@ import { DevCommand, HelpCommand, InfoCommand, TestCommand, AdminCommand, Config
 import NewCommand from './commands/chat/new-command.js';
 import JoinSeasonCommand from './commands/chat/joinSeason.js';
 import StatusCommand from './commands/chat/status-command.js';
-import {
-    ChatCommandMetadata,
-    Command,
-    MessageCommandMetadata,
-    UserCommandMetadata,
-} from './commands/index.js';
+import { Command } from './commands/index.js';
 import { ViewDateSent } from './commands/message/index.js';
 import { ViewDateJoined } from './commands/user/index.js';
 import {
@@ -31,7 +26,6 @@ import { Job } from './jobs/index.js';
 import { Bot } from './models/bot.js';
 import { Reaction } from './reactions/index.js';
 import {
-    CommandRegistrationService,
     EventDataService,
     GameService,
     JobService,
@@ -148,25 +142,6 @@ async function start(): Promise<void> {
         reactionHandler,
         new JobService(jobs)
     );
-
-    // Register
-    if (process.argv[2] == 'commands') {
-        try {
-            let rest = new REST({ version: '10' }).setToken(Config.client.token);
-            let commandRegistrationService = new CommandRegistrationService(rest);
-            let localCmds = [
-                ...Object.values(ChatCommandMetadata).sort((a, b) => (a.name > b.name ? 1 : -1)),
-                ...Object.values(MessageCommandMetadata).sort((a, b) => (a.name > b.name ? 1 : -1)),
-                ...Object.values(UserCommandMetadata).sort((a, b) => (a.name > b.name ? 1 : -1)),
-            ];
-            await commandRegistrationService.process(localCmds, process.argv);
-        } catch (error) {
-            Logger.error(Logs.error.commandAction, error);
-        }
-        // Wait for any final logs to be written.
-        await new Promise(resolve => setTimeout(resolve, 1000));
-        process.exit();
-    }
 
     await bot.start();
 }
