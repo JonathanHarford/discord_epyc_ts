@@ -2,6 +2,7 @@ import { PrismaClient } from '@prisma/client';
 import { SeasonService } from '../../src/services/SeasonService.js';
 import { TurnService } from '../../src/services/TurnService.js'; 
 import { SchedulerService } from '../../src/services/SchedulerService.js';
+import { GameService } from '../../src/services/GameService.js';
 import { nanoid } from 'nanoid';
 import { describe, it, expect, beforeEach, afterAll, vi } from 'vitest'; // Import Vitest globals
 import { Client as DiscordClient } from 'discord.js';
@@ -47,7 +48,8 @@ describe('SeasonService Integration Tests', () => {
 
     // Create actual services
     turnService = new TurnService(prisma, mockDiscordClient as unknown as DiscordClient);
-    seasonService = new SeasonService(prisma, turnService, mockSchedulerService);
+    const gameService = new GameService(prisma);
+    seasonService = new SeasonService(prisma, turnService, mockSchedulerService, gameService);
   });
 
   // Disconnect Prisma client after all tests

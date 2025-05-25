@@ -33,6 +33,7 @@ import { Reaction } from './reactions/index.js';
 import {
     CommandRegistrationService,
     EventDataService,
+    GameService,
     JobService,
     Logger,
     PlayerService,
@@ -66,8 +67,9 @@ async function start(): Promise<void> {
     
     // Service instances with proper dependency injection
     const schedulerService = new SchedulerService(prisma);
+    const gameService = new GameService(prisma);
     const turnService = new TurnService(prisma, client, schedulerService);
-    const seasonService = new SeasonService(prisma, turnService, schedulerService);
+    const seasonService = new SeasonService(prisma, turnService, schedulerService, gameService);
     const turnOfferingService = new TurnOfferingService(prisma, client, turnService, schedulerService);
     
     // Set dependencies for SchedulerService to handle different job types

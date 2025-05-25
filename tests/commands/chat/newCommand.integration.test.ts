@@ -7,6 +7,7 @@ import { EventData } from '../../../src/models/internal-models.js';
 import { SeasonService } from '../../../src/services/SeasonService.js';
 import { TurnService } from '../../../src/services/TurnService.js';
 import { SchedulerService } from '../../../src/services/SchedulerService.js';
+import { GameService } from '../../../src/services/GameService.js';
 
 describe('NewCommand - Integration Tests', () => {
   let interaction: any; // Using any type for the mock interaction
@@ -43,7 +44,8 @@ describe('NewCommand - Integration Tests', () => {
     turnService = new TurnService(prisma, mockDiscordClient);
     
     // Create the SeasonService with proper dependencies
-    seasonService = new SeasonService(prisma, turnService, mockSchedulerService);
+    const gameService = new GameService(prisma);
+    seasonService = new SeasonService(prisma, turnService, mockSchedulerService, gameService);
     
     // Now create the command with proper dependencies
     commandInstance = new NewCommand(prisma, seasonService);

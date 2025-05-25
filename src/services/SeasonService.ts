@@ -7,6 +7,7 @@ import { DateTime } from 'luxon'; // Duration and DurationLikeObject might not b
 import { parseDuration, formatTimeRemaining } from '../utils/datetime.js'; // Import the new utility
 import { TurnService } from './TurnService.js'; // Added .js extension
 import { SchedulerService } from './SchedulerService.js'; // ADDED: Import SchedulerService
+import { GameService } from './GameService.js'; // ADDED: Import GameService
 
 // Define a more specific return type for findSeasonById, including config and player count
 type SeasonDetails = Prisma.SeasonGetPayload<{
@@ -31,12 +32,14 @@ export class SeasonService {
   private prisma: PrismaClient;
   private turnService: TurnService;
   private schedulerService: SchedulerService; // ADDED: SchedulerService instance
+  private gameService: GameService; // ADDED: GameService instance
 
-  // Inject PrismaClient instance, TurnService, and SchedulerService
-  constructor(prisma: PrismaClient, turnService: TurnService, schedulerService: SchedulerService) { // MODIFIED: Added schedulerService
+  // Inject PrismaClient instance, TurnService, SchedulerService, and GameService
+  constructor(prisma: PrismaClient, turnService: TurnService, schedulerService: SchedulerService, gameService: GameService) { // MODIFIED: Added gameService
     this.prisma = prisma;
     this.turnService = turnService;
     this.schedulerService = schedulerService; // ADDED: Assign schedulerService
+    this.gameService = gameService; // ADDED: Assign gameService
   }
 
   /**
@@ -450,25 +453,28 @@ export class SeasonService {
       });
       console.log(`SeasonService.activateSeason: Season ${seasonId} status updated to ACTIVE.`);
 
-      // 6. Create games - one for each player and associate them with the player
-      const gameAndPlayerCreationPromises: Promise<{ game: Prisma.GameGetPayload<{ include: { season: true } }>; player: Player }>[] = [];
+      // 6. Create games using GameService
+      let createdGamesAndPlayers: { game: Game; player: Player }[] = [];
       if (actualPlayerCountInTx > 0) { // Only create games if there are players
-        for (const playerOnSeason of season.players) { // playerOnSeason is PlayersOnSeasons[], playerOnSeason.player is Player
-          const gameData: Prisma.GameCreateInput = {
-            id: nanoid(), // Use nanoid for game ID
-            season: { connect: { id: seasonId } },
-            status: 'PENDING_START',
-          };
-          const playerForThisGame = playerOnSeason.player; // player is the actual Player object
-          gameAndPlayerCreationPromises.push(
-            prismaClient.game.create({ data: gameData, include: { season: true } })
-              .then(createdGame => ({ game: createdGame, player: playerForThisGame }))
+        const gameCreationResult = await this.gameService.createGamesForSeason(seasonId, prismaClient);
+        
+        if (!gameCreationResult.success) {
+          console.error(`SeasonService.activateSeason: Failed to create games for season ${seasonId}. Error: ${gameCreationResult.error}`);
+          return MessageHelpers.commandError(
+            'messages.season.activateErrorGameCreation',
+            { seasonId, error: gameCreationResult.error }
           );
         }
+
+        // Map created games to players (one game per player)
+        const createdGames = gameCreationResult.games || [];
+        createdGamesAndPlayers = season.players.map((playerOnSeason, index) => ({
+          game: createdGames[index],
+          player: playerOnSeason.player
+        }));
+        
+        console.log(`SeasonService.activateSeason: Created ${createdGamesAndPlayers.length} games for season ${seasonId}.`);
       }
-      
-      const createdGamesAndPlayers = await Promise.all(gameAndPlayerCreationPromises);
-      console.log(`SeasonService.activateSeason: Created ${createdGamesAndPlayers.length} games for season ${seasonId}.`);
 
       // 7. Offer initial turns for each game-player pair
       if (createdGamesAndPlayers.length > 0) {

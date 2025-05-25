@@ -4,6 +4,7 @@ import { Client as DiscordClient } from 'discord.js';
 import { SeasonService, NewSeasonOptions } from '../../src/services/SeasonService.js';
 import { TurnService } from '../../src/services/TurnService.js';
 import { SchedulerService } from '../../src/services/SchedulerService.js';
+import { GameService } from '../../src/services/GameService.js';
 import schedule from 'node-schedule';
 import { humanId } from 'human-id';
 import { nanoid } from 'nanoid';
@@ -74,8 +75,9 @@ describe('SeasonService', () => {
       cancelJob: vi.fn().mockResolvedValue(true),
     } as unknown as SchedulerService;
     
-    // seasonService is newed up with the shared prisma instance, TurnService, and mockSchedulerService
-    seasonService = new SeasonService(prisma, turnService, mockSchedulerService);
+    // seasonService is newed up with the shared prisma instance, TurnService, mockSchedulerService, and GameService
+    const gameService = new GameService(prisma);
+    seasonService = new SeasonService(prisma, turnService, mockSchedulerService, gameService);
 
     // Create a test player for creator context
     testPlayer = await prisma.player.create({
@@ -206,7 +208,7 @@ describe('SeasonService', () => {
       cancelJob: vi.fn().mockResolvedValue(true),
     } as unknown as SchedulerService;
     
-    const testSeasonService = new SeasonService(prisma, new TurnService(prisma, {} as any), testSchedulerService);
+    const testSeasonService = new SeasonService(prisma, new TurnService(prisma, {} as any), testSchedulerService, new GameService(prisma));
     
     const options: NewSeasonOptions = {
       creatorPlayerId: nonExistentPlayerId,
@@ -226,7 +228,7 @@ describe('SeasonService', () => {
       cancelJob: vi.fn().mockResolvedValue(true),
     } as unknown as SchedulerService;
     
-    const testSeasonService = new SeasonService(prisma, new TurnService(prisma, {} as any), testSchedulerService);
+    const testSeasonService = new SeasonService(prisma, new TurnService(prisma, {} as any), testSchedulerService, new GameService(prisma));
     
     const options: NewSeasonOptions = {
       creatorPlayerId: testPlayer.id,
@@ -379,7 +381,7 @@ describe('SeasonService', () => {
     } as unknown as SchedulerService;
 
     // Use real SeasonService with real TurnService
-    const realSeasonService = new SeasonService(prisma, realTurnService, realSchedulerService);
+    const realSeasonService = new SeasonService(prisma, realTurnService, realSchedulerService, new GameService(prisma));
 
     // Test: Add first player (should not trigger activation)
     const result1 = await realSeasonService.addPlayerToSeason(player1.id, seasonId);
@@ -477,7 +479,7 @@ describe('SeasonService', () => {
       cancelJob: vi.fn().mockResolvedValue(true),
     } as unknown as SchedulerService;
 
-    const realSeasonService = new SeasonService(prisma, realTurnService, realSchedulerService);
+    const realSeasonService = new SeasonService(prisma, realTurnService, realSchedulerService, new GameService(prisma));
 
     // Act: Call activateSeason directly, simulating it being triggered by reaching max_players
     const activationResult = await realSeasonService.activateSeason(season.id, { 
@@ -567,7 +569,7 @@ describe('SeasonService', () => {
       cancelJob: vi.fn().mockResolvedValue(true),
     } as unknown as SchedulerService;
 
-    const realSeasonService = new SeasonService(prisma, realTurnService, realSchedulerService);
+    const realSeasonService = new SeasonService(prisma, realTurnService, realSchedulerService, new GameService(prisma));
 
     // Act: Try to activate the season
     const activationResult = await realSeasonService.activateSeason(season.id);
@@ -643,7 +645,8 @@ describe('SeasonService', () => {
       cancelJob: vi.fn().mockResolvedValue(true),
     } as unknown as SchedulerService;
 
-    const realSeasonService = new SeasonService(prisma, realTurnService, realSchedulerService);
+    const realGameService = new GameService(prisma);
+    const realSeasonService = new SeasonService(prisma, realTurnService, realSchedulerService, realGameService);
 
     // Act: Try to activate the season (simulating open_duration timeout)
     const activationResult = await realSeasonService.activateSeason(season.id, { 
@@ -727,7 +730,8 @@ describe('SeasonService', () => {
       cancelJob: vi.fn().mockResolvedValue(true),
     } as unknown as SchedulerService;
 
-    const realSeasonService = new SeasonService(prisma, realTurnService, realSchedulerService);
+    const realGameService = new GameService(prisma);
+    const realSeasonService = new SeasonService(prisma, realTurnService, realSchedulerService, realGameService);
 
     // Act: Directly call handleOpenDurationTimeout to simulate the timeout trigger
     await realSeasonService.handleOpenDurationTimeout(season.id);

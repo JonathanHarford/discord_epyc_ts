@@ -8,6 +8,7 @@ import { strings } from '../../lang/strings.js';
 import { SeasonService } from '../../services/SeasonService.js';
 import { TurnService } from '../../services/TurnService.js';
 import { SchedulerService } from '../../services/SchedulerService.js';
+import { GameService } from '../../services/GameService.js';
 import { PlayerService } from '../../services/PlayerService.js';
 import prisma from '../../lib/prisma.js';
 
@@ -40,7 +41,8 @@ export class AdminCommand implements Command {
         if (!this.seasonService) {
             const turnService = new TurnService(prisma, intr.client);
             const schedulerService = new SchedulerService(prisma);
-            this.seasonService = new SeasonService(prisma, turnService, schedulerService);
+            const gameService = new GameService(prisma);
+            this.seasonService = new SeasonService(prisma, turnService, schedulerService, gameService);
         }
 
         const subcommandGroup = intr.options.getSubcommandGroup();

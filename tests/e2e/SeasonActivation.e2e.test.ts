@@ -2,6 +2,7 @@ import { PrismaClient } from '@prisma/client';
 import { SeasonService } from '../../src/services/SeasonService.js';
 import { TurnService } from '../../src/services/TurnService.js';
 import { SchedulerService } from '../../src/services/SchedulerService.js';
+import { GameService } from '../../src/services/GameService.js';
 import { nanoid } from 'nanoid';
 import { describe, it, expect, beforeEach, afterAll, vi, beforeAll } from 'vitest';
 import { Client as DiscordClient } from 'discord.js';
@@ -54,7 +55,8 @@ describe('Season Activation End-to-End Tests', () => {
     
     // Recreate services
     turnService = new TurnService(prisma, mockDiscordClient as unknown as DiscordClient);
-    seasonService = new SeasonService(prisma, turnService, mockSchedulerService);
+    const gameService = new GameService(prisma);
+    seasonService = new SeasonService(prisma, turnService, mockSchedulerService, gameService);
     
     // Create test players for this test run
     testPlayers = [];

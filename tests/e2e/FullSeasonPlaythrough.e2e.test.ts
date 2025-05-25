@@ -4,6 +4,7 @@ import { TurnService } from '../../src/services/TurnService.js';
 import { TurnOfferingService } from '../../src/services/TurnOfferingService.js';
 import { SchedulerService } from '../../src/services/SchedulerService.js';
 import { PlayerService } from '../../src/services/PlayerService.js';
+import { GameService } from '../../src/services/GameService.js';
 import { nanoid } from 'nanoid';
 import { describe, it, expect, beforeEach, afterAll, vi, beforeAll } from 'vitest';
 import { Client as DiscordClient } from 'discord.js';
@@ -60,7 +61,8 @@ describe('Full Season Playthrough End-to-End Test', () => {
     // Initialize services
     turnService = new TurnService(prisma, mockDiscordClient as unknown as DiscordClient);
     turnOfferingService = new TurnOfferingService(prisma, mockDiscordClient as unknown as DiscordClient, turnService, mockSchedulerService);
-    seasonService = new SeasonService(prisma, turnService, mockSchedulerService);
+    const gameService = new GameService(prisma);
+    seasonService = new SeasonService(prisma, turnService, mockSchedulerService, gameService);
     playerService = new PlayerService(prisma);
     
     // Create test players for a 4-player season (4 players = 4 games = 16 total turns)

@@ -1,6 +1,6 @@
 # Task ID: 36
 # Title: Implement GameService Methods
-# Status: pending
+# Status: done
 # Dependencies: 5
 # Priority: high
 # Description: Implement the actual GameService class with methods that support the game logic infrastructure, replacing the placeholder.
