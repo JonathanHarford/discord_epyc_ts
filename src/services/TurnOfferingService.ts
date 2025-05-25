@@ -7,6 +7,8 @@ import { selectNextPlayerPure } from '../game/pureGameLogic.js';
 import type { SelectNextPlayerInput } from '../game/types.js';
 import { strings, interpolate } from '../lang/strings.js';
 import { getSeasonTimeouts } from '../utils/seasonConfig.js';
+import { MessageAdapter } from '../messaging/MessageAdapter.js';
+import { MessageHelpers } from '../messaging/MessageHelpers.js';
 
 export interface TurnOfferingResult {
     success: boolean;
@@ -227,17 +229,27 @@ export class TurnOfferingService {
             // Get season-specific timeout values
             const timeouts = await getSeasonTimeouts(this.prisma, turn.id);
 
-            // Get the user from Discord and send DM with turn offer
-            const user = await this.discordClient.users.fetch(player.discordUserId);
-            const message = interpolate(strings.messages.turnOffer.newTurnAvailable, {
-                gameId: gameId,
-                seasonId: gameWithSeason.season?.id,
-                turnNumber: turn.turnNumber,
-                turnType: turn.type,
-                claimTimeoutMinutes: timeouts.claimTimeoutMinutes
-            });
+            // Create enhanced message instruction for turn offer
+            const messageInstruction = MessageHelpers.dmNotification(
+                'messages.turnOffer.newTurnAvailable',
+                player.discordUserId,
+                {
+                    gameId: gameId,
+                    seasonId: gameWithSeason.season?.id,
+                    turnNumber: turn.turnNumber,
+                    turnType: turn.type,
+                    claimTimeoutMinutes: timeouts.claimTimeoutMinutes
+                }
+            );
 
-            await user.send(message);
+            // Send DM using enhanced messaging layer
+            await MessageAdapter.processInstruction(
+                messageInstruction,
+                undefined, // No interaction for DMs
+                'en',
+                this.discordClient
+            );
+
             Logger.info(`TurnOfferingService: Successfully sent turn offer DM to player ${player.id} (${player.discordUserId})`);
             return true;
 

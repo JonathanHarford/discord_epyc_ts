@@ -134,16 +134,16 @@ describe('TurnOfferingService - Integration Tests', () => {
     expect(result.turn?.id).toBe(availableTurn.id);
     expect(result.player?.id).toBe(testPlayer.id);
 
-    // Check DM content
+    // Check DM content - enhanced messaging layer sends an object with content property
     expect(mockDiscordClient.users.fetch).toHaveBeenCalledWith(testPlayer.discordUserId);
-    const expectedDM = interpolate(strings.messages.turnOffer.newTurnAvailable, {
+    const expectedDMContent = interpolate(strings.messages.turnOffer.newTurnAvailable, {
       gameId: testGame.id,
       seasonId: testSeason.id,
       turnNumber: availableTurn.turnNumber,
       turnType: availableTurn.type,
       claimTimeoutMinutes: expectedClaimTimeoutMinutes,
     });
-    expect(mockDiscordUser.send).toHaveBeenCalledWith(expectedDM);
+    expect(mockDiscordUser.send).toHaveBeenCalledWith({ content: expectedDMContent });
 
     // Check scheduled job
     expect(mockScheduleJob).toHaveBeenCalledOnce();
@@ -177,15 +177,15 @@ describe('TurnOfferingService - Integration Tests', () => {
 
     await turnOfferingService.offerNextTurn(testGame.id, 'turn_completed');
 
-    // Check DM
-    const expectedDMWithDefault = interpolate(strings.messages.turnOffer.newTurnAvailable, {
+    // Check DM - enhanced messaging layer sends an object with content property
+    const expectedDMContentWithDefault = interpolate(strings.messages.turnOffer.newTurnAvailable, {
         gameId: testGame.id,
         seasonId: testSeason.id,
         turnNumber: availableTurn.turnNumber,
         turnType: availableTurn.type,
         claimTimeoutMinutes: defaultClaimMinutes,
       });
-    expect(mockDiscordUser.send).toHaveBeenCalledWith(expectedDMWithDefault);
+    expect(mockDiscordUser.send).toHaveBeenCalledWith({ content: expectedDMContentWithDefault });
     
     // Check scheduled job
     expect(mockScheduleJob).toHaveBeenCalledOnce();
