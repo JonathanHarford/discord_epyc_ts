@@ -9,6 +9,7 @@ import { TurnService } from '../../src/services/TurnService.js';
 import { PlayerService } from '../../src/services/PlayerService.js';
 import { SchedulerService } from '../../src/services/SchedulerService.js';
 import { TurnOfferingService } from '../../src/services/TurnOfferingService.js';
+import { DEFAULT_TIMEOUTS } from '../../src/utils/seasonConfig.js';
 
 // Mock the Logger
 vi.mock('../../src/services/index.js', () => ({
@@ -57,14 +58,14 @@ describe('DirectMessageHandler - Integration Tests', () => {
         } as unknown as SchedulerService;
         
         // Create real services with test database
-        turnService = new TurnService(prisma, mockDiscordClient);
+        turnService = new TurnService(prisma, mockDiscordClient, mockSchedulerService);
         playerService = new PlayerService(prisma);
         
         // Create real turn offering service with test database
         turnOfferingService = new TurnOfferingService(prisma, mockDiscordClient, turnService, mockSchedulerService);
         
         // Create handler instance with real services
-        handler = new DirectMessageHandler(turnService, playerService, mockSchedulerService, turnOfferingService);
+        handler = new DirectMessageHandler(prisma, mockDiscordClient, turnService, playerService, mockSchedulerService, turnOfferingService);
         
         // Clean database
         await prisma.$transaction([
@@ -99,6 +100,7 @@ describe('DirectMessageHandler - Integration Tests', () => {
             id: '123456789',
             tag: 'testuser#1234',
             bot: false,
+            send: vi.fn().mockResolvedValue(undefined),
         } as unknown as User;
 
         mockClient = {
@@ -258,6 +260,314 @@ describe('DirectMessageHandler - Integration Tests', () => {
             // Assert
             expect(Logger.info).toHaveBeenCalledWith(expect.stringContaining('Processing turn submission'));
             // The handler should find the player but no pending turns
+        });
+    });
+
+    describe('season timeout configuration integration', () => {
+        let testPlayer: any;
+        let testSeasonConfig: any;
+        let testSeason: any;
+        let testGame: any;
+
+        beforeEach(async () => {
+            // Clean up before each test
+            await prisma.$transaction([
+                prisma.playersOnSeasons.deleteMany(),
+                prisma.turn.deleteMany(),
+                prisma.game.deleteMany(),
+                prisma.season.deleteMany(),
+                prisma.seasonConfig.deleteMany(),
+                prisma.player.deleteMany(),
+            ]);
+
+            // Create test player
+            testPlayer = await prisma.player.create({
+                data: {
+                    id: nanoid(),
+                    discordUserId: 'timeout-test-player',
+                    name: 'Timeout Test Player'
+                }
+            });
+
+            mockMessage.author.id = testPlayer.discordUserId;
+        });
+
+        describe('/ready command with custom season timeouts', () => {
+            it('should use custom writing timeout from season config when claiming writing turn', async () => {
+                // Arrange - Create season with custom timeouts
+                testSeasonConfig = await prisma.seasonConfig.create({
+                    data: {
+                        maxPlayers: 5,
+                        minPlayers: 2,
+                        turnPattern: 'WRITING,DRAWING',
+                        claimTimeout: '2h',
+                        writingTimeout: '6h', // Custom writing timeout
+                        drawingTimeout: '3d',
+                    },
+                });
+
+                testSeason = await prisma.season.create({
+                    data: {
+                        configId: testSeasonConfig.id,
+                        status: 'ACTIVE',
+                        creatorId: testPlayer.id,
+                    },
+                });
+
+                await prisma.playersOnSeasons.create({
+                    data: {
+                        playerId: testPlayer.id,
+                        seasonId: testSeason.id,
+                    },
+                });
+
+                testGame = await prisma.game.create({
+                    data: {
+                        seasonId: testSeason.id,
+                        status: 'ACTIVE',
+                    },
+                });
+
+                // Create an OFFERED writing turn
+                const writingTurn = await prisma.turn.create({
+                    data: {
+                        gameId: testGame.id,
+                        playerId: testPlayer.id,
+                        turnNumber: 1,
+                        type: 'WRITING',
+                        status: 'OFFERED',
+                    },
+                });
+
+                mockMessage.content = '/ready';
+
+                // Act
+                await handler.process(mockMessage);
+
+                // Assert - Check that scheduler was called with custom writing timeout (6h = 360 minutes)
+                expect(mockSchedulerService.scheduleJob).toHaveBeenCalledWith(
+                    `turn-submission-timeout-${writingTurn.id}`,
+                    expect.any(Date),
+                    expect.any(Function),
+                    { turnId: writingTurn.id, playerId: testPlayer.id },
+                    'turn-submission-timeout'
+                );
+
+                // Verify the scheduled date uses the custom timeout (6h = 360 minutes)
+                const scheduledDate = (mockSchedulerService.scheduleJob as any).mock.calls[0][1];
+                const now = Date.now();
+                const expectedTimeoutMillis = 360 * 60 * 1000; // 6 hours in milliseconds
+                expect(scheduledDate.getTime()).toBeGreaterThanOrEqual(now + expectedTimeoutMillis - 5000);
+                expect(scheduledDate.getTime()).toBeLessThanOrEqual(now + expectedTimeoutMillis + 5000);
+            });
+
+            it('should use custom drawing timeout from season config when claiming drawing turn', async () => {
+                // Arrange - Create season with custom timeouts
+                testSeasonConfig = await prisma.seasonConfig.create({
+                    data: {
+                        maxPlayers: 5,
+                        minPlayers: 2,
+                        turnPattern: 'WRITING,DRAWING',
+                        claimTimeout: '2h',
+                        writingTimeout: '1d',
+                        drawingTimeout: '5d', // Custom drawing timeout
+                    },
+                });
+
+                testSeason = await prisma.season.create({
+                    data: {
+                        configId: testSeasonConfig.id,
+                        status: 'ACTIVE',
+                        creatorId: testPlayer.id,
+                    },
+                });
+
+                await prisma.playersOnSeasons.create({
+                    data: {
+                        playerId: testPlayer.id,
+                        seasonId: testSeason.id,
+                    },
+                });
+
+                testGame = await prisma.game.create({
+                    data: {
+                        seasonId: testSeason.id,
+                        status: 'ACTIVE',
+                    },
+                });
+
+                // Create an OFFERED drawing turn
+                const drawingTurn = await prisma.turn.create({
+                    data: {
+                        gameId: testGame.id,
+                        playerId: testPlayer.id,
+                        turnNumber: 1,
+                        type: 'DRAWING',
+                        status: 'OFFERED',
+                    },
+                });
+
+                mockMessage.content = '/ready';
+
+                // Act
+                await handler.process(mockMessage);
+
+                // Assert - Check that scheduler was called with custom drawing timeout (5d = 7200 minutes)
+                expect(mockSchedulerService.scheduleJob).toHaveBeenCalledWith(
+                    `turn-submission-timeout-${drawingTurn.id}`,
+                    expect.any(Date),
+                    expect.any(Function),
+                    { turnId: drawingTurn.id, playerId: testPlayer.id },
+                    'turn-submission-timeout'
+                );
+
+                // Verify the scheduled date uses the custom timeout (5d = 7200 minutes)
+                const scheduledDate = (mockSchedulerService.scheduleJob as any).mock.calls[0][1];
+                const now = Date.now();
+                const expectedTimeoutMillis = 7200 * 60 * 1000; // 5 days in milliseconds
+                expect(scheduledDate.getTime()).toBeGreaterThanOrEqual(now + expectedTimeoutMillis - 5000);
+                expect(scheduledDate.getTime()).toBeLessThanOrEqual(now + expectedTimeoutMillis + 5000);
+            });
+
+            it('should use default timeouts when season config has invalid timeout values', async () => {
+                // Arrange - Create season with invalid timeouts
+                testSeasonConfig = await prisma.seasonConfig.create({
+                    data: {
+                        maxPlayers: 5,
+                        minPlayers: 2,
+                        turnPattern: 'WRITING,DRAWING',
+                        claimTimeout: '2h',
+                        writingTimeout: 'invalid_writing', // Invalid writing timeout
+                        drawingTimeout: 'invalid_drawing', // Invalid drawing timeout
+                    },
+                });
+
+                testSeason = await prisma.season.create({
+                    data: {
+                        configId: testSeasonConfig.id,
+                        status: 'ACTIVE',
+                        creatorId: testPlayer.id,
+                    },
+                });
+
+                await prisma.playersOnSeasons.create({
+                    data: {
+                        playerId: testPlayer.id,
+                        seasonId: testSeason.id,
+                    },
+                });
+
+                testGame = await prisma.game.create({
+                    data: {
+                        seasonId: testSeason.id,
+                        status: 'ACTIVE',
+                    },
+                });
+
+                // Create an OFFERED writing turn
+                const writingTurn = await prisma.turn.create({
+                    data: {
+                        gameId: testGame.id,
+                        playerId: testPlayer.id,
+                        turnNumber: 1,
+                        type: 'WRITING',
+                        status: 'OFFERED',
+                    },
+                });
+
+                mockMessage.content = '/ready';
+
+                // Act
+                await handler.process(mockMessage);
+
+                // Assert - Check that scheduler was called with default writing timeout
+                expect(mockSchedulerService.scheduleJob).toHaveBeenCalledWith(
+                    `turn-submission-timeout-${writingTurn.id}`,
+                    expect.any(Date),
+                    expect.any(Function),
+                    { turnId: writingTurn.id, playerId: testPlayer.id },
+                    'turn-submission-timeout'
+                );
+
+                // Verify the scheduled date uses the default timeout
+                const scheduledDate = (mockSchedulerService.scheduleJob as any).mock.calls[0][1];
+                const now = Date.now();
+                const expectedTimeoutMillis = DEFAULT_TIMEOUTS.WRITING_TIMEOUT_MINUTES * 60 * 1000;
+                expect(scheduledDate.getTime()).toBeGreaterThanOrEqual(now + expectedTimeoutMillis - 5000);
+                expect(scheduledDate.getTime()).toBeLessThanOrEqual(now + expectedTimeoutMillis + 5000);
+            });
+
+            it('should use default timeouts when season config has null timeout values', async () => {
+                // Arrange - Create season with config that has invalid timeout values
+                testSeasonConfig = await prisma.seasonConfig.create({
+                    data: {
+                        maxPlayers: 5,
+                        minPlayers: 2,
+                        turnPattern: 'WRITING,DRAWING',
+                        claimTimeout: 'invalid_claim',
+                        writingTimeout: 'invalid_writing', 
+                        drawingTimeout: 'invalid_drawing',
+                    },
+                });
+
+                testSeason = await prisma.season.create({
+                    data: {
+                        status: 'ACTIVE',
+                        config: {
+                            connect: { id: testSeasonConfig.id }
+                        },
+                        creator: {
+                            connect: { id: testPlayer.id }
+                        },
+                    },
+                });
+
+                await prisma.playersOnSeasons.create({
+                    data: {
+                        playerId: testPlayer.id,
+                        seasonId: testSeason.id,
+                    },
+                });
+
+                testGame = await prisma.game.create({
+                    data: {
+                        seasonId: testSeason.id,
+                        status: 'ACTIVE',
+                    },
+                });
+
+                // Create an OFFERED drawing turn
+                const drawingTurn = await prisma.turn.create({
+                    data: {
+                        gameId: testGame.id,
+                        playerId: testPlayer.id,
+                        turnNumber: 1,
+                        type: 'DRAWING',
+                        status: 'OFFERED',
+                    },
+                });
+
+                mockMessage.content = '/ready';
+
+                // Act
+                await handler.process(mockMessage);
+
+                // Assert - Check that scheduler was called with default drawing timeout
+                expect(mockSchedulerService.scheduleJob).toHaveBeenCalledWith(
+                    `turn-submission-timeout-${drawingTurn.id}`,
+                    expect.any(Date),
+                    expect.any(Function),
+                    { turnId: drawingTurn.id, playerId: testPlayer.id },
+                    'turn-submission-timeout'
+                );
+
+                // Verify the scheduled date uses the default timeout
+                const scheduledDate = (mockSchedulerService.scheduleJob as any).mock.calls[0][1];
+                const now = Date.now();
+                const expectedTimeoutMillis = DEFAULT_TIMEOUTS.DRAWING_TIMEOUT_MINUTES * 60 * 1000;
+                expect(scheduledDate.getTime()).toBeGreaterThanOrEqual(now + expectedTimeoutMillis - 5000);
+                expect(scheduledDate.getTime()).toBeLessThanOrEqual(now + expectedTimeoutMillis + 5000);
+            });
         });
     });
 }); 

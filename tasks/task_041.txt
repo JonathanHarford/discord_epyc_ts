@@ -1,6 +1,6 @@
 # Task ID: 41
 # Title: Refactor Game Logic Functions to Pure Functions
-# Status: in-progress
+# Status: done
 # Dependencies: 5, 36
 # Priority: high
 # Description: Refactor all game logic functions in src/game/ to be pure, removing direct database queries and updates, and restructuring their interfaces to accept data as parameters and return results or update instructions.
