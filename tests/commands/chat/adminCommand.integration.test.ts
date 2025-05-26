@@ -22,11 +22,13 @@ describe('AdminCommand - Integration Tests', () => {
   let bannedPlayerId: string;
   let commandInstance: AdminCommand;
   let mockEventData: EventData;
+  let testGuildId: string;
 
   beforeAll(async () => {
     prisma = new PrismaClient();
     commandInstance = new AdminCommand();
     mockEventData = new EventData(Locale.EnglishUS, Locale.EnglishUS);
+    testGuildId = 'test-guild-' + nanoid();
     
     // Clean database and set up test data
     await prisma.$transaction([
@@ -145,7 +147,8 @@ describe('AdminCommand - Integration Tests', () => {
         getSubcommandGroup: vi.fn(),
         getString: vi.fn(),
         getUser: vi.fn(),
-        getBoolean: vi.fn()
+        getBoolean: vi.fn(),
+        getInteger: vi.fn()
       },
       user: {
         id: '510875521354039317', // Use the actual admin ID from config.json
@@ -160,7 +163,7 @@ describe('AdminCommand - Integration Tests', () => {
         }
       },
       guild: {
-        id: 'test-guild-id',
+        id: testGuildId,
         shardId: 0
       }
     };
@@ -843,6 +846,118 @@ describe('AdminCommand - Integration Tests', () => {
 
       // Verify the command called editReply (permission denied response)
       expect(interaction.editReply).toHaveBeenCalled();
+    });
+  });
+
+  describe('Season Config Command', () => {
+    it('should show default server configuration when no parameters provided', async () => {
+      interaction.options.getSubcommandGroup.mockReturnValue('season');
+      interaction.options.getSubcommand.mockReturnValue('config');
+      interaction.options.getString.mockReturnValue(null);
+      interaction.options.getInteger.mockReturnValue(null);
+
+      await commandInstance.execute(interaction, mockEventData);
+
+      expect(interaction.editReply).toHaveBeenCalled();
+      const replyCall = interaction.editReply.mock.calls[0][0];
+      expect(replyCall.content).toContain('Server Default Season Configuration');
+      expect(replyCall.content).toContain('Min Players:');
+      expect(replyCall.content).toContain('Max Players:');
+      expect(replyCall.content).toContain('Turn Pattern:');
+    });
+
+    it('should update server default configuration when parameters provided', async () => {
+      interaction.options.getSubcommandGroup.mockReturnValue('season');
+      interaction.options.getSubcommand.mockReturnValue('config');
+      interaction.options.getString.mockImplementation((name: string) => {
+        if (name === 'turn_pattern') return 'writing,drawing,writing';
+        if (name === 'claim_timeout') return '2h';
+        return null;
+      });
+      interaction.options.getInteger.mockImplementation((name: string) => {
+        if (name === 'min_players') return 3;
+        if (name === 'max_players') return 8;
+        return null;
+      });
+
+      await commandInstance.execute(interaction, mockEventData);
+
+      // Should call editReply twice - once for the update result, once for showing the config
+      expect(interaction.editReply).toHaveBeenCalledTimes(2);
+      
+      // Verify the configuration was actually updated in the database
+      const config = await prisma.seasonConfig.findUnique({
+        where: { isGuildDefaultFor: testGuildId }
+      });
+      
+      expect(config).toBeTruthy();
+      expect(config?.minPlayers).toBe(3);
+      expect(config?.maxPlayers).toBe(8);
+      expect(config?.turnPattern).toBe('writing,drawing,writing');
+      expect(config?.claimTimeout).toBe('2h');
+    });
+
+    it('should handle validation errors for invalid parameters', async () => {
+      interaction.options.getSubcommandGroup.mockReturnValue('season');
+      interaction.options.getSubcommand.mockReturnValue('config');
+      interaction.options.getString.mockImplementation((name: string) => {
+        if (name === 'turn_pattern') return 'invalid-pattern';
+        return null;
+      });
+      interaction.options.getInteger.mockReturnValue(null);
+
+      await commandInstance.execute(interaction, mockEventData);
+
+      expect(interaction.editReply).toHaveBeenCalled();
+      // Should show validation error
+      const replyCall = interaction.editReply.mock.calls[0][0];
+      expect(replyCall.embeds).toBeDefined();
+      expect(replyCall.embeds[0].data.color).toBe(0xff0000); // Error color
+    });
+
+    it('should handle min/max player validation', async () => {
+      interaction.options.getSubcommandGroup.mockReturnValue('season');
+      interaction.options.getSubcommand.mockReturnValue('config');
+      interaction.options.getString.mockReturnValue(null);
+      interaction.options.getInteger.mockImplementation((name: string) => {
+        if (name === 'min_players') return 10;
+        if (name === 'max_players') return 5; // Invalid: min > max
+        return null;
+      });
+
+      await commandInstance.execute(interaction, mockEventData);
+
+      expect(interaction.editReply).toHaveBeenCalled();
+      // Should show validation error
+      const replyCall = interaction.editReply.mock.calls[0][0];
+      expect(replyCall.embeds).toBeDefined();
+      expect(replyCall.embeds[0].data.color).toBe(0xff0000); // Error color
+    });
+
+    it('should reject non-admin users', async () => {
+      // Change user ID to non-admin
+      interaction.user.id = 'non-admin-user';
+      interaction.options.getSubcommandGroup.mockReturnValue('season');
+      interaction.options.getSubcommand.mockReturnValue('config');
+
+      await commandInstance.execute(interaction, mockEventData);
+
+      expect(interaction.editReply).toHaveBeenCalled();
+      const replyCall = interaction.editReply.mock.calls[0][0];
+      expect(replyCall.content).toContain('not admin'); // Should contain admin warning
+    });
+
+    it('should handle guild-only requirement', async () => {
+      // Remove guild from interaction
+      interaction.guild = null;
+      interaction.options.getSubcommandGroup.mockReturnValue('season');
+      interaction.options.getSubcommand.mockReturnValue('config');
+
+      await commandInstance.execute(interaction, mockEventData);
+
+      expect(interaction.editReply).toHaveBeenCalled();
+      const replyCall = interaction.editReply.mock.calls[0][0];
+      expect(replyCall.content).toContain('server'); // Should mention server requirement
     });
   });
 }); 

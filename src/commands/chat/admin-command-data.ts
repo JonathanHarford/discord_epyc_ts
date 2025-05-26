@@ -93,21 +93,7 @@ export const adminCommandData = new SlashCommandBuilder()
             .addSubcommand(subcommand =>
                 subcommand
                     .setName('config')
-                    .setDescription('Season configuration management')
-                    .addStringOption(option =>
-                        option.setName('action')
-                            .setDescription('Action to perform')
-                            .setRequired(true)
-                            .addChoices(
-                                { name: 'View Configuration', value: 'view' },
-                                { name: 'Set Configuration', value: 'set' }
-                            )
-                    )
-                    .addStringOption(option =>
-                        option.setName('season')
-                            .setDescription('The ID of the season to configure')
-                            .setRequired(true)
-                    )
+                    .setDescription('View or update the server\'s default season configuration')
                     .addStringOption(option =>
                         option.setName('turn_pattern')
                             .setDescription('Turn pattern (e.g., "writing,drawing")')

@@ -10,6 +10,7 @@ import { TurnService } from '../../services/TurnService.js';
 import { SchedulerService } from '../../services/SchedulerService.js';
 import { GameService } from '../../services/GameService.js';
 import { PlayerService } from '../../services/PlayerService.js';
+import { ConfigService } from '../../services/ConfigService.js';
 import { MessageInstruction } from '../../types/MessageInstruction.js';
 import prisma from '../../lib/prisma.js';
 import { PrismaClient } from '@prisma/client';
@@ -24,6 +25,7 @@ export class AdminCommand implements Command {
 
     private seasonService: SeasonService;
     private playerService: PlayerService;
+    private configService: ConfigService;
     private prisma: PrismaClient;
 
     constructor() {
@@ -32,6 +34,7 @@ export class AdminCommand implements Command {
         this.prisma = prisma;
         this.seasonService = null as any; // Temporary, will be initialized in execute
         this.playerService = new PlayerService(prisma);
+        this.configService = new ConfigService(prisma);
     }
 
     public async execute(intr: ChatInputCommandInteraction, data: EventData): Promise<void> {
@@ -335,87 +338,31 @@ export class AdminCommand implements Command {
     }
 
     private async handleSeasonConfigCommand(intr: ChatInputCommandInteraction, data: EventData): Promise<void> {
-        const action = intr.options.getString('action', true);
-        const seasonId = intr.options.getString('season');
+        const guildId = intr.guild?.id;
+        if (!guildId) {
+            await SimpleMessage.sendError(intr, "This command can only be used in a server.", {}, true);
+            return;
+        }
         
         try {
-            if (action === 'view') {
-                if (!seasonId) {
-                    await SimpleMessage.sendError(intr, "Season ID is required for viewing configuration.", {}, true);
-                    return;
-                }
-                
-                // Get season with config
-                const season = await this.prisma.season.findUnique({
-                    where: { id: seasonId },
-                    include: { config: true }
-                });
-                
-                if (!season) {
-                    await SimpleMessage.sendError(intr, `Season ${seasonId} not found.`, {}, true);
-                    return;
-                }
-                
-                const config = season.config;
-                const configText = `**Season Configuration for ${seasonId}**\n\n` +
-                    `**Player Limits:**\n` +
-                    `• Min Players: ${config.minPlayers}\n` +
-                    `• Max Players: ${config.maxPlayers}\n\n` +
-                    `**Timeouts:**\n` +
-                    `• Open Duration: ${config.openDuration}\n` +
-                    `• Claim Timeout: ${config.claimTimeout}\n` +
-                    `• Writing Timeout: ${config.writingTimeout}\n` +
-                    `• Writing Warning: ${config.writingWarning}\n` +
-                    `• Drawing Timeout: ${config.drawingTimeout}\n` +
-                    `• Drawing Warning: ${config.drawingWarning}\n\n` +
-                    `**Game Settings:**\n` +
-                    `• Turn Pattern: ${config.turnPattern}`;
-                
-                await SimpleMessage.sendInfo(intr, configText, {}, true);
-                
-            } else if (action === 'set') {
-                if (!seasonId) {
-                    await SimpleMessage.sendError(intr, "Season ID is required for setting configuration.", {}, true);
-                    return;
-                }
-                
-                // Extract all configuration options
-                const turnPattern = intr.options.getString('turn_pattern');
-                const claimTimeout = intr.options.getString('claim_timeout');
-                const writingTimeout = intr.options.getString('writing_timeout');
-                const writingWarning = intr.options.getString('writing_warning');
-                const drawingTimeout = intr.options.getString('drawing_timeout');
-                const drawingWarning = intr.options.getString('drawing_warning');
-                const openDuration = intr.options.getString('open_duration');
-                const minPlayers = intr.options.getInteger('min_players');
-                const maxPlayers = intr.options.getInteger('max_players');
-                
-                // Check if at least one parameter is provided
-                if (!turnPattern && !claimTimeout && !writingTimeout && !writingWarning && 
-                    !drawingTimeout && !drawingWarning && !openDuration && 
-                    minPlayers === null && maxPlayers === null) {
-                    await SimpleMessage.sendError(intr, "At least one configuration parameter must be provided.", {}, true);
-                    return;
-                }
-                
-                // Validate min/max players if both are provided
-                if (minPlayers !== null && maxPlayers !== null && minPlayers > maxPlayers) {
-                    await SimpleMessage.sendError(intr, "Minimum players cannot be greater than maximum players.", {}, true);
-                    return;
-                }
-                
-                // Find the season and its config
-                const season = await this.prisma.season.findUnique({
-                    where: { id: seasonId },
-                    include: { config: true }
-                });
-                
-                if (!season) {
-                    await SimpleMessage.sendError(intr, `Season ${seasonId} not found.`, {}, true);
-                    return;
-                }
-                
-                // Build update data object
+            // Extract all configuration options
+            const turnPattern = intr.options.getString('turn_pattern');
+            const claimTimeout = intr.options.getString('claim_timeout');
+            const writingTimeout = intr.options.getString('writing_timeout');
+            const writingWarning = intr.options.getString('writing_warning');
+            const drawingTimeout = intr.options.getString('drawing_timeout');
+            const drawingWarning = intr.options.getString('drawing_warning');
+            const openDuration = intr.options.getString('open_duration');
+            const minPlayers = intr.options.getInteger('min_players');
+            const maxPlayers = intr.options.getInteger('max_players');
+            
+            // Check if any parameters are provided for updating
+            const hasUpdates = turnPattern || claimTimeout || writingTimeout || writingWarning || 
+                              drawingTimeout || drawingWarning || openDuration || 
+                              minPlayers !== null || maxPlayers !== null;
+            
+            if (hasUpdates) {
+                // Update the server's default configuration
                 const updateData: any = {};
                 if (turnPattern !== null) updateData.turnPattern = turnPattern;
                 if (claimTimeout !== null) updateData.claimTimeout = claimTimeout;
@@ -427,22 +374,40 @@ export class AdminCommand implements Command {
                 if (minPlayers !== null) updateData.minPlayers = minPlayers;
                 if (maxPlayers !== null) updateData.maxPlayers = maxPlayers;
                 
-                // Update the season config
-                await this.prisma.seasonConfig.update({
-                    where: { id: season.config.id },
-                    data: updateData
-                });
+                const result = await this.configService.updateGuildDefaultConfig(guildId, updateData);
+                await this.handleMessageInstruction(result, intr);
                 
-                const updatedFields = Object.keys(updateData).join(', ');
-                await SimpleMessage.sendSuccess(intr, `Successfully updated season ${seasonId} configuration. Updated fields: ${updatedFields}`, {}, true);
+                // After updating, show the current configuration
+                const config = await this.configService.getGuildDefaultConfig(guildId);
+                const configText = this.formatConfigForDisplay(config);
+                await SimpleMessage.sendInfo(intr, `**Updated Server Default Season Configuration**\n\n${configText}`, {}, false);
                 
             } else {
-                await SimpleMessage.sendError(intr, `Invalid action: ${action}. Use 'view' or 'set'.`, {}, true);
+                // No parameters provided, just show the current configuration
+                const config = await this.configService.getGuildDefaultConfig(guildId);
+                const configText = this.formatConfigForDisplay(config);
+                await SimpleMessage.sendInfo(intr, `**Server Default Season Configuration**\n\n${configText}`, {}, true);
             }
+            
         } catch (error) {
             console.error('Error in admin season config command:', error);
-            await SimpleMessage.sendError(intr, "An error occurred while managing season configuration.", {}, true);
+            await SimpleMessage.sendError(intr, "An error occurred while managing the server's default season configuration.", {}, true);
         }
+    }
+    
+    private formatConfigForDisplay(config: any): string {
+        return `**Player Limits:**\n` +
+               `• Min Players: ${config.minPlayers}\n` +
+               `• Max Players: ${config.maxPlayers}\n\n` +
+               `**Timeouts:**\n` +
+               `• Open Duration: ${config.openDuration}\n` +
+               `• Claim Timeout: ${config.claimTimeout}\n` +
+               `• Writing Timeout: ${config.writingTimeout}\n` +
+               `• Writing Warning: ${config.writingWarning}\n` +
+               `• Drawing Timeout: ${config.drawingTimeout}\n` +
+               `• Drawing Warning: ${config.drawingWarning}\n\n` +
+               `**Game Settings:**\n` +
+               `• Turn Pattern: ${config.turnPattern}`;
     }
 
     private async handleSeasonKillCommand(intr: ChatInputCommandInteraction, data: EventData): Promise<void> {
