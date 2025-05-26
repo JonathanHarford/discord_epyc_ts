@@ -2,17 +2,17 @@
 
 Bot→#general:
 	Thank you for adding @EatPoopYouCat to your server!
-	You must `/config channels` before I can administer games.
+	You must `/admin channel config` before I can administer games.
 	Join our server for additional help… or to play with strangers: https://discord.gg/karuta
 
 Alice→#general:
-	/config channels announce:#games completed:#epyc admin:#mods
+	/admin channel config announce:#games completed:#epyc admin:#mods
 
 Bot(reply):
-	You're all set up! Use /start to start your first game, or /season to start a season.
+	You're all set up! Use /game new to start your first game, or /season new to start a season.
 
 Alice→#general:
-	/config games
+	/admin game config
 
 Bot(reply):
 	**Default game rules:**
@@ -27,7 +27,7 @@ Bot(reply):
 	returns: none
 
 Alice→#general:
-	/config games writing_timeout:1d drawing_timeout:2d stale_timeout:7d returns:2/3
+	/admin game config writing_timeout:1d drawing_timeout:2d stale_timeout:7d returns:2/3
 
 Bot(reply):
 	**Default game rules:**
@@ -44,10 +44,10 @@ Bot(reply):
 # Creating a game
 
 Alice→#games:
-	/start
+	/game new
 
 Bot→#games:
-	@Alice has started a new game! Use `/play` to join.
+	@Alice has started a new game! Use `/game join` to join.
 
 Bot→Alice(DM):
 	You've started a new game! Please write a starting sentence or phrase.
@@ -61,7 +61,7 @@ Bot→Alice(DM):
 # Playing a game
 
 Bob→#games:
-	/play
+	/game join
 
 Bot→#games:
 	@Bob has joined the game started by @Alice!
@@ -80,7 +80,7 @@ Bot→Bob(DM):
 	Thanks! Your turn has been recorded. I'll notify you when the game is completed.
 
 Charlie→#games:
-	/play
+	/game join
 
 Bot→#games:
 	@Charlie has joined the game!
@@ -125,6 +125,30 @@ Bot→#mods:
 	- 🚫 to delete the turn and continue the game
 	- 🔨 to ban the player (@Frank) and delete the turn
 
+# Viewing game status
+
+Bob→#games:
+	/game list
+
+Bot→Bob(ephemeral reply):
+	**Your Active Games:**
+	Game #12345 - Started by @Alice - Your turn next
+	Game #12347 - Started by @Charlie - Waiting for @Dave
+	
+	**Available Games to Join:**
+	Game #12346 - Started by @Bob - 2/6 players
+
+Bob→#games:
+	/game show id:12345
+
+Bot→Bob(ephemeral reply):
+	**Game #12345**
+	Started by: @Alice
+	Players: @Alice, @Bob, @Charlie, @Dave
+	Current turn: 4/8
+	Next player: @Bob (you!)
+	Started: 3 hours ago
+
 # Finishing a game
 
 [After minimum turns completed and stale timeout period]
@@ -148,30 +172,53 @@ Bot→#epyc:
 # Admin commands
 
 Admin→#games:
-	/admin terminate game_id:12345
+	/admin game kill id:12345
 
 Bot→#mods:
 	Game #12345 has been terminated by @Admin.
 
 Admin→#mods:
-	/admin ban user:@Troll
+	/admin player ban user:@Troll reason:"Inappropriate content"
 
 Bot→#mods:
 	@Troll has been banned from playing EPYC games on this server.
 
 Admin→#games:
-	/admin unban user:@ReformedTroll
+	/admin player unban user:@ReformedTroll
 
 Bot→#mods:
 	@ReformedTroll has been unbanned and can now play EPYC games on this server.
 
 Admin→#games:
-	/admin test_mode enable
+	/admin game list
+
+Bot→#games:
+	**Active Games:**
+	Game #12345 - Started by @Alice - 3 players - Turn 5/8
+	Game #12346 - Started by @Bob - 2 players - Turn 2/6
+	
+	**Completed Games (last 5):**
+	Game #12344 - Completed 2 hours ago - 4 players - 8 turns
+
+Admin→#games:
+	/admin game show id:12345
+
+Bot→#games:
+	**Game #12345 Details:**
+	Started by: @Alice
+	Players: @Alice, @Bob, @Charlie
+	Current turn: 5/8
+	Status: Active
+	Started: 2 hours ago
+	Last activity: 15 minutes ago
+
+Admin→#games:
+	/admin game config test_mode:enable
 
 Bot→#games:
 	Test mode enabled. Games will use shortened timeouts:
 	- writing: 1m
 	- drawing: 2m
 	- stale: 5m
-	Use `/admin add_test_player` to add virtual players.
+	Use `/admin game add_test_player` to add virtual players.
 

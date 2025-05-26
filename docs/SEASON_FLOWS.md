@@ -2,11 +2,11 @@
 
 Bot→#epyc:
 	Thank you for adding @EatPoopYouCat to your server!
-	Use /season to start a season, or /config seasons to change the default season settings.
+	Use /season new to start a season, or /admin season config to change the default season settings.
 	Join our server for additional help… or to play with strangers: https://discord.gg/karuta
 
 Alice→#epyc:
-	/config seasons
+	/admin season config
 
 Bot(reply):
 	**Default season rules:**
@@ -21,7 +21,7 @@ Bot(reply):
 	max_players: none
 
 Alice→#epyc:
-	/config seasons claim_timeout:2d writing_timeout: 5m writing_warning: 1m drawing_timeout: 20m drawing_warning: 2m
+	/admin season config claim_timeout:2d writing_timeout:5m writing_warning:1m drawing_timeout:20m drawing_warning:2m
 
 Bot(reply):
 	**Default season rules:**
@@ -38,15 +38,15 @@ Bot(reply):
 # Creating a season
 
 Alice→#epyc:
-	/new season open_duration:1d
+	/season new open_duration:1d
 
 Bot→#epyc:
 	@Alice has started a new season with ID: **blue-happy-fox**
 	Season will remain open for joining for 1 day.
-	Use `/join season:blue-happy-fox` to join!
+	Use `/season join season:blue-happy-fox` to join!
 
 Bob→#epyc:
-	/join season:blue-happy-fox
+	/season join season:blue-happy-fox
 
 Bot→#epyc:
 	@Bob has joined the season **blue-happy-fox**!
@@ -229,10 +229,25 @@ Bot→Carol(DM):
 	**blue-happy-fox** Game **2** COMPLETED 🎉
 	Day 13 ■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■□□□□□□□□□□□□□□
 
-# Viewing a season status
+# Viewing seasons
+
+## Listing all available seasons
 
 Bob→#epyc:
-	/status season:blue-happy-fox
+	/season list
+
+Bot→Bob(ephemeral reply):
+	**Open Seasons:**
+	**green-jolly-dog** - 4/8 players - Opens for 2 more days
+	**red-sleepy-cat** - 2/10 players - Opens for 5 more days
+	
+	**Your Active Seasons:**
+	**blue-happy-fox** - Day 3 - 3/64 turns completed
+
+## Viewing a specific season status
+
+Bob→#epyc:
+	/season show season:blue-happy-fox
 
 Bot→Bob(ephemeral reply):
 	**blue-happy-fox** 3/64
@@ -259,25 +274,25 @@ Bot→#epyc:
 # Admin commands
 
 Admin:
-	/admin terminate season:blue-happy-fox
+	/admin season kill id:blue-happy-fox
 
 Bot(ephemeral reply):
 	Season blue-happy-fox has been terminated by @Admin.
 
 Admin:
-	/admin ban user:@Troll
+	/admin player ban user:@Troll reason:"Inappropriate behavior"
 
 Bot(ephemeral reply):
 	@Troll has been banned from playing EPYC games on this server.
 
 Admin:
-	/admin unban user:@ReformedTroll
+	/admin player unban user:@ReformedTroll
 
 Bot(ephemeral reply):
 	@ReformedTroll has been unbanned and can now play EPYC games on this server.
 
 Admin:
-	/admin list seasons
+	/admin season list
 
 Bot(ephemeral reply):
 	**blue-happy-fox** 3/64
@@ -286,7 +301,7 @@ Bot(ephemeral reply):
 	Day 5 ■■■■■□□□□□□□□□□□□□□□□□□□□□□□□□□□□□□□□□□□□□□□□□□□□ 12%
 	
 Admin:
-	/admin list players
+	/admin player list
 
 Bot(ephemeral reply):
 	@Alice
@@ -295,3 +310,13 @@ Bot(ephemeral reply):
 	@Dmitri
 	@Edgar
 	@Frances
+
+Admin:
+	/admin player show user:@Alice
+
+Bot(ephemeral reply):
+	**Player Details: @Alice**
+	Status: Active
+	Seasons participated: 3
+	Current seasons: blue-happy-fox
+	Total games completed: 12
