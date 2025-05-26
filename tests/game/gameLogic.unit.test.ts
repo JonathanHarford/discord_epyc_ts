@@ -5,7 +5,8 @@ import {
   checkGameCompletionPure,
   activateSeasonPure,
   checkSeasonCompletionPure,
-  applyShouldRule1
+  applyShouldRule1BalanceTurnTypes,
+  applyShouldRule2FollowingPattern
 } from '../../src/game/pureGameLogic.js';
 import { nanoid } from 'nanoid';
 
@@ -454,7 +455,64 @@ describe('Next Player Logic Unit Tests', () => {
     });
   });
   
-  describe('applyShouldRule1', () => {
+  describe('applyShouldRule1BalanceTurnTypes', () => {
+    const createPlayerStats = (playerId: string, writingTurns: number, drawingTurns: number): any => ({
+      playerId,
+      player: { id: playerId },
+      totalWritingTurns: writingTurns,
+      totalDrawingTurns: drawingTurns,
+      pendingTurns: 0,
+      hasPlayedInGame: false
+    });
+
+    it('should prefer players with fewer writing turns when assigning WRITING turn', () => {
+      const playerA = createPlayerStats('player-a', 2, 3); // 2 writing, 3 drawing - imbalanced toward drawing
+      const playerB = createPlayerStats('player-b', 3, 2); // 3 writing, 2 drawing - imbalanced toward writing
+      const playerC = createPlayerStats('player-c', 2, 2); // 2 writing, 2 drawing - balanced
+      const candidates = [playerA, playerB, playerC];
+
+      const result = applyShouldRule1BalanceTurnTypes(candidates, 'WRITING');
+      
+      // Should prefer playerA (has more drawing than writing, so writing turn helps balance)
+      expect(result).toContain(playerA);
+      expect(result).not.toContain(playerB); // Has more writing already
+    });
+
+    it('should prefer players with fewer drawing turns when assigning DRAWING turn', () => {
+      const playerA = createPlayerStats('player-a', 3, 2); // 3 writing, 2 drawing - imbalanced toward writing
+      const playerB = createPlayerStats('player-b', 2, 3); // 2 writing, 3 drawing - imbalanced toward drawing
+      const playerC = createPlayerStats('player-c', 2, 2); // 2 writing, 2 drawing - balanced
+      const candidates = [playerA, playerB, playerC];
+
+      const result = applyShouldRule1BalanceTurnTypes(candidates, 'DRAWING');
+      
+      // Should prefer playerA (has more writing than drawing, so drawing turn helps balance)
+      expect(result).toContain(playerA);
+      expect(result).not.toContain(playerB); // Has more drawing already
+    });
+
+    it('should return all candidates when they have equal balance scores', () => {
+      const playerA = createPlayerStats('player-a', 2, 2); // balanced
+      const playerB = createPlayerStats('player-b', 1, 1); // balanced
+      const candidates = [playerA, playerB];
+
+      const result = applyShouldRule1BalanceTurnTypes(candidates, 'WRITING');
+      
+      // Both have same balance score, should return both
+      expect(result).toEqual(candidates);
+    });
+
+    it('should return original candidates if only one candidate', () => {
+      const playerA = createPlayerStats('player-a', 5, 1);
+      const candidates = [playerA];
+
+      const result = applyShouldRule1BalanceTurnTypes(candidates, 'WRITING');
+      
+      expect(result).toEqual(candidates);
+    });
+  });
+
+  describe('applyShouldRule2FollowingPattern', () => {
     // Minimal PlayerTurnStats structure needed for this rule
     const createPlayerStats = (playerId: string): any => ({
       playerId,
@@ -491,7 +549,7 @@ describe('Next Player Logic Unit Tests', () => {
       const currentGameTurns: (Turn & { player: Player | null })[] = []; // No previous turn
       const allSeasonGames: (Game & { turns: (Turn & { player: Player | null })[] })[] = [];
 
-      const result = applyShouldRule1(candidates, turnTypeWriting, currentGameTurns, allSeasonGames);
+      const result = applyShouldRule2FollowingPattern(candidates, turnTypeWriting, currentGameTurns, allSeasonGames);
       expect(result).toEqual(candidates);
     });
 
@@ -507,7 +565,7 @@ describe('Next Player Logic Unit Tests', () => {
         ]}
       ] as (Game & { turns: (Turn & { player: Player | null })[] })[];
 
-      const result = applyShouldRule1(candidates, turnTypeWriting, currentGameTurns, allSeasonGames);
+      const result = applyShouldRule2FollowingPattern(candidates, turnTypeWriting, currentGameTurns, allSeasonGames);
       expect(result).toContain(playerAStats);
     });
 
@@ -529,7 +587,7 @@ describe('Next Player Logic Unit Tests', () => {
         },
       ] as (Game & { turns: (Turn & { player: Player | null })[] })[];
 
-      const result = applyShouldRule1(candidates, turnTypeWriting, currentGameTurns, allSeasonGames);
+      const result = applyShouldRule2FollowingPattern(candidates, turnTypeWriting, currentGameTurns, allSeasonGames);
       expect(result).not.toContain(playerAStats);
       expect(result).toContain(playerCStats); // Player C should still be a candidate
     });
@@ -549,7 +607,7 @@ describe('Next Player Logic Unit Tests', () => {
         },
       ] as (Game & { turns: (Turn & { player: Player | null })[] })[];
 
-      const result = applyShouldRule1(candidates, turnTypeWriting, currentGameTurns, allSeasonGames);
+      const result = applyShouldRule2FollowingPattern(candidates, turnTypeWriting, currentGameTurns, allSeasonGames);
       expect(result).toContain(playerAStats);
     });
     
@@ -575,7 +633,7 @@ describe('Next Player Logic Unit Tests', () => {
         },
       ] as (Game & { turns: (Turn & { player: Player | null })[] })[];
 
-      const result = applyShouldRule1(candidates, turnTypeWriting, currentGameTurns, allSeasonGames);
+      const result = applyShouldRule2FollowingPattern(candidates, turnTypeWriting, currentGameTurns, allSeasonGames);
       expect(result).toEqual(candidates); // Should return original as all would be filtered
     });
 
@@ -633,7 +691,7 @@ describe('Next Player Logic Unit Tests', () => {
         },
       ] as (Game & { turns: (Turn & { player: Player | null })[] })[];
       
-      const result = applyShouldRule1(candidates, turnTypeWriting, currentGameTurns, allSeasonGames);
+      const result = applyShouldRule2FollowingPattern(candidates, turnTypeWriting, currentGameTurns, allSeasonGames);
       expect(result).toEqual(candidates); // Should return original candidates since it's a SHOULD rule and all would be filtered
     });
   });

@@ -604,18 +604,21 @@ export function applyShouldRules(
 ): PlayerTurnStats {
   let candidates = [...eligiblePlayers];
 
-  // SHOULD Rule 1: Player A SHOULD NOT be ASSIGNED an <X>ing turn following Player B more than once per season
+  // SHOULD Rule 1: Balance writing and drawing turn counts for each player
+  candidates = applyShouldRule1BalanceTurnTypes(candidates, turnType);
+
+  // SHOULD Rule 2: Player A SHOULD NOT be ASSIGNED an <X>ing turn following Player B more than once per season
   // This requires checking the previous turn in this specific game and across all season games
-  candidates = applyShouldRule1(candidates, turnType, gameTurns, allSeasonGames);
+  candidates = applyShouldRule2FollowingPattern(candidates, turnType, gameTurns, allSeasonGames);
 
-  // SHOULD Rule 2: Players SHOULD NOT be given an <X>ing turn if they've already been ASSIGNED n/2 <X>ing turns
-  candidates = applyShouldRule2(candidates, turnType, totalPlayersInSeason);
+  // SHOULD Rule 3: Players SHOULD NOT be given an <X>ing turn if they've already been ASSIGNED n/2 <X>ing turns
+  candidates = applyShouldRule3Threshold(candidates, turnType, totalPlayersInSeason);
 
-  // SHOULD Rule 3: Given an <X>ing turn, prefer the player who has been ASSIGNED the fewest <X>ing turns
-  candidates = applyShouldRule3(candidates, turnType);
+  // SHOULD Rule 4: Given an <X>ing turn, prefer the player who has been ASSIGNED the fewest <X>ing turns
+  candidates = applyShouldRule4FewestTurns(candidates, turnType);
 
-  // SHOULD Rule 4: If there is still a tie, prefer players who have fewer PENDING overall turns
-  candidates = applyShouldRule4(candidates);
+  // SHOULD Rule 5: If there is still a tie, prefer players who have fewer PENDING overall turns
+  candidates = applyShouldRule5FewestPending(candidates);
 
   // Final tie-breaking: Use deterministic selection (lowest player ID)
   if (candidates.length > 1) {
@@ -626,10 +629,56 @@ export function applyShouldRules(
 }
 
 /**
- * SHOULD Rule 1: Player A SHOULD NOT be ASSIGNED an <X>ing turn following Player B more than once per season.
+ * SHOULD Rule 1: Balance writing and drawing turn counts for each player.
+ * Prefer players whose turn type counts are most imbalanced (largest absolute difference).
+ */
+export function applyShouldRule1BalanceTurnTypes(
+  candidates: PlayerTurnStats[],
+  turnType: TurnType
+): PlayerTurnStats[] {
+  if (candidates.length <= 1) {
+    return candidates;
+  }
+
+  // Calculate imbalance for each candidate
+  // If we're assigning a WRITING turn, prefer players who have fewer writing turns relative to drawing turns
+  // If we're assigning a DRAWING turn, prefer players who have fewer drawing turns relative to writing turns
+  const candidatesWithImbalance = candidates.map(player => {
+    const writingCount = player.totalWritingTurns;
+    const drawingCount = player.totalDrawingTurns;
+    
+    // Calculate how much this assignment would help balance the player's turns
+    let balanceScore: number;
+    if (turnType === 'WRITING') {
+      // If assigning writing turn, prefer players who have more drawing turns than writing turns
+      balanceScore = drawingCount - writingCount;
+    } else {
+      // If assigning drawing turn, prefer players who have more writing turns than drawing turns
+      balanceScore = writingCount - drawingCount;
+    }
+    
+    return {
+      player,
+      balanceScore
+    };
+  });
+
+  // Find the maximum balance score (most beneficial for balancing)
+  const maxBalanceScore = Math.max(...candidatesWithImbalance.map(c => c.balanceScore));
+  
+  // Return all players with the maximum balance score
+  const bestBalancedCandidates = candidatesWithImbalance
+    .filter(c => c.balanceScore === maxBalanceScore)
+    .map(c => c.player);
+
+  return bestBalancedCandidates.length > 0 ? bestBalancedCandidates : candidates;
+}
+
+/**
+ * SHOULD Rule 2: Player A SHOULD NOT be ASSIGNED an <X>ing turn following Player B more than once per season.
  * This function is already pure and moved from gameLogic.ts
  */
-export function applyShouldRule1(
+export function applyShouldRule2FollowingPattern(
   candidates: PlayerTurnStats[],
   turnType: TurnType,
   currentGameTurns: (Turn & { player: Player | null })[],
@@ -694,10 +743,10 @@ export function applyShouldRule1(
 }
 
 /**
- * SHOULD Rule 2: Players SHOULD NOT be given an <X>ing turn if they've already been ASSIGNED n/2 <X>ing turns.
+ * SHOULD Rule 3: Players SHOULD NOT be given an <X>ing turn if they've already been ASSIGNED n/2 <X>ing turns.
  * This function is already pure and moved from gameLogic.ts
  */
-export function applyShouldRule2(
+export function applyShouldRule3Threshold(
   candidates: PlayerTurnStats[],
   turnType: TurnType,
   totalPlayersInSeason: number
@@ -714,10 +763,10 @@ export function applyShouldRule2(
 }
 
 /**
- * SHOULD Rule 3: Given an <X>ing turn, prefer the player who has been ASSIGNED the fewest <X>ing turns.
+ * SHOULD Rule 4: Given an <X>ing turn, prefer the player who has been ASSIGNED the fewest <X>ing turns.
  * This function is already pure and moved from gameLogic.ts
  */
-export function applyShouldRule3(
+export function applyShouldRule4FewestTurns(
   candidates: PlayerTurnStats[],
   turnType: TurnType
 ): PlayerTurnStats[] {
@@ -738,10 +787,10 @@ export function applyShouldRule3(
 }
 
 /**
- * SHOULD Rule 4: If there is still a tie, prefer players who have fewer PENDING overall turns.
+ * SHOULD Rule 5: If there is still a tie, prefer players who have fewer PENDING overall turns.
  * This function is already pure and moved from gameLogic.ts
  */
-export function applyShouldRule4(candidates: PlayerTurnStats[]): PlayerTurnStats[] {
+export function applyShouldRule5FewestPending(candidates: PlayerTurnStats[]): PlayerTurnStats[] {
   if (candidates.length <= 1) {
     return candidates;
   }

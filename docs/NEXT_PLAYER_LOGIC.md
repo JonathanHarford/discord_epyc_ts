@@ -13,12 +13,13 @@ When a turn in a Season Game becomes AVAILABLE, the bot determines the next play
 
 Among the players who are eligible based on the MUST rules, the bot SHOULD prioritize the player based on the following criteria:
 
-1.  Player A SHOULD NOT be ASSIGNED an <X>ing turn (writing/drawing) following Player B more than once per season.
-2.  Players SHOULD NOT be given an <X>ing turn if they've already been ASSIGNED n/2 <X>ing turns in the season (where n is the number of players/games in the season). Prioritize players who are below this threshold for the given turn type.
-3.  Given an <X>ing turn, the next player SHOULD be the player who has been ASSIGNED the fewest <X>ing turns in the season overall.
-4.  If there is still a tie after applying the above SHOULD rules, prefer players who have fewer PENDING overall turns across all season games.
+1.  Players SHOULD be assigned turns to balance their writing and drawing turn counts. Prefer players whose turn type counts are most imbalanced (largest absolute difference between writing and drawing turns).
+2.  Player A SHOULD NOT be ASSIGNED an <X>ing turn (writing/drawing) following Player B more than once per season.
+3.  Players SHOULD NOT be given an <X>ing turn if they've already been ASSIGNED n/2 <X>ing turns in the season (where n is the number of players/games in the season). Prioritize players who are below this threshold for the given turn type.
+4.  Given an <X>ing turn, the next player SHOULD be the player who has been ASSIGNED the fewest <X>ing turns in the season overall.
+5.  If there is still a tie after applying the above SHOULD rules, prefer players who have fewer PENDING overall turns across all season games.
 
-The bot should apply these SHOULD rules in sequence (from 1 to 4) to find the single best eligible player. If a tie persists after all SHOULD rules, a deterministic tie-breaking mechanism (e.g., lowest player ID) should be used.
+The bot should apply these SHOULD rules in sequence (from 1 to 5) to find the single best eligible player. If a tie persists after all SHOULD rules, a deterministic tie-breaking mechanism (e.g., lowest player ID) should be used.
 
 ## Handling Edge Cases
 
