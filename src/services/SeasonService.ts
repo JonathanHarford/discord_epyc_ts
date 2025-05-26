@@ -20,7 +20,7 @@ type SeasonDetails = Prisma.SeasonGetPayload<{
 }>
 
 // Possible statuses for a season before activation
-const PRE_ACTIVATION_SEASON_STATUSES = ['PENDING_START', 'OPEN', 'SETUP']; // Added 'SETUP' as per createSeason
+const PRE_ACTIVATION_SEASON_STATUSES = ['SETUP', 'OPEN', 'PENDING_START']; // Ordered by intended flow: SETUP -> OPEN -> PENDING_START -> ACTIVE
 
 // Define a type for the Prisma transaction client
 type PrismaTransactionClient = Omit<

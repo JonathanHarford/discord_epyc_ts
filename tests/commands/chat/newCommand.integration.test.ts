@@ -121,7 +121,7 @@ describe('NewCommand - Integration Tests', () => {
         include: { config: true }
       });
       expect(seasons).toHaveLength(1);
-      expect(seasons[0].status).toBe('SETUP');
+      expect(seasons[0].status).toBe('OPEN');
       expect(seasons[0].creatorId).toBe(player!.id);
     });
 

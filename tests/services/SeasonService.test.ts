@@ -126,7 +126,7 @@ describe('SeasonService', () => {
     const season = await prisma.season.create({
       data: {
         id: `test-minimal-${nanoid()}`,
-        status: 'SETUP',
+        status: 'OPEN',
         creatorId: testPlayer.id,
         configId: seasonConfig.id,
       },
@@ -134,7 +134,7 @@ describe('SeasonService', () => {
     });
 
     expect(season).not.toBeNull();
-    expect(season.status).toBe('SETUP');
+    expect(season.status).toBe('OPEN');
     expect(season.creatorId).toBe(testPlayer.id);
     expect(season.config).not.toBeNull();
     // Default values from schema for SeasonConfig
@@ -162,7 +162,7 @@ describe('SeasonService', () => {
     const season = await prisma.season.create({
       data: {
         id: `test-full-options-${nanoid()}`,
-        status: 'SETUP',
+        status: 'OPEN',
         creatorId: testPlayer.id,
         configId: seasonConfig.id,
       },
@@ -257,7 +257,7 @@ describe('SeasonService', () => {
     const season = await prisma.season.create({
       data: {
         id: `test-equal-minmax-${nanoid()}`,
-        status: 'SETUP',
+        status: 'OPEN',
         creatorId: testPlayer.id,
         configId: seasonConfig.id,
       },
@@ -280,7 +280,7 @@ describe('SeasonService', () => {
     const season = await prisma.season.create({
       data: {
         id: `test-defaults-${nanoid()}`,
-        status: 'SETUP', 
+        status: 'OPEN', 
         creatorId: testPlayer.id,
         configId: seasonConfig.id,
       },
@@ -342,7 +342,7 @@ describe('SeasonService', () => {
     const season = await prisma.season.create({
       data: {
         id: seasonId,
-        status: 'SETUP',
+        status: 'OPEN',
         creatorId: testPlayer.id,
         configId: seasonConfig.id,
       },

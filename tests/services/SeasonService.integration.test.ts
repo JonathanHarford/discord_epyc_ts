@@ -79,7 +79,7 @@ describe('SeasonService Integration Tests', () => {
     const season = await prisma.season.create({
       data: {
         id: nanoid(),
-        status: 'SETUP', // Should be joinable in SETUP or OPEN
+        status: 'OPEN', // Should be joinable in OPEN status
         creatorId: creator.id,
         configId: seasonConfig.id, // Connect to the created config
       },
@@ -110,7 +110,7 @@ describe('SeasonService Integration Tests', () => {
     expect(result.key).toBe('messages.season.joinSeasonNotFound');
   });
 
-  it('should return "season_join_error_not_open" when trying to join a season that is not in SETUP or OPEN state', async () => {
+  it('should return "season_join_error_not_open" when trying to join a season that is not in OPEN state', async () => {
     const creator = await prisma.player.create({ data: { discordUserId: `creator-${nanoid()}`, name: 'Creator' } });
     const joiningPlayer = await prisma.player.create({ data: { discordUserId: `joining-${nanoid()}`, name: 'Joining Player' } });
     const seasonConfig = await prisma.seasonConfig.create({ data: { id: nanoid() } });
@@ -134,7 +134,7 @@ describe('SeasonService Integration Tests', () => {
     const season = await prisma.season.create({
       data: {
         id: nanoid(),
-        status: 'SETUP',
+        status: 'OPEN',
         creatorId: creator.id,
         configId: seasonConfig.id,
         players: { create: { playerId: joiningPlayer.id } } // Player already in the season
@@ -154,7 +154,7 @@ describe('SeasonService Integration Tests', () => {
     const season = await prisma.season.create({
       data: {
         id: nanoid(),
-        status: 'SETUP',
+        status: 'OPEN',
         creatorId: creator.id,
         configId: seasonConfig.id,
         players: { create: { playerId: existingPlayer.id } }, // Season is full with this player
@@ -173,7 +173,7 @@ describe('SeasonService Integration Tests', () => {
     const season = await prisma.season.create({
       data: {
         id: nanoid(),
-        status: 'SETUP',
+        status: 'OPEN',
         creatorId: creator.id,
         configId: seasonConfig.id,
       },

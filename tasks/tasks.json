@@ -1721,7 +1721,7 @@
       "description": "Update season status logic to ensure a correct and automatic transition from SETUP to OPEN upon creation, aligning the flow with intended states (SETUP -> OPEN -> PENDING_START -> ACTIVE).",
       "details": "The current implementation creates seasons with a 'SETUP' status, and joining is incorrectly allowed in this state. The intended flow is SETUP -> OPEN -> (PENDING_START optional) -> ACTIVE. This task involves:\n1. Modifying the season creation process to automatically transition the season status from 'SETUP' to 'OPEN' immediately after initial creation.\n2. Identifying and updating all code logic that currently checks for 'SETUP' status to determine if a season is joinable or open for interaction. This logic should be updated to check for the 'OPEN' status instead.\n3. Reviewing the necessity and implementation of the 'PENDING_START' status. Determine if it serves a distinct purpose between 'OPEN' and 'ACTIVE' (e.g., waiting for a scheduled start time after player count is met) or if 'OPEN' can directly transition to 'ACTIVE'. Adjust transition logic accordingly.\n4. Updating any relevant admin commands or filters that rely on season status to reflect the correct intended states (e.g., filtering for joinable seasons should use 'OPEN').\n5. Updating internal documentation or comments regarding the season status lifecycle.\n6. Ensuring existing tests related to season creation, joining, and status checks are updated to reflect the new expected status flow and states.",
       "testStrategy": "1. Unit tests for the season creation function to verify that a newly created season's status is immediately set to 'OPEN', not 'SETUP'.\n2. Unit tests for the season joining logic to ensure that joining is only permitted for seasons with the status 'OPEN'.\n3. Integration test: Create a new season via the API or relevant command and assert that its status is 'OPEN'.\n4. Integration test: Attempt to join a season that has been manually set to 'SETUP' status (if possible via admin tools or test setup) and verify that the join operation is rejected.\n5. Manually test or write integration tests for relevant admin commands (e.g., list seasons) to ensure they correctly filter and display seasons based on the updated status logic (e.g., 'joinable' filter shows 'OPEN' seasons).\n6. Review and update existing tests that previously expected 'SETUP' status for joinable seasons to now expect 'OPEN'. Ensure all relevant tests pass after the changes.",
-      "status": "in-progress",
+      "status": "done",
       "dependencies": [
         8
       ],
@@ -1767,8 +1767,8 @@
             1,
             3
           ],
-          "details": "Locate constants like `PRE_ACTIVATION_SEASON_STATUSES`. Update their values to reflect the new flow. Analyze the purpose of 'PENDING_START' and implement or adjust the transition logic from 'OPEN' to 'PENDING_START' (if needed) and from 'OPEN' or 'PENDING_START' to 'ACTIVE'.",
-          "status": "in-progress",
+          "details": "Locate constants like `PRE_ACTIVATION_SEASON_STATUSES`. Update their values to reflect the new flow. Analyze the purpose of 'PENDING_START' and implement or adjust the transition logic from 'OPEN' to 'PENDING_START' (if needed) and from 'OPEN' or 'PENDING_START' to 'ACTIVE'.\n<info added on 2025-05-26T16:55:45.738Z>\nFound `PRE_ACTIVATION_SEASON_STATUSES` constant on line 21 of `SeasonService.ts`. This constant is used in the `activateSeason` method to validate which statuses can transition to 'ACTIVE'. Based on the new flow (SETUP -> OPEN -> PENDING_START -> ACTIVE), the constant should be updated to include 'OPEN' and 'PENDING_START' as valid pre-activation statuses. 'SETUP' should also be considered if it's still a possible state before activation in some scenarios. Update the constant to accurately reflect the statuses from which a season can transition to 'ACTIVE'.\n</info added on 2025-05-26T16:55:45.738Z>",
+          "status": "done",
           "testStrategy": "Verify constants hold the correct status values. Manually or via test scripts, attempt to trigger transitions (e.g., from OPEN to ACTIVE) and verify the status changes as expected based on the defined logic."
         },
         {
@@ -1779,8 +1779,8 @@
             1,
             4
           ],
-          "details": "Identify admin interfaces (CLI, UI), API endpoints with status filters, and internal documentation (READMEs, wikis) that mention season statuses. Update status lists, filter options, and descriptions to align with the new flow and states.",
-          "status": "pending",
+          "details": "Identify admin interfaces (CLI, UI), API endpoints with status filters, and internal documentation (READMEs, wikis) that mention season statuses. Update status lists, filter options, and descriptions to align with the new flow and states.\n<info added on 2025-05-26T16:56:52.877Z>\nReview of admin interfaces (CLI commands), documentation, and other codebase references for season statuses is complete. Admin commands (`src/commands/chat/admin-command-data.ts`) already list all required statuses ('SETUP', 'PENDING_START', 'OPEN', 'ACTIVE', 'COMPLETED', 'TERMINATED'); no changes needed. Documentation (`docs/SEASON_FLOWS.md`) focuses on user-facing flows and does not require updates regarding internal status transitions. A codebase search found no other locations requiring status filter or description updates. The admin interface and documentation are already aligned with the new status flow.\n</info added on 2025-05-26T16:56:52.877Z>",
+          "status": "done",
           "testStrategy": "Use admin tools/APIs to filter and view seasons by status. Verify the options are correct and filtering works as expected for the new states. Review updated documentation."
         },
         {
@@ -1790,8 +1790,8 @@
           "dependencies": [
             5
           ],
-          "details": "Review tests covering season creation status, join eligibility, and status transitions. Modify assertions to expect 'OPEN' status after creation and require 'OPEN' for joining. Add new test cases for transitions like OPEN to ACTIVE (or OPEN to PENDING_START to ACTIVE).",
-          "status": "pending",
+          "details": "Review tests covering season creation status, join eligibility, and status transitions. Modify assertions to expect 'OPEN' status after creation and require 'OPEN' for joining. Add new test cases for transitions like OPEN to ACTIVE (or OPEN to PENDING_START to ACTIVE).\n<info added on 2025-05-26T16:57:50.948Z>\nIdentified test files to update: `tests/services/SeasonService.test.ts` (unit tests) and `tests/services/SeasonService.integration.test.ts` (integration tests). Update tests to create seasons with 'OPEN' status instead of 'SETUP' and modify assertions to require 'OPEN' status for joining. Start by updating `tests/services/SeasonService.test.ts`.\n</info added on 2025-05-26T16:57:50.948Z>\n<info added on 2025-05-26T17:04:51.071Z>\nSuccessfully completed all test updates for the new status flow. Updated `tests/services/SeasonService.test.ts`, `tests/services/SeasonService.integration.test.ts`, and `tests/commands/chat/newCommand.integration.test.ts`. Changed all test expectations from 'SETUP' to 'OPEN' for newly created seasons and updated assertions/comments to reflect that seasons are joinable only in 'OPEN' status. All 549 tests now pass. The test suite correctly validates the new season status flow: SETUP → OPEN → PENDING_START → ACTIVE.\n</info added on 2025-05-26T17:04:51.071Z>",
+          "status": "done",
           "testStrategy": "Run the full test suite. Ensure all updated and new tests pass, confirming the new status flow and logic are correctly implemented."
         }
       ]
