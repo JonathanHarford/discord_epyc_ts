@@ -89,8 +89,8 @@ describe('AdminCommand - Unit Tests', () => {
   describe('Permission checking logic', () => {
     it('should allow access for admin users', async () => {
       mockInteraction.user.id = '510875521354039317'; // Real admin ID from config
-      mockInteraction.options.getSubcommandGroup.mockReturnValue('terminate');
-      mockInteraction.options.getSubcommand.mockReturnValue('season');
+      mockInteraction.options.getSubcommandGroup.mockReturnValue('season');
+      mockInteraction.options.getSubcommand.mockReturnValue('kill');
       mockInteraction.options.getString.mockReturnValue('test-season-id');
 
       // Mock successful termination
@@ -132,9 +132,9 @@ describe('AdminCommand - Unit Tests', () => {
       mockInteraction.user.id = '510875521354039317'; // Real admin ID from config
     });
 
-    it('should route to handleTerminateCommand for "terminate" subcommand group', async () => {
-      mockInteraction.options.getSubcommandGroup.mockReturnValue('terminate');
-      mockInteraction.options.getSubcommand.mockReturnValue('season');
+    it('should route to handleSeasonKillCommand for "season" subcommand group with "kill" subcommand', async () => {
+      mockInteraction.options.getSubcommandGroup.mockReturnValue('season');
+      mockInteraction.options.getSubcommand.mockReturnValue('kill');
       mockInteraction.options.getString.mockReturnValue('test-season-id');
 
       // Mock successful termination
@@ -228,8 +228,8 @@ describe('AdminCommand - Unit Tests', () => {
     });
 
     it('should handle season termination errors', async () => {
-      mockInteraction.options.getSubcommandGroup.mockReturnValue('terminate');
-      mockInteraction.options.getSubcommand.mockReturnValue('season');
+      mockInteraction.options.getSubcommandGroup.mockReturnValue('season');
+      mockInteraction.options.getSubcommand.mockReturnValue('kill');
       mockInteraction.options.getString.mockReturnValue('test-season-id');
 
       mockSeasonService.terminateSeason.mockRejectedValue(new Error('Database error'));
@@ -241,7 +241,7 @@ describe('AdminCommand - Unit Tests', () => {
         mockInteraction,
         strings.embeds.errorEmbeds.command,
         expect.objectContaining({
-          ERROR_CODE: 'ADMIN_TERMINATE_SEASON_ERROR',
+          ERROR_CODE: 'ADMIN_SEASON_KILL_ERROR',
           GUILD_ID: 'test-guild-id',
           SHARD_ID: '0'
         }),

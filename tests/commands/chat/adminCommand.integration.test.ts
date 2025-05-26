@@ -214,8 +214,8 @@ describe('AdminCommand - Integration Tests', () => {
       });
 
       // Set up for terminate season command
-      interaction.options.getSubcommand.mockReturnValue('season');
-      interaction.options.getSubcommandGroup.mockReturnValue('terminate');
+      interaction.options.getSubcommandGroup.mockReturnValue('season');
+      interaction.options.getSubcommand.mockReturnValue('kill');
       interaction.options.getString.mockReturnValue(freshSeason.id);
 
       // Execute the command
@@ -235,8 +235,8 @@ describe('AdminCommand - Integration Tests', () => {
   describe('Terminate Season Command', () => {
     beforeEach(() => {
       // Set up for terminate season command
-      interaction.options.getSubcommand.mockReturnValue('season');
-      interaction.options.getSubcommandGroup.mockReturnValue('terminate');
+      interaction.options.getSubcommandGroup.mockReturnValue('season');
+      interaction.options.getSubcommand.mockReturnValue('kill');
       interaction.user.id = '510875521354039317'; // Ensure admin access with correct ID
     });
 

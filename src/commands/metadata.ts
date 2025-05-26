@@ -10,11 +10,8 @@ import {
 
 import { strings } from '../lang/strings.js';
 import { Command } from './index.js';
-import { newCommandData } from './chat/new-command.js';
-import { joinSeasonCommandData } from './chat/joinSeason.js';
-import { statusCommandData } from './chat/status-command.js';
+import { seasonCommandData } from './chat/season-command-data.js';
 import { adminCommandData } from './chat/admin-command-data.js';
-import { configCommandData } from './chat/config-command-data.js';
 
 export const ChatCommandMetadata: {
     [command: string]: RESTPostAPIChatInputApplicationCommandsJSONBody;
@@ -90,19 +87,9 @@ export const ChatCommandMetadata: {
             },
         ],
     },
-    TEST: {
-        type: ApplicationCommandType.ChatInput,
-        name: strings.commands.test,
-        description: strings.commandDescs.test,
-        dm_permission: true,
-        default_member_permissions: undefined,
-        options: [],
-    },
-    NEW: newCommandData.toJSON(),
-    JOIN_SEASON: joinSeasonCommandData.toJSON(),
-    STATUS: statusCommandData.toJSON(),
+
+    SEASON: seasonCommandData.toJSON(),
     ADMIN: adminCommandData.toJSON(),
-    CONFIG: configCommandData.toJSON(),
 };
 
 export const MessageCommandMetadata: {
@@ -202,29 +189,7 @@ export class CommandMetadata {
                     },
                 ],
             },
-            {
-                type: ApplicationCommandType.ChatInput,
-                name: strings.commands.test,
-                description: strings.commandDescs.test,
-                dmPermission: true,
-                defaultMemberPermissions: undefined,
-                options: [],
-            },
-            {
-                type: ApplicationCommandType.ChatInput,
-                name: strings.commands.status,
-                description: strings.commandDescs.status,
-                dmPermission: false,
-                defaultMemberPermissions: undefined,
-                options: [
-                    {
-                        name: 'season',
-                        description: 'The ID of the season to check status for.',
-                        required: true,
-                        type: ApplicationCommandOptionType.String,
-                    },
-                ],
-            },
+
             // Message Context Commands
             {
                 type: ApplicationCommandType.Message,

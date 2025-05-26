@@ -35,25 +35,17 @@ export const strings = {
     dev: "dev",
     help: "help",
     info: "info",
-    test: "test",
-    new: "new",
-    join: "join",
-    status: "status",
     admin: "admin",
-    config: "config"
+    season: "season"
   },
 
   // Chat command names (for slash commands)
   chatCommands: {
     admin: "admin",
-    config: "config",
     dev: "dev",
     help: "help",
     info: "info",
-    test: "test",
-    new: "new",
-    join: "join",
-    status: "status"
+    season: "season"
   },
 
   // Command descriptions
@@ -61,17 +53,12 @@ export const strings = {
     dev: "Developer commands.",
     help: "Find help or contact support.",
     info: "View bot info.",
-    test: "Run the test command.",
-    new: "Create a new season. Use this command to start a new game flow.",
-    join: "Join an existing season.",
-    status: "Get status information for a season.",
-    admin: "Administrative commands for managing the bot.",
-    config: "Configuration commands for managing bot settings."
+    admin: "Administrative commands for managing players and seasons.",
+    season: "Season management commands - create, join, view, and manage seasons."
   },
 
-  // Simple messages
+    // Simple messages
   messages: {
-    testWorks: "Test command works!",
     na: "N/A",
     
     // Join season messages
@@ -250,7 +237,7 @@ export const strings = {
       fields: [
         {
           name: "Commands",
-          value: "To see the available commands, just type `/` and select the bot from the left side. You can then scroll through all available commands. Some commands may be hidden if you don't have permission to view them.\n\n/test - Run the test command.\n/info - View bot info."
+          value: "To see the available commands, just type `/` and select the bot from the left side. You can then scroll through all available commands. Some commands may be hidden if you don't have permission to view them.\n\n**/season** - Create, join, view, and manage seasons\n**/admin** - Administrative commands for managing players and seasons\n**/info** - View bot info\n**/help** - Find help or contact support\n**/dev** - Developer commands (admin only)"
         },
         {
           name: "Command Permissions",
@@ -260,11 +247,7 @@ export const strings = {
           name: "Links",
           value: "[View Documentation](https://top.gg/)\n[Join Support Server](https://support.discord.com/)"
         }
-      ]
-    },
-
-    test: {
-      description: "Test command works!"
+            ]
     },
 
     about: {
