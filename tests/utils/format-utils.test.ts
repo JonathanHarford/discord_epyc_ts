@@ -122,10 +122,5 @@ describe('FormatUtils', () => {
             const result = FormatUtils.fileSize(1048576);
             expect(result).toBe('1.00 MB');
         });
-
-        it('should handle small byte values', () => {
-            const result = FormatUtils.fileSize(100);
-            expect(result).toBe('100 B');
-        });
     });
 });

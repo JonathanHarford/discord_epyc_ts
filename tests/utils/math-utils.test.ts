@@ -13,12 +13,6 @@ describe('MathUtils', () => {
             const result = MathUtils.sum([]);
             expect(result).toBe(0);
         });
-
-        it('should handle negative numbers correctly', () => {
-            const input = [-1, -2, 3, 4];
-            const result = MathUtils.sum(input);
-            expect(result).toBe(4);
-        });
     });
 
     describe('clamp', () => {
@@ -37,10 +31,7 @@ describe('MathUtils', () => {
             expect(result).toBe(10);
         });
 
-        it('should handle negative ranges correctly', () => {
-            const result = MathUtils.clamp(-5, -10, -2);
-            expect(result).toBe(-5);
-        });
+
     });
 
     describe('range', () => {

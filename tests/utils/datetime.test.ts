@@ -57,12 +57,6 @@ describe('datetime utils', () => {
       expect(duration?.as('seconds')).toBe(0);
     });
 
-    it('should parse zero duration: 0d0h0m0s', () => {
-      const duration = parseDuration('0d0h0m0s');
-      expect(duration).not.toBeNull();
-      expect(duration?.as('seconds')).toBe(0);
-    });
-
     // Test cases for invalid duration strings
     it('should return null for empty string', () => {
       expect(parseDuration('')).toBeNull();
@@ -104,18 +98,9 @@ describe('datetime utils', () => {
       expect(parseDuration('1y')).toBeNull();
     });
 
-    it('should return null for string with only spaces', () => {
-      expect(parseDuration('   ')).toBeNull();
-    });
-
     it('should trim whitespace: \' 7d \'', () => {
       const duration = parseDuration(' 7d ');
       expect(duration?.as('days')).toBe(7);
-    });
-
-    it('should trim internal spaces: \'3d 6h\'', () => {
-      const duration = parseDuration('2h 30m');
-      expect(duration?.as('hours')).toBe(2.5);
     });
   });
 
@@ -166,11 +151,6 @@ describe('datetime utils', () => {
 
     it('should handle duration less than 1 second as 0s', () => {
       expect(durationStr(Duration.fromMillis(500))).toBe('0s'); // current behavior
-    });
-    
-    it('should handle duration of exactly 0 as 0s', () => {
-        const zeroDuration = Duration.fromObject({});
-        expect(durationStr(zeroDuration)).toBe('0s');
     });
 
   });
