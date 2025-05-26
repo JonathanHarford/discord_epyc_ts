@@ -1,4 +1,4 @@
-import { PrismaClient } from '@prisma/client';
+import { PrismaClient, Player, Turn } from '@prisma/client';
 import { Client as DiscordClient } from 'discord.js';
 import { Logger } from '../services/index.js';
 import { TurnService } from '../services/TurnService.js';
@@ -124,8 +124,8 @@ export class SubmissionTimeoutHandler {
      * @returns Promise<boolean> - True if DM was sent successfully
      */
     private async sendSkippedNotificationDM(
-        player: any, // Player type from Prisma
-        turn: any    // Turn type from Prisma with game/season included
+        player: Player, // Player type from Prisma
+        turn: Turn & { game?: { season?: { id: string } } }    // Turn type from Prisma with game/season included
     ): Promise<boolean> {
         try {
             // Get the user from Discord and send DM directly

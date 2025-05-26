@@ -200,6 +200,10 @@ export class CommandRegistrationService {
         return lines.join('\n');
     }
 
+    // Using any[] for options because Discord command options have complex nested structures
+    // with varying types (subcommands, subcommand groups, string/number/boolean options).
+    // Proper typing would require importing discord-api-types package which adds complexity.
+    // This is acceptable here since the method is only used for display/logging purposes.
     private formatOptions(options: any[], baseIndent: string, isRoot: boolean = false): string[] {
         const lines: string[] = [];
         
@@ -229,6 +233,7 @@ export class CommandRegistrationService {
                     break;
                     
                 case 3: // STRING
+                    // Using any for choices because Discord API choices can have varying structures (string/number values)
                     const choices = option.choices ? ` [${option.choices.map((c: any) => c.name).join('|')}]` : '';
                     lines.push(`${indent}${connector}* ${option.name}: string${choices}${required} - ${option.description || 'No description'}`);
                     break;

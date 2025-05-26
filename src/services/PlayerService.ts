@@ -123,7 +123,15 @@ export class PlayerService {
     console.log(`PlayerService.listPlayers: Listing players${seasonId ? ` for season ${seasonId}` : ''}${bannedOnly ? ' (banned only)' : ''}`);
     
     try {
-      let whereClause: any = {};
+      // Define a proper type for the where clause based on Prisma's PlayerWhereInput
+      let whereClause: {
+        bannedAt?: { not: null } | null;
+        seasons?: {
+          some: {
+            seasonId: string;
+          };
+        };
+      } = {};
       
       // Filter by banned status if specified
       if (bannedOnly === true) {

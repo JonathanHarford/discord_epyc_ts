@@ -26,10 +26,13 @@ let logger = pino(
         : undefined
 );
 
+// Type for objects that can be logged - includes common loggable types
+type LoggableObject = string | Response | DiscordAPIError | Error | Record<string, unknown> | unknown;
+
 export class Logger {
     private static shardId: number;
 
-    public static info(message: string, obj?: any): void {
+    public static info(message: string, obj?: LoggableObject): void {
         if (obj) {
             logger.info(obj, message);
         } else {
@@ -37,7 +40,7 @@ export class Logger {
         }
     }
 
-    public static warn(message: string, obj?: any): void {
+    public static warn(message: string, obj?: LoggableObject): void {
         if (obj) {
             logger.warn(obj, message);
         } else {
@@ -45,7 +48,7 @@ export class Logger {
         }
     }
 
-    public static async error(message: string, obj?: any): Promise<void> {
+    public static async error(message: string, obj?: LoggableObject): Promise<void> {
         // Log just a message if no error object
         if (!obj) {
             logger.error(message);

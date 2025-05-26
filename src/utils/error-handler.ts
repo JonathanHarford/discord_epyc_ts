@@ -213,7 +213,7 @@ export class ErrorHandler {
     /**
      * Type guard to check if an object is ErrorInfo
      */
-    private static isErrorInfo(obj: any): obj is ErrorInfo {
+    private static isErrorInfo(obj: unknown): obj is ErrorInfo {
         return obj && typeof obj === 'object' && 'type' in obj && 'severity' in obj;
     }
 
@@ -415,6 +415,7 @@ export class ErrorHandler {
      * @param context Additional context
      * @returns Wrapped function
      */
+    // Using any[] for generic function arguments to support wrapping functions with varying parameter types
     public static wrapCommand<T extends any[], R>(
         fn: (...args: T) => Promise<R>,
         interaction: CommandInteraction,
@@ -442,6 +443,7 @@ export class ErrorHandler {
      * @param context Additional context
      * @returns Wrapped function
      */
+    // Using any[] for generic function arguments to support wrapping functions with varying parameter types
     public static wrapDMHandler<T extends any[], R>(
         fn: (...args: T) => Promise<R>,
         message: Message,

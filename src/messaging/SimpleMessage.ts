@@ -11,10 +11,25 @@ import { strings, interpolate } from '../lang/strings.js';
 
 export type MessageType = 'success' | 'error' | 'info' | 'warning';
 
+// Type for embed field data from language strings
+interface EmbedFieldData {
+  readonly name: string;
+  readonly value: string;
+  readonly inline?: boolean;
+}
+
+// Type for embed data from language strings
+interface EmbedData {
+  readonly title?: string;
+  readonly description?: string;
+  readonly fields?: readonly EmbedFieldData[];
+  readonly color?: string;
+}
+
 export interface SimpleMessageOptions {
   content?: string;
-  embed?: any; // Direct embed data from strings.embeds
-  variables?: Record<string, any>;
+  embed?: EmbedData; // Direct embed data from strings.embeds
+  variables?: Record<string, unknown>;
   ephemeral?: boolean;
   type?: MessageType;
 }
@@ -31,7 +46,7 @@ export class SimpleMessage {
   static async sendText(
     interaction: CommandInteraction,
     text: string,
-    variables?: Record<string, any>,
+    variables?: Record<string, unknown>,
     ephemeral: boolean = false
   ): Promise<void> {
     const content = variables ? interpolate(text, variables) : text;
@@ -46,8 +61,8 @@ export class SimpleMessage {
    */
   static async sendEmbed(
     interaction: CommandInteraction,
-    embedData: any,
-    variables?: Record<string, any>,
+    embedData: EmbedData,
+    variables?: Record<string, unknown>,
     ephemeral: boolean = false,
     type: MessageType = 'info'
   ): Promise<void> {
@@ -63,7 +78,7 @@ export class SimpleMessage {
   static async sendSuccess(
     interaction: CommandInteraction,
     text: string,
-    variables?: Record<string, any>,
+    variables?: Record<string, unknown>,
     ephemeral: boolean = false
   ): Promise<void> {
     const embed = new EmbedBuilder()
@@ -80,7 +95,7 @@ export class SimpleMessage {
   static async sendError(
     interaction: CommandInteraction,
     text: string,
-    variables?: Record<string, any>,
+    variables?: Record<string, unknown>,
     ephemeral: boolean = true
   ): Promise<void> {
     const embed = new EmbedBuilder()
@@ -97,7 +112,7 @@ export class SimpleMessage {
   static async sendWarning(
     interaction: CommandInteraction,
     text: string,
-    variables?: Record<string, any>,
+    variables?: Record<string, unknown>,
     ephemeral: boolean = false
   ): Promise<void> {
     const embed = new EmbedBuilder()
@@ -114,7 +129,7 @@ export class SimpleMessage {
   static async sendInfo(
     interaction: CommandInteraction,
     text: string,
-    variables?: Record<string, any>,
+    variables?: Record<string, unknown>,
     ephemeral: boolean = false
   ): Promise<void> {
     const embed = new EmbedBuilder()
@@ -129,8 +144,8 @@ export class SimpleMessage {
    * Create an embed from embed data
    */
   private static createEmbed(
-    embedData: any,
-    variables?: Record<string, any>,
+    embedData: EmbedData,
+    variables?: Record<string, unknown>,
     type: MessageType = 'info'
   ): EmbedBuilder {
     const embed = new EmbedBuilder();
@@ -164,7 +179,7 @@ export class SimpleMessage {
 
     // Process fields
     if (embedData.fields && Array.isArray(embedData.fields)) {
-      const processedFields = embedData.fields.map((field: any) => ({
+      const processedFields = embedData.fields.map((field: EmbedFieldData) => ({
         name: variables ? interpolate(field.name, variables) : field.name,
         value: variables ? interpolate(field.value, variables) : field.value,
         inline: field.inline || false

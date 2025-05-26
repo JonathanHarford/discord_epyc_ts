@@ -10,6 +10,7 @@ import { TurnService } from '../../services/TurnService.js';
 import { SchedulerService } from '../../services/SchedulerService.js';
 import { GameService } from '../../services/GameService.js';
 import { PlayerService } from '../../services/PlayerService.js';
+import { MessageInstruction } from '../../types/MessageInstruction.js';
 import prisma from '../../lib/prisma.js';
 
 const require = createRequire(import.meta.url);
@@ -232,7 +233,7 @@ export class AdminCommand implements Command {
     /**
      * Convert MessageInstruction to SimpleMessage call
      */
-    private async handleMessageInstruction(instruction: any, intr: ChatInputCommandInteraction): Promise<void> {
+    private async handleMessageInstruction(instruction: MessageInstruction, intr: ChatInputCommandInteraction): Promise<void> {
         // This is a temporary bridge method to handle services that still return MessageInstruction
                     // Services return MessageInstruction for consistency
         
@@ -279,10 +280,10 @@ export class AdminCommand implements Command {
         }
     }
 
-    private getEmbedFromKey(key: string): any {
+    private getEmbedFromKey(key: string): unknown {
         // Try to find embed data in strings based on the key
         const parts = key.split('.');
-        let current: any = strings;
+        let current: unknown = strings;
         
         for (const part of parts) {
             if (current && typeof current === 'object' && part in current) {
@@ -295,10 +296,10 @@ export class AdminCommand implements Command {
         return current && typeof current === 'object' ? current : null;
     }
 
-    private getStringFromKey(key: string, data?: Record<string, any>): string {
+    private getStringFromKey(key: string, data?: Record<string, unknown>): string {
         // Try to find string in the strings object
         const parts = key.split('.');
-        let current: any = strings;
+        let current: unknown = strings;
         
         for (const part of parts) {
             if (current && typeof current === 'object' && part in current) {

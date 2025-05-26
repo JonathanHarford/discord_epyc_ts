@@ -456,7 +456,7 @@ export const strings = {
 } as const;
 
 // Simple string interpolation function
-export function interpolate(template: string, variables: Record<string, any> = {}): string {
+export function interpolate(template: string, variables: Record<string, unknown> = {}): string {
   return template.replace(/\{(\w+)\}/g, (match, key) => {
     return variables[key] !== undefined ? String(variables[key]) : match;
   });
@@ -465,7 +465,7 @@ export function interpolate(template: string, variables: Record<string, any> = {
 // Helper to get nested properties  
 export function getStringValue(path: string): string {
   const parts = path.split('.');
-  let current: any = strings;
+  let current: unknown = strings;
   
   for (const part of parts) {
     if (current && typeof current === 'object' && part in current) {

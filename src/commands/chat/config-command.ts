@@ -6,6 +6,7 @@ import { Command, CommandDeferType } from '../index.js';
 import { SimpleMessage } from '../../messaging/SimpleMessage.js';
 import { strings } from '../../lang/strings.js';
 import { ConfigService, ConfigUpdateOptions } from '../../services/ConfigService.js';
+import { MessageInstruction } from '../../types/MessageInstruction.js';
 import prisma from '../../lib/prisma.js';
 
 const require = createRequire(import.meta.url);
@@ -153,7 +154,7 @@ export class ConfigCommand implements Command {
     /**
      * Convert MessageInstruction to SimpleMessage call
      */
-    private async handleMessageInstruction(instruction: any, intr: ChatInputCommandInteraction): Promise<void> {
+    private async handleMessageInstruction(instruction: MessageInstruction, intr: ChatInputCommandInteraction): Promise<void> {
         const ephemeral = instruction.formatting?.ephemeral ?? false;
         
         if (instruction.formatting?.embed) {
@@ -194,9 +195,9 @@ export class ConfigCommand implements Command {
         }
     }
 
-    private getEmbedFromKey(key: string): any {
+    private getEmbedFromKey(key: string): unknown {
         const parts = key.split('.');
-        let current: any = strings.embeds;
+        let current: unknown = strings.embeds;
         
         for (const part of parts) {
             if (current && typeof current === 'object' && part in current) {
@@ -209,9 +210,9 @@ export class ConfigCommand implements Command {
         return current && typeof current === 'object' ? current : null;
     }
 
-    private getStringFromKey(key: string, data?: Record<string, any>): string {
+    private getStringFromKey(key: string, data?: Record<string, unknown>): string {
         const parts = key.split('.');
-        let current: any = strings;
+        let current: unknown = strings;
         
         for (const part of parts) {
             if (current && typeof current === 'object' && part in current) {

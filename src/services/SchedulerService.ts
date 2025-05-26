@@ -1,25 +1,46 @@
-import schedule from 'node-schedule';
 import { PrismaClient } from '@prisma/client';
 import { Client as DiscordClient } from 'discord.js';
-import { Logger } from './logger.js'; // Corrected casing for logger.js
+import * as schedule from 'node-schedule';
+import { Logger } from './index.js';
+import { TurnService } from './TurnService.js';
+import { TurnOfferingService } from './TurnOfferingService.js';
+import { SeasonService } from './SeasonService.js';
 // import Logs from '../../lang/logs.json'; // If you have specific logs for scheduler
+
+// Job data types for different job types
+interface SeasonActivationJobData {
+    seasonId: string;
+}
+
+interface ClaimTimeoutJobData {
+    turnId: string;
+    playerId: string;
+}
+
+interface SubmissionTimeoutJobData {
+    turnId: string;
+    playerId: string;
+}
+
+// Union type for all possible job data
+type JobData = SeasonActivationJobData | ClaimTimeoutJobData | SubmissionTimeoutJobData | Record<string, unknown>;
 
 interface JobDetails {
     id: string;
     fireDate: Date;
     jobType: string;
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    data?: any; // Optional data to pass to the job callback
+    // Using JobData union type instead of any for better type safety
+    data?: JobData;
 }
 
-export type JobCallback = (data?: any) => void | Promise<void>;
+export type JobCallback = (data?: JobData) => void | Promise<void>;
 
 // Type for service dependencies needed for job handlers
 export interface SchedulerServiceDependencies {
     discordClient?: DiscordClient;
-    turnService?: any; // Will be properly typed when needed
-    turnOfferingService?: any; // Will be properly typed when needed
-    seasonService?: any; // Will be properly typed when needed
+    turnService?: TurnService;
+    turnOfferingService?: TurnOfferingService;
+    seasonService?: SeasonService;
 }
 
 export class SchedulerService {
@@ -50,7 +71,7 @@ export class SchedulerService {
      * @param jobType Type of job for categorization and recovery.
      * @returns True if the job was scheduled successfully, false otherwise (e.g., if ID exists or date is in past).
      */
-    public async scheduleJob(jobId: string, fireDate: Date, callback: JobCallback, jobData?: any, jobType: string = 'generic'): Promise<boolean> {
+    public async scheduleJob(jobId: string, fireDate: Date, callback: JobCallback, jobData?: JobData, jobType: string = 'generic'): Promise<boolean> {
         // Check both in-memory and database for existing jobs
         if (this.scheduledJobs.has(jobId)) {
             Logger.warn(`Job with ID '${jobId}' already exists in memory. Skipping scheduling.`);
@@ -171,7 +192,7 @@ export class SchedulerService {
      * @param jobType Type of job for categorization.
      * @param jobData Optional data to pass to the callback.
      */
-    private async persistJob(jobId: string, fireDate: Date, jobType: string, jobData?: any): Promise<void> {
+    private async persistJob(jobId: string, fireDate: Date, jobType: string, jobData?: JobData): Promise<void> {
         try {
             await this.prisma.scheduledJob.create({
                 data: {
@@ -326,7 +347,7 @@ export class SchedulerService {
      * @param jobId The job ID.
      * @param jobData The job data.
      */
-    private async handleRestoredJob(jobType: string, jobId: string, jobData?: any): Promise<void> {
+    private async handleRestoredJob(jobType: string, jobId: string, jobData?: JobData): Promise<void> {
         switch (jobType) {
             case 'season-activation':
                 await this.handleSeasonActivationJob(jobId, jobData);
@@ -348,7 +369,7 @@ export class SchedulerService {
      * @param jobId The job ID.
      * @param jobData The job data.
      */
-    private async handleSeasonActivationJob(jobId: string, jobData?: any): Promise<void> {
+    private async handleSeasonActivationJob(jobId: string, jobData?: JobData): Promise<void> {
         // Extract season ID from job ID (format: "season-activation-{seasonId}")
         const seasonId = jobId.replace('season-activation-', '');
         
@@ -374,7 +395,7 @@ export class SchedulerService {
      * @param jobId The job ID (format: "turn-claim-timeout-{turnId}").
      * @param jobData The job data containing turnId and playerId.
      */
-    private async handleClaimTimeoutJob(jobId: string, jobData?: any): Promise<void> {
+    private async handleClaimTimeoutJob(jobId: string, jobData?: JobData): Promise<void> {
         // Extract turn ID from job ID (format: "turn-claim-timeout-{turnId}")
         const turnId = jobId.replace('turn-claim-timeout-', '');
         
@@ -382,12 +403,13 @@ export class SchedulerService {
             throw new Error(`Invalid claim timeout job ID format: ${jobId}`);
         }
 
-        // Validate job data
-        if (!jobData || !jobData.turnId || !jobData.playerId) {
+        // Validate job data and type guard
+        if (!jobData || !('turnId' in jobData) || !('playerId' in jobData)) {
             throw new Error(`Invalid job data for claim timeout job ${jobId}: missing turnId or playerId`);
         }
 
-        const { turnId: dataTransId, playerId } = jobData;
+        const claimTimeoutData = jobData as ClaimTimeoutJobData;
+        const { turnId: dataTransId, playerId } = claimTimeoutData;
         
         // Ensure turnId from job ID matches turnId from job data
         if (turnId !== dataTransId) {
@@ -425,7 +447,7 @@ export class SchedulerService {
      * @param jobId The job ID (format: "turn-submission-timeout-{turnId}").
      * @param jobData The job data containing turnId and playerId.
      */
-    private async handleSubmissionTimeoutJob(jobId: string, jobData?: any): Promise<void> {
+    private async handleSubmissionTimeoutJob(jobId: string, jobData?: JobData): Promise<void> {
         // Extract turn ID from job ID (format: "turn-submission-timeout-{turnId}")
         const turnId = jobId.replace('turn-submission-timeout-', '');
         
@@ -433,12 +455,13 @@ export class SchedulerService {
             throw new Error(`Invalid submission timeout job ID format: ${jobId}`);
         }
 
-        // Validate job data
-        if (!jobData || !jobData.turnId || !jobData.playerId) {
+        // Validate job data and type guard
+        if (!jobData || !('turnId' in jobData) || !('playerId' in jobData)) {
             throw new Error(`Invalid job data for submission timeout job ${jobId}: missing turnId or playerId`);
         }
 
-        const { turnId: dataTransId, playerId } = jobData;
+        const submissionTimeoutData = jobData as SubmissionTimeoutJobData;
+        const { turnId: dataTransId, playerId } = submissionTimeoutData;
         
         // Ensure turnId from job ID matches turnId from job data
         if (turnId !== dataTransId) {

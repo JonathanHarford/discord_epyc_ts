@@ -9,7 +9,8 @@ import {
   InteractionReplyOptions,
   InteractionEditReplyOptions,
   MessageCreateOptions,
-  CommandInteraction
+  CommandInteraction,
+  Client
 } from 'discord.js';
 import { MessageInstruction } from '../types/MessageInstruction.js';
 import { SimpleMessage } from './SimpleMessage.js';
@@ -36,7 +37,7 @@ export class MessageAdapter {
     instruction: MessageInstruction,
     interaction?: CommandInteraction,
     langCode: string = 'en',
-    discordClient?: any // Discord Client instance
+    discordClient?: Client // Discord Client instance for DM sending
   ): Promise<void> {
     const messageContent = this.generateMessageContent(instruction, langCode);
     
@@ -110,10 +111,10 @@ export class MessageAdapter {
    * @param data Variables for interpolation
    * @returns The interpolated string
    */
-  private static getStringFromKey(key: string, data?: Record<string, any>): string {
+  private static getStringFromKey(key: string, data?: Record<string, unknown>): string {
     // Navigate through the strings object using the key path
     const keyParts = key.split('.');
-    let value: any = strings;
+    let value: unknown = strings;
     
     for (const part of keyParts) {
       if (value && typeof value === 'object' && part in value) {
@@ -178,7 +179,7 @@ export class MessageAdapter {
     userId: string,
     content: BaseMessageOptions,
     instruction: MessageInstruction,
-    discordClient: any // Discord Client instance
+    discordClient: Client // Discord Client instance for DM sending
   ): Promise<void> {
     try {
       const user = await discordClient.users.fetch(userId);
@@ -346,7 +347,7 @@ export class MessageAdapter {
     instruction: MessageInstruction,
     interaction?: CommandInteraction,
     langCode: string = 'en',
-    discordClient?: any
+    discordClient?: Client // Discord Client instance for DM sending
   ): Promise<boolean> {
     try {
       await this.processInstruction(instruction, interaction, langCode, discordClient);

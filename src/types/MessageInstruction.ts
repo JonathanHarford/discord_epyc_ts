@@ -1,6 +1,8 @@
 export interface MessageInstruction {
   type: 'success' | 'error' | 'info' | 'warning';
   key: string; // Language key for the Lang service
+  // Using any for data values because they can be strings, numbers, booleans, or complex objects
+  // that get interpolated into language strings. The flexibility is needed for various message types.
   data?: Record<string, any>; // Placeholder data for the language string
   
   // Platform-specific formatting options
