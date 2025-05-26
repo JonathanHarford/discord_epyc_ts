@@ -1,0 +1,11 @@
+# Task ID: 45
+# Title: Fix Admin Command Integration Tests (Embed Assertions)
+# Status: done
+# Dependencies: 22, 23, 24, 43
+# Priority: medium
+# Description: Update integration tests for admin commands to assert against embeds rather than plain content, as the command responses now utilize embeds.
+# Details:
+The integration tests for admin commands (e.g., `/admin ban`, `/admin terminate`, `/admin list`) are currently failing because they expect the command replies to have a `content` property containing the response message. However, recent changes (likely related to Task 43 or subsequent command updates) have shifted these commands to use Discord embeds for richer responses. This task involves locating the relevant integration test files (likely in `tests/integration/commands/chat/admin/`) and modifying the assertions. Instead of checking `expect(reply.content).toBe(...)`, the tests should inspect `expect(reply.embeds).toHaveLength(...)` and then check the properties of the embed objects within the array (e.g., `embeds[0].description`, `embeds[0].title`, `embeds[0].fields`, etc.) to verify the command output. Ensure the tests accurately reflect the structure and content of the actual embeds sent by the commands.
+
+# Test Strategy:
+Run the full suite of integration tests, specifically focusing on the admin command tests. Verify that all previously failing admin command integration tests now pass. Manually execute the affected admin commands in a test Discord server to confirm the embed structure and content match what the updated tests are asserting against.
