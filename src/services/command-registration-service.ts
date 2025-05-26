@@ -177,8 +177,100 @@ export class CommandRegistrationService {
     private formatCommandList(
         cmds: RESTPostAPIApplicationCommandsJSONBody[] | APIApplicationCommand[]
     ): string {
-        return cmds.length > 0
-            ? cmds.map((cmd: { name: string }) => `'${cmd.name}'`).join(', ')
-            : 'N/A';
+        if (cmds.length === 0) {
+            return 'N/A';
+        }
+
+        return cmds.map(cmd => this.formatCommandDetails(cmd)).join('\n\n');
+    }
+
+    private formatCommandDetails(cmd: RESTPostAPIApplicationCommandsJSONBody | APIApplicationCommand): string {
+        const lines: string[] = [];
+        
+        // Main command line - handle different command types
+        const description = 'description' in cmd ? cmd.description : 'No description';
+        lines.push(`/${cmd.name} - ${description}`);
+        
+        // Check if command has options (subcommands, subcommand groups, or regular options)
+        // Only chat input commands have options
+        if ('options' in cmd && cmd.options && cmd.options.length > 0) {
+            lines.push(...this.formatOptions(cmd.options, '', true));
+        }
+        
+        return lines.join('\n');
+    }
+
+    private formatOptions(options: any[], baseIndent: string, isRoot: boolean = false): string[] {
+        const lines: string[] = [];
+        
+        for (let i = 0; i < options.length; i++) {
+            const option = options[i];
+            const isLast = i === options.length - 1;
+            const required = option.required ? ' (required)' : '';
+            
+            // Tree characters
+            const connector = isLast ? '└─' : '├─';
+            const childPrefix = isLast ? '   ' : '│  ';
+            const indent = isRoot ? ' ' : baseIndent;
+            
+            switch (option.type) {
+                case 1: // SUB_COMMAND
+                    lines.push(`${indent}${connector}${option.name} - ${option.description || 'No description'}`);
+                    if (option.options && option.options.length > 0) {
+                        lines.push(...this.formatOptions(option.options, indent + childPrefix, false));
+                    }
+                    break;
+                    
+                case 2: // SUB_COMMAND_GROUP
+                    lines.push(`${indent}${connector}${option.name} - ${option.description || 'No description'}`);
+                    if (option.options && option.options.length > 0) {
+                        lines.push(...this.formatOptions(option.options, indent + childPrefix, false));
+                    }
+                    break;
+                    
+                case 3: // STRING
+                    const choices = option.choices ? ` [${option.choices.map((c: any) => c.name).join('|')}]` : '';
+                    lines.push(`${indent}${connector}* ${option.name}: string${choices}${required} - ${option.description || 'No description'}`);
+                    break;
+                    
+                case 4: // INTEGER
+                    lines.push(`${indent}${connector}* ${option.name}: integer${required} - ${option.description || 'No description'}`);
+                    break;
+                    
+                case 5: // BOOLEAN
+                    lines.push(`${indent}${connector}* ${option.name}: boolean${required} - ${option.description || 'No description'}`);
+                    break;
+                    
+                case 6: // USER
+                    lines.push(`${indent}${connector}* ${option.name}: user${required} - ${option.description || 'No description'}`);
+                    break;
+                    
+                case 7: // CHANNEL
+                    lines.push(`${indent}${connector}* ${option.name}: channel${required} - ${option.description || 'No description'}`);
+                    break;
+                    
+                case 8: // ROLE
+                    lines.push(`${indent}${connector}* ${option.name}: role${required} - ${option.description || 'No description'}`);
+                    break;
+                    
+                case 9: // MENTIONABLE
+                    lines.push(`${indent}${connector}* ${option.name}: mentionable${required} - ${option.description || 'No description'}`);
+                    break;
+                    
+                case 10: // NUMBER
+                    lines.push(`${indent}${connector}* ${option.name}: number${required} - ${option.description || 'No description'}`);
+                    break;
+                    
+                case 11: // ATTACHMENT
+                    lines.push(`${indent}${connector}* ${option.name}: attachment${required} - ${option.description || 'No description'}`);
+                    break;
+                    
+                default:
+                    lines.push(`${indent}${connector}* ${option.name}: unknown type (${option.type})${required} - ${option.description || 'No description'}`);
+                    break;
+            }
+        }
+        
+        return lines;
     }
 }

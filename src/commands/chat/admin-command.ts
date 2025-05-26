@@ -280,9 +280,9 @@ export class AdminCommand implements Command {
     }
 
     private getEmbedFromKey(key: string): any {
-        // Try to find embed data in strings.embeds based on the key
+        // Try to find embed data in strings based on the key
         const parts = key.split('.');
-        let current: any = strings.embeds;
+        let current: any = strings;
         
         for (const part of parts) {
             if (current && typeof current === 'object' && part in current) {
