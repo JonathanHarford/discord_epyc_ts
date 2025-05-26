@@ -48,7 +48,7 @@ export class JoinSeasonCommand implements Command {
         return;
       }
       
-      const validJoinStatuses = ['SETUP', 'PENDING_START', 'OPEN'];
+      const validJoinStatuses = ['OPEN'];
       if (!validJoinStatuses.includes(season.status)) {
         await SimpleMessage.sendError(
           interaction,

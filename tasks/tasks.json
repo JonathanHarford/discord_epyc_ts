@@ -1714,6 +1714,87 @@
           "testStrategy": "Run the full test suite to confirm no regressions. Conduct code reviews to ensure clarity, maintainability, and adherence to best practices."
         }
       ]
+    },
+    {
+      "id": 42,
+      "title": "Fix Season Status Flow and Transitions (SETUP to OPEN)",
+      "description": "Update season status logic to ensure a correct and automatic transition from SETUP to OPEN upon creation, aligning the flow with intended states (SETUP -> OPEN -> PENDING_START -> ACTIVE).",
+      "details": "The current implementation creates seasons with a 'SETUP' status, and joining is incorrectly allowed in this state. The intended flow is SETUP -> OPEN -> (PENDING_START optional) -> ACTIVE. This task involves:\n1. Modifying the season creation process to automatically transition the season status from 'SETUP' to 'OPEN' immediately after initial creation.\n2. Identifying and updating all code logic that currently checks for 'SETUP' status to determine if a season is joinable or open for interaction. This logic should be updated to check for the 'OPEN' status instead.\n3. Reviewing the necessity and implementation of the 'PENDING_START' status. Determine if it serves a distinct purpose between 'OPEN' and 'ACTIVE' (e.g., waiting for a scheduled start time after player count is met) or if 'OPEN' can directly transition to 'ACTIVE'. Adjust transition logic accordingly.\n4. Updating any relevant admin commands or filters that rely on season status to reflect the correct intended states (e.g., filtering for joinable seasons should use 'OPEN').\n5. Updating internal documentation or comments regarding the season status lifecycle.\n6. Ensuring existing tests related to season creation, joining, and status checks are updated to reflect the new expected status flow and states.",
+      "testStrategy": "1. Unit tests for the season creation function to verify that a newly created season's status is immediately set to 'OPEN', not 'SETUP'.\n2. Unit tests for the season joining logic to ensure that joining is only permitted for seasons with the status 'OPEN'.\n3. Integration test: Create a new season via the API or relevant command and assert that its status is 'OPEN'.\n4. Integration test: Attempt to join a season that has been manually set to 'SETUP' status (if possible via admin tools or test setup) and verify that the join operation is rejected.\n5. Manually test or write integration tests for relevant admin commands (e.g., list seasons) to ensure they correctly filter and display seasons based on the updated status logic (e.g., 'joinable' filter shows 'OPEN' seasons).\n6. Review and update existing tests that previously expected 'SETUP' status for joinable seasons to now expect 'OPEN'. Ensure all relevant tests pass after the changes.",
+      "status": "in-progress",
+      "dependencies": [
+        8
+      ],
+      "priority": "medium",
+      "subtasks": [
+        {
+          "id": 1,
+          "title": "Add OPEN and PENDING_START to Season Status Type",
+          "description": "Modify the SeasonStatus enum or type definition to include the new states: OPEN and PENDING_START. This is the foundational step before implementing logic that uses these states.",
+          "dependencies": [],
+          "details": "Locate the SeasonStatus definition (e.g., enum, type, database schema). Add 'OPEN' and 'PENDING_START' as valid values. Ensure consistency across frontend/backend if applicable.",
+          "status": "done",
+          "testStrategy": "Verify the new states are present in the type definition and compile successfully."
+        },
+        {
+          "id": 2,
+          "title": "Modify Season Creation to Set Initial Status to OPEN",
+          "description": "Update the season creation process to automatically set the season's status to 'OPEN' immediately after the initial data is saved, instead of 'SETUP'. The 'SETUP' status should become a transient or internal state not visible externally after creation.",
+          "dependencies": [
+            1
+          ],
+          "details": "Find the code responsible for creating a new season. Change the initial status assignment from 'SETUP' to 'OPEN'. Ensure any immediate post-creation logic correctly handles the 'OPEN' state.",
+          "status": "done",
+          "testStrategy": "Create a new season and verify its status is 'OPEN' immediately after creation."
+        },
+        {
+          "id": 3,
+          "title": "Update Season Joining Logic to Allow Only OPEN Status",
+          "description": "Modify the logic that determines if a user can join a season. This logic should now check if the season's status is 'OPEN' instead of 'SETUP'. Joining should only be permitted when the status is 'OPEN'.",
+          "dependencies": [
+            1,
+            2
+          ],
+          "details": "Identify the function or service responsible for handling season join requests. Update the status check condition from `status == SETUP` to `status == OPEN`. Add appropriate error handling or response for attempts to join seasons in other states.",
+          "status": "done",
+          "testStrategy": "Attempt to join seasons in 'OPEN', 'SETUP', and other existing states (e.g., 'ACTIVE'). Verify joining is only successful for 'OPEN' seasons."
+        },
+        {
+          "id": 4,
+          "title": "Review and Update PRE_ACTIVATION_SEASON_STATUSES and Transitions",
+          "description": "Review constants or logic that group season statuses (e.g., `PRE_ACTIVATION_SEASON_STATUSES`). Update these to correctly include 'SETUP', 'OPEN', and potentially 'PENDING_START'. Also, review the intended transition logic between 'OPEN', 'PENDING_START', and 'ACTIVE' based on the task description's point 3.",
+          "dependencies": [
+            1,
+            3
+          ],
+          "details": "Locate constants like `PRE_ACTIVATION_SEASON_STATUSES`. Update their values to reflect the new flow. Analyze the purpose of 'PENDING_START' and implement or adjust the transition logic from 'OPEN' to 'PENDING_START' (if needed) and from 'OPEN' or 'PENDING_START' to 'ACTIVE'.",
+          "status": "in-progress",
+          "testStrategy": "Verify constants hold the correct status values. Manually or via test scripts, attempt to trigger transitions (e.g., from OPEN to ACTIVE) and verify the status changes as expected based on the defined logic."
+        },
+        {
+          "id": 5,
+          "title": "Update Admin Commands, Filters, and Documentation",
+          "description": "Update any administrative tools, API filters, or internal documentation that reference season statuses. Ensure they correctly interpret and display the new 'OPEN' and 'PENDING_START' states and reflect the updated flow (e.g., filtering for joinable seasons should use 'OPEN').",
+          "dependencies": [
+            1,
+            4
+          ],
+          "details": "Identify admin interfaces (CLI, UI), API endpoints with status filters, and internal documentation (READMEs, wikis) that mention season statuses. Update status lists, filter options, and descriptions to align with the new flow and states.",
+          "status": "pending",
+          "testStrategy": "Use admin tools/APIs to filter and view seasons by status. Verify the options are correct and filtering works as expected for the new states. Review updated documentation."
+        },
+        {
+          "id": 6,
+          "title": "Update and Add Tests for New Status Flow",
+          "description": "Update existing unit and integration tests related to season creation, joining, and status checks to reflect the new expected status flow (SETUP -> OPEN -> ...) and the correct joinable status ('OPEN'). Add new tests specifically covering the transitions involving 'OPEN' and 'PENDING_START'.",
+          "dependencies": [
+            5
+          ],
+          "details": "Review tests covering season creation status, join eligibility, and status transitions. Modify assertions to expect 'OPEN' status after creation and require 'OPEN' for joining. Add new test cases for transitions like OPEN to ACTIVE (or OPEN to PENDING_START to ACTIVE).",
+          "status": "pending",
+          "testStrategy": "Run the full test suite. Ensure all updated and new tests pass, confirming the new status flow and logic are correctly implemented."
+        }
+      ]
     }
   ]
 }

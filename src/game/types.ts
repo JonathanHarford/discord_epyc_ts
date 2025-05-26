@@ -221,7 +221,7 @@ export type TurnStatus = 'AVAILABLE' | 'OFFERED' | 'PENDING' | 'COMPLETED' | 'SK
 /**
  * Season status enumeration
  */
-export type SeasonStatus = 'SETUP' | 'PENDING' | 'ACTIVE' | 'COMPLETED' | 'TERMINATED';
+export type SeasonStatus = 'SETUP' | 'OPEN' | 'PENDING_START' | 'PENDING' | 'ACTIVE' | 'COMPLETED' | 'TERMINATED';
 
 /**
  * Game status enumeration

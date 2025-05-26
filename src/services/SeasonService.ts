@@ -92,7 +92,7 @@ export class SeasonService {
         // 3. Create the Season record
         const seasonData: Prisma.SeasonCreateInput = {
           id: humanId({ separator: '-', capitalize: false }), // Use human-id for season ID
-          status: 'SETUP', 
+          status: 'OPEN', 
           creator: {
             connect: { id: creator.id },
           },
@@ -253,7 +253,7 @@ export class SeasonService {
       }
 
       // 2. Check if season is open for joining (Define valid statuses)
-      const validJoinStatuses = ['SETUP', 'PENDING_START', 'OPEN']; 
+      const validJoinStatuses = ['OPEN']; 
       if (!validJoinStatuses.includes(season.status)) {
         console.log(`SeasonService.addPlayerToSeason: Season ${seasonId} status (${season.status}) is not valid for joining.`);
         return { type: 'error', key: 'messages.season.joinNotOpen', data: { status: season.status /*, seasonName: season.name */ } };
