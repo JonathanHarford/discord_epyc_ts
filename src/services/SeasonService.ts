@@ -914,22 +914,18 @@ export class SeasonService {
     console.log(`SeasonService.listSeasons: Listing seasons${statusFilter ? ` with status ${statusFilter}` : ''}`);
     
     try {
-      const whereClause = statusFilter ? { status: statusFilter } : {};
+      // Filter out TERMINATED seasons unless specifically requested
+      const whereClause = statusFilter 
+        ? { status: statusFilter } 
+        : { status: { not: 'TERMINATED' } };
       
       const seasons = await this.prisma.season.findMany({
         where: whereClause,
         include: {
           config: true,
-          creator: {
-            select: {
-              name: true,
-              discordUserId: true
-            }
-          },
           _count: {
             select: {
-              players: true,
-              games: true
+              players: true
             }
           }
         },
@@ -938,28 +934,41 @@ export class SeasonService {
         }
       });
 
-      // Format the seasons data as a string
+      // Filter out terminated seasons and format the seasons data as a string
+      const activeSeasonsCount = seasons.filter(season => season.status !== 'TERMINATED').length;
       const seasonsDetails = seasons.length === 0 
         ? 'No seasons found.'
         : seasons.map(season => {
-            const createdDate = new Date(season.createdAt).toLocaleDateString();
-            return `**${season.id}** - ${season.status}\n` +
-                   `└ Created by: ${season.creator.name}\n` +
-                   `└ Players: ${season._count.players}/${season.config.maxPlayers} (min: ${season.config.minPlayers})\n` +
-                   `└ Games: ${season._count.games}\n` +
-                   `└ Created: ${createdDate}`;
-          }).join('\n\n');
+            const createdDate = new Date(season.createdAt).toISOString().split('T')[0]; // YYYY-MM-DD format
+            
+            // Calculate start time if openDuration is available
+            let startTimeStr = '';
+            if (season.config.openDuration && season.status === 'SETUP') {
+              try {
+                const duration = parseDuration(season.config.openDuration);
+                if (duration) {
+                  const startTime = new Date(season.createdAt.getTime() + duration.as('milliseconds'));
+                  startTimeStr = ` Start:${startTime.toISOString().split('T')[0]}`;
+                }
+              } catch (error) {
+                console.warn(`Failed to parse openDuration for season ${season.id}:`, error);
+              }
+            }
+            
+            return `${createdDate} ${season.id} ${season.status} Players:${season._count.players}/${season.config.minPlayers}-${season.config.maxPlayers}${startTimeStr}`;
+          }).join('\n');
 
-      // Format the status filter description
+      // Use active seasons count for title unless filtering for TERMINATED specifically
+      const displayCount = statusFilter === 'TERMINATED' ? seasons.length : activeSeasonsCount;
       const statusDescription = statusFilter 
         ? `Showing seasons with status: **${statusFilter}**`
-        : 'Showing all seasons';
+        : 'Showing all active seasons';
 
       return MessageHelpers.embedMessage(
         'success',
         'embeds.admin.listSeasonsSuccess',
         {
-          totalCount: seasons.length,
+          totalCount: displayCount,
           statusFilter: statusDescription,
           seasonsDetails: seasonsDetails
         },
