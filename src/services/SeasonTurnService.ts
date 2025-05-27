@@ -243,6 +243,16 @@ export class SeasonTurnService implements TurnTimeoutService {
     contentType: 'text' | 'image'
   ): Promise<{ success: boolean; turn?: Turn; error?: string }> {
     try {
+      // Validate content is not empty
+      if (!content || content.trim() === '') {
+        return { success: false, error: 'Content cannot be empty.' };
+      }
+
+      // Validate content type
+      if (contentType !== 'text' && contentType !== 'image') {
+        return { success: false, error: 'Invalid content type. Must be "text" or "image".' };
+      }
+
       // Verify the turn exists and is in PENDING state for this player
       const existingTurn = await this.prisma.turn.findUnique({
         where: { id: turnId },
