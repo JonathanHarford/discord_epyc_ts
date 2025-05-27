@@ -67,7 +67,7 @@ async function start(): Promise<void> {
     // Set dependencies for SchedulerService to handle different job types
     schedulerService.setDependencies({
         discordClient: client,
-        turnService: turnService,
+        seasonTurnService: turnService,
         turnOfferingService: turnOfferingService,
         seasonService: seasonService
     });
@@ -151,7 +151,7 @@ start().catch(error => {
 });
 
 // Graceful shutdown
-async function shutdown(signal: string) {
+async function shutdown(signal: string): Promise<void> {
     Logger.info(Logs.info.shuttingDown.replaceAll('{SIGNAL}', signal));
     try {
         // Perform bot-specific cleanup first (e.g., client.destroy())
