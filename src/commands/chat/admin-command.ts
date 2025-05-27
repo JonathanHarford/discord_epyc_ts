@@ -6,6 +6,7 @@ import { interpolate, strings } from '../../lang/strings.js';
 import prisma from '../../lib/prisma.js';
 import { SimpleMessage } from '../../messaging/SimpleMessage.js';
 import { EventData } from '../../models/internal-models.js';
+import { ChannelConfigService } from '../../services/ChannelConfigService.js';
 import { ConfigService } from '../../services/ConfigService.js';
 import { GameService } from '../../services/GameService.js';
 import { OnDemandGameService } from '../../services/OnDemandGameService.js';
@@ -27,6 +28,7 @@ export class AdminCommand implements Command {
     private seasonService: SeasonService;
     private playerService: PlayerService;
     private configService: ConfigService;
+    private channelConfigService: ChannelConfigService;
     private onDemandGameService: OnDemandGameService;
     private prisma: PrismaClient;
 
@@ -37,6 +39,7 @@ export class AdminCommand implements Command {
         this.seasonService = null as any; // Temporary, will be initialized in execute
         this.playerService = new PlayerService(prisma);
         this.configService = new ConfigService(prisma);
+        this.channelConfigService = new ChannelConfigService(prisma);
         this.onDemandGameService = null as any; // Temporary, will be initialized in execute
     }
 
@@ -69,6 +72,10 @@ export class AdminCommand implements Command {
             }
             case 'game': {
                 await this.handleGameCommand(intr, data);
+                break;
+            }
+            case 'channel': {
+                await this.handleChannelCommand(intr, data);
                 break;
             }
             default: {
@@ -785,5 +792,78 @@ export class AdminCommand implements Command {
                `**Game Settings:**\n` +
                `• Returns Policy: ${config.returns}\n` +
                `• Test Mode: ${config.testMode ? 'Enabled' : 'Disabled'}`;
+    }
+
+    private async handleChannelCommand(intr: ChatInputCommandInteraction, _data: EventData): Promise<void> {
+        const subcommand = intr.options.getSubcommand();
+        
+        switch (subcommand) {
+            case 'config': {
+                await this.handleChannelConfigCommand(intr);
+                break;
+            }
+            default: {
+                await SimpleMessage.sendEmbed(intr, strings.embeds.errorEmbeds.notImplemented, {}, true, 'warning');
+                return;
+            }
+        }
+    }
+
+    private async handleChannelConfigCommand(intr: ChatInputCommandInteraction): Promise<void> {
+        try {
+            const guildId = intr.guildId;
+            if (!guildId) {
+                await SimpleMessage.sendError(intr, 'This command can only be used in a server.', {}, true);
+                return;
+            }
+
+            const announceChannel = intr.options.getChannel('announce');
+            const completedChannel = intr.options.getChannel('completed');
+            const adminChannel = intr.options.getChannel('admin');
+
+            // If no options provided, show current configuration
+            if (!announceChannel && !completedChannel && !adminChannel) {
+                const config = await this.channelConfigService.getGuildChannelConfig(guildId);
+                
+                if (!config) {
+                    await SimpleMessage.sendInfo(intr, 'No channel configuration found for this server. Use the options to set up channels.', {}, true);
+                    return;
+                }
+
+                const configDisplay = this.formatChannelConfigForDisplay(config);
+                await SimpleMessage.sendInfo(intr, `**Channel Configuration for this server:**\n\n${configDisplay}`, {}, true);
+                return;
+            }
+
+            // Update the configuration
+            const updates: any = {};
+            if (announceChannel) updates.announceChannelId = announceChannel.id;
+            if (completedChannel) updates.completedChannelId = completedChannel.id;
+            if (adminChannel) updates.adminChannelId = adminChannel.id;
+
+            await this.channelConfigService.updateGuildChannelConfig(guildId, updates);
+            
+            const updatedFields = Object.keys(updates).map(key => {
+                switch (key) {
+                    case 'announceChannelId': return 'announce';
+                    case 'completedChannelId': return 'completed';
+                    case 'adminChannelId': return 'admin';
+                    default: return key;
+                }
+            });
+
+            await SimpleMessage.sendSuccess(intr, `Channel configuration updated successfully!\n**Updated fields:** ${updatedFields.join(', ')}`, {}, true);
+
+        } catch (error) {
+            console.error('Error in admin channel config command:', error);
+            await SimpleMessage.sendError(intr, 'An error occurred while updating the channel configuration.', {}, true);
+        }
+    }
+
+    private formatChannelConfigForDisplay(config: any): string {
+        return `**Channels:**\n` +
+               `• Announce: ${config.announceChannelId ? `<#${config.announceChannelId}>` : 'Not set'}\n` +
+               `• Completed: ${config.completedChannelId ? `<#${config.completedChannelId}>` : 'Not set'}\n` +
+               `• Admin: ${config.adminChannelId ? `<#${config.adminChannelId}>` : 'Not set'}`;
     }
 } 

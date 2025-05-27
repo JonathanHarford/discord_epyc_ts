@@ -157,6 +157,12 @@ export const strings = {
       activationFailureCreatorNotification: '❌ **Season Activation Failed** ❌\n\nHi {creatorName}, unfortunately your season **{seasonId}** failed to activate automatically.\n\n**Reason:** {errorType}\n**Triggered By:** {triggeredBy}\n\nAn administrator has been notified and will investigate the issue. You may try creating a new season or contact support for assistance.'
     },
 
+    // On-demand game messages
+    ondemand: {
+      gameCompleted: '🎊 **On-Demand Game Complete!** 🎊\n\n**Game ID:** {gameId}\n**Created by:** {creatorName}\n**Turns:** {completedTurns}/{totalTurns}\n**Players:** {playerCount}\n**Reason:** {completionReason}\n\nGreat job everyone!',
+      turnFlagged: '⚠️ **Turn Flagged for Review** ⚠️\n\n**Game ID:** {gameId}\n**Turn ID:** {turnId}\n**Turn:** #{turnNumber} ({turnType})\n**Player:** {playerName}\n**Flagged by:** {flaggerName}\n\n**Content:**\n```\n{turnContent}\n```\n\n**Game Status:** PAUSED\n\nPlease review this content and take appropriate action. React with ✅ to approve or ❌ to reject.'
+    },
+
     // Config messages
     config: {
       updateSuccess: 'Configuration updated successfully for guild {guildId}!\n**Updated fields:** {updatedFields}',

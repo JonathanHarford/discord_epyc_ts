@@ -255,4 +255,29 @@ export const adminCommandData = new SlashCommandBuilder()
                             .setRequired(false)
                     )
             )
+    )
+    .addSubcommandGroup(subcommandGroup =>
+        subcommandGroup
+            .setName('channel')
+            .setDescription('Channel configuration commands')
+            .addSubcommand(subcommand =>
+                subcommand
+                    .setName('config')
+                    .setDescription('Configure bot channels for announcements and notifications')
+                    .addChannelOption(option =>
+                        option.setName('announce')
+                            .setDescription('Channel for game announcements')
+                            .setRequired(false)
+                    )
+                    .addChannelOption(option =>
+                        option.setName('completed')
+                            .setDescription('Channel for completed games')
+                            .setRequired(false)
+                    )
+                    .addChannelOption(option =>
+                        option.setName('admin')
+                            .setDescription('Channel for admin notifications')
+                            .setRequired(false)
+                    )
+            )
     ); 

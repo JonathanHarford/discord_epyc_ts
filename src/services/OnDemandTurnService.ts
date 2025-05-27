@@ -3,8 +3,10 @@ import { Client as DiscordClient } from 'discord.js';
 import { DateTime } from 'luxon';
 import { nanoid } from 'nanoid';
 
+import { ChannelConfigService } from './ChannelConfigService.js';
 import { SchedulerService } from './SchedulerService.js';
 import { TurnTimeoutService } from './interfaces/TurnTimeoutService.js';
+import { interpolate, strings } from '../lang/strings.js';
 import { MessageAdapter } from '../messaging/MessageAdapter.js';
 import { MessageHelpers } from '../messaging/MessageHelpers.js';
 import { parseDuration } from '../utils/datetime.js';
@@ -13,6 +15,7 @@ export class OnDemandTurnService implements TurnTimeoutService {
   private prisma: PrismaClient;
   private discordClient: DiscordClient;
   private schedulerService?: SchedulerService;
+  private channelConfigService: ChannelConfigService;
 
   constructor(
     prisma: PrismaClient,
@@ -22,6 +25,7 @@ export class OnDemandTurnService implements TurnTimeoutService {
     this.prisma = prisma;
     this.discordClient = discordClient;
     this.schedulerService = schedulerService;
+    this.channelConfigService = new ChannelConfigService(prisma);
   }
 
   /**
@@ -497,11 +501,57 @@ export class OnDemandTurnService implements TurnTimeoutService {
   /**
    * Sends a flag notification to the admin channel
    */
-  private async sendFlagNotification(turn: Turn, flaggerId: string): Promise<void> {
+  private async sendFlagNotification(turn: Turn & { game: Game; player: Player | null }, flaggerId: string): Promise<void> {
     try {
-      // TODO: Get admin channel from config and send flag notification
-      // This will be implemented when we add the admin reaction system
-      console.log(`Turn ${turn.id} flagged by ${flaggerId} - admin notification needed`);
+      if (!turn.game?.guildId) {
+        console.log(`Turn ${turn.id} has no guild ID, skipping flag notification`);
+        return;
+      }
+
+      // Get the admin channel from config
+      const adminChannelId = await this.channelConfigService.getAdminChannelId(turn.game.guildId);
+      if (!adminChannelId) {
+        console.log(`No admin channel configured for guild ${turn.game.guildId}, skipping flag notification`);
+        return;
+      }
+
+      // Get the channel
+      const channel = await this.discordClient.channels.fetch(adminChannelId);
+      if (!channel || !channel.isTextBased()) {
+        console.error(`Admin channel ${adminChannelId} not found or not text-based`);
+        return;
+      }
+
+      // Get flagger information
+      const flagger = await this.prisma.player.findUnique({
+        where: { id: flaggerId }
+      });
+
+      // Create the message content directly
+      const messageContent = interpolate(strings.messages.ondemand.turnFlagged, {
+        turnId: turn.id,
+        gameId: turn.gameId,
+        turnNumber: turn.turnNumber,
+        turnType: turn.type,
+        flaggerName: flagger?.name || flagger?.discordUserId || 'Unknown',
+        flaggerId: flaggerId,
+        turnContent: turn.textContent || '[Image content]',
+        playerName: turn.player?.name || turn.player?.discordUserId || 'Unknown'
+      });
+
+      // Send the message directly to the channel (cast to text-based channel)
+      const sentMessage = await (channel as any).send({ content: messageContent });
+
+      // Add reaction buttons for admin approval/rejection
+      try {
+        await sentMessage.react('✅'); // Approve
+        await sentMessage.react('❌'); // Reject
+      } catch (error) {
+        console.error(`Error adding reactions to flag notification for turn ${turn.id}:`, error);
+      }
+
+      console.log(`Flag notification sent to admin channel ${adminChannelId} for turn ${turn.id}`);
+
     } catch (error) {
       console.error(`Error sending flag notification for turn ${turn.id}:`, error);
     }

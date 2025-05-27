@@ -3,6 +3,7 @@ import { Client as DiscordClient } from 'discord.js';
 import { DateTime } from 'luxon';
 import { nanoid } from 'nanoid';
 
+import { ChannelConfigService } from './ChannelConfigService.js';
 import { OnDemandTurnService } from './OnDemandTurnService.js';
 import { SchedulerService } from './SchedulerService.js';
 import { MessageAdapter } from '../messaging/MessageAdapter.js';
@@ -47,6 +48,7 @@ export class OnDemandGameService {
   private discordClient: DiscordClient;
   private turnService: OnDemandTurnService;
   private schedulerService?: SchedulerService;
+  private channelConfigService: ChannelConfigService;
 
   constructor(
     prisma: PrismaClient,
@@ -57,6 +59,7 @@ export class OnDemandGameService {
     this.discordClient = discordClient;
     this.schedulerService = schedulerService;
     this.turnService = new OnDemandTurnService(prisma, discordClient, schedulerService);
+    this.channelConfigService = new ChannelConfigService(prisma);
   }
 
   /**
@@ -580,8 +583,8 @@ export class OnDemandGameService {
         await this.schedulerService.cancelJobsForGame(gameId);
       }
 
-      // TODO: Send completion announcement to configured channel
-      // This would use the channel config to determine where to send the announcement
+      // Send completion announcement to configured channel
+      await this.sendGameCompletionAnnouncement(game);
 
       console.log(`Game ${gameId} completed successfully`);
       return { success: true };
@@ -707,6 +710,66 @@ export class OnDemandGameService {
         success: false, 
         error: error instanceof Error ? error.message : 'Unknown error occurred' 
       };
+    }
+  }
+
+  /**
+   * Sends a game completion announcement to the configured channel
+   * @param game The completed game with all related data
+   */
+  private async sendGameCompletionAnnouncement(game: any): Promise<void> {
+    try {
+      if (!game.guildId) {
+        console.log(`Game ${game.id} has no guild ID, skipping completion announcement`);
+        return;
+      }
+
+      // Get the completed channel from config
+      const completedChannelId = await this.channelConfigService.getCompletedChannelId(game.guildId);
+      if (!completedChannelId) {
+        console.log(`No completed channel configured for guild ${game.guildId}, skipping announcement`);
+        return;
+      }
+
+      // Get the channel
+      const channel = await this.discordClient.channels.fetch(completedChannelId);
+      if (!channel || !channel.isTextBased()) {
+        console.error(`Completed channel ${completedChannelId} not found or not text-based`);
+        return;
+      }
+
+      // Format game results
+      const completedTurns = game.turns.filter((turn: any) => 
+        turn.status === 'COMPLETED' || turn.status === 'SKIPPED'
+      );
+      const totalTurns = game.turns.length;
+      const playerCount = new Set(game.turns.map((turn: any) => turn.playerId)).size;
+
+      // Create completion message
+      const completionMessage = MessageHelpers.info(
+        'messages.ondemand.gameCompleted',
+        {
+          gameId: game.id,
+          creatorName: game.creator.displayName || game.creator.discordUserId,
+          completedTurns: completedTurns.length,
+          totalTurns: totalTurns,
+          playerCount: playerCount,
+          completionReason: game.status === 'COMPLETED' ? 'Natural completion' : 'Admin terminated'
+        }
+      );
+
+      // Send the message
+      await MessageAdapter.processInstruction(
+        completionMessage,
+        undefined, // No interaction for channel messages
+        'en',
+        this.discordClient
+      );
+
+      console.log(`Game completion announcement sent to channel ${completedChannelId} for game ${game.id}`);
+
+    } catch (error) {
+      console.error(`Error sending game completion announcement for game ${game.id}:`, error);
     }
   }
 } 

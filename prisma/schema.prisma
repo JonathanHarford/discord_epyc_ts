@@ -173,4 +173,16 @@ model GameConfig {
 
   isGuildDefaultFor  String?   @unique // Discord Guild ID for which this config is the default
   games              Game[]    @relation("GameToConfig")
+}
+
+model ChannelConfig {
+  id                 String    @id @default(nanoid())
+  guildId            String    @unique // Discord Guild ID
+  announceChannelId  String?   // Channel for game announcements
+  completedChannelId String?   // Channel for completed games
+  adminChannelId     String?   // Channel for admin notifications
+  createdAt          DateTime  @default(now())
+  updatedAt          DateTime  @updatedAt
+
+  @@index([guildId])
 } 

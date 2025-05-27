@@ -1,4 +1,3 @@
-
 import { Options, Partials } from 'discord.js';
 import schedule from 'node-schedule';
 import { createRequire } from 'node:module';
@@ -23,6 +22,7 @@ import { CustomClient } from './extensions/index.js';
 import { Job } from './jobs/index.js';
 import prisma from './lib/prisma.js';
 import { Bot } from './models/bot.js';
+import { FlaggedTurnApprovalReaction, FlaggedTurnRejectionReaction } from './reactions/flagged-turn-reaction.js';
 import { Reaction } from './reactions/index.js';
 import {
     EventDataService,
@@ -100,6 +100,8 @@ async function start(): Promise<void> {
 
     // Reactions
     let reactions: Reaction[] = [
+        new FlaggedTurnApprovalReaction(schedulerService),
+        new FlaggedTurnRejectionReaction(schedulerService),
         // Add new reactions here as needed
     ];
 
