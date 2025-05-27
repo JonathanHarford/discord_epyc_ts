@@ -1894,6 +1894,21 @@
       ],
       "priority": "medium",
       "subtasks": []
+    },
+    {
+      "id": 46,
+      "title": "Implement On-Demand Game Flow and Services",
+      "description": "Implement the full on-demand game flow as specified in ONDEMAND_FLOWS.md, including new database tables, service classes, command handlers, and admin controls.",
+      "details": "1. Create a new GameConfig table modeled after SeasonConfig, with fields: turn_pattern, writing_timeout, writing_warning, drawing_timeout, drawing_warning, stale_timeout, min_turns, max_turns, return_count, and return_cooldown. 2. Update the Game table: make seasonId nullable, add creatorId, guildId, and lastActivityAt fields. 3. Refactor TurnService to SeasonTurnService and implement OnDemandTurnService for on-demand games. 4. Implement OnDemandGameService to manage the lifecycle of on-demand games, including creation, joining, turn flow, and completion logic (max_turns or stale_timeout). 5. Develop the GameCommand class with /game new, /game play, /game list, and /game show commands, plus an admin subcommand group (config, list, show, kill). 6. Implement a turn flagging system with PAUSED status and admin reaction handling. 7. Ensure game status transitions (SETUP → PENDING → ACTIVE, cycling as players join/play) and enforce joining logic (find soonest-expiring eligible game, respect return policy). 8. Reuse channel config for announcements, completions, and flagged content. 9. Implement turn pattern logic but disable admin modification. 10. Enforce return policy: return_count (extra plays allowed), return_cooldown (turns by others before rejoining). Ensure all new services and commands are integrated with the existing infrastructure and follow established architectural patterns.",
+      "testStrategy": "- Write unit tests for OnDemandGameService and OnDemandTurnService covering game creation, joining, turn progression, completion, and return policy enforcement.\n- Add integration tests for all /game commands, including admin subcommands, verifying correct Discord responses and database state changes.\n- Test GameConfig and Game table migrations and ensure backward compatibility with season-based games.\n- Simulate full on-demand game flows (creation, joining, playing, flagging, admin intervention) in a staging environment.\n- Verify channel announcements and admin notifications are sent to the correct channels as per config.\n- Confirm that turn pattern logic is present but not modifiable by admins, and that return policy is strictly enforced.",
+      "status": "pending",
+      "dependencies": [
+        2,
+        3,
+        36
+      ],
+      "priority": "high",
+      "subtasks": []
     }
   ]
 }

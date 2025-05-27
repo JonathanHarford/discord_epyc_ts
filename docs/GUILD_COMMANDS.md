@@ -206,8 +206,7 @@ Commands for creating and managing individual games outside of seasons.
   - `min_turns` (optional): Minimum number of turns required
   - `max_turns` (optional): Maximum number of turns allowed
   - `max_players` (optional): Maximum number of players allowed to join
-- `/game join [id]` - Join an existing open game
-  - `id` (optional): The ID of the specific game to join (joins any available if not specified)
+- `/game play` - Find and claim a pending turn in an existing valid open game
 
 ### `/ready` - Turn Management (DM Only)
 Used in direct messages to claim and manage turns during active seasons.

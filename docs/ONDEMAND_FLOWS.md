@@ -61,7 +61,7 @@ Bot→Alice(DM):
 # Playing a game
 
 Bob→#games:
-	/game join
+	/game play
 
 Bot→#games:
 	@Bob has joined the game started by @Alice!
@@ -80,7 +80,7 @@ Bot→Bob(DM):
 	Thanks! Your turn has been recorded. I'll notify you when the game is completed.
 
 Charlie→#games:
-	/game join
+	/game play
 
 Bot→#games:
 	@Charlie has joined the game!

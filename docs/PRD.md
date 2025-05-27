@@ -126,7 +126,7 @@ The MVP focuses exclusively on the **Season Game** type. OnDemand Games are a fu
 
 ## Future Enhancements
 - OnDemand Game type (`/new game`, `/play`).
-- OnDemand Game rules (`min_turns`, `max_turns`, `returns`, `return_cooldown`, `stale_timeout`).
+- OnDemand Game rules (`min_turns`, `max_turns`, `return_count`, `return_cooldown`, `stale_timeout`).
 - OnDemand Game flow (assigning players to the 'soonest stale' game).
 - Turn Flagging and Admin Channel workflow.
 - Uncensored Channel functionality.
