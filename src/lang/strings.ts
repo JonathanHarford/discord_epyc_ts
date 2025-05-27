@@ -2,6 +2,11 @@
 // Direct string access as god intended
 
 export const strings = {
+  // Game configuration
+  game: {
+    name: 'Eat Poop You Cat'
+  },
+
   // Bot info
   bot: {
     name: 'My Bot',
@@ -12,8 +17,8 @@ export const strings = {
   emojis: {
     yes: '✅',
     no: '❌',
-    enabled: '🟢',
-    disabled: '🔴',
+    enabled: '✅',
+    disabled: '❌',
     info: 'ℹ️',
     warning: '⚠️',
     previous: '◀️',
@@ -36,7 +41,8 @@ export const strings = {
     help: 'help',
     info: 'info',
     admin: 'admin',
-    season: 'season'
+    season: 'season',
+    game: 'game'
   },
 
   // Chat command names (for slash commands)
@@ -45,7 +51,8 @@ export const strings = {
     dev: 'dev',
     help: 'help',
     info: 'info',
-    season: 'season'
+    season: 'season',
+    game: 'game'
   },
 
   // Command descriptions
@@ -54,7 +61,8 @@ export const strings = {
     help: 'Find help or contact support.',
     info: 'View bot info.',
     admin: 'Administrative commands for managing players and seasons.',
-    season: 'Season management commands - create, join, view, and manage seasons.'
+    season: 'Season management commands - create, join, view, and manage seasons.',
+    game: 'On-demand game management and participation commands.'
   },
 
     // Simple messages
@@ -63,19 +71,28 @@ export const strings = {
     
     // Join season messages
     joinSeason: {
-      success: 'You have successfully joined season with ID: **{seasonId}**!\nThe season will start in {timeRemaining}, or once {playersNeeded} more players join!',
-      seasonNotFound: 'Season \'{seasonId}\' not found.',
-      notOpen: 'Season with ID \'{seasonId}\' is not currently open for joining.',
-      alreadyJoined: 'You have already joined season with ID \'{seasonId}\'.',
-      full: 'Season with ID \'{seasonId}\' is full.',
+      success: `You have joined **{seasonId}**!
+It will start in {timeRemaining}, or once {playersNeeded} more players join!`,
+      seasonNotFound: '**{seasonId}** not found.',
+      notOpen: '**{seasonId}** is not currently open for joining.',
+      alreadyJoined: 'You have already joined **{seasonId}**.',
+      full: '**{seasonId}** is full.',
       playerNotFound: 'Your player profile could not be found. Please try again later or contact support.',
-      genericError: 'An unknown error occurred while trying to join season \'{seasonId}\'. Error: {errorMessage}'
+      genericError: 'An unknown error occurred while trying to join **{seasonId}**. Error: {errorMessage}'
     },
 
     // New season messages
     newSeason: {
-      createSuccessChannel: '{mentionUser} has started a new season with ID: **{seasonId}**\nSeason will remain open for joining for {openDuration}.\nUse `/join season:{seasonId}` to join!',
-      seasonActivateSuccess: '🎉 **Season {seasonId} has been activated!** 🎉\n\n**Status:** {status}\n**Games Created:** {gamesCreated}\n**Players:** {playersInSeason}\n\nThe games have begun! Players will receive their first turn offers shortly.',
+      createSuccessChannel: `{mentionUser} has started a new {gameName} season: **{seasonId}**
+Season will remain open for joining for {openDuration}.
+Use \`/join season:{seasonId}\` to join!`,
+      seasonActivateSuccess: `🎉 **{seasonId} has been activated!** 🎉
+
+**Status:** {status}
+**Games Created:** {gamesCreated}
+**Players:** {playersInSeason}
+
+The games have begun! Players will receive their first turn offers shortly.`,
       errorMinMaxPlayers: 'Minimum players ({minPlayers}) cannot be greater than maximum players ({maxPlayers}).',
       errorCreatorNotFound: 'Your player profile could not be found (Discord ID: {discordUserId}). Please try again later or contact support.',
       errorPlayerCreateFailed: 'Failed to create your player profile (Discord ID: {discordId}). Please try again later or contact support.',
@@ -87,8 +104,8 @@ export const strings = {
 
     // Status messages
     status: {
-      seasonNotFound: 'Season \'{seasonId}\' not found.',
-      genericError: 'An error occurred while retrieving status for season \'{seasonId}\'. Error: {errorMessage}'
+      seasonNotFound: '{seasonId} not found.',
+      genericError: 'An error occurred while retrieving status for {seasonId}. Error: {errorMessage}'
     },
 
     // Common messages
@@ -99,11 +116,14 @@ export const strings = {
     // Admin messages
     admin: {
       notAdmin: 'You do not have permission to use admin commands.',
-      terminateSeasonSuccess: 'Season **{seasonId}** has been successfully terminated.\n**Previous Status:** {previousStatus}\n**Players:** {playerCount}\n**Games:** {gameCount}',
-      terminateSeasonErrorNotFound: 'Season \'{seasonId}\' not found.',
-      terminateSeasonErrorAlreadyTerminated: 'Season \'{seasonId}\' is already terminated.',
-      terminateSeasonErrorDatabase: 'A database error occurred while terminating season \'{seasonId}\'. Error code: {errorCode}',
-      terminateSeasonErrorUnknown: 'An unknown error occurred while terminating season \'{seasonId}\'. {message}',
+      terminateSeasonSuccess: `**{seasonId}** has been successfully terminated.
+**Previous Status:** {previousStatus}
+**Players:** {playerCount}
+**Games:** {gameCount}`,
+      terminateSeasonErrorNotFound: '{seasonId} not found.',
+      terminateSeasonErrorAlreadyTerminated: '{seasonId} is already terminated.',
+      terminateSeasonErrorDatabase: 'A database error occurred while terminating {seasonId}. Error code: {errorCode}',
+      terminateSeasonErrorUnknown: 'An unknown error occurred while terminating {seasonId}. {message}',
       listSeasonsError: 'An error occurred while retrieving seasons. Error: {error}',
       listPlayersError: 'An error occurred while retrieving players. Error: {error}',
       listPlayersSuccess: 'Successfully retrieved {totalCount} players.',
@@ -127,45 +147,125 @@ export const strings = {
     // Season specific messages
     season: {
       // Join season messages - mapping old LangKeys to specific keys
-      joinSuccess: 'You have successfully joined season with ID: **{seasonId}**!\nThe season will start in {timeRemaining}, or once {playersNeeded} more players join!',
-      joinSeasonNotFound: 'Season \'{seasonId}\' not found.',
-      joinNotOpen: 'Season with ID \'{seasonId}\' is not currently open for joining.',
-      joinAlreadyJoined: 'You have already joined season with ID \'{seasonId}\'.',
-      joinFull: 'Season with ID \'{seasonId}\' is full.',
+      joinSuccess: `You have successfully joined **{seasonId}**!
+The season will start in {timeRemaining}, or once {playersNeeded} more players join!`,
+      joinSeasonNotFound: '{seasonId} not found.',
+      joinNotOpen: '{seasonId} is not currently open for joining.',
+      joinAlreadyJoined: 'You have already joined **{seasonId}**.',
+      joinFull: '{seasonId} is full.',
       joinPlayerNotFound: 'Your player profile could not be found. Please try again later or contact support.',
-      joinSuccessButActivationFailed: 'You have successfully joined season **{seasonId}** (now {playerCount} players), but there was an issue automatically starting the season. An administrator has been notified and will investigate.',
+      joinSuccessButActivationFailed: `You have successfully joined **{seasonId}** (now {playerCount} players), but there was an issue automatically starting the season. An administrator has been notified and will investigate.`,
       
       // Season activation
-      activateSuccess: '🎉 **Season {seasonId} has been activated!** 🎉\n\n**Status:** {status}\n**Games Created:** {gamesCreated}\n**Players:** {playersInSeason}\n\nThe games have begun! Players will receive their first turn offers shortly.',
+      activateSuccess: `🎉 **{seasonId} has been activated!** 🎉
+
+**Status:** {status}
+**Games Created:** {gamesCreated}
+**Players:** {playersInSeason}
+
+The games have begun! Players will receive their first turn offers shortly.`,
       
       // Admin season actions
-      adminTerminateSuccess: 'Season **{seasonId}** has been successfully terminated.\n**Previous Status:** {previousStatus}\n**Players:** {playerCount}\n**Games:** {gameCount}',
-      adminTerminateErrorNotFound: 'Season \'{seasonId}\' not found.',
-      adminTerminateErrorAlreadyTerminated: 'Season \'{seasonId}\' is already terminated.',
-      adminTerminateErrorDatabase: 'A database error occurred while terminating season \'{seasonId}\'. Error code: {errorCode}',
-      adminTerminateErrorUnknown: 'An unknown error occurred while terminating season \'{seasonId}\'. {message}',
+      adminTerminateSuccess: `**{seasonId}** has been successfully terminated.
+**Previous Status:** {previousStatus}
+**Players:** {playerCount}
+**Games:** {gameCount}`,
+      adminTerminateErrorNotFound: '{seasonId} not found.',
+      adminTerminateErrorAlreadyTerminated: '{seasonId} is already terminated.',
+      adminTerminateErrorDatabase: 'A database error occurred while terminating {seasonId}. Error code: {errorCode}',
+      adminTerminateErrorUnknown: 'An unknown error occurred while terminating {seasonId}. {message}',
       adminListSeasonsError: 'An error occurred while retrieving seasons. Error: {error}',
       
       // Season completion
-      completionAnnouncement: '🎊 **Season {seasonId} Complete!** 🎊\n\n**Duration:** {daysElapsed} days\n**Completion:** {completionPercentage}% ({completedTurns}/{totalTurns} turns)\n**Games:** {totalGames}\n**Players:** {totalPlayers}\n\nCreated by: {creatorName}\n\n{gameResults}',
-      completionFallbackAnnouncement: '🎊 **Season {seasonId} Complete!** 🎊\n\nSeason completion details are available. Check the season status for more information.',
+      completionAnnouncement: `🎊 **{seasonId} Complete!** 🎊
+
+**Duration:** {daysElapsed} days
+**Completion:** {completionPercentage}% ({completedTurns}/{totalTurns} turns)
+**Games:** {totalGames}
+**Players:** {totalPlayers}
+
+Created by: {creatorName}
+
+{gameResults}`,
+      completionFallbackAnnouncement: `🎊 **{seasonId} Complete!** 🎊
+
+Season completion details are available. Check the season status for more information.`,
       
       // Season activation notifications
-      activationSuccessNotification: '🎉 **Your Season is Now Active!** 🎉\n\nHi {creatorName}! Your season **{seasonId}** has been successfully activated!\n\n**Games Created:** {gamesCreated}\n**Players:** {playersInSeason}\n\nPlayers will start receiving their turn offers shortly. Good luck with your season!',
-      activationSuccessChannelNotification: '🎉 **Season {seasonId} Activated!** 🎉\n\nThe season has been automatically activated and is now ready for play!\n\n**Games Created:** {gamesCreated}\n**Players:** {playersInSeason}\n\nPlayers will receive their first turn offers shortly.',
-      activationFailureAdminNotification: '⚠️ **Season Activation Failed** ⚠️\n\n**Season ID:** {seasonId}\n**Error:** {errorKey}\n**Triggered By:** {triggeredBy}\n**Creator:** {creatorName} ({creatorDiscordId})\n**Player Count:** {playerCount}\n**Timestamp:** {timestamp}\n\n**Error Details:**\n```json\n{errorData}\n```\n\nPlease investigate and take appropriate action.',
-      activationFailureCreatorNotification: '❌ **Season Activation Failed** ❌\n\nHi {creatorName}, unfortunately your season **{seasonId}** failed to activate automatically.\n\n**Reason:** {errorType}\n**Triggered By:** {triggeredBy}\n\nAn administrator has been notified and will investigate the issue. You may try creating a new season or contact support for assistance.'
+      activationSuccessNotification: `🎉 **Your Season is Now Active!** 🎉
+
+Hi {creatorName}! Your season **{seasonId}** has been successfully activated!
+
+**Games Created:** {gamesCreated}
+**Players:** {playersInSeason}
+
+Players will start receiving their turn offers shortly. Good luck with your season!`,
+      activationSuccessChannelNotification: `🎉 **{seasonId} Activated!** 🎉
+
+The season has been automatically activated and is now ready for play!
+
+**Games Created:** {gamesCreated}
+**Players:** {playersInSeason}
+
+Players will receive their first turn offers shortly.`,
+      activationFailureAdminNotification: `⚠️ **Season Activation Failed** ⚠️
+
+**Season ID:** {seasonId}
+**Error:** {errorKey}
+**Triggered By:** {triggeredBy}
+**Creator:** {creatorName} ({creatorDiscordId})
+**Player Count:** {playerCount}
+**Timestamp:** {timestamp}
+
+**Error Details:**
+\`\`\`json
+{errorData}
+\`\`\`
+
+Please investigate and take appropriate action.`,
+      activationFailureCreatorNotification: `❌ **Season Activation Failed** ❌
+
+Hi {creatorName}, unfortunately your season **{seasonId}** failed to activate automatically.
+
+**Reason:** {errorType}
+**Triggered By:** {triggeredBy}
+
+An administrator has been notified and will investigate the issue. You may try creating a new season or contact support for assistance.`
     },
 
     // On-demand game messages
     ondemand: {
-      gameCompleted: '🎊 **On-Demand Game Complete!** 🎊\n\n**Game ID:** {gameId}\n**Created by:** {creatorName}\n**Turns:** {completedTurns}/{totalTurns}\n**Players:** {playerCount}\n**Reason:** {completionReason}\n\nGreat job everyone!',
-      turnFlagged: '⚠️ **Turn Flagged for Review** ⚠️\n\n**Game ID:** {gameId}\n**Turn ID:** {turnId}\n**Turn:** #{turnNumber} ({turnType})\n**Player:** {playerName}\n**Flagged by:** {flaggerName}\n\n**Content:**\n```\n{turnContent}\n```\n\n**Game Status:** PAUSED\n\nPlease review this content and take appropriate action. React with ✅ to approve or ❌ to reject.'
+      gameCompleted: `🎊 **On-Demand Game Complete!** 🎊
+
+**Game ID:** {gameId}
+**Created by:** {creatorName}
+**Turns:** {completedTurns}/{totalTurns}
+**Players:** {playerCount}
+**Reason:** {completionReason}
+
+Great job everyone!`,
+      turnFlagged: `⚠️ **Turn Flagged for Review** ⚠️
+
+**Game ID:** {gameId}
+**Turn ID:** {turnId}
+**Turn:** #{turnNumber} ({turnType})
+**Player:** {playerName}
+**Flagged by:** {flaggerName}
+
+**Content:**
+\`\`\`
+{turnContent}
+\`\`\`
+
+**Game Status:** PAUSED
+
+Please review this content and take appropriate action. React with ✅ to approve or ❌ to reject.`
     },
 
     // Config messages
     config: {
-      updateSuccess: 'Configuration updated successfully for guild {guildId}!\n**Updated fields:** {updatedFields}',
+      updateSuccess: `Configuration updated successfully for guild {guildId}!
+**Updated fields:** {updatedFields}`,
       validationError: 'Invalid configuration value for **{field}**: {error}',
       databaseError: 'Database error occurred while updating configuration. Error code: {errorCode}',
       unknownError: 'An unknown error occurred while updating configuration: {message}',
@@ -174,14 +274,26 @@ export const strings = {
 
     // Turn messages
     turnOffer: {
-      newTurnAvailable: '🎨 **New Turn Available!** 🎨\n\n**Game:** {gameId}\n**Season:** {seasonId}\n**Turn:** {turnNumber} ({turnType})\n\nYou have **{claimTimeoutMinutes} minutes** to claim this turn. React with ✅ to claim it!',
-      initialTurnOffer: '🎮 **Your First Turn!** 🎮\n\n**Game:** {gameId}\n**Season:** {seasonId}\n**Turn Type:** {turnType}\n\nIt\'s your first turn in this game! Please type `/ready` in this DM to claim your turn.\n\n⏰ You have **{claimTimeoutMinutes} minutes** to claim it before it\'s offered to another player.'
+      newTurnAvailable: `🎨 **New Turn Available!** 🎨
+
+**Game:** {gameId}
+**Season:** {seasonId}
+**Turn:** {turnNumber} ({turnType})
+
+You have **{claimTimeoutMinutes} minutes** to claim this turn. React with ✅ to claim it!`,
+      initialTurnOffer: `🎮 **Your First Turn!** 🎮
+
+**Game:** {gameId}
+**Season:** {seasonId}
+**Turn Type:** {turnType}
+
+It's your first turn in this game! Please type \`/ready\` in this DM to claim your turn.
+
+⏰ You have **{claimTimeoutMinutes} minutes** to claim it before it's offered to another player.`
     },
 
-    // Game messages
-    game: {
-      seasonId: 'Season ID: {seasonId}'
-    },
+    // Game messages (removed redundant seasonId message)
+    game: {},
 
     // Turn timeout messages
     turnTimeout: {
@@ -222,7 +334,8 @@ export const strings = {
         },
         {
           name: 'Links',
-          value: '[View Documentation](https://top.gg/)\n[Join Support Server](https://support.discord.com/)'
+          value: `[View Documentation](https://top.gg/)
+[Join Support Server](https://support.discord.com/)`
         }
       ]
     },
@@ -243,15 +356,25 @@ export const strings = {
       fields: [
         {
           name: 'Commands',
-          value: 'To see the available commands, just type `/` and select the bot from the left side. You can then scroll through all available commands. Some commands may be hidden if you don\'t have permission to view them.\n\n**/season** - Create, join, view, and manage seasons\n**/admin** - Administrative commands for managing players and seasons\n**/info** - View bot info\n**/help** - Find help or contact support\n**/dev** - Developer commands (admin only)'
+          value: `To see the available commands, just type \`/\` and select the bot from the left side. You can then scroll through all available commands. Some commands may be hidden if you don't have permission to view them.
+
+**/season** - Create, join, view, and manage seasons
+**/game** - On-demand game management and participation commands
+**/admin** - Administrative commands for managing players and seasons
+**/info** - View bot info
+**/help** - Find help or contact support
+**/dev** - Developer commands (admin only)
+
+**Note:** Use \`/season join\` to join a season, and \`/ready\` in DM to claim offered turns.`
         },
         {
           name: 'Command Permissions',
-          value: 'Want to restrict commands to certain roles, users, or channels? Set up permissions in the bot\'s integration page by going to **Server Settings** > **Integrations**, and then **Manage** for this bot.'
+          value: `Want to restrict commands to certain roles, users, or channels? Set up permissions in the bot's integration page by going to **Server Settings** > **Integrations**, and then **Manage** for this bot.`
         },
         {
           name: 'Links',
-          value: '[View Documentation](https://top.gg/)\n[Join Support Server](https://support.discord.com/)'
+          value: `[View Documentation](https://top.gg/)
+[Join Support Server](https://support.discord.com/)`
         }
             ]
     },
@@ -266,7 +389,13 @@ export const strings = {
         },
         {
           name: 'Links',
-          value: '[View Source Code](https://github.com/)\n[View Documentation](https://top.gg/)\n[View Terms of Service](https://github.com/KevinNovak/Discord-Bot-TypeScript-Template/blob/master/LEGAL.md#terms-of-service)\n[Vote for My Bot!](https://top.gg/)\n[Donate via PayPal](https://www.paypal.com/cgi-bin/webscr?cmd=_donations&business=EW389DYYSS4FC)\n[Join Support Server](https://support.discord.com/)\n[Invite My Bot to a Server!](https://discord.com/)'
+          value: `[View Source Code](https://github.com/)
+[View Documentation](https://top.gg/)
+[View Terms of Service](https://github.com/KevinNovak/Discord-Bot-TypeScript-Template/blob/master/LEGAL.md#terms-of-service)
+[Vote for My Bot!](https://top.gg/)
+[Donate via PayPal](https://www.paypal.com/cgi-bin/webscr?cmd=_donations&business=EW389DYYSS4FC)
+[Join Support Server](https://support.discord.com/)
+[Invite My Bot to a Server!](https://discord.com/)`
         },
         {
           name: 'Created With',
@@ -280,26 +409,38 @@ export const strings = {
       fields: [
         {
           name: 'Versions',
-          value: '**Node.js**: {NODE_VERSION}\n**TypeScript**: {TS_VERSION}\n**ECMAScript**: {ES_VERSION}\n**discord.js**: {DJS_VERSION}'
+          value: `**Node.js**: {NODE_VERSION}
+**TypeScript**: {TS_VERSION}
+**ECMAScript**: {ES_VERSION}
+**discord.js**: {DJS_VERSION}`
         },
         {
           name: 'Stats',
-          value: '**Shards**: {SHARD_COUNT}\n**Servers**: {SERVER_COUNT} ({SERVER_COUNT_PER_SHARD}/Shard)'
+          value: `**Shards**: {SHARD_COUNT}
+**Servers**: {SERVER_COUNT} ({SERVER_COUNT_PER_SHARD}/Shard)`
         },
         {
           name: 'Memory',
-          value: '**RSS**: {RSS_SIZE} ({RSS_SIZE_PER_SERVER}/Server)\n**Heap**: {HEAP_TOTAL_SIZE} ({HEAP_TOTAL_SIZE_PER_SERVER}/Server)\n**Used**: {HEAP_USED_SIZE} ({HEAP_USED_SIZE_PER_SERVER}/Server)'
+          value: `**RSS**: {RSS_SIZE} ({RSS_SIZE_PER_SERVER}/Server)
+**Heap**: {HEAP_TOTAL_SIZE} ({HEAP_TOTAL_SIZE_PER_SERVER}/Server)
+**Used**: {HEAP_USED_SIZE} ({HEAP_USED_SIZE_PER_SERVER}/Server)`
         },
         {
           name: 'IDs',
-          value: '**Hostname**: {HOSTNAME}\n**Shard ID**: {SHARD_ID}\n**Server ID**: {SERVER_ID}\n**Bot ID**: {BOT_ID}\n**User ID**: {USER_ID}'
+          value: `**Hostname**: {HOSTNAME}
+**Shard ID**: {SHARD_ID}
+**Server ID**: {SERVER_ID}
+**Bot ID**: {BOT_ID}
+**User ID**: {USER_ID}`
         }
       ]
     },
 
     seasonStatus: {
-      title: 'Season Status: {seasonId}',
-      description: '**Status:** {seasonStatus}\n**Players:** {playerCount}/{maxPlayers} (min: {minPlayers})\n**Games:** {gameCount}',
+      title: 'Status: {seasonId}',
+      description: `**Status:** {seasonStatus}
+**Players:** {playerCount}/{maxPlayers} (min: {minPlayers})
+**Games:** {gameCount}`,
       fields: [
         {
           name: 'Game Details',
@@ -314,23 +455,29 @@ export const strings = {
       fields: [
         {
           name: 'Turn Settings',
-          value: '**Pattern:** {TURN_PATTERN}\n**Claim Timeout:** {CLAIM_TIMEOUT}'
+          value: `**Pattern:** {TURN_PATTERN}
+**Claim Timeout:** {CLAIM_TIMEOUT}`
         },
         {
           name: 'Writing Settings', 
-          value: '**Timeout:** {WRITING_TIMEOUT}\n**Warning:** {WRITING_WARNING}'
+          value: `**Timeout:** {WRITING_TIMEOUT}
+**Warning:** {WRITING_WARNING}`
         },
         {
           name: 'Drawing Settings',
-          value: '**Timeout:** {DRAWING_TIMEOUT}\n**Warning:** {DRAWING_WARNING}'
+          value: `**Timeout:** {DRAWING_TIMEOUT}
+**Warning:** {DRAWING_WARNING}`
         },
         {
           name: 'Season Settings',
-          value: '**Open Duration:** {OPEN_DURATION}\n**Min Players:** {MIN_PLAYERS}\n**Max Players:** {MAX_PLAYERS}'
+          value: `**Open Duration:** {OPEN_DURATION}
+**Min Players:** {MIN_PLAYERS}
+**Max Players:** {MAX_PLAYERS}`
         },
         {
           name: 'Info',
-          value: '**Guild Default:** {IS_GUILD_DEFAULT}\n**Last Updated:** {LAST_UPDATED}'
+          value: `**Guild Default:** {IS_GUILD_DEFAULT}
+**Last Updated:** {LAST_UPDATED}`
         }
       ]
     },
@@ -357,7 +504,11 @@ export const strings = {
       },
       command: {
         title: 'Command Error',
-        description: 'An error occurred while executing the command.\n\n**Error Code:** {ERROR_CODE}\n**Guild ID:** {GUILD_ID}\n**Shard ID:** {SHARD_ID}'
+        description: `An error occurred while executing the command.
+
+**Error Code:** {ERROR_CODE}
+**Guild ID:** {GUILD_ID}
+**Shard ID:** {SHARD_ID}`
       }
     }
   },
