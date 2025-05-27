@@ -1,13 +1,14 @@
-import { PrismaClient, Player, Season, SeasonConfig, Prisma, Game } from '@prisma/client';
-import { nanoid } from 'nanoid'; // Use named import for nanoid
+import { Game, Player, Prisma, PrismaClient, Season, SeasonConfig } from '@prisma/client';
 import { humanId } from 'human-id'; // Import human-id
-import { MessageInstruction } from '../types/MessageInstruction.js'; // Added .js extension
-import { MessageHelpers } from '../messaging/MessageHelpers.js'; // Added MessageHelpers import
 import { DateTime } from 'luxon'; // Duration and DurationLikeObject might not be needed here anymore
-import { parseDuration, formatTimeRemaining } from '../utils/datetime.js'; // Import the new utility
-import { TurnService } from './TurnService.js'; // Added .js extension
-import { SchedulerService } from './SchedulerService.js'; // ADDED: Import SchedulerService
+import { nanoid } from 'nanoid'; // Use named import for nanoid
+
 import { GameService } from './GameService.js'; // ADDED: Import GameService
+import { SchedulerService } from './SchedulerService.js'; // ADDED: Import SchedulerService
+import { SeasonTurnService } from './SeasonTurnService.js'; // Added .js extension
+import { MessageHelpers } from '../messaging/MessageHelpers.js'; // Added MessageHelpers import
+import { MessageInstruction } from '../types/MessageInstruction.js'; // Added .js extension
+import { formatTimeRemaining, parseDuration } from '../utils/datetime.js'; // Import the new utility
 
 // Define a more specific return type for findSeasonById, including config and player count
 type SeasonDetails = Prisma.SeasonGetPayload<{
@@ -30,12 +31,12 @@ type PrismaTransactionClient = Omit<
 
 export class SeasonService {
   private prisma: PrismaClient;
-  private turnService: TurnService;
+  private turnService: SeasonTurnService;
   private schedulerService: SchedulerService; // ADDED: SchedulerService instance
   private gameService: GameService; // ADDED: GameService instance
 
-  // Inject PrismaClient instance, TurnService, SchedulerService, and GameService
-  constructor(prisma: PrismaClient, turnService: TurnService, schedulerService: SchedulerService, gameService: GameService) { // MODIFIED: Added gameService
+  // Inject PrismaClient instance, SeasonTurnService, SchedulerService, and GameService
+  constructor(prisma: PrismaClient, turnService: SeasonTurnService, schedulerService: SchedulerService, gameService: GameService) { // MODIFIED: Added gameService
     this.prisma = prisma;
     this.turnService = turnService;
     this.schedulerService = schedulerService; // ADDED: Assign schedulerService
@@ -499,7 +500,7 @@ export class SeasonService {
           // 'player' is directly available here.
           // 'game' is the created game.
           // 'game.seasonId' is available as it's a scalar field on Game.
-          return this.turnService.offerInitialTurn(game, player, game.seasonId, prismaClient);
+          return await this.turnService.offerInitialTurn(game, player, game.seasonId, prismaClient);
         }));
         
         turnOfferResults.forEach(result => {
@@ -543,7 +544,7 @@ export class SeasonService {
       return await activationLogic(tx);
     } else {
       console.log(`SeasonService.activateSeason: Starting new transaction for season ${seasonId}.`);
-      return await this.prisma.$transaction(async (newTx) => activationLogic(newTx));
+      return await this.prisma.$transaction(async (newTx) => await activationLogic(newTx));
     }
   }
 

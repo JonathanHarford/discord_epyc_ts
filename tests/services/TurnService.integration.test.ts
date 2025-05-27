@@ -1,14 +1,15 @@
-import { PrismaClient, Game, Player, Turn, Season, SeasonConfig } from '@prisma/client';
+import { Game, Player, PrismaClient, Season, SeasonConfig, Turn } from '@prisma/client';
 import { Client as DiscordClient } from 'discord.js';
-import { TurnService } from '../../src/services/TurnService.js';
 import { nanoid } from 'nanoid';
-import { describe, it, expect, beforeEach, afterAll, vi } from 'vitest';
+import { afterAll, beforeEach, describe, expect, it, vi } from 'vitest';
+
+import { SeasonTurnService } from '../../src/services/SeasonTurnService.js';
 
 // Use a separate Prisma client for tests to manage lifecycle
 const prisma = new PrismaClient();
 
-describe('TurnService Integration Tests', () => {
-  let turnService: TurnService;
+describe('SeasonTurnService Integration Tests', () => {
+  let turnService: SeasonTurnService;
   let mockDiscordClient: any;
   let testPlayer: Player;
   let testGame: Game;
@@ -39,8 +40,8 @@ describe('TurnService Integration Tests', () => {
       },
     };
 
-    // Create actual TurnService
-    turnService = new TurnService(prisma, mockDiscordClient as unknown as DiscordClient);
+    // Create actual SeasonTurnService
+    turnService = new SeasonTurnService(prisma, mockDiscordClient as unknown as DiscordClient);
 
     // Create test data
     testPlayer = await prisma.player.create({
@@ -828,7 +829,7 @@ describe('TurnService Integration Tests', () => {
 });
 
 describe('Game Completion Integration Tests', () => {
-  let turnService: TurnService;
+  let turnService: SeasonTurnService;
   let mockDiscordClient: any;
   let testPlayers: Player[];
   let testGame: Game;
@@ -857,8 +858,8 @@ describe('Game Completion Integration Tests', () => {
       },
     };
 
-    // Create actual TurnService
-    turnService = new TurnService(prisma, mockDiscordClient as unknown as DiscordClient);
+    // Create actual SeasonTurnService
+    turnService = new SeasonTurnService(prisma, mockDiscordClient as unknown as DiscordClient);
 
     // Create test players
     testPlayers = await Promise.all([
@@ -1223,7 +1224,7 @@ describe('Game Completion Integration Tests', () => {
         )
       );
 
-      // Submit all turns in the test game using TurnService to trigger game completion check
+      // Submit all turns in the test game using SeasonTurnService to trigger game completion check
       for (let i = 0; i < testGameTurns.length; i++) {
         const turn = testGameTurns[i];
         const player = testPlayers[i];
@@ -1260,8 +1261,8 @@ describe('Game Completion Integration Tests', () => {
   });
 });
 
-describe('TurnService Season Completion Integration Tests', () => {
-  let turnService: TurnService;
+describe('SeasonTurnService Season Completion Integration Tests', () => {
+  let turnService: SeasonTurnService;
   let testPlayers: Player[];
   let testSeason: Season;
   let testGames: Game[];
@@ -1353,8 +1354,8 @@ describe('TurnService Season Completion Integration Tests', () => {
       },
     };
 
-    // Initialize TurnService
-    turnService = new TurnService(prisma, mockDiscordClient as unknown as DiscordClient);
+    // Initialize SeasonTurnService
+    turnService = new SeasonTurnService(prisma, mockDiscordClient as unknown as DiscordClient);
   });
 
   afterAll(async () => {

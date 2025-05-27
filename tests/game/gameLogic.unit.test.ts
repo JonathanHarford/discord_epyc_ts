@@ -1,14 +1,16 @@
-import { describe, it, expect, beforeEach, afterAll, vi } from 'vitest';
-import { PrismaClient, Player, Turn, Game, Season, PlayersOnSeasons, SeasonConfig } from '@prisma/client';
-import { 
-  selectNextPlayerPure, 
-  checkGameCompletionPure,
-  activateSeasonPure,
-  checkSeasonCompletionPure,
-  applyShouldRule1BalanceTurnTypes,
-  applyShouldRule2FollowingPattern
-} from '../../src/game/pureGameLogic.js';
+import { Game, Player, PlayersOnSeasons, PrismaClient, Season, SeasonConfig, Turn } from '@prisma/client';
 import { nanoid } from 'nanoid';
+import { afterAll, beforeEach, describe, expect, it, vi } from 'vitest';
+
+import { 
+  activateSeasonPure, 
+  applyShouldRule1BalanceTurnTypes,
+  applyShouldRule2FollowingPattern,
+  checkGameCompletionPure,
+  checkSeasonCompletionPure,
+  selectNextPlayerPure
+} from '../../src/game/pureGameLogic.js';
+
 
 // Mock logger
 vi.mock('../../src/services/logger', () => ({

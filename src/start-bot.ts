@@ -1,10 +1,10 @@
 
 import { Options, Partials } from 'discord.js';
-import { createRequire } from 'node:module';
 import schedule from 'node-schedule';
+import { createRequire } from 'node:module';
 
 import { Button } from './buttons/index.js';
-import { DevCommand, HelpCommand, InfoCommand, AdminCommand } from './commands/chat/index.js';
+import { AdminCommand, DevCommand, HelpCommand, InfoCommand } from './commands/chat/index.js';
 import { SeasonCommand } from './commands/chat/season-command.js';
 import { Command } from './commands/index.js';
 import { ViewDateSent } from './commands/message/index.js';
@@ -21,6 +21,7 @@ import {
 } from './events/index.js';
 import { CustomClient } from './extensions/index.js';
 import { Job } from './jobs/index.js';
+import prisma from './lib/prisma.js';
 import { Bot } from './models/bot.js';
 import { Reaction } from './reactions/index.js';
 import {
@@ -31,11 +32,10 @@ import {
     PlayerService,
     SchedulerService,
     SeasonService,
-    TurnService,
+    SeasonTurnService,
     TurnOfferingService,
 } from './services/index.js';
 import { Trigger } from './triggers/index.js';
-import prisma from './lib/prisma.js';
 
 const require = createRequire(import.meta.url);
 let Config = require('../config/config.json');
@@ -60,7 +60,7 @@ async function start(): Promise<void> {
     // Service instances with proper dependency injection
     const schedulerService = new SchedulerService(prisma);
     const gameService = new GameService(prisma);
-    const turnService = new TurnService(prisma, client, schedulerService);
+    const turnService = new SeasonTurnService(prisma, client, schedulerService);
     const seasonService = new SeasonService(prisma, turnService, schedulerService, gameService);
     const turnOfferingService = new TurnOfferingService(prisma, client, turnService, schedulerService);
     

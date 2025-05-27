@@ -1,13 +1,14 @@
+import { PrismaClient } from '@prisma/client';
 import { ChatInputCommandInteraction, PermissionsString } from 'discord.js';
-import { Command, CommandDeferType } from '../command.js';
-import { EventData } from '../../models/internal-models.js';
-import { SeasonService, NewSeasonOptions } from '../../services/SeasonService.js';
-import { MessageInstruction } from '../../types/MessageInstruction.js';
-import { SimpleMessage } from '../../messaging/SimpleMessage.js';
+
+import { seasonCommandData } from './season-command-data.js';
 import { strings } from '../../lang/strings.js';
 import prisma from '../../lib/prisma.js';
-import { PrismaClient } from '@prisma/client';
-import { seasonCommandData } from './season-command-data.js';
+import { SimpleMessage } from '../../messaging/SimpleMessage.js';
+import { EventData } from '../../models/internal-models.js';
+import { NewSeasonOptions, SeasonService } from '../../services/SeasonService.js';
+import { MessageInstruction } from '../../types/MessageInstruction.js';
+import { Command, CommandDeferType } from '../command.js';
 
 export class SeasonCommand implements Command {
     public names = [seasonCommandData.name];
@@ -395,7 +396,7 @@ export class SeasonCommand implements Command {
                 await SimpleMessage.sendError(interaction, errorMessage, instruction.data);
             }
         } catch (error) {
-            console.error("Critical error in /season new command processing:", error);
+            console.error('Critical error in /season new command processing:', error);
             await SimpleMessage.sendError(interaction, strings.messages.common.errorCriticalCommand);
         }
     }

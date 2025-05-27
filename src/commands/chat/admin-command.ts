@@ -1,19 +1,20 @@
-import { ChatInputCommandInteraction, PermissionsString, SlashCommandBuilder } from 'discord.js';
+import { PrismaClient } from '@prisma/client';
+import { ChatInputCommandInteraction, PermissionsString } from 'discord.js';
 import { createRequire } from 'node:module';
 
-import { EventData } from '../../models/internal-models.js';
-import { Command, CommandDeferType } from '../index.js';
-import { SimpleMessage } from '../../messaging/SimpleMessage.js';
-import { strings } from '../../lang/strings.js';
-import { SeasonService } from '../../services/SeasonService.js';
-import { TurnService } from '../../services/TurnService.js';
-import { SchedulerService } from '../../services/SchedulerService.js';
-import { GameService } from '../../services/GameService.js';
-import { PlayerService } from '../../services/PlayerService.js';
-import { ConfigService } from '../../services/ConfigService.js';
-import { MessageInstruction } from '../../types/MessageInstruction.js';
+import { interpolate, strings } from '../../lang/strings.js';
 import prisma from '../../lib/prisma.js';
-import { PrismaClient } from '@prisma/client';
+import { SimpleMessage } from '../../messaging/SimpleMessage.js';
+import { EventData } from '../../models/internal-models.js';
+import { ConfigService } from '../../services/ConfigService.js';
+import { GameService } from '../../services/GameService.js';
+import { OnDemandGameService } from '../../services/OnDemandGameService.js';
+import { PlayerService } from '../../services/PlayerService.js';
+import { SchedulerService } from '../../services/SchedulerService.js';
+import { SeasonService } from '../../services/SeasonService.js';
+import { SeasonTurnService } from '../../services/SeasonTurnService.js';
+import { MessageInstruction } from '../../types/MessageInstruction.js';
+import { Command, CommandDeferType } from '../index.js';
 
 const require = createRequire(import.meta.url);
 let Config = require('../../../config/config.json');
@@ -26,15 +27,17 @@ export class AdminCommand implements Command {
     private seasonService: SeasonService;
     private playerService: PlayerService;
     private configService: ConfigService;
+    private onDemandGameService: OnDemandGameService;
     private prisma: PrismaClient;
 
     constructor() {
-        // Initialize services - TurnService needs DiscordClient which we'll get from the interaction
+        // Initialize services - SeasonTurnService needs DiscordClient which we'll get from the interaction
         // For now, we'll initialize SeasonService in the execute method where we have access to the client
         this.prisma = prisma;
         this.seasonService = null as any; // Temporary, will be initialized in execute
         this.playerService = new PlayerService(prisma);
         this.configService = new ConfigService(prisma);
+        this.onDemandGameService = null as any; // Temporary, will be initialized in execute
     }
 
     public async execute(intr: ChatInputCommandInteraction, data: EventData): Promise<void> {
@@ -46,10 +49,11 @@ export class AdminCommand implements Command {
 
         // Initialize services with the Discord client from the interaction
         if (!this.seasonService) {
-            const turnService = new TurnService(prisma, intr.client);
+            const turnService = new SeasonTurnService(prisma, intr.client);
             const schedulerService = new SchedulerService(prisma);
             const gameService = new GameService(prisma);
             this.seasonService = new SeasonService(prisma, turnService, schedulerService, gameService);
+            this.onDemandGameService = new OnDemandGameService(prisma, intr.client);
         }
 
         const subcommandGroup = intr.options.getSubcommandGroup();
@@ -61,6 +65,10 @@ export class AdminCommand implements Command {
             }
             case 'season': {
                 await this.handleSeasonCommand(intr, data);
+                break;
+            }
+            case 'game': {
+                await this.handleGameCommand(intr, data);
                 break;
             }
             default: {
@@ -97,24 +105,24 @@ export class AdminCommand implements Command {
         }
     }
 
-    private async handlePlayerCommand(intr: ChatInputCommandInteraction, data: EventData): Promise<void> {
+    private async handleGameCommand(intr: ChatInputCommandInteraction, _data: EventData): Promise<void> {
         const subcommand = intr.options.getSubcommand();
         
         switch (subcommand) {
+            case 'config': {
+                await this.handleGameConfigCommand(intr);
+                break;
+            }
             case 'list': {
-                await this.handlePlayerListCommand(intr, data);
+                await this.handleGameListCommand(intr);
                 break;
             }
             case 'show': {
-                await this.handlePlayerShowCommand(intr, data);
+                await this.handleGameShowCommand(intr);
                 break;
             }
-            case 'ban': {
-                await this.handleBanCommand(intr, data);
-                break;
-            }
-            case 'unban': {
-                await this.handleUnbanCommand(intr, data);
+            case 'kill': {
+                await this.handleGameKillCommand(intr);
                 break;
             }
             default: {
@@ -124,7 +132,34 @@ export class AdminCommand implements Command {
         }
     }
 
-    private async handleBanCommand(intr: ChatInputCommandInteraction, data: EventData): Promise<void> {
+    private async handlePlayerCommand(intr: ChatInputCommandInteraction, _data: EventData): Promise<void> {
+        const subcommand = intr.options.getSubcommand();
+        
+        switch (subcommand) {
+            case 'list': {
+                await this.handlePlayerListCommand(intr, _data);
+                break;
+            }
+            case 'show': {
+                await this.handlePlayerShowCommand(intr, _data);
+                break;
+            }
+            case 'ban': {
+                await this.handleBanCommand(intr, _data);
+                break;
+            }
+            case 'unban': {
+                await this.handleUnbanCommand(intr, _data);
+                break;
+            }
+            default: {
+                await SimpleMessage.sendEmbed(intr, strings.embeds.errorEmbeds.notImplemented, {}, true, 'warning');
+                return;
+            }
+        }
+    }
+
+    private async handleBanCommand(intr: ChatInputCommandInteraction, _data: EventData): Promise<void> {
         const targetUser = intr.options.getUser('user', true);
         const reason = intr.options.getString('reason');
 
@@ -157,7 +192,7 @@ export class AdminCommand implements Command {
         }
     }
 
-    private async handleUnbanCommand(intr: ChatInputCommandInteraction, data: EventData): Promise<void> {
+    private async handleUnbanCommand(intr: ChatInputCommandInteraction, _data: EventData): Promise<void> {
         const targetUser = intr.options.getUser('user', true);
 
         try {
@@ -188,7 +223,7 @@ export class AdminCommand implements Command {
         }
     }
 
-    private async handlePlayerListCommand(intr: ChatInputCommandInteraction, data: EventData): Promise<void> {
+    private async handlePlayerListCommand(intr: ChatInputCommandInteraction, _data: EventData): Promise<void> {
         const seasonFilter = intr.options.getString('season');
         const bannedFilter = intr.options.getBoolean('banned');
 
@@ -215,7 +250,7 @@ export class AdminCommand implements Command {
             const player = await this.playerService.getPlayerByDiscordId(user.id);
             
             if (!player) {
-                await SimpleMessage.sendError(intr, "Player not found.", {
+                await SimpleMessage.sendError(intr, 'Player not found.', {
                     discordUserId: user.id,
                     username: user.username
                 }, true);
@@ -340,7 +375,7 @@ export class AdminCommand implements Command {
     private async handleSeasonConfigCommand(intr: ChatInputCommandInteraction, data: EventData): Promise<void> {
         const guildId = intr.guild?.id;
         if (!guildId) {
-            await SimpleMessage.sendError(intr, "This command can only be used in a server.", {}, true);
+            await SimpleMessage.sendError(intr, 'This command can only be used in a server.', {}, true);
             return;
         }
         
@@ -391,7 +426,7 @@ export class AdminCommand implements Command {
             
         } catch (error) {
             console.error('Error in admin season config command:', error);
-            await SimpleMessage.sendError(intr, "An error occurred while managing the server's default season configuration.", {}, true);
+            await SimpleMessage.sendError(intr, 'An error occurred while managing the server\'s default season configuration.', {}, true);
         }
     }
     
@@ -493,22 +528,262 @@ export class AdminCommand implements Command {
     }
 
     private getStringFromKey(key: string, data?: Record<string, unknown>): string {
-        // Try to find string in the strings object
-        const parts = key.split('.');
-        let current: unknown = strings;
+        // Navigate through the strings object using the key path
+        const keyParts = key.split('.');
+        let value: unknown = strings;
         
-        for (const part of parts) {
-            if (current && typeof current === 'object' && part in current) {
-                current = current[part];
+        for (const part of keyParts) {
+            if (value && typeof value === 'object' && part in value) {
+                value = value[part];
             } else {
-                console.warn(`String key not found: ${key}`);
-                return `Missing string: ${key}`;
+                throw new Error(`String key not found: ${key}`);
             }
         }
         
-        const result = typeof current === 'string' ? current : JSON.stringify(current);
-        return data ? result.replace(/\{(\w+)\}/g, (match, varKey) => {
-            return data[varKey] !== undefined ? String(data[varKey]) : match;
-        }) : result;
+        if (typeof value !== 'string') {
+            throw new Error(`String key does not resolve to a string: ${key}`);
+        }
+        
+        return data ? interpolate(value, data) : value;
+    }
+
+    // Game admin command handlers
+    private async handleGameConfigCommand(intr: ChatInputCommandInteraction): Promise<void> {
+        try {
+            const guildId = intr.guildId;
+            if (!guildId) {
+                await SimpleMessage.sendError(intr, 'This command can only be used in a server.', {}, true);
+                return;
+            }
+
+            // Get all the config options from the interaction
+            const updates: any = {};
+            const turnPattern = intr.options.getString('turn_pattern');
+            const writingTimeout = intr.options.getString('writing_timeout');
+            const writingWarning = intr.options.getString('writing_warning');
+            const drawingTimeout = intr.options.getString('drawing_timeout');
+            const drawingWarning = intr.options.getString('drawing_warning');
+            const staleTimeout = intr.options.getString('stale_timeout');
+            const minTurns = intr.options.getInteger('min_turns');
+            const maxTurns = intr.options.getInteger('max_turns');
+            const returns = intr.options.getString('returns');
+            const testMode = intr.options.getBoolean('test_mode');
+
+            if (turnPattern) updates.turnPattern = turnPattern;
+            if (writingTimeout) updates.writingTimeout = writingTimeout;
+            if (writingWarning) updates.writingWarning = writingWarning;
+            if (drawingTimeout) updates.drawingTimeout = drawingTimeout;
+            if (drawingWarning) updates.drawingWarning = drawingWarning;
+            if (staleTimeout) updates.staleTimeout = staleTimeout;
+            if (minTurns !== null) updates.minTurns = minTurns;
+            if (maxTurns !== null) updates.maxTurns = maxTurns;
+            if (returns) updates.returns = returns;
+            if (testMode !== null) updates.testMode = testMode;
+
+            // If no updates provided, show current config
+            if (Object.keys(updates).length === 0) {
+                const config = await this.prisma.gameConfig.findUnique({
+                    where: { isGuildDefaultFor: guildId }
+                });
+
+                if (!config) {
+                    await SimpleMessage.sendInfo(intr, 'No game configuration found for this server. Default values will be used.', {}, true);
+                    return;
+                }
+
+                const configDisplay = this.formatGameConfigForDisplay(config);
+                await SimpleMessage.sendInfo(intr, `**Game Configuration for this server:**\n\n${configDisplay}`, {}, true);
+                return;
+            }
+
+            // Update the config
+            let guildConfig = await this.prisma.gameConfig.findUnique({
+                where: { isGuildDefaultFor: guildId }
+            });
+
+            if (!guildConfig) {
+                // Create new guild default config
+                guildConfig = await this.prisma.gameConfig.create({
+                    data: {
+                        isGuildDefaultFor: guildId,
+                        ...updates
+                    }
+                });
+            } else {
+                // Update existing config
+                guildConfig = await this.prisma.gameConfig.update({
+                    where: { id: guildConfig.id },
+                    data: updates
+                });
+            }
+
+            await SimpleMessage.sendSuccess(intr, `Game configuration updated successfully!\n**Updated fields:** ${Object.keys(updates).join(', ')}`, {}, true);
+
+        } catch (error) {
+            console.error('Error in admin game config command:', error);
+            await SimpleMessage.sendError(intr, 'An error occurred while updating the game configuration.', {}, true);
+        }
+    }
+
+    private async handleGameListCommand(intr: ChatInputCommandInteraction): Promise<void> {
+        try {
+            const guildId = intr.guildId;
+            if (!guildId) {
+                await SimpleMessage.sendError(intr, 'This command can only be used in a server.', {}, true);
+                return;
+            }
+
+            const statusFilter = intr.options.getString('status');
+            const limit = intr.options.getInteger('limit') || 10;
+
+            const result = await this.onDemandGameService.listAllGames(guildId, statusFilter || undefined);
+            
+            if (!result.success) {
+                await SimpleMessage.sendError(intr, `Failed to list games: ${result.error}`, {}, true);
+                return;
+            }
+
+            const games = result.games || [];
+            
+            if (games.length === 0) {
+                const filterText = statusFilter ? ` with status "${statusFilter}"` : '';
+                await SimpleMessage.sendInfo(intr, `No games found${filterText}.`, {}, true);
+                return;
+            }
+
+            // Limit the results
+            const limitedGames = games.slice(0, limit);
+            
+            let gamesList = limitedGames.map(game => {
+                const statusEmoji = game.status === 'ACTIVE' ? '🟢' : game.status === 'COMPLETED' ? '✅' : '🔴';
+                const turnCount = game.turns?.length || 0;
+                const lastActivity = game.lastActivityAt ? new Date(game.lastActivityAt).toLocaleDateString() : 'Unknown';
+                return `${statusEmoji} **${game.id}** (${game.status})\n` +
+                       `   Creator: ${game.creator?.name || 'Unknown'}\n` +
+                       `   Turns: ${turnCount} | Last Activity: ${lastActivity}`;
+            }).join('\n\n');
+
+            const filterText = statusFilter ? ` (Status: ${statusFilter})` : '';
+            const showingText = games.length > limit ? `\nShowing ${limit} of ${games.length} games.` : '';
+            
+            await SimpleMessage.sendInfo(intr, `**Games in this server${filterText}:**\n\n${gamesList}${showingText}`, {}, true);
+
+        } catch (error) {
+            console.error('Error in admin game list command:', error);
+            await SimpleMessage.sendError(intr, 'An error occurred while listing games.', {}, true);
+        }
+    }
+
+    private async handleGameShowCommand(intr: ChatInputCommandInteraction): Promise<void> {
+        try {
+            const gameId = intr.options.getString('id', true);
+
+            const game = await this.onDemandGameService.getGameDetails(gameId);
+            
+            if (!game) {
+                await SimpleMessage.sendError(intr, `Game with ID "${gameId}" not found.`, {}, true);
+                return;
+            }
+
+            // Check if the game belongs to this guild
+            if (game.guildId !== intr.guildId) {
+                await SimpleMessage.sendError(intr, `Game "${gameId}" does not belong to this server.`, {}, true);
+                return;
+            }
+
+            const statusEmoji = game.status === 'ACTIVE' ? '🟢' : game.status === 'COMPLETED' ? '✅' : '🔴';
+            const createdAt = new Date(game.createdAt).toLocaleString();
+            const lastActivity = game.lastActivityAt ? new Date(game.lastActivityAt).toLocaleString() : 'Unknown';
+            const turnCount = game.turns?.length || 0;
+            
+            // Get turn details
+            const activeTurns = game.turns?.filter(t => t.status === 'ACTIVE') || [];
+            const completedTurns = game.turns?.filter(t => t.status === 'COMPLETED') || [];
+            const availableTurns = game.turns?.filter(t => t.status === 'AVAILABLE') || [];
+
+            let gameDetails = `${statusEmoji} **Game ${gameId}**\n\n`;
+            gameDetails += `**Status:** ${game.status}\n`;
+            gameDetails += `**Creator:** ${game.creator?.name || 'Unknown'}\n`;
+            gameDetails += `**Created:** ${createdAt}\n`;
+            gameDetails += `**Last Activity:** ${lastActivity}\n\n`;
+            gameDetails += `**Turn Summary:**\n`;
+            gameDetails += `• Total Turns: ${turnCount}\n`;
+            gameDetails += `• Active: ${activeTurns.length}\n`;
+            gameDetails += `• Completed: ${completedTurns.length}\n`;
+            gameDetails += `• Available: ${availableTurns.length}\n\n`;
+            
+            if (game.config) {
+                gameDetails += `**Configuration:**\n`;
+                gameDetails += `• Turn Pattern: ${game.config.turnPattern}\n`;
+                gameDetails += `• Min/Max Turns: ${game.config.minTurns}/${game.config.maxTurns || 'unlimited'}\n`;
+                gameDetails += `• Writing Timeout: ${game.config.writingTimeout}\n`;
+                gameDetails += `• Drawing Timeout: ${game.config.drawingTimeout}\n`;
+                gameDetails += `• Stale Timeout: ${game.config.staleTimeout}\n`;
+            }
+
+            await SimpleMessage.sendInfo(intr, gameDetails, {}, true);
+
+        } catch (error) {
+            console.error('Error in admin game show command:', error);
+            await SimpleMessage.sendError(intr, 'An error occurred while retrieving game details.', {}, true);
+        }
+    }
+
+    private async handleGameKillCommand(intr: ChatInputCommandInteraction): Promise<void> {
+        try {
+            const gameId = intr.options.getString('id', true);
+            const reason = intr.options.getString('reason');
+
+            // First, get the game to verify it exists and belongs to this guild
+            const game = await this.onDemandGameService.getGameDetails(gameId);
+            
+            if (!game) {
+                await SimpleMessage.sendError(intr, `Game with ID "${gameId}" not found.`, {}, true);
+                return;
+            }
+
+            // Check if the game belongs to this guild
+            if (game.guildId !== intr.guildId) {
+                await SimpleMessage.sendError(intr, `Game "${gameId}" does not belong to this server.`, {}, true);
+                return;
+            }
+
+            // Check if game is already terminated
+            if (game.status === 'TERMINATED') {
+                await SimpleMessage.sendError(intr, `Game "${gameId}" is already terminated.`, {}, true);
+                return;
+            }
+
+            // Terminate the game
+            const result = await this.onDemandGameService.terminateGame(gameId);
+            
+            if (!result.success) {
+                await SimpleMessage.sendError(intr, `Failed to terminate game: ${result.error}`, {}, true);
+                return;
+            }
+
+            const reasonText = reason ? `\n**Reason:** ${reason}` : '';
+            await SimpleMessage.sendSuccess(intr, `Game **${gameId}** has been successfully terminated.\n**Previous Status:** ${game.status}${reasonText}`, {}, true);
+
+        } catch (error) {
+            console.error('Error in admin game kill command:', error);
+            await SimpleMessage.sendError(intr, 'An error occurred while terminating the game.', {}, true);
+        }
+    }
+
+    private formatGameConfigForDisplay(config: any): string {
+        return `**Turn Settings:**\n` +
+               `• Turn Pattern: ${config.turnPattern}\n` +
+               `• Min Turns: ${config.minTurns}\n` +
+               `• Max Turns: ${config.maxTurns || 'unlimited'}\n\n` +
+               `**Timeouts:**\n` +
+               `• Writing Timeout: ${config.writingTimeout}\n` +
+               `• Writing Warning: ${config.writingWarning}\n` +
+               `• Drawing Timeout: ${config.drawingTimeout}\n` +
+               `• Drawing Warning: ${config.drawingWarning}\n` +
+               `• Stale Timeout: ${config.staleTimeout}\n\n` +
+               `**Game Settings:**\n` +
+               `• Returns Policy: ${config.returns}\n` +
+               `• Test Mode: ${config.testMode ? 'Enabled' : 'Disabled'}`;
     }
 } 

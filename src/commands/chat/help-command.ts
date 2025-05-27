@@ -1,11 +1,11 @@
 import { ChatInputCommandInteraction, PermissionsString } from 'discord.js';
 import { RateLimiter } from 'discord.js-rate-limiter';
 
+import { strings } from '../../lang/strings.js';
+import { SimpleMessage } from '../../messaging/SimpleMessage.js';
 import { EventData } from '../../models/internal-models.js';
 import { InteractionUtils } from '../../utils/index.js';
 import { Command, CommandDeferType } from '../index.js';
-import { SimpleMessage } from '../../messaging/SimpleMessage.js';
-import { strings } from '../../lang/strings.js';
 
 export class HelpCommand implements Command {
     public names = [strings.commands.help];

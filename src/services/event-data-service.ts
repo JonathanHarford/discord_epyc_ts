@@ -2,9 +2,9 @@ import {
     Channel,
     CommandInteractionOptionResolver,
     Guild,
+    Locale,
     PartialDMChannel,
     User,
-    Locale,
 } from 'discord.js';
 
 import { EventData } from '../models/internal-models.js';

@@ -1,9 +1,10 @@
-import { PrismaClient, Player, Turn } from '@prisma/client';
+import { Player, PrismaClient, Turn } from '@prisma/client';
 import { Client as DiscordClient } from 'discord.js';
+
+import { interpolate, strings } from '../lang/strings.js';
 import { Logger } from '../services/index.js';
-import { TurnService } from '../services/TurnService.js';
 import { TurnOfferingService } from '../services/TurnOfferingService.js';
-import { strings, interpolate } from '../lang/strings.js';
+import { TurnTimeoutService } from '../services/interfaces/TurnTimeoutService.js';
 
 /**
  * Handler for submission timeout events.
@@ -13,13 +14,13 @@ import { strings, interpolate } from '../lang/strings.js';
 export class SubmissionTimeoutHandler {
     private prisma: PrismaClient;
     private discordClient: DiscordClient;
-    private turnService: TurnService;
+    private turnService: TurnTimeoutService;
     private turnOfferingService: TurnOfferingService;
 
     constructor(
         prisma: PrismaClient,
         discordClient: DiscordClient,
-        turnService: TurnService,
+        turnService: TurnTimeoutService,
         turnOfferingService: TurnOfferingService
     ) {
         this.prisma = prisma;
@@ -70,7 +71,7 @@ export class SubmissionTimeoutHandler {
                 return { success: false, error };
             }
 
-            // 2. Skip the turn using TurnService
+            // 2. Skip the turn using SeasonTurnService
             Logger.info(`SubmissionTimeoutHandler: Skipping turn ${turnId} due to submission timeout`);
             const skipResult = await this.turnService.skipTurn(turnId);
 

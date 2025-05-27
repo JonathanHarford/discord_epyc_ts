@@ -1,7 +1,9 @@
-import { describe, it, expect, beforeEach, afterAll, vi } from 'vitest';
 import { PrismaClient, SeasonConfig } from '@prisma/client';
-import { ConfigService, ConfigUpdateOptions } from '../../src/services/ConfigService.js';
 import { nanoid } from 'nanoid';
+import { afterAll, beforeEach, describe, expect, it, vi } from 'vitest';
+
+import { ConfigService, ConfigUpdateOptions } from '../../src/services/ConfigService.js';
+
 
 describe('ConfigService Unit Tests', () => {
   let prisma: PrismaClient;

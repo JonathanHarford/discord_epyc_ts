@@ -1,7 +1,8 @@
-import { PrismaClient, Game, Season, Player, Turn, Prisma } from '@prisma/client';
-import { nanoid } from 'nanoid';
-import { checkGameCompletionPure } from '../game/pureGameLogic.js';
 import type { CheckGameCompletionInput } from '../game/types.js';
+import { Game, Player, Prisma, PrismaClient, Season, Turn } from '@prisma/client';
+import { nanoid } from 'nanoid';
+
+import { checkGameCompletionPure } from '../game/pureGameLogic.js';
 
 // Extended Game type that includes related data
 export interface GameWithDetails extends Game {
@@ -76,7 +77,7 @@ export class GameService {
 
       // Create one game per player
       const gameCreationPromises = season.players.map(async (_playerOnSeason, index) => {
-        return prismaClient.game.create({
+        return await prismaClient.game.create({
           data: {
             id: nanoid(),
             status: 'SETUP', // Games start in SETUP, will be activated individually

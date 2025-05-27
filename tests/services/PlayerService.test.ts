@@ -1,7 +1,9 @@
-import { describe, it, expect, beforeEach, afterAll, vi } from 'vitest';
-import { PrismaClient, Player } from '@prisma/client';
-import { PlayerService } from '../../src/services/PlayerService.js';
+import { Player, PrismaClient } from '@prisma/client';
 import { nanoid } from 'nanoid';
+import { afterAll, beforeEach, describe, expect, it, vi } from 'vitest';
+
+import { PlayerService } from '../../src/services/PlayerService.js';
+
 
 describe('PlayerService Unit Tests', () => {
   let prisma: PrismaClient;

@@ -1,23 +1,24 @@
 import { 
-  ChatInputCommandInteraction, 
-  UserContextMenuCommandInteraction,
-  MessageContextMenuCommandInteraction,
+  BaseMessageOptions, 
+  ChatInputCommandInteraction,
+  Client,
+  CommandInteraction, 
   EmbedBuilder, 
-  User, 
-  TextChannel, 
-  BaseMessageOptions,
+  InteractionEditReplyOptions, 
   InteractionReplyOptions,
-  InteractionEditReplyOptions,
+  MessageContextMenuCommandInteraction,
   MessageCreateOptions,
-  CommandInteraction,
-  Client
+  TextChannel,
+  User,
+  UserContextMenuCommandInteraction
 } from 'discord.js';
-import { MessageInstruction } from '../types/MessageInstruction.js';
+
 import { SimpleMessage } from './SimpleMessage.js';
-import { strings, interpolate } from '../lang/strings.js';
-import { MessageUtils } from '../utils/message-utils.js';
 import { ErrorEventBus, ErrorEventType } from '../events/error-event-bus.js';
-import { ErrorHandler, ErrorType, ErrorSeverity } from '../utils/error-handler.js';
+import { interpolate, strings } from '../lang/strings.js';
+import { MessageInstruction } from '../types/MessageInstruction.js';
+import { ErrorHandler, ErrorSeverity, ErrorType } from '../utils/error-handler.js';
+import { MessageUtils } from '../utils/message-utils.js';
 
 /**
  * Platform-agnostic message adapter that converts MessageInstruction objects
@@ -96,7 +97,7 @@ export class MessageAdapter {
         );
         
         // Last resort: create a basic error embed with generic message
-        const embed = this.createEmbed(instruction, "An error occurred while processing your request. Please try again later.");
+        const embed = this.createEmbed(instruction, 'An error occurred while processing your request. Please try again later.');
         return { embeds: [embed] };
       }
     }

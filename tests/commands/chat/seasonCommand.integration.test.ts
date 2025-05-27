@@ -1,13 +1,14 @@
-import { describe, it, expect, beforeEach, afterEach, vi, afterAll, beforeAll } from 'vitest';
-import { ChatInputCommandInteraction, Locale } from 'discord.js';
-import { SeasonCommand } from '../../../src/commands/chat/season-command.js';
 import { PrismaClient } from '@prisma/client';
+import { ChatInputCommandInteraction, Locale } from 'discord.js';
 import { nanoid } from 'nanoid';
+import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it, vi } from 'vitest';
+
+import { SeasonCommand } from '../../../src/commands/chat/season-command.js';
 import { EventData } from '../../../src/models/internal-models.js';
-import { SeasonService } from '../../../src/services/SeasonService.js';
-import { TurnService } from '../../../src/services/TurnService.js';
-import { SchedulerService } from '../../../src/services/SchedulerService.js';
 import { GameService } from '../../../src/services/GameService.js';
+import { SchedulerService } from '../../../src/services/SchedulerService.js';
+import { SeasonService } from '../../../src/services/SeasonService.js';
+import { SeasonTurnService } from '../../../src/services/SeasonTurnService.js';
 
 // Don't mock SimpleMessage - let it call the real interaction methods
 // This allows us to test that the interaction methods are called correctly
@@ -16,7 +17,7 @@ describe('SeasonCommand - Integration Tests', () => {
   let interaction: any; // Using any type for the mock interaction
   let prisma: PrismaClient;
   let seasonService: SeasonService;
-  let turnService: TurnService;
+  let turnService: SeasonTurnService;
   let schedulerService: SchedulerService;
   let gameService: GameService;
   let commandInstance: SeasonCommand;
@@ -38,7 +39,7 @@ describe('SeasonCommand - Integration Tests', () => {
     
     // Create real service instances
     gameService = new GameService(prisma);
-    turnService = new TurnService(prisma, {} as any); // Mock Discord client
+    turnService = new SeasonTurnService(prisma, {} as any); // Mock Discord client
     seasonService = new SeasonService(prisma, turnService, schedulerService, gameService);
     commandInstance = new SeasonCommand(prisma, seasonService);
     mockEventData = new EventData(Locale.EnglishUS, Locale.EnglishUS);

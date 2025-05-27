@@ -1,9 +1,9 @@
-import { Message, User, Client, DMChannel, TextChannel } from 'discord.js';
+import { Client, DMChannel, Message, TextChannel, User } from 'discord.js';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 import { DirectMessageHandler } from '../../src/events/direct-message-handler.js';
-import { MessageHandler } from '../../src/events/message-handler.js';
 import { TriggerHandler } from '../../src/events/index.js';
+import { MessageHandler } from '../../src/events/message-handler.js';
 
 describe('MessageHandler', () => {
     let handler: MessageHandler;

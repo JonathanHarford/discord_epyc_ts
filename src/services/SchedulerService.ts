@@ -1,10 +1,13 @@
 import { PrismaClient } from '@prisma/client';
 import { Client as DiscordClient } from 'discord.js';
 import * as schedule from 'node-schedule';
+
 import { Logger } from './index.js';
-import { TurnService } from './TurnService.js';
-import { TurnOfferingService } from './TurnOfferingService.js';
 import { SeasonService } from './SeasonService.js';
+import { TurnOfferingService } from './TurnOfferingService.js';
+import { SeasonTurnService } from './SeasonTurnService.js';
+import { OnDemandTurnService } from './OnDemandTurnService.js';
+import { TurnTimeoutService } from './interfaces/TurnTimeoutService.js';
 // import Logs from '../../lang/logs.json'; // If you have specific logs for scheduler
 
 // Job data types for different job types
@@ -38,7 +41,8 @@ export type JobCallback = (data?: JobData) => void | Promise<void>;
 // Type for service dependencies needed for job handlers
 export interface SchedulerServiceDependencies {
     discordClient?: DiscordClient;
-    turnService?: TurnService;
+    seasonTurnService?: SeasonTurnService;
+    onDemandTurnService?: OnDemandTurnService;
     turnOfferingService?: TurnOfferingService;
     seasonService?: SeasonService;
 }
@@ -183,6 +187,42 @@ export class SchedulerService {
         });
         this.scheduledJobs.clear();
         Logger.info('All locally tracked scheduled jobs cancelled.');
+    }
+
+    /**
+     * Cancels all jobs related to a specific game.
+     * @param gameId The ID of the game whose jobs should be cancelled.
+     * @returns The number of jobs cancelled.
+     */
+    public async cancelJobsForGame(gameId: string): Promise<number> {
+        let cancelledCount = 0;
+        
+        try {
+            // Find all jobs in the database related to this game
+            const gameJobs = await this.prisma.scheduledJob.findMany({
+                where: {
+                    status: 'SCHEDULED',
+                    OR: [
+                        { jobId: { contains: gameId } }, // Job ID contains the game ID
+                        { jobData: { path: ['gameId'], equals: gameId } } // Job data contains gameId field
+                    ]
+                }
+            });
+
+            // Cancel each job
+            for (const job of gameJobs) {
+                const success = await this.cancelJob(job.jobId);
+                if (success) {
+                    cancelledCount++;
+                }
+            }
+
+            Logger.info(`Cancelled ${cancelledCount} jobs for game ${gameId}`);
+            return cancelledCount;
+        } catch (error) {
+            Logger.error(`Error cancelling jobs for game ${gameId}:`, error);
+            return cancelledCount;
+        }
     }
 
     /**
@@ -341,6 +381,41 @@ export class SchedulerService {
     }
 
     /**
+     * Determines which turn service to use for a given turn based on the game type.
+     * @param turnId The ID of the turn
+     * @returns The appropriate turn service or null if not found
+     */
+    private async getTurnServiceForTurn(turnId: string): Promise<TurnTimeoutService | null> {
+        try {
+            const turn = await this.prisma.turn.findUnique({
+                where: { id: turnId },
+                include: {
+                    game: {
+                        include: {
+                            season: true
+                        }
+                    }
+                }
+            });
+
+            if (!turn) {
+                return null;
+            }
+
+            // If the game has a season, use SeasonTurnService
+            if (turn.game.season) {
+                return this.dependencies.seasonTurnService || null;
+            } else {
+                // Otherwise, use OnDemandTurnService
+                return this.dependencies.onDemandTurnService || null;
+            }
+        } catch (error) {
+            Logger.error(`Error determining turn service for turn ${turnId}:`, error);
+            return null;
+        }
+    }
+
+    /**
      * Handle execution of a restored job based on its type.
      * This method should be extended to handle different job types.
      * @param jobType The type of job to handle.
@@ -419,8 +494,14 @@ export class SchedulerService {
         Logger.info(`Handling claim timeout job for turn ${turnId}, player ${playerId}`);
 
         // Check if we have the required dependencies
-        if (!this.dependencies.discordClient || !this.dependencies.turnService || !this.dependencies.turnOfferingService) {
-            throw new Error(`Missing dependencies for claim timeout handler. Required: discordClient, turnService, turnOfferingService`);
+        if (!this.dependencies.discordClient || (!this.dependencies.seasonTurnService && !this.dependencies.onDemandTurnService) || !this.dependencies.turnOfferingService) {
+            throw new Error(`Missing dependencies for claim timeout handler. Required: discordClient, (seasonTurnService OR onDemandTurnService), turnOfferingService`);
+        }
+
+        // Determine which turn service to use based on the game type
+        const turnService = await this.getTurnServiceForTurn(turnId);
+        if (!turnService) {
+            throw new Error(`Could not determine appropriate turn service for turn ${turnId}`);
         }
 
         // Import and create the ClaimTimeoutHandler
@@ -428,7 +509,7 @@ export class SchedulerService {
         const claimTimeoutHandler = new ClaimTimeoutHandler(
             this.prisma,
             this.dependencies.discordClient,
-            this.dependencies.turnService,
+            turnService,
             this.dependencies.turnOfferingService
         );
 
@@ -471,8 +552,14 @@ export class SchedulerService {
         Logger.info(`Handling submission timeout job for turn ${turnId}, player ${playerId}`);
 
         // Check if we have the required dependencies
-        if (!this.dependencies.discordClient || !this.dependencies.turnService || !this.dependencies.turnOfferingService) {
-            throw new Error(`Missing dependencies for submission timeout handler. Required: discordClient, turnService, turnOfferingService`);
+        if (!this.dependencies.discordClient || (!this.dependencies.seasonTurnService && !this.dependencies.onDemandTurnService) || !this.dependencies.turnOfferingService) {
+            throw new Error(`Missing dependencies for submission timeout handler. Required: discordClient, (seasonTurnService OR onDemandTurnService), turnOfferingService`);
+        }
+
+        // Determine which turn service to use based on the game type
+        const turnService = await this.getTurnServiceForTurn(turnId);
+        if (!turnService) {
+            throw new Error(`Could not determine appropriate turn service for turn ${turnId}`);
         }
 
         // Import and create the SubmissionTimeoutHandler
@@ -480,7 +567,7 @@ export class SchedulerService {
         const submissionTimeoutHandler = new SubmissionTimeoutHandler(
             this.prisma,
             this.dependencies.discordClient,
-            this.dependencies.turnService,
+            turnService,
             this.dependencies.turnOfferingService
         );
 

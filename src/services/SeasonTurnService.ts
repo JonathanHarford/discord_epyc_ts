@@ -1,14 +1,16 @@
-import { PrismaClient, Game, Player, Turn, Prisma } from '@prisma/client';
+import type { CheckGameCompletionInput, CheckSeasonCompletionInput } from '../game/types.js';
+import { Game, Player, Prisma, PrismaClient, Turn } from '@prisma/client';
 import { Client as DiscordClient } from 'discord.js';
 import { nanoid } from 'nanoid';
+
 import { checkGameCompletionPure, checkSeasonCompletionPure } from '../game/pureGameLogic.js';
-import type { CheckGameCompletionInput, CheckSeasonCompletionInput } from '../game/types.js';
-import { SchedulerService } from '../services/SchedulerService.js';
 import { MessageAdapter } from '../messaging/MessageAdapter.js';
 import { MessageHelpers } from '../messaging/MessageHelpers.js';
+import { SchedulerService } from '../services/SchedulerService.js';
+import { TurnTimeoutService } from './interfaces/TurnTimeoutService.js';
 import { getSeasonTimeouts } from '../utils/seasonConfig.js';
 
-export class TurnService {
+export class SeasonTurnService implements TurnTimeoutService {
   private prisma: PrismaClient;
   private discordClient: DiscordClient;
   private schedulerService?: SchedulerService;
@@ -114,7 +116,7 @@ export class TurnService {
           const jobScheduled = await this.schedulerService.scheduleJob(
             claimTimeoutJobId,
             claimTimeoutDate,
-            async (jobData) => {
+            async (_jobData) => {
               console.log(`Claim timeout triggered for initial turn ${newTurn.id}, player ${player.id}`);
               
               // Import and create the ClaimTimeoutHandler
@@ -164,7 +166,7 @@ export class TurnService {
 
       return { success: true, turn: newTurn };
     } catch (error) {
-      console.error(`Error in TurnService.offerInitialTurn for game ${game.id}, player ${player.id}:`, error);
+      console.error(`Error in SeasonTurnService.offerInitialTurn for game ${game.id}, player ${player.id}:`, error);
       let errorMessage = 'Unknown error occurred while offering the initial turn.';
       if (error instanceof Error) {
         errorMessage = error.message;
@@ -217,7 +219,7 @@ export class TurnService {
       console.log(`Turn ${turnId} claimed by player ${playerId}, status updated to PENDING`);
       return { success: true, turn: updatedTurn };
     } catch (error) {
-      console.error(`Error in TurnService.claimTurn for turn ${turnId}, player ${playerId}:`, error);
+      console.error(`Error in SeasonTurnService.claimTurn for turn ${turnId}, player ${playerId}:`, error);
       let errorMessage = 'Unknown error occurred while claiming the turn.';
       if (error instanceof Error) {
         errorMessage = error.message;
@@ -370,7 +372,7 @@ export class TurnService {
 
       return { success: true, turn: updatedTurn };
     } catch (error) {
-      console.error(`Error in TurnService.submitTurn for turn ${turnId}, player ${playerId}:`, error);
+      console.error(`Error in SeasonTurnService.submitTurn for turn ${turnId}, player ${playerId}:`, error);
       let errorMessage = 'Unknown error occurred while submitting the turn.';
       if (error instanceof Error) {
         errorMessage = error.message;
@@ -418,7 +420,7 @@ export class TurnService {
       console.log(`Turn ${turnId} offer dismissed, status reverted to AVAILABLE`);
       return { success: true, turn: updatedTurn };
     } catch (error) {
-      console.error(`Error in TurnService.dismissOffer for turn ${turnId}:`, error);
+      console.error(`Error in SeasonTurnService.dismissOffer for turn ${turnId}:`, error);
       let errorMessage = 'Unknown error occurred while dismissing the turn offer.';
       if (error instanceof Error) {
         errorMessage = error.message;
@@ -553,7 +555,7 @@ export class TurnService {
 
       return { success: true, turn: updatedTurn };
     } catch (error) {
-      console.error(`Error in TurnService.skipTurn for turn ${turnId}:`, error);
+      console.error(`Error in SeasonTurnService.skipTurn for turn ${turnId}:`, error);
       let errorMessage = 'Unknown error occurred while skipping the turn.';
       if (error instanceof Error) {
         errorMessage = error.message;
@@ -611,7 +613,7 @@ export class TurnService {
       console.log(`Turn ${turnId} offered to player ${playerId}, status updated to OFFERED`);
       return { success: true, turn: updatedTurn };
     } catch (error) {
-      console.error(`Error in TurnService.offerTurn for turn ${turnId}, player ${playerId}:`, error);
+      console.error(`Error in SeasonTurnService.offerTurn for turn ${turnId}, player ${playerId}:`, error);
       let errorMessage = 'Unknown error occurred while offering the turn.';
       if (error instanceof Error) {
         errorMessage = error.message;
@@ -678,7 +680,7 @@ export class TurnService {
       console.log(`Turn ${turnId} status updated from ${existingTurn.status} to ${newStatus}`);
       return { success: true, turn: updatedTurn };
     } catch (error) {
-      console.error(`Error in TurnService.updateTurnStatus for turn ${turnId}:`, error);
+      console.error(`Error in SeasonTurnService.updateTurnStatus for turn ${turnId}:`, error);
       let errorMessage = 'Unknown error occurred while updating turn status.';
       if (error instanceof Error) {
         errorMessage = error.message;
@@ -708,7 +710,7 @@ export class TurnService {
         }
       });
     } catch (error) {
-      console.error(`Error in TurnService.getTurn for turn ${turnId}:`, error);
+      console.error(`Error in SeasonTurnService.getTurn for turn ${turnId}:`, error);
       return null;
     }
   }
@@ -735,7 +737,7 @@ export class TurnService {
         orderBy: { turnNumber: 'asc' }
       });
     } catch (error) {
-      console.error(`Error in TurnService.getTurnsForGame for game ${gameId}:`, error);
+      console.error(`Error in SeasonTurnService.getTurnsForGame for game ${gameId}:`, error);
       return [];
     }
   }
@@ -766,7 +768,7 @@ export class TurnService {
         orderBy: { createdAt: 'desc' }
       });
     } catch (error) {
-      console.error(`Error in TurnService.getTurnsForPlayer for player ${playerId}:`, error);
+      console.error(`Error in SeasonTurnService.getTurnsForPlayer for player ${playerId}:`, error);
       return [];
     }
   }

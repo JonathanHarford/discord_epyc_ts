@@ -1,6 +1,7 @@
-import { PrismaClient, Player } from '@prisma/client';
-import { MessageInstruction } from '../types/MessageInstruction.js';
+import { Player, PrismaClient } from '@prisma/client';
+
 import { MessageHelpers } from '../messaging/MessageHelpers.js';
+import { MessageInstruction } from '../types/MessageInstruction.js';
 
 export class PlayerService {
   private prisma: PrismaClient;

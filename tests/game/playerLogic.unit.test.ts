@@ -1,7 +1,9 @@
-import { describe, it, expect, beforeEach, afterAll, vi } from 'vitest';
-import { PrismaClient, Player } from '@prisma/client';
-import { processPlayerOperationPure, validatePlayerDataPure } from '../../src/game/pureGameLogic.js';
+import { Player, PrismaClient } from '@prisma/client';
 import { nanoid } from 'nanoid';
+import { afterAll, beforeEach, describe, expect, it, vi } from 'vitest';
+
+import { processPlayerOperationPure, validatePlayerDataPure } from '../../src/game/pureGameLogic.js';
+
 
 // Mock logger
 vi.mock('../../src/services/logger', () => ({
@@ -144,11 +146,11 @@ describe('PlayerLogic Unit Tests', () => {
         player: {
           ...prisma.player,
           findUnique: vi.fn().mockResolvedValue(null), // Ensure it tries to create
-          create: vi.fn().mockRejectedValue(new Error("Simulated DB error on create")),
+          create: vi.fn().mockRejectedValue(new Error('Simulated DB error on create')),
         }
       } as unknown as PrismaClient;
 
-      const player = await addPlayer("error-user", "Error User", mockPrisma);
+      const player = await addPlayer('error-user', 'Error User', mockPrisma);
       expect(player).toBeNull();
     });
   });

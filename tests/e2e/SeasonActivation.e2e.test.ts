@@ -1,18 +1,19 @@
 import { PrismaClient } from '@prisma/client';
-import { SeasonService } from '../../src/services/SeasonService.js';
-import { TurnService } from '../../src/services/TurnService.js';
-import { SchedulerService } from '../../src/services/SchedulerService.js';
-import { GameService } from '../../src/services/GameService.js';
-import { nanoid } from 'nanoid';
-import { describe, it, expect, beforeEach, afterAll, vi, beforeAll } from 'vitest';
 import { Client as DiscordClient } from 'discord.js';
+import { nanoid } from 'nanoid';
+import { afterAll, beforeAll, beforeEach, describe, expect, it, vi } from 'vitest';
+
+import { GameService } from '../../src/services/GameService.js';
+import { SchedulerService } from '../../src/services/SchedulerService.js';
+import { SeasonService } from '../../src/services/SeasonService.js';
+import { SeasonTurnService } from '../../src/services/SeasonTurnService.js';
 import { truncateTables } from '../utils/testUtils.js';
 
 // This is an end-to-end test that simulates a full flow of player joins and season activation
 describe('Season Activation End-to-End Tests', () => {
   let prisma: PrismaClient;
   let seasonService: SeasonService;
-  let turnService: TurnService;
+  let turnService: SeasonTurnService;
   let mockSchedulerService: SchedulerService;
   let mockDiscordClient: any;
   let testPlayers: any[] = [];
@@ -54,7 +55,7 @@ describe('Season Activation End-to-End Tests', () => {
     } as unknown as SchedulerService;
     
     // Recreate services
-    turnService = new TurnService(prisma, mockDiscordClient as unknown as DiscordClient);
+    turnService = new SeasonTurnService(prisma, mockDiscordClient as unknown as DiscordClient);
     const gameService = new GameService(prisma);
     seasonService = new SeasonService(prisma, turnService, mockSchedulerService, gameService);
     
@@ -141,7 +142,7 @@ describe('Season Activation End-to-End Tests', () => {
     expect(activatedSeason!.games.length).toBe(maxPlayers);
     
     // Note: We don't check for turns because the foreign key constraint will fail in the test
-    // The TurnService.offerInitialTurn calls will fail due to transaction issues in the test
+    // The SeasonTurnService.offerInitialTurn calls will fail due to transaction issues in the test
     // but in real usage it would create the turns properly
     
     // Note: Due to the foreign key constraint failures in the turn creation,
@@ -215,7 +216,7 @@ describe('Season Activation End-to-End Tests', () => {
     expect(activatedSeason!.games.length).toBe(initialPlayers);
     
     // Note: We don't check for turns because the foreign key constraint will fail in the test
-    // The TurnService.offerInitialTurn calls will fail due to transaction issues in the test
+    // The SeasonTurnService.offerInitialTurn calls will fail due to transaction issues in the test
     // but in real usage it would create the turns properly
     
     // Note: Due to the foreign key constraint failures in the turn creation,

@@ -1,15 +1,16 @@
 import { PrismaClient } from '@prisma/client';
 import { Client as DiscordClient, Message } from 'discord.js';
 import { createRequire } from 'node:module';
+
 import { EventHandler } from './index.js';
+import { interpolate, strings } from '../lang/strings.js';
+import { SimpleMessage } from '../messaging/SimpleMessage.js';
 import { Logger } from '../services/index.js';
-import { ErrorHandler } from '../utils/index.js';
-import { TurnService } from '../services/TurnService.js';
 import { PlayerService } from '../services/PlayerService.js';
 import { SchedulerService } from '../services/SchedulerService.js';
 import { TurnOfferingService } from '../services/TurnOfferingService.js';
-import { SimpleMessage } from '../messaging/SimpleMessage.js';
-import { strings, interpolate } from '../lang/strings.js';
+import { SeasonTurnService } from '../services/SeasonTurnService.js';
+import { ErrorHandler } from '../utils/index.js';
 import { getSeasonTimeouts } from '../utils/seasonConfig.js';
 
 const require = createRequire(import.meta.url);
@@ -31,7 +32,7 @@ export enum DMContextType {
 export class DirectMessageHandler implements EventHandler {
     private prisma: PrismaClient;
     private discordClient: DiscordClient;
-    private turnService: TurnService;
+    private turnService: SeasonTurnService;
     private playerService: PlayerService;
     private schedulerService: SchedulerService;
     private turnOfferingService: TurnOfferingService;
@@ -39,7 +40,7 @@ export class DirectMessageHandler implements EventHandler {
     constructor(
         prisma: PrismaClient,
         discordClient: DiscordClient,
-        turnService: TurnService,
+        turnService: SeasonTurnService,
         playerService: PlayerService,
         schedulerService: SchedulerService,
         turnOfferingService: TurnOfferingService
@@ -154,7 +155,7 @@ export class DirectMessageHandler implements EventHandler {
                 // 4. If multiple turns are offered, claim the first one (oldest)
                 const turnToClaim = offeredTurns[0];
                 
-                // 5. Claim the turn using TurnService
+                // 5. Claim the turn using SeasonTurnService
                 const claimResult = await this.turnService.claimTurn(turnToClaim.id, player.id);
                 
                 if (!claimResult.success) {
@@ -300,7 +301,7 @@ export class DirectMessageHandler implements EventHandler {
                     return;
                 }
 
-                // 6. Submit the turn using TurnService
+                // 6. Submit the turn using SeasonTurnService
                 const submitResult = await this.turnService.submitTurn(
                     turnToSubmit.id,
                     player.id,
@@ -371,7 +372,7 @@ export class DirectMessageHandler implements EventHandler {
             async () => {
                 // This is a placeholder implementation
                 Logger.info(`Received unrecognized DM from ${msg.author.tag}`);
-                await msg.reply("I'm not sure what you're trying to do. If you're trying to join a game, please use the appropriate commands in a server channel.");
+                await msg.reply('I\'m not sure what you\'re trying to do. If you\'re trying to join a game, please use the appropriate commands in a server channel.');
             },
             msg,
             { dmContextType: DMContextType.OTHER }

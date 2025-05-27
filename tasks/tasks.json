@@ -1908,7 +1908,61 @@
         36
       ],
       "priority": "high",
-      "subtasks": []
+      "subtasks": [
+        {
+          "id": 1,
+          "title": "Design and Implement Database Schema Updates",
+          "description": "Create the new GameConfig table modeled after SeasonConfig with all specified fields. Update the Game table to make seasonId nullable and add creatorId, guildId, and lastActivityAt fields.",
+          "dependencies": [],
+          "details": "Ensure the new schema supports on-demand game flows and is optimized for efficient querying and future extensibility.",
+          "status": "done",
+          "testStrategy": "Verify schema changes via migration scripts and ensure all fields are correctly created and indexed. Test CRUD operations for new and updated tables."
+        },
+        {
+          "id": 2,
+          "title": "Refactor and Develop Turn Services",
+          "description": "Refactor the existing TurnService to SeasonTurnService and implement OnDemandTurnService to handle turn logic for on-demand games.",
+          "dependencies": [
+            1
+          ],
+          "details": "Ensure the new services are modular, follow established patterns, and support both season-based and on-demand game flows.",
+          "status": "done",
+          "testStrategy": "Unit test both services for correct turn sequencing, timeout handling, and integration with the updated database schema."
+        },
+        {
+          "id": 3,
+          "title": "Implement OnDemandGameService and Game Lifecycle Logic",
+          "description": "Develop OnDemandGameService to manage the full lifecycle of on-demand games, including creation, joining, turn flow, completion logic, and enforcement of return policy.",
+          "dependencies": [
+            2
+          ],
+          "details": "Integrate with the new GameConfig and Game tables, handle game status transitions, joining logic, and ensure compliance with return_count and return_cooldown policies.\n<info added on 2025-05-27T18:30:51.301Z>\nESLint configuration migrated and linting errors resolved. OnDemandGameService implemented covering game creation/joining, return policy, lifecycle management, player listing/details, and best available game finding. OnDemandTurnService implemented covering initial/next turn creation, assignment, submission/completion, and timeout scheduling. Database operations integrated with Prisma. Services follow architectural patterns and include error handling. Implementation is ready for GameCommand development.\n</info added on 2025-05-27T18:30:51.301Z>",
+          "status": "done",
+          "testStrategy": "Integration test game creation, joining, turn progression, completion, and return policy enforcement. Simulate edge cases for stale and max_turns scenarios."
+        },
+        {
+          "id": 4,
+          "title": "Develop GameCommand and Admin Controls",
+          "description": "Implement the GameCommand class with /game new, /game play, /game list, /game show commands, and the admin subcommand group (config, list, show, kill).",
+          "dependencies": [
+            3
+          ],
+          "details": "Ensure commands interact correctly with OnDemandGameService and provide necessary admin controls for configuration and moderation.\n<info added on 2025-05-27T18:48:42.139Z>\nStarting work. Identified immediate blocking issues: 1) SchedulerService import error (old TurnService reference), 2) Timeout handlers (ClaimTimeoutHandler, SubmissionTimeoutHandler) depend on old TurnService, 3) Prisma type issues implementing TurnTimeoutService in OnDemandTurnService. Immediate plan: Fix SchedulerService dependencies, update timeout handlers, create /game command structure. Progress: Created TurnTimeoutService interface, added dismissOffer to OnDemandTurnService, updated OnDemandTurnService to implement TurnTimeoutService. Currently resolving Prisma type issues and SchedulerService dependencies. Foundation services need import/type issues resolved before command implementation.\n</info added on 2025-05-27T18:48:42.139Z>\n<info added on 2025-05-27T19:27:26.696Z>\n✅ COMPLETED: All 4 missing admin game handler methods implemented. Successfully implemented all 4 missing admin game command handler methods: 1. handleGameConfigCommand() - View/update server's default game configuration (shows current, updates fields, handles GameConfig table ops). 2. handleGameListCommand() - List active and recent games (filters by status, limits results, shows key info). 3. handleGameShowCommand() - Show detailed game information (comprehensive details, turn summary, config, validates guild). 4. handleGameKillCommand() - Terminate active games (validates, prevents re-termination, calls terminateGame(), shows reason). Additional helper method formatGameConfigForDisplay() created. All methods properly integrate with OnDemandGameService, use SimpleMessage, include error handling/validation, and admin-only access is enforced. Minor cleanup needed for pre-existing linter errors (unused data parameters). Task 46.4 is now functionally complete. All admin game commands are implemented and ready for testing.\n</info added on 2025-05-27T19:27:26.696Z>",
+          "status": "done",
+          "testStrategy": "Functional test all commands for expected behavior, permissions, and error handling. Validate admin actions and their effects on game state."
+        },
+        {
+          "id": 5,
+          "title": "Integrate Turn Flagging, Channel Config, and Finalize Flow",
+          "description": "Implement the turn flagging system with PAUSED status, admin reaction handling, reuse channel config for announcements and flagged content, and finalize turn pattern logic (admin modification disabled).",
+          "dependencies": [
+            4
+          ],
+          "details": "Ensure all new features are integrated with existing infrastructure and that game flow transitions and notifications work as specified.",
+          "status": "pending",
+          "testStrategy": "End-to-end test the full on-demand game flow, including flagging, admin interventions, channel announcements, and turn pattern enforcement."
+        }
+      ]
     }
   ]
 }

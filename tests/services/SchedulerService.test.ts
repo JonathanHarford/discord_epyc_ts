@@ -1,5 +1,6 @@
-import { describe, it, expect, beforeEach, afterAll, vi, beforeAll, afterEach } from 'vitest';
 import { PrismaClient } from '@prisma/client';
+import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it, vi } from 'vitest';
+
 import { SchedulerService } from '../../src/services/SchedulerService.js';
 import { truncateTables } from '../utils/testUtils.js';
 

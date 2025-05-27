@@ -1,13 +1,13 @@
-import { describe, it, expect, vi, beforeEach, afterAll } from 'vitest';
-import { PrismaClient, Player, Game, Turn, Season, SeasonConfig } from '@prisma/client';
+import { Game, Player, PrismaClient, Season, SeasonConfig, Turn } from '@prisma/client';
 import { Client as DiscordClient, User } from 'discord.js';
 import { nanoid } from 'nanoid';
+import { afterAll, beforeEach, describe, expect, it, vi } from 'vitest';
 
-import { TurnOfferingService } from '../../src/services/TurnOfferingService.js';
-import { TurnService } from '../../src/services/TurnService.js';
-import { SchedulerService } from '../../src/services/SchedulerService.js';
+import { interpolate, strings } from '../../src/lang/strings.js';
 import { Logger } from '../../src/services/logger.js';
-import { strings, interpolate } from '../../src/lang/strings.js';
+import { SchedulerService } from '../../src/services/SchedulerService.js';
+import { TurnOfferingService } from '../../src/services/TurnOfferingService.js';
+import { SeasonTurnService } from '../../src/services/SeasonTurnService.js';
 import { DEFAULT_TIMEOUTS } from '../../src/utils/seasonConfig.js';
 
 // --- Mocks ---
@@ -34,7 +34,7 @@ vi.mock('../../src/services/SchedulerService.js', () => ({
 const prisma = new PrismaClient();
 
 describe('TurnOfferingService - Integration Tests', () => {
-  let turnService: TurnService;
+  let turnService: SeasonTurnService;
   let schedulerService: SchedulerService;
   let turnOfferingService: TurnOfferingService;
 
@@ -111,7 +111,7 @@ describe('TurnOfferingService - Integration Tests', () => {
     
     // Initialize services with real instances (no mocking of database services)
     schedulerService = new SchedulerService(prisma);
-    turnService = new TurnService(prisma, mockDiscordClient, schedulerService);
+    turnService = new SeasonTurnService(prisma, mockDiscordClient, schedulerService);
     turnOfferingService = new TurnOfferingService(
       prisma,
       mockDiscordClient,

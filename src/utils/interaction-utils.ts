@@ -10,9 +10,9 @@ import {
     InteractionUpdateOptions,
     Message,
     MessageComponentInteraction,
+    MessageFlags,
     ModalSubmitInteraction,
-    WebhookMessageEditOptions,
-    MessageFlags
+    WebhookMessageEditOptions
 } from 'discord.js';
 
 const IGNORED_ERRORS = [

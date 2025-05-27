@@ -1,4 +1,4 @@
-import { Message, ChannelType } from 'discord.js';
+import { ChannelType, Message } from 'discord.js';
 
 import { DirectMessageHandler } from './direct-message-handler.js';
 import { EventHandler, TriggerHandler } from './index.js';

@@ -1,12 +1,10 @@
-import { describe, it, expect, beforeEach, afterEach, vi, afterAll, beforeAll } from 'vitest';
-import { ChatInputCommandInteraction, PermissionsString, MessageFlags, Locale } from 'discord.js';
-import { AdminCommand } from '../../../src/commands/chat/admin-command.js';
 import { PrismaClient } from '@prisma/client';
+import { Locale } from 'discord.js';
 import { nanoid } from 'nanoid';
+import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it, vi } from 'vitest';
+
+import { AdminCommand } from '../../../src/commands/chat/admin-command.js';
 import { EventData } from '../../../src/models/internal-models.js';
-import { SeasonService } from '../../../src/services/SeasonService.js';
-import { TurnService } from '../../../src/services/TurnService.js';
-import { SchedulerService } from '../../../src/services/SchedulerService.js';
 
 // Mock config to include test user as developer/admin
 vi.mock('../../../../config/config.json', () => ({
@@ -155,7 +153,7 @@ describe('AdminCommand - Integration Tests', () => {
         username: 'AdminUser'
       },
       client: {
-        // Mock Discord client for TurnService
+        // Mock Discord client for SeasonTurnService
         users: {
           fetch: vi.fn().mockResolvedValue({
             send: vi.fn().mockResolvedValue(undefined)

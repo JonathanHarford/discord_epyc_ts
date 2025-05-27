@@ -1,9 +1,10 @@
-import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
-import { CommandInteraction, Message, User, Guild, TextChannel, Locale } from 'discord.js';
-import { ErrorHandler, ErrorType, ErrorSeverity, ErrorInfo } from '../../src/utils/error-handler.js';
-import { MessageAdapter } from '../../src/messaging/MessageAdapter.js';
+import { CommandInteraction, Guild, Locale, Message, TextChannel, User } from 'discord.js';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
+
 import { ErrorEventBus, ErrorEventType } from '../../src/events/error-event-bus.js';
+import { MessageAdapter } from '../../src/messaging/MessageAdapter.js';
 import { EventData } from '../../src/models/internal-models.js';
+import { ErrorHandler, ErrorInfo, ErrorSeverity, ErrorType } from '../../src/utils/error-handler.js';
 
 // Mock dependencies
 vi.mock('../../src/messaging/MessageAdapter.js');

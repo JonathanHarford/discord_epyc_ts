@@ -1,8 +1,9 @@
-import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { ChatInputCommandInteraction, Locale } from 'discord.js';
-import { EventData } from '../../../src/models/internal-models.js';
-import { SimpleMessage } from '../../../src/messaging/SimpleMessage.js';
+import { beforeEach, describe, expect, it, vi } from 'vitest';
+
 import { strings } from '../../../src/lang/strings.js';
+import { SimpleMessage } from '../../../src/messaging/SimpleMessage.js';
+import { EventData } from '../../../src/models/internal-models.js';
 
 // Mock the SimpleMessage class
 vi.mock('../../../src/messaging/SimpleMessage.js', () => ({
@@ -36,9 +37,9 @@ vi.mock('../../../src/services/SeasonService.js', () => ({
   SeasonService: vi.fn().mockImplementation(() => mockSeasonService)
 }));
 
-// Mock TurnService
-vi.mock('../../../src/services/TurnService.js', () => ({
-  TurnService: vi.fn().mockImplementation(() => ({}))
+// Mock SeasonTurnService
+vi.mock('../../../src/services/SeasonTurnService.js', () => ({
+  SeasonTurnService: vi.fn().mockImplementation(() => ({}))
 }));
 
 // Mock SchedulerService

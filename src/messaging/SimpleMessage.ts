@@ -1,13 +1,14 @@
 import { 
-  ChatInputCommandInteraction, 
-  UserContextMenuCommandInteraction,
-  MessageContextMenuCommandInteraction,
-  EmbedBuilder, 
-  BaseMessageOptions,
+  BaseMessageOptions, 
+  ChatInputCommandInteraction,
   CommandInteraction,
-  resolveColor
+  EmbedBuilder, 
+  MessageContextMenuCommandInteraction,
+  resolveColor,
+  UserContextMenuCommandInteraction
 } from 'discord.js';
-import { strings, interpolate } from '../lang/strings.js';
+
+import { interpolate, strings } from '../lang/strings.js';
 
 export type MessageType = 'success' | 'error' | 'info' | 'warning';
 

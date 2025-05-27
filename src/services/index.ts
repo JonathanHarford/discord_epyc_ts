@@ -6,7 +6,7 @@ export { Logger } from './logger.js';
 export { MasterApiService } from './master-api-service.js';
 export { SchedulerService } from './SchedulerService.js';
 export { SeasonService } from './SeasonService.js';
-export { TurnService } from './TurnService.js';
+export { SeasonTurnService } from './SeasonTurnService.js';
 export { TurnOfferingService } from './TurnOfferingService.js';
 export { GameService } from './GameService.js';
 export { PlayerService } from './PlayerService.js';

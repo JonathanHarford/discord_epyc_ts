@@ -1,7 +1,9 @@
-import { describe, it, expect, beforeEach, afterAll, vi } from 'vitest';
-import { PrismaClient, Player, Season, SeasonConfig } from '@prisma/client';
-import { processSeasonCreationPure, validateSeasonCreationPure } from '../../src/game/pureGameLogic.js';
+import { Player, PrismaClient, Season, SeasonConfig } from '@prisma/client';
 import { nanoid } from 'nanoid';
+import { afterAll, beforeEach, describe, expect, it, vi } from 'vitest';
+
+import { processSeasonCreationPure, validateSeasonCreationPure } from '../../src/game/pureGameLogic.js';
+
 
 // Mock logger
 vi.mock('../../src/services/logger', () => ({
@@ -139,7 +141,7 @@ describe('SeasonLogic Unit Tests', () => {
         ...prisma,
         season: {
           ...prisma.season,
-          create: vi.fn().mockRejectedValue(new Error("Simulated DB error on season create")),
+          create: vi.fn().mockRejectedValue(new Error('Simulated DB error on season create')),
         }
       } as unknown as PrismaClient;
 

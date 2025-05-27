@@ -4,11 +4,11 @@ import os from 'node:os';
 import typescript from 'typescript';
 
 import { DevCommandName } from '../../enums/index.js';
-import { EventData } from '../../models/internal-models.js';
 import { strings } from '../../lang/strings.js';
+import { SimpleMessage } from '../../messaging/SimpleMessage.js';
+import { EventData } from '../../models/internal-models.js';
 import { FormatUtils, ShardUtils } from '../../utils/index.js';
 import { Command, CommandDeferType } from '../index.js';
-import { SimpleMessage } from '../../messaging/SimpleMessage.js';
 
 const require = createRequire(import.meta.url);
 let Config = require('../../../config/config.json');
@@ -20,7 +20,7 @@ export class DevCommand implements Command {
     public requireClientPerms: PermissionsString[] = [];
     public async execute(intr: ChatInputCommandInteraction, data: EventData): Promise<void> {
         if (!Config.developers.includes(intr.user.id)) {
-            await SimpleMessage.sendWarning(intr, "This command is only available to developers.", {}, true);
+            await SimpleMessage.sendWarning(intr, 'This command is only available to developers.', {}, true);
             return;
         }
 
@@ -37,7 +37,7 @@ export class DevCommand implements Command {
                         serverCount = await ShardUtils.serverCount(intr.client.shard);
                     } catch (error) {
                         if (error.name.includes('ShardingInProcess')) {
-                            await SimpleMessage.sendError(intr, "Bot is still starting up. Please try again later.", {}, true);
+                            await SimpleMessage.sendError(intr, 'Bot is still starting up. Please try again later.', {}, true);
                             return;
                         } else {
                             throw error;

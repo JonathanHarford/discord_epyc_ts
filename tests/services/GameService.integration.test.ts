@@ -1,5 +1,6 @@
-import { describe, it, expect, beforeEach, afterEach, afterAll } from 'vitest';
-import { PrismaClient, Season, Player, Game, SeasonConfig } from '@prisma/client';
+import { Game, Player, PrismaClient, Season, SeasonConfig } from '@prisma/client';
+import { afterAll, afterEach, beforeEach, describe, expect, it } from 'vitest';
+
 import { GameService } from '../../src/services/GameService.js';
 import { truncateTables } from '../utils/testUtils.js';
 

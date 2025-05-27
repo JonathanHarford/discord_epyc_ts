@@ -1,36 +1,37 @@
 import { PrismaClient } from '@prisma/client';
-import { SeasonService } from '../../src/services/SeasonService.js';
-import { TurnService } from '../../src/services/TurnService.js';
-import { TurnOfferingService } from '../../src/services/TurnOfferingService.js';
-import { SchedulerService } from '../../src/services/SchedulerService.js';
-import { PlayerService } from '../../src/services/PlayerService.js';
-import { GameService } from '../../src/services/GameService.js';
-import { ConfigService } from '../../src/services/ConfigService.js';
-import { nanoid } from 'nanoid';
-import { describe, it, expect, beforeEach, afterAll, vi, beforeAll } from 'vitest';
 import { 
-  Client as DiscordClient, 
+  ApplicationCommandOptionType, 
   ChatInputCommandInteraction, 
-  UserContextMenuCommandInteraction,
-  MessageContextMenuCommandInteraction,
-  User,
-  Message,
+  Client as DiscordClient,
   Guild,
   GuildMember,
+  Message,
+  MessageContextMenuCommandInteraction,
   TextChannel,
-  ApplicationCommandOptionType
+  User,
+  UserContextMenuCommandInteraction
 } from 'discord.js';
-import { truncateTables } from '../utils/testUtils.js';
+import { nanoid } from 'nanoid';
+import { afterAll, beforeAll, beforeEach, describe, expect, it, vi } from 'vitest';
+
 
 // Import all command classes for testing
-import { HelpCommand } from '../../src/commands/chat/help-command.js';
-import { InfoCommand } from '../../src/commands/chat/info-command.js';
 import { DevCommand } from '../../src/commands/chat/dev-command.js';
+import { InfoCommand } from '../../src/commands/chat/info-command.js';
 import { SeasonCommand } from '../../src/commands/chat/season-command.js';
 import { AdminCommand } from '../../src/commands/chat/admin-command.js';
-import { ViewDateJoined } from '../../src/commands/user/view-date-joined.js';
+import { HelpCommand } from '../../src/commands/chat/help-command.js';
 import { ViewDateSent } from '../../src/commands/message/view-date-sent.js';
+import { ViewDateJoined } from '../../src/commands/user/view-date-joined.js';
 import { EventData } from '../../src/models/internal-models.js';
+import { ConfigService } from '../../src/services/ConfigService.js';
+import { GameService } from '../../src/services/GameService.js';
+import { PlayerService } from '../../src/services/PlayerService.js';
+import { SchedulerService } from '../../src/services/SchedulerService.js';
+import { SeasonService } from '../../src/services/SeasonService.js';
+import { TurnOfferingService } from '../../src/services/TurnOfferingService.js';
+import { SeasonTurnService } from '../../src/services/SeasonTurnService.js';
+import { truncateTables } from '../utils/testUtils.js';
 
 // Mock SimpleMessage to capture command outputs
 vi.mock('../../src/messaging/SimpleMessage.js', () => ({
@@ -56,7 +57,7 @@ vi.mock('../../../config/config.json', () => ({
 describe('Full Season Playthrough + All Commands End-to-End Test', () => {
   let prisma: PrismaClient;
   let seasonService: SeasonService;
-  let turnService: TurnService;
+  let turnService: SeasonTurnService;
   let turnOfferingService: TurnOfferingService;
   let playerService: PlayerService;
   let gameService: GameService;
@@ -236,7 +237,7 @@ describe('Full Season Playthrough + All Commands End-to-End Test', () => {
     } as unknown as SchedulerService;
     
     // Initialize services
-    turnService = new TurnService(prisma, mockDiscordClient as unknown as DiscordClient);
+    turnService = new SeasonTurnService(prisma, mockDiscordClient as unknown as DiscordClient);
     turnOfferingService = new TurnOfferingService(prisma, mockDiscordClient as unknown as DiscordClient, turnService, mockSchedulerService);
     gameService = new GameService(prisma);
     seasonService = new SeasonService(prisma, turnService, mockSchedulerService, gameService);

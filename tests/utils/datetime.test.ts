@@ -1,6 +1,7 @@
-import { describe, it, expect } from 'vitest';
 import { Duration } from 'luxon';
-import { parseDuration, durationStr } from '../../src/utils/datetime.js'; // Assuming .js extension based on rules
+import { describe, expect, it } from 'vitest';
+
+import { durationStr, parseDuration } from '../../src/utils/datetime.js'; // Assuming .js extension based on rules
 
 describe('datetime utils', () => {
   describe('parseDuration', () => {

@@ -1,4 +1,4 @@
-import { Player, Turn, Game, Season, PlayersOnSeasons, SeasonConfig } from '@prisma/client';
+import { Game, Player, PlayersOnSeasons, Season, SeasonConfig, Turn } from '@prisma/client';
 
 // ============================================================================
 // CORE DATA TYPES FOR PURE FUNCTIONS

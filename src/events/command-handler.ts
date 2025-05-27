@@ -12,11 +12,11 @@ import { createRequire } from 'node:module';
 import { EventHandler } from './index.js';
 import { Command, CommandDeferType } from '../commands/index.js';
 import { DiscordLimits } from '../constants/index.js';
+import { strings } from '../lang/strings.js';
+import { SimpleMessage } from '../messaging/SimpleMessage.js';
 import { EventData } from '../models/internal-models.js';
 import { EventDataService, Logger } from '../services/index.js';
 import { CommandUtils, ErrorHandler, InteractionUtils } from '../utils/index.js';
-import { SimpleMessage } from '../messaging/SimpleMessage.js';
-import { strings } from '../lang/strings.js';
 
 const require = createRequire(import.meta.url);
 let Config = require('../../config/config.json');

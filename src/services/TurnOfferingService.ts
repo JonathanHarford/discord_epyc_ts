@@ -1,14 +1,15 @@
-import { PrismaClient, Turn, Player, Game } from '@prisma/client';
-import { Client as DiscordClient } from 'discord.js';
-import { Logger } from './logger.js';
-import { TurnService } from './TurnService.js';
-import { SchedulerService } from './SchedulerService.js';
-import { selectNextPlayerPure } from '../game/pureGameLogic.js';
 import type { SelectNextPlayerInput } from '../game/types.js';
-import { strings, interpolate } from '../lang/strings.js';
-import { getSeasonTimeouts } from '../utils/seasonConfig.js';
+import { Game, Player, PrismaClient, Turn } from '@prisma/client';
+import { Client as DiscordClient } from 'discord.js';
+
+import { Logger } from './logger.js';
+import { SchedulerService } from './SchedulerService.js';
+import { SeasonTurnService } from './SeasonTurnService.js';
+import { selectNextPlayerPure } from '../game/pureGameLogic.js';
+import { interpolate, strings } from '../lang/strings.js';
 import { MessageAdapter } from '../messaging/MessageAdapter.js';
 import { MessageHelpers } from '../messaging/MessageHelpers.js';
+import { getSeasonTimeouts } from '../utils/seasonConfig.js';
 
 export interface TurnOfferingResult {
     success: boolean;
@@ -24,13 +25,13 @@ export interface TurnOfferingResult {
 export class TurnOfferingService {
     private prisma: PrismaClient;
     private discordClient: DiscordClient;
-    private turnService: TurnService;
+    private turnService: SeasonTurnService;
     private schedulerService: SchedulerService;
 
     constructor(
         prisma: PrismaClient,
         discordClient: DiscordClient,
-        turnService: TurnService,
+        turnService: SeasonTurnService,
         schedulerService: SchedulerService
     ) {
         this.prisma = prisma;
@@ -121,7 +122,7 @@ export class TurnOfferingService {
                 };
             }
 
-            // 4. Offer the turn to the selected player using TurnService
+            // 4. Offer the turn to the selected player using SeasonTurnService
             const offerResult = await this.turnService.offerTurn(
                 nextAvailableTurn.id,
                 nextPlayerResult.playerId

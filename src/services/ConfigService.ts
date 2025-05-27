@@ -1,6 +1,7 @@
-import { PrismaClient, SeasonConfig, Prisma } from '@prisma/client';
-import { MessageInstruction } from '../types/MessageInstruction.js';
+import { Prisma, PrismaClient, SeasonConfig } from '@prisma/client';
+
 import { MessageHelpers } from '../messaging/MessageHelpers.js';
+import { MessageInstruction } from '../types/MessageInstruction.js';
 
 export interface ConfigUpdateOptions {
   turnPattern?: string;

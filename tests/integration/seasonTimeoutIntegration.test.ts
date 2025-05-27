@@ -1,7 +1,8 @@
-import { describe, it, expect, beforeEach, afterAll, vi } from 'vitest';
 import { PrismaClient } from '@prisma/client';
 import { nanoid } from 'nanoid';
-import { getSeasonTimeouts, DEFAULT_TIMEOUTS } from '../../src/utils/seasonConfig.js';
+import { afterAll, beforeEach, describe, expect, it, vi } from 'vitest';
+
+import { DEFAULT_TIMEOUTS, getSeasonTimeouts } from '../../src/utils/seasonConfig.js';
 
 // Use a separate Prisma client for tests
 const prisma = new PrismaClient();

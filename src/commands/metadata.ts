@@ -8,10 +8,11 @@ import {
     RESTPostAPIContextMenuApplicationCommandsJSONBody,
 } from 'discord.js';
 
-import { strings } from '../lang/strings.js';
 import { Command } from './index.js';
-import { seasonCommandData } from './chat/season-command-data.js';
+import { strings } from '../lang/strings.js';
 import { adminCommandData } from './chat/admin-command-data.js';
+import { gameCommandData } from './chat/game-command-data.js';
+import { seasonCommandData } from './chat/season-command-data.js';
 
 export const ChatCommandMetadata: {
     [command: string]: RESTPostAPIChatInputApplicationCommandsJSONBody;
@@ -90,6 +91,7 @@ export const ChatCommandMetadata: {
 
     SEASON: seasonCommandData.toJSON(),
     ADMIN: adminCommandData.toJSON(),
+    GAME: gameCommandData.toJSON(),
 };
 
 export const MessageCommandMetadata: {

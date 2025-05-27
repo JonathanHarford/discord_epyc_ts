@@ -1,9 +1,10 @@
 import { PrismaClient } from '@prisma/client';
 import { Client as DiscordClient } from 'discord.js';
+
 import { Logger } from '../services/index.js';
-import { TurnService } from '../services/TurnService.js';
-import { TurnOfferingService } from '../services/TurnOfferingService.js';
 import { SchedulerService } from '../services/SchedulerService.js';
+import { TurnOfferingService } from '../services/TurnOfferingService.js';
+import { TurnTimeoutService } from '../services/interfaces/TurnTimeoutService.js';
 
 /**
  * Handler for claim timeout events.
@@ -13,13 +14,13 @@ import { SchedulerService } from '../services/SchedulerService.js';
 export class ClaimTimeoutHandler {
     private prisma: PrismaClient;
     private discordClient: DiscordClient;
-    private turnService: TurnService;
+    private turnService: TurnTimeoutService;
     private turnOfferingService: TurnOfferingService;
 
     constructor(
         prisma: PrismaClient,
         discordClient: DiscordClient,
-        turnService: TurnService,
+        turnService: TurnTimeoutService,
         turnOfferingService: TurnOfferingService
     ) {
         this.prisma = prisma;
@@ -70,7 +71,7 @@ export class ClaimTimeoutHandler {
                 return { success: false, error };
             }
 
-            // 2. Dismiss the offer using TurnService
+            // 2. Dismiss the offer using SeasonTurnService
             Logger.info(`ClaimTimeoutHandler: Dismissing offer for turn ${turnId}`);
             const dismissResult = await this.turnService.dismissOffer(turnId);
 

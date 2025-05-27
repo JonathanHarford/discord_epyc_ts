@@ -18,6 +18,7 @@ model Player {
 
   seasons         PlayersOnSeasons[]
   createdSeasons  Season[]           @relation("CreatedSeasons")
+  createdGames    Game[]             @relation("CreatedGames")
   turns           Turn[] // Relation for turns taken by player
 
 }
@@ -60,18 +61,32 @@ model PlayersOnSeasons {
 
 model Game {
   id                 String    @id @default(nanoid())
-  status             String    // e.g., "SETUP", "ACTIVE", "COMPLETED", "TERMINATED"
+  status             String    // e.g., "SETUP", "PENDING", "ACTIVE", "COMPLETED", "TERMINATED", "PAUSED"
   createdAt          DateTime  @default(now())
   updatedAt          DateTime  @updatedAt
   completedAt        DateTime? // When the game status becomes "COMPLETED"
+  lastActivityAt     DateTime  @default(now()) // For stale timeout calculation
 
-  seasonId           String
-  season             Season    @relation(fields: [seasonId], references: [id], onDelete: Cascade)
+  // Season games have seasonId, on-demand games have null seasonId
+  seasonId           String?
+  season             Season?   @relation(fields: [seasonId], references: [id], onDelete: Cascade)
+
+  // On-demand game fields
+  creatorId          String?   // Player who created the game (null for season games)
+  creator            Player?   @relation("CreatedGames", fields: [creatorId], references: [id], onDelete: SetNull)
+  guildId            String?   // Discord guild ID where game was created (null for DMs)
+  
+  // Game configuration (for on-demand games)
+  configId           String?   // null for season games
+  config             GameConfig? @relation("GameToConfig", fields: [configId], references: [id], onDelete: SetNull)
 
   turns              Turn[]    // One-to-many with Turn
 
   @@index([status])
   @@index([seasonId])
+  @@index([creatorId])
+  @@index([guildId])
+  @@index([lastActivityAt])
 }
 
 model Turn {
@@ -139,4 +154,23 @@ model ScheduledJob {
   @@index([jobType])
   @@index([fireDate])
   @@index([jobId])
+}
+
+model GameConfig {
+  id                 String    @id @default(nanoid())
+  turnPattern        String    @default("writing,drawing")
+  writingTimeout     String    @default("5m")
+  writingWarning     String    @default("1m")
+  drawingTimeout     String    @default("20m")
+  drawingWarning     String    @default("2m")
+  staleTimeout       String    @default("3d")
+  minTurns           Int       @default(6)
+  maxTurns           Int?      // null means no maximum
+  returnCount        Int?      @default(0) // null means no returns allowed
+  returnCooldown     Int?      @default(3) // null means no cooldown required
+  createdAt          DateTime  @default(now())
+  updatedAt          DateTime  @updatedAt
+
+  isGuildDefaultFor  String?   @unique // Discord Guild ID for which this config is the default
+  games              Game[]    @relation("GameToConfig")
 } 

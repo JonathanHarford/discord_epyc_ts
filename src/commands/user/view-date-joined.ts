@@ -2,13 +2,13 @@ import { DMChannel, PermissionsString, UserContextMenuCommandInteraction } from 
 import { RateLimiter } from 'discord.js-rate-limiter';
 import { DateTime } from 'luxon';
 
-import { EventData } from '../../models/internal-models.js';
 import { strings } from '../../lang/strings.js';
-import { Command, CommandDeferType } from '../index.js';
 import { SimpleMessage } from '../../messaging/SimpleMessage.js';
+import { EventData } from '../../models/internal-models.js';
+import { Command, CommandDeferType } from '../index.js';
 
 export class ViewDateJoined implements Command {
-    public names = ["View Date Joined"];
+    public names = ['View Date Joined'];
     public cooldown = new RateLimiter(1, 5000);
     public deferType = CommandDeferType.HIDDEN;
     public requireClientPerms: PermissionsString[] = [];

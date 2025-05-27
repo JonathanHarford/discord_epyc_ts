@@ -1,14 +1,14 @@
-import { Message, User, Client, DMChannel } from 'discord.js';
-import { beforeEach, describe, expect, it, vi, beforeAll, afterAll } from 'vitest';
 import { PrismaClient } from '@prisma/client';
+import { Client, DMChannel, Message, User } from 'discord.js';
 import { nanoid } from 'nanoid';
+import { afterAll, beforeAll, beforeEach, describe, expect, it, vi } from 'vitest';
 
 import { DirectMessageHandler, DMContextType } from '../../src/events/direct-message-handler.js';
 import { Logger } from '../../src/services/index.js';
-import { TurnService } from '../../src/services/TurnService.js';
 import { PlayerService } from '../../src/services/PlayerService.js';
 import { SchedulerService } from '../../src/services/SchedulerService.js';
 import { TurnOfferingService } from '../../src/services/TurnOfferingService.js';
+import { SeasonTurnService } from '../../src/services/SeasonTurnService.js';
 import { DEFAULT_TIMEOUTS } from '../../src/utils/seasonConfig.js';
 
 // Mock the Logger
@@ -34,7 +34,7 @@ describe('DirectMessageHandler - Integration Tests', () => {
     let mockClient: Client;
     let mockDMChannel: DMChannel;
     let prisma: PrismaClient;
-    let turnService: TurnService;
+    let turnService: SeasonTurnService;
     let playerService: PlayerService;
     let mockSchedulerService: SchedulerService;
     let turnOfferingService: TurnOfferingService;
@@ -42,7 +42,7 @@ describe('DirectMessageHandler - Integration Tests', () => {
     beforeAll(async () => {
         prisma = new PrismaClient();
         
-        // Create mock Discord client for TurnService
+        // Create mock Discord client for SeasonTurnService
         const mockDiscordClient = {
             users: {
                 fetch: vi.fn().mockResolvedValue({
@@ -58,7 +58,7 @@ describe('DirectMessageHandler - Integration Tests', () => {
         } as unknown as SchedulerService;
         
         // Create real services with test database
-        turnService = new TurnService(prisma, mockDiscordClient, mockSchedulerService);
+        turnService = new SeasonTurnService(prisma, mockDiscordClient, mockSchedulerService);
         playerService = new PlayerService(prisma);
         
         // Create real turn offering service with test database

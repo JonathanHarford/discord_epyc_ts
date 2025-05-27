@@ -1,16 +1,17 @@
-import { describe, it, expect, beforeEach, afterEach, vi, beforeAll, afterAll } from 'vitest';
-import { PrismaClient, Player, Game, Season, SeasonConfig, Prisma } from '@prisma/client';
+import { Game, Player, Prisma, PrismaClient, Season, SeasonConfig } from '@prisma/client';
 import { Client as DiscordClient } from 'discord.js';
-import { SeasonService, NewSeasonOptions } from '../../src/services/SeasonService.js';
-import { TurnService } from '../../src/services/TurnService.js';
-import { SchedulerService } from '../../src/services/SchedulerService.js';
-import { GameService } from '../../src/services/GameService.js';
-import schedule from 'node-schedule';
 import { humanId } from 'human-id';
 import { nanoid } from 'nanoid';
+import schedule from 'node-schedule';
+import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it, vi } from 'vitest';
+
+import prisma from '../../src/lib/prisma.js';
+import { GameService } from '../../src/services/GameService.js';
+import { SchedulerService } from '../../src/services/SchedulerService.js';
+import { NewSeasonOptions, SeasonService } from '../../src/services/SeasonService.js';
+import { SeasonTurnService } from '../../src/services/SeasonTurnService.js';
 import { MessageInstruction } from '../../src/types/MessageInstruction.js';
-import prisma from "../../src/lib/prisma.js";
-import { truncateTables } from "../utils/testUtils";
+import { truncateTables } from '../utils/testUtils';
 
 // Mock the logger to prevent console output during tests
 vi.mock('../lib/logger', () => ({
@@ -63,8 +64,8 @@ describe('SeasonService', () => {
     
     await truncateTables(prisma);
 
-    // Create a TurnService instance for the shared prisma instance
-    const turnService = new TurnService(prisma, {} as DiscordClient);
+    // Create a SeasonTurnService instance for the shared prisma instance
+    const turnService = new SeasonTurnService(prisma, {} as DiscordClient);
     
     // Create a mock SchedulerService that completely avoids any real scheduling
     mockSchedulerService = {
@@ -75,7 +76,7 @@ describe('SeasonService', () => {
       cancelJob: vi.fn().mockResolvedValue(true),
     } as unknown as SchedulerService;
     
-    // seasonService is newed up with the shared prisma instance, TurnService, mockSchedulerService, and GameService
+    // seasonService is newed up with the shared prisma instance, SeasonTurnService, mockSchedulerService, and GameService
     const gameService = new GameService(prisma);
     seasonService = new SeasonService(prisma, turnService, mockSchedulerService, gameService);
 
@@ -208,7 +209,7 @@ describe('SeasonService', () => {
       cancelJob: vi.fn().mockResolvedValue(true),
     } as unknown as SchedulerService;
     
-    const testSeasonService = new SeasonService(prisma, new TurnService(prisma, {} as any), testSchedulerService, new GameService(prisma));
+    const testSeasonService = new SeasonService(prisma, new SeasonTurnService(prisma, {} as any), testSchedulerService, new GameService(prisma));
     
     const options: NewSeasonOptions = {
       creatorPlayerId: nonExistentPlayerId,
@@ -228,7 +229,7 @@ describe('SeasonService', () => {
       cancelJob: vi.fn().mockResolvedValue(true),
     } as unknown as SchedulerService;
     
-    const testSeasonService = new SeasonService(prisma, new TurnService(prisma, {} as any), testSchedulerService, new GameService(prisma));
+    const testSeasonService = new SeasonService(prisma, new SeasonTurnService(prisma, {} as any), testSchedulerService, new GameService(prisma));
     
     const options: NewSeasonOptions = {
       creatorPlayerId: testPlayer.id,
@@ -363,7 +364,7 @@ describe('SeasonService', () => {
       },
     });
 
-    // Create real TurnService with minimal Discord client mock (only mock Discord, not our services)
+    // Create real SeasonTurnService with minimal Discord client mock (only mock Discord, not our services)
     const mockDiscordClient = {
       users: {
         fetch: vi.fn().mockResolvedValue({
@@ -372,7 +373,7 @@ describe('SeasonService', () => {
       },
     } as any;
 
-    const realTurnService = new TurnService(prisma, mockDiscordClient);
+    const realTurnService = new SeasonTurnService(prisma, mockDiscordClient);
     
     // Create real SchedulerService that just returns false (scheduling disabled for tests)
     const realSchedulerService = {
@@ -380,7 +381,7 @@ describe('SeasonService', () => {
       cancelJob: vi.fn().mockResolvedValue(true),
     } as unknown as SchedulerService;
 
-    // Use real SeasonService with real TurnService
+    // Use real SeasonService with real SeasonTurnService
     const realSeasonService = new SeasonService(prisma, realTurnService, realSchedulerService, new GameService(prisma));
 
     // Test: Add first player (should not trigger activation)
@@ -473,7 +474,7 @@ describe('SeasonService', () => {
       },
     } as any;
 
-    const realTurnService = new TurnService(prisma, mockDiscordClient);
+    const realTurnService = new SeasonTurnService(prisma, mockDiscordClient);
     const realSchedulerService = {
       scheduleJob: vi.fn().mockResolvedValue(false),
       cancelJob: vi.fn().mockResolvedValue(true),
@@ -563,7 +564,7 @@ describe('SeasonService', () => {
       },
     } as any;
 
-    const realTurnService = new TurnService(prisma, mockDiscordClient);
+    const realTurnService = new SeasonTurnService(prisma, mockDiscordClient);
     const realSchedulerService = {
       scheduleJob: vi.fn().mockResolvedValue(false),
       cancelJob: vi.fn().mockResolvedValue(true),
@@ -639,7 +640,7 @@ describe('SeasonService', () => {
       },
     } as any;
 
-    const realTurnService = new TurnService(prisma, mockDiscordClient);
+    const realTurnService = new SeasonTurnService(prisma, mockDiscordClient);
     const realSchedulerService = {
       scheduleJob: vi.fn().mockResolvedValue(false),
       cancelJob: vi.fn().mockResolvedValue(true),
@@ -724,7 +725,7 @@ describe('SeasonService', () => {
       },
     } as any;
 
-    const realTurnService = new TurnService(prisma, mockDiscordClient);
+    const realTurnService = new SeasonTurnService(prisma, mockDiscordClient);
     const realSchedulerService = {
       scheduleJob: vi.fn().mockResolvedValue(false),
       cancelJob: vi.fn().mockResolvedValue(true),
@@ -2074,7 +2075,7 @@ describe('SeasonService', () => {
 
   describe('Season Activation Notifications', () => {
     let mockDiscordClient: any;
-    let realTurnService: TurnService;
+    let realTurnService: SeasonTurnService;
     let testSeason: any;
     let testSeasonConfig: any;
 
@@ -2096,8 +2097,8 @@ describe('SeasonService', () => {
         }
       };
 
-      // Use real TurnService with mocked Discord client (don't mock database services)
-      realTurnService = new TurnService(prisma, mockDiscordClient);
+      // Use real SeasonTurnService with mocked Discord client (don't mock database services)
+      realTurnService = new SeasonTurnService(prisma, mockDiscordClient);
 
       // Create test season config
       testSeasonConfig = await prisma.seasonConfig.create({
@@ -2125,7 +2126,7 @@ describe('SeasonService', () => {
         }
       });
 
-      // Create a new SeasonService instance with the real TurnService
+      // Create a new SeasonService instance with the real SeasonTurnService
       const gameService = new GameService(prisma);
       seasonService = new SeasonService(prisma, realTurnService, mockSchedulerService, gameService);
     });

@@ -1,9 +1,10 @@
-import { CommandInteraction, Message, Locale } from 'discord.js';
-import { MessageInstruction } from '../types/MessageInstruction.js';
-import { MessageAdapter } from '../messaging/MessageAdapter.js';
-import { Logger } from '../services/index.js';
-import { EventData } from '../models/internal-models.js';
+import { CommandInteraction, Locale, Message } from 'discord.js';
+
 import { ErrorEventBus, ErrorEventType } from '../events/error-event-bus.js';
+import { MessageAdapter } from '../messaging/MessageAdapter.js';
+import { EventData } from '../models/internal-models.js';
+import { Logger } from '../services/index.js';
+import { MessageInstruction } from '../types/MessageInstruction.js';
 
 /**
  * Enum for different error types to enable proper classification and handling

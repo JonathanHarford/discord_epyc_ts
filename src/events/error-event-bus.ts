@@ -1,6 +1,7 @@
-import { EventEmitter } from 'events';
-import { ErrorInfo } from '../utils/error-handler.js';
+import { EventEmitter } from 'node:events';
+
 import { Logger } from '../services/index.js';
+import { ErrorInfo } from '../utils/error-handler.js';
 
 /**
  * Error event types that can be published on the event bus
