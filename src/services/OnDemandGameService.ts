@@ -1,4 +1,4 @@
-import { Game, GameConfig, Player, Prisma, PrismaClient, Turn } from '@prisma/client';
+import { Game, GameConfig, Player, PrismaClient, Turn } from '@prisma/client';
 import { Client as DiscordClient } from 'discord.js';
 import { DateTime } from 'luxon';
 import { nanoid } from 'nanoid';
@@ -8,7 +8,6 @@ import { OnDemandTurnService } from './OnDemandTurnService.js';
 import { SchedulerService } from './SchedulerService.js';
 import { MessageAdapter } from '../messaging/MessageAdapter.js';
 import { MessageHelpers } from '../messaging/MessageHelpers.js';
-import { MessageInstruction } from '../types/MessageInstruction.js';
 import { parseDuration } from '../utils/datetime.js';
 
 export interface GameWithConfig extends Game {
@@ -64,22 +63,36 @@ export class OnDemandGameService {
 
   /**
    * Creates a new on-demand game
-   * @param creatorId The ID of the player creating the game
+   * @param creatorDiscordUserId The Discord user ID of the player creating the game
    * @param guildId The Discord guild ID where the game was created
    * @returns Game creation result
    */
   async createGame(
-    creatorId: string,
+    creatorDiscordUserId: string,
     guildId: string
   ): Promise<GameCreationResult> {
     try {
-      // Get the creator player
-      const creator = await this.prisma.player.findUnique({
-        where: { id: creatorId }
+      // Get or create the creator player by Discord user ID
+      let creator = await this.prisma.player.findUnique({
+        where: { discordUserId: creatorDiscordUserId }
       });
 
       if (!creator) {
-        return { success: false, error: 'Creator not found' };
+        // Player doesn't exist, we need more info to create them
+        // For now, we'll create with a default name (Discord user ID)
+        // In a real implementation, you might want to fetch the Discord user info
+        try {
+          creator = await this.prisma.player.create({
+            data: {
+              discordUserId: creatorDiscordUserId,
+              name: `User_${creatorDiscordUserId.slice(-8)}`, // Use last 8 chars as fallback name
+            }
+          });
+          console.log(`Created new player ${creator.id} for Discord user ${creatorDiscordUserId}`);
+        } catch (error) {
+          console.error(`Failed to create player for Discord user ${creatorDiscordUserId}:`, error);
+          return { success: false, error: 'Failed to create player record' };
+        }
       }
 
       // Check if creator is banned
@@ -95,7 +108,7 @@ export class OnDemandGameService {
         data: {
           id: nanoid(),
           status: 'SETUP',
-          creatorId: creatorId,
+          creatorId: creator.id, // Now use the resolved player ID
           guildId: guildId,
           configId: config.id,
           lastActivityAt: new Date(),
@@ -126,7 +139,7 @@ export class OnDemandGameService {
         }
       });
 
-      console.log(`On-demand game ${game.id} created by ${creatorId} in guild ${guildId}`);
+      console.log(`On-demand game ${game.id} created by ${creator.id} (Discord: ${creatorDiscordUserId}) in guild ${guildId}`);
       return { success: true, game: updatedGame as GameWithConfig };
 
     } catch (error) {
@@ -140,22 +153,34 @@ export class OnDemandGameService {
 
   /**
    * Allows a player to join an available on-demand game
-   * @param playerId The ID of the player joining
+   * @param playerDiscordUserId The Discord user ID of the player joining
    * @param guildId The Discord guild ID
    * @returns Game join result
    */
   async joinGame(
-    playerId: string,
+    playerDiscordUserId: string,
     guildId: string
   ): Promise<GameJoinResult> {
     try {
-      // Get the player
-      const player = await this.prisma.player.findUnique({
-        where: { id: playerId }
+      // Get or create the player by Discord user ID
+      let player = await this.prisma.player.findUnique({
+        where: { discordUserId: playerDiscordUserId }
       });
 
       if (!player) {
-        return { success: false, error: 'Player not found' };
+        // Player doesn't exist, create them with a default name
+        try {
+          player = await this.prisma.player.create({
+            data: {
+              discordUserId: playerDiscordUserId,
+              name: `User_${playerDiscordUserId.slice(-8)}`, // Use last 8 chars as fallback name
+            }
+          });
+          console.log(`Created new player ${player.id} for Discord user ${playerDiscordUserId}`);
+        } catch (error) {
+          console.error(`Failed to create player for Discord user ${playerDiscordUserId}:`, error);
+          return { success: false, error: 'Failed to create player record' };
+        }
       }
 
       // Check if player is banned
@@ -164,7 +189,7 @@ export class OnDemandGameService {
       }
 
       // Find the best available game for this player
-      const gameResult = await this.findBestAvailableGame(playerId, guildId);
+      const gameResult = await this.findBestAvailableGame(player.id, guildId);
       if (!gameResult.success || !gameResult.game) {
         return { success: false, error: gameResult.error || 'No available games found' };
       }
@@ -188,7 +213,7 @@ export class OnDemandGameService {
       }
 
       // Assign the turn to the player
-      const turnResult = await this.turnService.assignTurn(availableTurn.id, playerId);
+      const turnResult = await this.turnService.assignTurn(availableTurn.id, player.id);
       if (!turnResult.success) {
         return { success: false, error: turnResult.error };
       }
@@ -211,7 +236,7 @@ export class OnDemandGameService {
         }
       });
 
-      console.log(`Player ${playerId} joined game ${game.id}`);
+      console.log(`Player ${player.id} (Discord: ${playerDiscordUserId}) joined game ${game.id}`);
       return { 
         success: true, 
         game: updatedGame as GameWithConfig, 
@@ -387,15 +412,36 @@ export class OnDemandGameService {
 
   /**
    * Lists games for a player (active games they're in and available games they can join)
-   * @param playerId The ID of the player
+   * @param playerDiscordUserId The Discord user ID of the player
    * @param guildId The Discord guild ID
    * @returns Game list result
    */
   async listGamesForPlayer(
-    playerId: string,
+    playerDiscordUserId: string,
     guildId: string
   ): Promise<GameListResult> {
     try {
+      // Get or create the player by Discord user ID
+      let player = await this.prisma.player.findUnique({
+        where: { discordUserId: playerDiscordUserId }
+      });
+
+      if (!player) {
+        // Player doesn't exist, create them with a default name
+        try {
+          player = await this.prisma.player.create({
+            data: {
+              discordUserId: playerDiscordUserId,
+              name: `User_${playerDiscordUserId.slice(-8)}`, // Use last 8 chars as fallback name
+            }
+          });
+          console.log(`Created new player ${player.id} for Discord user ${playerDiscordUserId}`);
+        } catch (error) {
+          console.error(`Failed to create player for Discord user ${playerDiscordUserId}:`, error);
+          return { success: false, error: 'Failed to create player record' };
+        }
+      }
+
       // Get active games where the player has a pending turn
       const activeGames = await this.prisma.game.findMany({
         where: {
@@ -406,7 +452,7 @@ export class OnDemandGameService {
           },
           turns: {
             some: {
-              playerId: playerId,
+              playerId: player.id,
               status: 'PENDING'
             }
           }
@@ -446,7 +492,7 @@ export class OnDemandGameService {
       // Filter available games based on return policy
       const eligibleAvailableGames: GameWithConfig[] = [];
       for (const game of availableGames) {
-        const returnCheck = await this.checkReturnPolicy(playerId, game.id, game.config!);
+        const returnCheck = await this.checkReturnPolicy(player.id, game.id, game.config!);
         if (returnCheck.canJoin) {
           eligibleAvailableGames.push(game as GameWithConfig);
         }

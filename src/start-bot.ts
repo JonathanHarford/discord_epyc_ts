@@ -3,7 +3,7 @@ import schedule from 'node-schedule';
 import { createRequire } from 'node:module';
 
 import { Button } from './buttons/index.js';
-import { AdminCommand, DevCommand, HelpCommand, InfoCommand } from './commands/chat/index.js';
+import { AdminCommand, DevCommand, GameCommand, HelpCommand, InfoCommand } from './commands/chat/index.js';
 import { SeasonCommand } from './commands/chat/season-command.js';
 import { Command } from './commands/index.js';
 import { ViewDateSent } from './commands/message/index.js';
@@ -35,6 +35,8 @@ import {
     SeasonTurnService,
     TurnOfferingService,
 } from './services/index.js';
+import { OnDemandGameService } from './services/OnDemandGameService.js';
+import { OnDemandTurnService } from './services/OnDemandTurnService.js';
 import { Trigger } from './triggers/index.js';
 
 const require = createRequire(import.meta.url);
@@ -63,6 +65,8 @@ async function start(): Promise<void> {
     const turnService = new SeasonTurnService(prisma, client, schedulerService);
     const seasonService = new SeasonService(prisma, turnService, schedulerService, gameService);
     const turnOfferingService = new TurnOfferingService(prisma, client, turnService, schedulerService);
+    const onDemandGameService = new OnDemandGameService(prisma, client);
+    const onDemandTurnService = new OnDemandTurnService(prisma, client);
     
     // Set dependencies for SchedulerService to handle different job types
     schedulerService.setDependencies({
@@ -83,6 +87,7 @@ async function start(): Promise<void> {
         new InfoCommand(),
         new SeasonCommand(prisma, seasonService),
         new AdminCommand(),
+        new GameCommand(prisma, onDemandGameService, onDemandTurnService),
 
         // Message Context Commands
         new ViewDateSent(),
