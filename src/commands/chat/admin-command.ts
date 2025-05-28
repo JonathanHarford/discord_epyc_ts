@@ -250,7 +250,7 @@ export class AdminCommand implements Command {
         }
     }
 
-    private async handlePlayerShowCommand(intr: ChatInputCommandInteraction, data: EventData): Promise<void> {
+    private async handlePlayerShowCommand(intr: ChatInputCommandInteraction, _data: EventData): Promise<void> {
         const user = intr.options.getUser('user', true);
         
         try {
@@ -307,7 +307,7 @@ export class AdminCommand implements Command {
         }
     }
 
-    private async handleSeasonListCommand(intr: ChatInputCommandInteraction, data: EventData): Promise<void> {
+    private async handleSeasonListCommand(intr: ChatInputCommandInteraction, _data: EventData): Promise<void> {
         const statusFilter = intr.options.getString('status');
         
         try {
@@ -323,12 +323,12 @@ export class AdminCommand implements Command {
         }
     }
 
-    private async handleSeasonShowCommand(intr: ChatInputCommandInteraction, data: EventData): Promise<void> {
+    private async handleSeasonShowCommand(intr: ChatInputCommandInteraction, _data: EventData): Promise<void> {
         const seasonId = intr.options.getString('season', true);
         
         try {
             const season = await this.seasonService.findSeasonById(seasonId);
-            
+
             if (!season) {
                 await SimpleMessage.sendError(intr, `Season '${seasonId}' not found.`, {}, true);
                 return;
@@ -369,6 +369,7 @@ export class AdminCommand implements Command {
             ).join(', ') || 'None';
 
             await SimpleMessage.sendInfo(intr, `**Season Details**\n\n**ID:** ${season.id}\n**Status:** ${season.status}\n**Creator:** ${seasonStats?.creator.name} (${seasonStats?.creator.discordUserId})\n**Created:** ${season.createdAt.toISOString()}\n**Players:** ${seasonStats?._count.players || 0}\n**Games:** ${seasonStats?._count.games || 0}\n**Min Players:** ${season.config.minPlayers}\n**Max Players:** ${season.config.maxPlayers}\n**Turn Pattern:** ${season.config.turnPattern || 'Default'}\n**Open Duration:** ${season.config.openDuration || 'Default'}\n**Recent Games:** ${recentGames}`, {}, true);
+
         } catch (error) {
             console.error('Error in admin season show command:', error);
             await SimpleMessage.sendEmbed(intr, strings.embeds.errorEmbeds.command, {
@@ -379,7 +380,7 @@ export class AdminCommand implements Command {
         }
     }
 
-    private async handleSeasonConfigCommand(intr: ChatInputCommandInteraction, data: EventData): Promise<void> {
+    private async handleSeasonConfigCommand(intr: ChatInputCommandInteraction, _data: EventData): Promise<void> {
         const guildId = intr.guild?.id;
         if (!guildId) {
             await SimpleMessage.sendError(intr, 'This command can only be used in a server.', {}, true);
@@ -452,7 +453,7 @@ export class AdminCommand implements Command {
                `• Turn Pattern: ${config.turnPattern}`;
     }
 
-    private async handleSeasonKillCommand(intr: ChatInputCommandInteraction, data: EventData): Promise<void> {
+    private async handleSeasonKillCommand(intr: ChatInputCommandInteraction, _data: EventData): Promise<void> {
         const seasonId = intr.options.getString('id', true);
         
         try {

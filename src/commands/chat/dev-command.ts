@@ -18,7 +18,7 @@ export class DevCommand implements Command {
     public names = [strings.chatCommands.dev];
     public deferType = CommandDeferType.HIDDEN;
     public requireClientPerms: PermissionsString[] = [];
-    public async execute(intr: ChatInputCommandInteraction, data: EventData): Promise<void> {
+    public async execute(intr: ChatInputCommandInteraction, _data: EventData): Promise<void> {
         if (!Config.developers.includes(intr.user.id)) {
             await SimpleMessage.sendWarning(intr, 'This command is only available to developers.', {}, true);
             return;

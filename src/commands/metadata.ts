@@ -2,13 +2,11 @@ import {
     ApplicationCommandData,
     ApplicationCommandOptionType,
     ApplicationCommandType,
-    PermissionFlagsBits,
     PermissionsBitField,
     RESTPostAPIChatInputApplicationCommandsJSONBody,
     RESTPostAPIContextMenuApplicationCommandsJSONBody,
 } from 'discord.js';
 
-import { Command } from './index.js';
 import { strings } from '../lang/strings.js';
 import { adminCommandData } from './chat/admin-command-data.js';
 import { gameCommandData } from './chat/game-command-data.js';

@@ -1,58 +1,53 @@
-import { PrismaClient } from '@prisma/client';
 import { ChatInputCommandInteraction, PermissionsString } from 'discord.js';
+import { RateLimiter } from 'discord.js-rate-limiter';
 
-import { seasonCommandData } from './season-command-data.js';
 import { strings } from '../../lang/strings.js';
-import prisma from '../../lib/prisma.js';
 import { SimpleMessage } from '../../messaging/SimpleMessage.js';
 import { EventData } from '../../models/internal-models.js';
 import { NewSeasonOptions, SeasonService } from '../../services/SeasonService.js';
 import { MessageInstruction } from '../../types/MessageInstruction.js';
-import { Command, CommandDeferType } from '../command.js';
+import { Command, CommandDeferType } from '../index.js';
 
 export class SeasonCommand implements Command {
-    public names = [seasonCommandData.name];
-    public data = seasonCommandData;
-    public deferType = CommandDeferType.HIDDEN;
-    public requireClientPerms: PermissionsString[] = ['SendMessages'];
+    public names = [strings.chatCommands.season];
+    public cooldown = new RateLimiter(1, 5000);
+    public deferType = CommandDeferType.PUBLIC;
+    public requireClientPerms: PermissionsString[] = [];
 
-    private prisma: PrismaClient;
-    private seasonService: SeasonService;
+    constructor(
+        private prisma: any, // Keep this as it's used in the constructor
+        private seasonService: SeasonService
+    ) {}
 
-    constructor(prisma: PrismaClient, seasonService: SeasonService) {
-        this.prisma = prisma;
-        this.seasonService = seasonService;
-    }
-
-    public async execute(interaction: ChatInputCommandInteraction, data: EventData): Promise<void> {
-        const subcommand = interaction.options.getSubcommand();
+    public async execute(intr: ChatInputCommandInteraction, _data: EventData): Promise<void> {
+        const subcommand = intr.options.getSubcommand();
 
         switch (subcommand) {
             case 'list':
-                await this.handleListCommand(interaction, data);
+                await this.handleListCommand(intr, _data);
                 break;
             case 'show':
-                await this.handleShowCommand(interaction, data);
+                await this.handleShowCommand(intr, _data);
                 break;
             case 'join':
-                await this.handleJoinCommand(interaction, data);
+                await this.handleJoinCommand(intr, _data);
                 break;
             case 'new':
-                await this.handleNewCommand(interaction, data);
+                await this.handleNewCommand(intr, _data);
                 break;
             default:
-                await SimpleMessage.sendEmbed(interaction, strings.embeds.errorEmbeds.notImplemented, {}, true, 'warning');
+                await SimpleMessage.sendEmbed(intr, strings.embeds.errorEmbeds.notImplemented, {}, true, 'warning');
                 return;
         }
     }
 
-    private async handleListCommand(interaction: ChatInputCommandInteraction, data: EventData): Promise<void> {
-        console.log(`[SeasonCommand] Executing /season list command for user: ${interaction.user.id}, username: ${interaction.user.username}`);
+    private async handleListCommand(intr: ChatInputCommandInteraction, _data: EventData): Promise<void> {
+        console.log(`[SeasonCommand] Executing /season list command for user: ${intr.user.id}, username: ${intr.user.username}`);
         
         try {
             // Get the player record for this user
             const player = await this.prisma.player.findUnique({
-                where: { discordUserId: interaction.user.id }
+                where: { discordUserId: intr.user.id }
             });
 
             // Get all open seasons (public)
@@ -123,16 +118,16 @@ export class SeasonCommand implements Command {
                 }
             }
 
-            await SimpleMessage.sendInfo(interaction, message, {}, false); // Not ephemeral, so others can see available seasons
+            await SimpleMessage.sendInfo(intr, message, {}, false); // Not ephemeral, so others can see available seasons
         } catch (error) {
             console.error('Error in /season list command:', error);
-            await SimpleMessage.sendError(interaction, strings.messages.common.errorCriticalCommand, {}, true);
+            await SimpleMessage.sendError(intr, strings.messages.common.errorCriticalCommand, {}, true);
         }
     }
 
-    private async handleShowCommand(interaction: ChatInputCommandInteraction, data: EventData): Promise<void> {
-        console.log(`[SeasonCommand] Executing /season show command for user: ${interaction.user.id}, username: ${interaction.user.username}`);
-        const seasonId = interaction.options.getString('season', true);
+    private async handleShowCommand(intr: ChatInputCommandInteraction, _data: EventData): Promise<void> {
+        console.log(`[SeasonCommand] Executing /season show command for user: ${intr.user.id}, username: ${intr.user.username}`);
+        const seasonId = intr.options.getString('season', true);
         console.log(`[SeasonCommand] Received season: ${seasonId}`);
 
         try {
@@ -140,7 +135,7 @@ export class SeasonCommand implements Command {
             const season = await this.seasonService.findSeasonById(seasonId);
             
             if (!season) {
-                await SimpleMessage.sendError(interaction, strings.messages.status.seasonNotFound, { seasonId }, true);
+                await SimpleMessage.sendError(intr, strings.messages.status.seasonNotFound, { seasonId }, true);
                 return;
             }
 
@@ -185,7 +180,7 @@ export class SeasonCommand implements Command {
                 return gameInfo;
             }).join('\n\n');
 
-            await SimpleMessage.sendEmbed(interaction, strings.embeds.seasonStatus, {
+            await SimpleMessage.sendEmbed(intr, strings.embeds.seasonStatus, {
                 seasonId: season.id,
                 seasonStatus: season.status,
                 playerCount: season._count.players,
@@ -197,17 +192,17 @@ export class SeasonCommand implements Command {
             
         } catch (error) {
             console.error('Error in /season show command:', error);
-            await SimpleMessage.sendError(interaction, strings.messages.status.genericError, { 
+            await SimpleMessage.sendError(intr, strings.messages.status.genericError, { 
                 seasonId, 
                 errorMessage: error instanceof Error ? error.message : 'Unknown error' 
             }, true);
         }
     }
 
-    private async handleJoinCommand(interaction: ChatInputCommandInteraction, data: EventData): Promise<void> {
-        console.log(`[SeasonCommand] Executing /season join command for user: ${interaction.user.id}, username: ${interaction.user.username}`);
-        const seasonId = interaction.options.getString('season', true);
-        const discordUserId = interaction.user.id;
+    private async handleJoinCommand(intr: ChatInputCommandInteraction, _data: EventData): Promise<void> {
+        console.log(`[SeasonCommand] Executing /season join command for user: ${intr.user.id}, username: ${intr.user.username}`);
+        const seasonId = intr.options.getString('season', true);
+        const discordUserId = intr.user.id;
         console.log(`[SeasonCommand] Received season: ${seasonId}, discordUserId: ${discordUserId}`);
 
         try {
@@ -215,7 +210,7 @@ export class SeasonCommand implements Command {
             
             if (!season) {
                 await SimpleMessage.sendError(
-                    interaction,
+                    intr,
                     strings.messages.joinSeason.seasonNotFound,
                     { seasonId },
                     true
@@ -226,7 +221,7 @@ export class SeasonCommand implements Command {
             const validJoinStatuses = ['OPEN'];
             if (!validJoinStatuses.includes(season.status)) {
                 await SimpleMessage.sendError(
-                    interaction,
+                    intr,
                     strings.messages.joinSeason.notOpen,
                     { seasonId, status: season.status },
                     true
@@ -243,7 +238,7 @@ export class SeasonCommand implements Command {
                     player = await this.prisma.player.create({
                         data: {
                             discordUserId,
-                            name: interaction.user.username,
+                            name: intr.user.username,
                         }
                     });
                     
@@ -251,14 +246,14 @@ export class SeasonCommand implements Command {
                     
                     if (result.type === 'success') {
                         await SimpleMessage.sendSuccess(
-                            interaction,
+                            intr,
                             strings.messages.joinSeason.success,
                             { ...result.data, seasonId },
                             false
                         );
                     } else {
                         await SimpleMessage.sendError(
-                            interaction,
+                            intr,
                             strings.messages.joinSeason.genericError,
                             { seasonId, errorMessage: result.key },
                             true
@@ -268,7 +263,7 @@ export class SeasonCommand implements Command {
                 } catch (error) {
                     console.error('Error creating player record:', error);
                     await SimpleMessage.sendError(
-                        interaction,
+                        intr,
                         strings.messages.joinSeason.genericError,
                         {
                             seasonId,
@@ -284,14 +279,14 @@ export class SeasonCommand implements Command {
             
             if (result.type === 'success') {
                 await SimpleMessage.sendSuccess(
-                    interaction,
+                    intr,
                     strings.messages.joinSeason.success,
                     { ...result.data, seasonId },
                     false
                 );
             } else {
                 await SimpleMessage.sendError(
-                    interaction,
+                    intr,
                     strings.messages.joinSeason.genericError,
                     { seasonId, errorMessage: result.key },
                     true
@@ -301,7 +296,7 @@ export class SeasonCommand implements Command {
         } catch (error) {
             console.error('Error in /season join command:', error);
             await SimpleMessage.sendError(
-                interaction,
+                intr,
                 strings.messages.joinSeason.genericError,
                 { 
                     seasonId, 
@@ -312,10 +307,10 @@ export class SeasonCommand implements Command {
         }
     }
 
-    private async handleNewCommand(interaction: ChatInputCommandInteraction, data: EventData): Promise<void> {
-        console.log(`[SeasonCommand] Executing /season new command for user: ${interaction.user.id}, username: ${interaction.user.username}`);
-        const discordUserId = interaction.user.id;
-        const discordUserName = interaction.user.username;
+    private async handleNewCommand(intr: ChatInputCommandInteraction, _data: EventData): Promise<void> {
+        console.log(`[SeasonCommand] Executing /season new command for user: ${intr.user.id}, username: ${intr.user.username}`);
+        const discordUserId = intr.user.id;
+        const discordUserName = intr.user.username;
 
         // --- Find or Create Player ---
         let playerRecord = await this.prisma.player.findUnique({
@@ -335,7 +330,7 @@ export class SeasonCommand implements Command {
                 console.error(`Failed to create player record for ${discordUserName} (Discord ID: ${discordUserId}):`, playerCreateError);
                 
                 await SimpleMessage.sendError(
-                    interaction,
+                    intr,
                     strings.messages.newSeason.errorPlayerCreateFailed,
                     { discordId: discordUserId }
                 );
@@ -345,13 +340,13 @@ export class SeasonCommand implements Command {
         const creatorPlayerId = playerRecord.id;
         // --- End Find or Create Player ---
 
-        const openDuration = interaction.options.getString('open_duration');
-        const minPlayers = interaction.options.getInteger('min_players');
-        const maxPlayers = interaction.options.getInteger('max_players');
-        const turnPattern = interaction.options.getString('turn_pattern');
-        const claimTimeout = interaction.options.getString('claim_timeout');
-        const writingTimeout = interaction.options.getString('writing_timeout');
-        const drawingTimeout = interaction.options.getString('drawing_timeout');
+        const openDuration = intr.options.getString('open_duration');
+        const minPlayers = intr.options.getInteger('min_players');
+        const maxPlayers = intr.options.getInteger('max_players');
+        const turnPattern = intr.options.getString('turn_pattern');
+        const claimTimeout = intr.options.getString('claim_timeout');
+        const writingTimeout = intr.options.getString('writing_timeout');
+        const drawingTimeout = intr.options.getString('drawing_timeout');
 
         const seasonOptions: NewSeasonOptions = {
             creatorPlayerId,
@@ -370,11 +365,11 @@ export class SeasonCommand implements Command {
             if (instruction.type === 'success') {
                 // Send success message with user mention
                 await SimpleMessage.sendSuccess(
-                    interaction,
+                    intr,
                     strings.messages.newSeason.createSuccessChannel,
                     { 
                         ...instruction.data, 
-                        mentionUser: interaction.user.toString() 
+                        mentionUser: intr.user.toString() 
                     }
                 );
             } else {
@@ -393,11 +388,11 @@ export class SeasonCommand implements Command {
                     errorMessage = strings.messages.newSeason.errorGenericService;
                 }
                 
-                await SimpleMessage.sendError(interaction, errorMessage, instruction.data);
+                await SimpleMessage.sendError(intr, errorMessage, instruction.data);
             }
         } catch (error) {
             console.error('Critical error in /season new command processing:', error);
-            await SimpleMessage.sendError(interaction, strings.messages.common.errorCriticalCommand);
+            await SimpleMessage.sendError(intr, strings.messages.common.errorCriticalCommand);
         }
     }
 }

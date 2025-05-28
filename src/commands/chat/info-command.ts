@@ -4,7 +4,6 @@ import { RateLimiter } from 'discord.js-rate-limiter';
 import { strings } from '../../lang/strings.js';
 import { SimpleMessage } from '../../messaging/SimpleMessage.js';
 import { EventData } from '../../models/internal-models.js';
-import { InteractionUtils } from '../../utils/index.js';
 import { Command, CommandDeferType } from '../index.js';
 
 export class InfoCommand implements Command {
@@ -13,7 +12,7 @@ export class InfoCommand implements Command {
     public deferType = CommandDeferType.HIDDEN;
     public requireClientPerms: PermissionsString[] = [];
 
-    public async execute(intr: ChatInputCommandInteraction, data: EventData): Promise<void> {
+    public async execute(intr: ChatInputCommandInteraction, _data: EventData): Promise<void> {
         let option = intr.options.getString('option');
 
         switch (option) {

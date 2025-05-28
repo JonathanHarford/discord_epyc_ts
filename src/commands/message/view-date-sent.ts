@@ -2,7 +2,6 @@ import { MessageContextMenuCommandInteraction, PermissionsString } from 'discord
 import { RateLimiter } from 'discord.js-rate-limiter';
 import { DateTime } from 'luxon';
 
-import { strings } from '../../lang/strings.js';
 import { SimpleMessage } from '../../messaging/SimpleMessage.js';
 import { EventData } from '../../models/internal-models.js';
 import { Command, CommandDeferType } from '../index.js';
@@ -10,13 +9,10 @@ import { Command, CommandDeferType } from '../index.js';
 export class ViewDateSent implements Command {
     public names = ['View Date Sent'];
     public cooldown = new RateLimiter(1, 5000);
-    public deferType = CommandDeferType.HIDDEN;
+    public deferType = CommandDeferType.PUBLIC;
     public requireClientPerms: PermissionsString[] = [];
 
-    public async execute(
-        intr: MessageContextMenuCommandInteraction,
-        data: EventData
-    ): Promise<void> {
+    public async execute(intr: MessageContextMenuCommandInteraction, _data: EventData): Promise<void> {
         const dateString = DateTime.fromJSDate(intr.targetMessage.createdAt).toLocaleString(
             DateTime.DATE_HUGE
         );

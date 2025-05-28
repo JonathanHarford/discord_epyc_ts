@@ -1,20 +1,15 @@
 import { PrismaClient } from '@prisma/client';
 import { Client as DiscordClient, Message } from 'discord.js';
-import { createRequire } from 'node:module';
 
 import { EventHandler } from './index.js';
-import { interpolate, strings } from '../lang/strings.js';
-import { SimpleMessage } from '../messaging/SimpleMessage.js';
-import { Logger } from '../services/index.js';
+import { interpolate, strings } from '../lang/strings.js';  
+import { Logger, SeasonTurnService, TurnOfferingService } from '../services/index.js';
 import { PlayerService } from '../services/PlayerService.js';
 import { SchedulerService } from '../services/SchedulerService.js';
-import { TurnOfferingService } from '../services/TurnOfferingService.js';
-import { SeasonTurnService } from '../services/SeasonTurnService.js';
 import { ErrorHandler } from '../utils/index.js';
 import { getSeasonTimeouts } from '../utils/seasonConfig.js';
 
-const require = createRequire(import.meta.url);
-let Logs = require('../../lang/logs.json');
+
 
 /**
  * Enum representing the possible context types of a direct message
@@ -184,7 +179,7 @@ export class DirectMessageHandler implements EventHandler {
                 const submissionJobScheduled = await this.schedulerService.scheduleJob(
                     submissionTimeoutJobId,
                     submissionTimeoutDate,
-                    async (jobData) => {
+                    async (_jobData) => {
                         Logger.info(`Submission timeout triggered for turn ${turnToClaim.id}`);
                         
                         // Import and create the SubmissionTimeoutHandler
