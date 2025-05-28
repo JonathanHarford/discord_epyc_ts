@@ -12,7 +12,7 @@ import { Command, CommandDeferType } from '../command.js';
 export class GameCommand implements Command {
     public names = [gameCommandData.name];
     public data = gameCommandData;
-    public deferType = CommandDeferType.HIDDEN;
+    public deferType = CommandDeferType.PUBLIC;
     public requireClientPerms: PermissionsString[] = ['SendMessages'];
 
     private prisma: PrismaClient;
