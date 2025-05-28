@@ -515,4 +515,248 @@ describe('Bot Integration Tests (Interactions & Messaging)', () => {
     expect(updatedTurn?.playerId).toBe(joiningPlayer.id); 
     expect(updatedTurn?.claimedAt).not.toBeNull();
   });
+
+  // Test Case 8: Full On-Demand Game Playthrough (2 Players, 3 Turns)
+  it('should simulate a full on-demand game playthrough with two players (Alice and Bob) and three turns', async () => {
+    // Phase 0: Setup
+    // 0.1 Users & Players
+    const aliceMockUser = createMockUser({ id: 'alice-discord-id', username: 'Alice', discriminator: '0001' });
+    const bobMockUser = createMockUser({ id: 'bob-discord-id', username: 'Bob', discriminator: '0002' });
+
+    const alicePlayer = await prisma.player.create({
+      data: { id: nanoid(), discordUserId: aliceMockUser.id, name: aliceMockUser.username },
+    });
+    const bobPlayer = await prisma.player.create({
+      data: { id: nanoid(), discordUserId: bobMockUser.id, name: bobMockUser.username },
+    });
+
+    // 0.2 GameConfig
+    const gameConfig = await prisma.gameConfig.create({
+      data: {
+        id: nanoid(),
+        name: 'Full Game Test Config',
+        type: 'ON_DEMAND',
+        turnPattern: ['WRITING', 'DRAWING', 'WRITING'], // Corrected to array
+        minTurns: 3,
+        maxTurns: 3,
+        turnDurationMinutes: 10,
+        maxPlayers: 2, // Allows Alice and Bob
+        rounds: 1, // For simplicity, one set of turns
+        // Assuming default return policy is permissive or set returnCount high if needed.
+      },
+    });
+
+    // 0.3 Services & Mocks
+    const mockDiscordClient = {
+      users: {
+        fetch: vi.fn(async (userId: string) => {
+          if (userId === aliceMockUser.id) return aliceMockUser;
+          if (userId === bobMockUser.id) return bobMockUser;
+          // Add bot user mock if services try to fetch it e.g. for logging or self-mention
+          if (userId === mockInteraction.client.user.id) return mockInteraction.client.user;
+          console.warn(`[FullGameTest] Unmocked user fetch for ID: ${userId}`);
+          return createMockUser({ id: userId });
+        }),
+      },
+      channels: {
+        fetch: vi.fn().mockImplementation(async (channelId: string) => ({
+          id: channelId,
+          type: 0, // Assume TextChannel or similar if type matters for message sending
+          send: vi.fn().mockResolvedValue({ id: nanoid() }), // For game completion message
+          guildId: 'test-guild-id',
+        })),
+      },
+    } as unknown as DiscordClient;
+
+    const onDemandTurnService = new OnDemandTurnService(prisma, mockDiscordClient);
+    const mockSchedulerService = {
+      scheduleJob: vi.fn().mockResolvedValue(true),
+      cancelJob: vi.fn().mockResolvedValue(true),
+    } as unknown as SchedulerService;
+    const onDemandGameService = new OnDemandGameService(prisma, onDemandTurnService, mockDiscordClient, mockSchedulerService);
+    const gameCommand = new GameCommand(prisma, onDemandGameService);
+    
+    // 0.4 EventData & Message Clearing
+    // eventData is already available from beforeEach.
+    // startCapturingMessages in beforeEach already clears messages.
+
+    // --- Phase 1: Game Creation & Alice's First Turn ---
+    // Step 1.1: Alice executes /game new
+    mockInteraction.user = aliceMockUser; // Set Alice as the interactor
+    vi.spyOn(mockInteraction.options, 'getSubcommand').mockReturnValue('new');
+    // No specific options needed for /game new in this context
+
+    await gameCommand.execute(mockInteraction as ChatInputCommandInteraction, eventData);
+
+    // Assert DB for Step 1.1
+    let game = await prisma.game.findFirst({ where: { creatorId: alicePlayer.id, gameConfigId: gameConfig.id }, include: { turns: true } });
+    expect(game).not.toBeNull();
+    expect(game?.status).toBe('PENDING'); // Game is pending until first turn is submitted or another player joins.
+    expect(game?.turns.length).toBe(1);
+    const aliceTurn1 = game!.turns[0];
+    expect(aliceTurn1.type).toBe('WRITING');
+    expect(aliceTurn1.status).toBe('PENDING');
+    expect(aliceTurn1.playerId).toBe(alicePlayer.id);
+
+    // Assert Messages for Step 1.1
+    let captured = getCapturedMessages();
+    expect(captured.length).toBe(2); // Public reply + DM to Alice
+
+    const publicReplyNewGame = captured.find(msg => msg.content?.includes(strings.onDemandGames.newGame.success.split('!')[0])); // Check for "Alice has started a new game!"
+    expect(publicReplyNewGame).toBeDefined();
+    
+    const dmToAliceNewGame = captured.find(msg => msg.content === strings.onDemandGames.turnPrompt.initial);
+    expect(dmToAliceNewGame).toBeDefined();
+    // Implicitly to Alice because userSendSpy on User.prototype.send is used, and it would be aliceMockUser.send()
+
+    clearCapturedMessages();
+
+    // Step 1.2: Alice submits her WRITING turn
+    const aliceTurn1Content = "A cat wearing a very tall hat";
+    await onDemandTurnService.submitTurn(aliceTurn1.id, alicePlayer.id, aliceTurn1Content, 'text');
+
+    // Assert DB for Step 1.2
+    const updatedAliceTurn1 = await prisma.turn.findUnique({ where: { id: aliceTurn1.id } });
+    expect(updatedAliceTurn1?.status).toBe('COMPLETED');
+    expect(updatedAliceTurn1?.textContent).toBe(aliceTurn1Content);
+    game = await prisma.game.findUnique({ where: { id: game!.id }, include: { turns: { orderBy: { turnNumber: 'asc' }} } });
+    expect(game?.lastActivityAt).not.toEqual(aliceTurn1.createdAt); // lastActivityAt updated
+    expect(game?.turns.length).toBe(2); // Alice's completed, Turn 2 (DRAWING) created
+    const turn2ForBob = game!.turns[1];
+    expect(turn2ForBob.type).toBe('DRAWING');
+    expect(turn2ForBob.status).toBe('AVAILABLE'); // Available for Bob to pick up
+    expect(turn2ForBob.previousTurnId).toBe(aliceTurn1.id);
+
+
+    // Assert Messages for Step 1.2
+    captured = getCapturedMessages();
+    expect(captured.length).toBe(1); // DM to Alice
+    const dmAliceTurn1Confirm = captured.find(msg => msg.content === strings.onDemandGames.turnConfirmation);
+    expect(dmAliceTurn1Confirm).toBeDefined();
+    
+    clearCapturedMessages();
+
+    // --- Phase 2: Bob Joins & Submits Drawing ---
+    // Step 2.3: Bob executes /game play
+    mockInteraction.user = bobMockUser; // Set Bob as the interactor
+    vi.spyOn(mockInteraction.options, 'getSubcommand').mockReturnValue('play');
+    // Ensure the client mock on mockInteraction is also updated if it's user-specific, or use a shared one.
+    mockInteraction.client.users.fetch = mockDiscordClient.users.fetch; // Point to the multi-user aware fetch
+
+    await gameCommand.execute(mockInteraction as ChatInputCommandInteraction, eventData);
+    
+    // Assert DB for Step 2.3
+    game = await prisma.game.findUnique({ where: { id: game!.id }, include: { turns: { orderBy: { turnNumber: 'asc' } } } });
+    expect(game?.status).toBe('IN_PROGRESS'); // Game is now IN_PROGRESS
+    const bobTurn2 = game!.turns.find(t => t.turnNumber === 2);
+    expect(bobTurn2).toBeDefined();
+    expect(bobTurn2?.status).toBe('PENDING');
+    expect(bobTurn2?.playerId).toBe(bobPlayer.id);
+    expect(bobTurn2?.type).toBe('DRAWING');
+
+    // Assert Messages for Step 2.3
+    captured = getCapturedMessages();
+    expect(captured.length).toBe(2); // Public reply + DM to Bob
+
+    const publicReplyBobJoins = captured.find(msg => msg.content?.includes(bobMockUser.username) && msg.content?.includes(aliceMockUser.username));
+    expect(publicReplyBobJoins).toBeDefined(); // e.g., "Bob has joined the game started by Alice..."
+    // Check string key if precise: strings.onDemandGames.join.success.replace(/{playerName}/g, bobMockUser.username).replace(/{creatorName}/g, aliceMockUser.username)
+    
+    const dmToBobDrawing = captured.find(msg => msg.content?.includes(strings.onDemandGames.turnPrompt.drawing.split(':')[0])); // "It's your turn! Draw..."
+    expect(dmToBobDrawing).toBeDefined();
+    expect(dmToBobDrawing?.content).toContain(aliceTurn1Content); // Prompt should contain Alice's text
+
+    clearCapturedMessages();
+
+    // Step 2.4: Bob submits his DRAWING turn
+    const bobTurn2ImageUrl = "https://example.com/cat_in_hat_by_bob.png";
+    await onDemandTurnService.submitTurn(bobTurn2!.id, bobPlayer.id, bobTurn2ImageUrl, 'image');
+
+    // Assert DB for Step 2.4
+    const updatedBobTurn2 = await prisma.turn.findUnique({ where: { id: bobTurn2!.id } });
+    expect(updatedBobTurn2?.status).toBe('COMPLETED');
+    expect(updatedBobTurn2?.imageUrl).toBe(bobTurn2ImageUrl);
+    game = await prisma.game.findUnique({ where: { id: game!.id }, include: { turns: { orderBy: { turnNumber: 'asc' }} } });
+    expect(game?.turns.length).toBe(3); // Bob's completed, Turn 3 (WRITING) created
+    const turn3ForAlice = game!.turns[2];
+    expect(turn3ForAlice.type).toBe('WRITING');
+    expect(turn3ForAlice.status).toBe('AVAILABLE');
+    expect(turn3ForAlice.previousTurnId).toBe(bobTurn2!.id);
+
+    // Assert Messages for Step 2.4
+    captured = getCapturedMessages();
+    expect(captured.length).toBe(1); // DM to Bob
+    const dmBobTurn2Confirm = captured.find(msg => msg.content === strings.onDemandGames.turnConfirmation);
+    expect(dmBobTurn2Confirm).toBeDefined();
+
+    clearCapturedMessages();
+
+    // --- Phase 3: Alice's Second Turn & Game Completion ---
+    // Step 3.5: Alice executes /game play again
+    mockInteraction.user = aliceMockUser; // Set Alice as the interactor
+    // options.getSubcommand is still 'play'
+    mockInteraction.client.users.fetch = mockDiscordClient.users.fetch; // Ensure client is correctly set
+
+    await gameCommand.execute(mockInteraction as ChatInputCommandInteraction, eventData);
+
+    // Assert DB for Step 3.5
+    game = await prisma.game.findUnique({ where: { id: game!.id }, include: { turns: { orderBy: { turnNumber: 'asc' } } } });
+    const aliceTurn3 = game!.turns.find(t => t.turnNumber === 3);
+    expect(aliceTurn3).toBeDefined();
+    expect(aliceTurn3?.status).toBe('PENDING');
+    expect(aliceTurn3?.playerId).toBe(alicePlayer.id);
+    expect(aliceTurn3?.type).toBe('WRITING');
+
+    // Assert Messages for Step 3.5
+    captured = getCapturedMessages();
+    expect(captured.length).toBe(2); // Public reply + DM to Alice
+
+    const publicReplyAliceJoinsAgain = captured.find(msg => msg.content?.includes(aliceMockUser.username)); // Simplified check
+    expect(publicReplyAliceJoinsAgain).toBeDefined();
+    
+    const dmToAliceWriting = captured.find(msg => msg.content?.includes(strings.onDemandGames.turnPrompt.writingBasedOnImage.split(':')[0]));
+    expect(dmToAliceWriting).toBeDefined();
+    // The actual image URL is not in the DM text for writing prompts based on images, so this is a generic prompt.
+
+    clearCapturedMessages();
+
+    // Step 3.6: Alice submits her WRITING turn
+    const aliceTurn3Content = "The artistic cat showed off its masterpiece to an admiring crowd.";
+    await onDemandTurnService.submitTurn(aliceTurn3!.id, alicePlayer.id, aliceTurn3Content, 'text');
+
+    // Assert DB for Step 3.6
+    const updatedAliceTurn3 = await prisma.turn.findUnique({ where: { id: aliceTurn3!.id } });
+    expect(updatedAliceTurn3?.status).toBe('COMPLETED');
+    expect(updatedAliceTurn3?.textContent).toBe(aliceTurn3Content);
+
+    game = await prisma.game.findUnique({ where: { id: game!.id } });
+    expect(game?.status).toBe('COMPLETED'); // Game is now COMPLETED
+    expect(game?.completedAt).not.toBeNull();
+
+    // Assert Messages for Step 3.6
+    captured = getCapturedMessages();
+    // Expect 1 DM to Alice (turn confirmation) + potentially 1 channel message (game completion)
+    // For now, focus on the DM.
+    const dmAliceTurn3Confirm = captured.find(msg => msg.content === strings.onDemandGames.turnConfirmation);
+    expect(dmAliceTurn3Confirm).toBeDefined();
+    
+    // Optional: Assert Game Completion Channel Message
+    // This depends on OnDemandGameService.sendGameCompletionAnnouncement and its mocking.
+    // Assuming it sends a message to game.channelId if it exists.
+    if (game?.channelId) {
+        const gameCompletionMessage = captured.find(msg => 
+            msg !== dmAliceTurn3Confirm && // Not the DM
+            (msg.content?.includes(strings.onDemandGames.complete.title) || 
+             (msg.embeds && msg.embeds.length > 0 && msg.embeds[0].title === strings.onDemandGames.complete.title))
+        );
+        // This assertion is highly dependent on the exact format of the completion message.
+        // For now, checking if any other message was sent (besides the DM) might be a start.
+        // If sendGameCompletionAnnouncement uses SimpleMessage, it will be captured by simpleMessageSpy.
+        // If it uses client.channels.cache.get(...).send(...), that part of client needs mocking.
+        // The current mockDiscordClient.channels.fetch().send() should capture it if channelId is used.
+        expect(gameCompletionMessage).toBeDefined(); // This might be too strict without knowing exact message
+    }
+    
+    clearCapturedMessages();
+  });
 });
