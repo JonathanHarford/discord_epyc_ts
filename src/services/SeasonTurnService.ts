@@ -8,6 +8,7 @@ import { MessageAdapter } from '../messaging/MessageAdapter.js';
 import { MessageHelpers } from '../messaging/MessageHelpers.js';
 import { SchedulerService } from '../services/SchedulerService.js';
 import { TurnTimeoutService } from './interfaces/TurnTimeoutService.js';
+import { FormatUtils } from '../utils/format-utils.js';
 import { getSeasonTimeouts } from '../utils/seasonConfig.js';
 
 export class SeasonTurnService implements TurnTimeoutService {
@@ -88,7 +89,7 @@ export class SeasonTurnService implements TurnTimeoutService {
             gameId: game.id,
             seasonId: seasonId,
             turnType: initialTurnType,
-            claimTimeoutMinutes: timeouts.claimTimeoutMinutes
+            claimTimeoutFormatted: FormatUtils.formatTimeout(timeouts.claimTimeoutMinutes)
           }
         );
 

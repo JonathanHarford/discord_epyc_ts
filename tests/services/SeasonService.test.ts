@@ -1,17 +1,13 @@
-import { Game, Player, Prisma, PrismaClient, Season, SeasonConfig } from '@prisma/client';
+import { Game, Player, PrismaClient, Season } from '@prisma/client';
 import { Client as DiscordClient } from 'discord.js';
-import { humanId } from 'human-id';
 import { nanoid } from 'nanoid';
-import schedule from 'node-schedule';
 import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it, vi } from 'vitest';
 
-import prisma from '../../src/lib/prisma.js';
 import { GameService } from '../../src/services/GameService.js';
 import { SchedulerService } from '../../src/services/SchedulerService.js';
 import { NewSeasonOptions, SeasonService } from '../../src/services/SeasonService.js';
 import { SeasonTurnService } from '../../src/services/SeasonTurnService.js';
-import { MessageInstruction } from '../../src/types/MessageInstruction.js';
-import { truncateTables } from '../utils/testUtils';
+import { truncateTables } from '../utils/testUtils.js';
 
 // Mock the logger to prevent console output during tests
 vi.mock('../lib/logger', () => ({
@@ -340,7 +336,7 @@ describe('SeasonService', () => {
       },
     });
 
-    const season = await prisma.season.create({
+    const _season = await prisma.season.create({
       data: {
         id: seasonId,
         status: 'OPEN',
@@ -2131,83 +2127,6 @@ describe('SeasonService', () => {
       seasonService = new SeasonService(prisma, realTurnService, mockSchedulerService, gameService);
     });
 
-    describe('sendSeasonActivationSuccessNotification', () => {
-      it('should send success notification to season creator via DM', async () => {
-        const activationResult = {
-          type: 'success' as const,
-          key: 'messages.season.activateSuccess',
-          data: {
-            seasonId: testSeason.id,
-            status: 'ACTIVE',
-            gamesCreated: 3,
-            playersInSeason: 3
-          }
-        };
-
-        // Call the private method via reflection
-        await (seasonService as any).sendSeasonActivationSuccessNotification(testSeason.id, activationResult);
-
-        // Verify Discord client interactions
-        expect(mockDiscordClient.users.fetch).toHaveBeenCalledWith(testPlayer.discordUserId);
-        expect(mockDiscordClient.channels.fetch).toHaveBeenCalledWith(testSeason.channelId);
-      });
-
-      it('should handle missing season gracefully', async () => {
-        const activationResult = {
-          type: 'success' as const,
-          key: 'messages.season.activateSuccess',
-          data: {
-            seasonId: 'non-existent-season',
-            status: 'ACTIVE',
-            gamesCreated: 0,
-            playersInSeason: 0
-          }
-        };
-
-        // Should not throw an error
-        await expect((seasonService as any).sendSeasonActivationSuccessNotification('non-existent-season', activationResult))
-          .resolves.not.toThrow();
-      });
-
-      it('should handle Discord client errors gracefully', async () => {
-        const activationResult = {
-          type: 'success' as const,
-          key: 'messages.season.activateSuccess',
-          data: {
-            seasonId: testSeason.id,
-            status: 'ACTIVE',
-            gamesCreated: 3,
-            playersInSeason: 3
-          }
-        };
-
-        // Mock Discord client to throw an error
-        mockDiscordClient.users.fetch.mockRejectedValue(new Error('Discord API error'));
-
-        // Should not throw an error
-        await expect((seasonService as any).sendSeasonActivationSuccessNotification(testSeason.id, activationResult))
-          .resolves.not.toThrow();
-      });
-
-      it('should send channel notification when season has channel info', async () => {
-        const activationResult = {
-          type: 'success' as const,
-          key: 'messages.season.activateSuccess',
-          data: {
-            seasonId: testSeason.id,
-            status: 'ACTIVE',
-            gamesCreated: 3,
-            playersInSeason: 3
-          }
-        };
-
-        await (seasonService as any).sendSeasonActivationSuccessNotification(testSeason.id, activationResult);
-
-        // Verify channel notification was attempted
-        expect(mockDiscordClient.channels.fetch).toHaveBeenCalledWith(testSeason.channelId);
-      });
-    });
-
     describe('sendSeasonActivationFailureNotification', () => {
       beforeEach(() => {
         // Mock config.json to include admin users
@@ -2327,7 +2246,7 @@ describe('SeasonService', () => {
     });
 
     describe('Integration with activation methods', () => {
-      it('should call success notification when activation succeeds via max players', async () => {
+      it('should not send success notification when activation succeeds via max players', async () => {
         // Create a new config for this test
         const integrationConfig = await prisma.seasonConfig.create({
           data: {
@@ -2355,17 +2274,14 @@ describe('SeasonService', () => {
           data: { playerId: testPlayer.id, seasonId: pendingSeason.id }
         });
 
-        // Spy on the notification method
-        const notificationSpy = vi.spyOn(seasonService as any, 'sendSeasonActivationSuccessNotification');
-
-        // Trigger activation
+        // Trigger activation - should succeed without sending success notifications
         const result = await seasonService.activateSeason(pendingSeason.id, {
           triggeredBy: 'max_players',
           playerCount: 1
         });
 
         expect(result.type).toBe('success');
-        expect(notificationSpy).toHaveBeenCalledWith(pendingSeason.id, expect.any(Object));
+        // No success notification should be sent (method was removed)
       });
 
       it('should call failure notification when activation fails', async () => {

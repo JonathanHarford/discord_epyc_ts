@@ -182,9 +182,31 @@ export class SeasonCommand implements Command {
                 return gameInfo;
             }).join('\n\n');
 
+            // Calculate completion percentage for active/pending seasons
+            let pcComplete = '';
+            if (season.status === 'ACTIVE' || season.status === 'PENDING') {
+                // Get all turns for this season
+                const allTurns = await this.prisma.turn.findMany({
+                    where: {
+                        game: {
+                            seasonId: season.id
+                        }
+                    }
+                });
+                
+                const completedTurns = allTurns.filter(turn => turn.status === 'COMPLETED').length;
+                const totalTurns = allTurns.length;
+                
+                if (totalTurns > 0) {
+                    const percentage = Math.round((completedTurns / totalTurns) * 100);
+                    pcComplete = `(${percentage}%)`;
+                }
+            }
+
             await SimpleMessage.sendEmbed(intr, strings.embeds.seasonStatus, {
                 seasonId: season.id,
                 seasonStatus: season.status,
+                pcComplete: pcComplete,
                 playerCount: season._count.players,
                 minPlayers: season.config.minPlayers,
                 maxPlayers: season.config.maxPlayers,

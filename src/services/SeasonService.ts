@@ -1,15 +1,13 @@
 import { Game, Player, Prisma, PrismaClient } from '@prisma/client';
-import { humanId } from 'human-id'; // Import human-id
-import { DateTime } from 'luxon'; // Duration and DurationLikeObject might not be needed here anymore
-import { nanoid } from 'nanoid'; // Use named import for nanoid
+import { humanId } from 'human-id';
+import { DateTime } from 'luxon';
+import { nanoid } from 'nanoid';
 
-import { GameService } from './GameService.js'; // ADDED: Import GameService
-import { SchedulerService } from './SchedulerService.js'; // ADDED: Import SchedulerService
-import { SeasonTurnService } from './SeasonTurnService.js'; // Added .js extension
-import { MessageHelpers } from '../messaging/MessageHelpers.js'; // Added MessageHelpers import
-import { MessageInstruction } from '../types/MessageInstruction.js'; // Added .js extension
-import { formatTimeRemaining, parseDuration } from '../utils/datetime.js'; // Import the new utility
-import { ServerContextService } from '../utils/server-context.js';
+import { GameService } from './GameService.js';
+import { SchedulerService } from './SchedulerService.js';
+import { SeasonTurnService } from './SeasonTurnService.js';
+import { MessageHelpers, MessageInstruction } from '../messaging/index.js';
+import { formatTimeRemaining, parseDuration } from '../utils/datetime.js';
 
 // Define a more specific return type for findSeasonById, including config and player count
 type SeasonDetails = Prisma.SeasonGetPayload<{
@@ -533,8 +531,8 @@ export class SeasonService {
         },
       };
 
-      // Send success notification
-      await this.sendSeasonActivationSuccessNotification(seasonId, successResult);
+      // Note: No longer sending activation success notifications per user requirements
+      // Only people who should be alerted are those being asked for their initiating turns
 
       return successResult;
     };
@@ -588,105 +586,6 @@ export class SeasonService {
     // The SchedulerService automatically removes one-time jobs after execution.
     // No explicit cleanup is needed here.
     console.log(`SeasonService.handleOpenDurationTimeout: Job handling complete for season ${seasonId}. SchedulerService will clean up the job.`);
-  }
-
-  /**
-   * Sends a success notification when a season is successfully activated.
-   * @param seasonId The ID of the activated season
-   * @param activationResult The success result from activateSeason
-   */
-  private async sendSeasonActivationSuccessNotification(
-    seasonId: string, 
-    activationResult: MessageInstruction
-  ): Promise<void> {
-    try {
-      // Get season details for notification context
-      const season = await this.prisma.season.findUnique({
-        where: { id: seasonId },
-        include: {
-          creator: {
-            select: {
-              name: true,
-              discordUserId: true
-            }
-          }
-        }
-      });
-
-      if (!season) {
-        console.error(`SeasonService.sendSeasonActivationSuccessNotification: Season ${seasonId} not found`);
-        return;
-      }
-
-      // Send DM to season creator
-      if (this.turnService && season.creator) {
-        try {
-          const discordClient = (this.turnService as any).discordClient;
-          if (discordClient) {
-            const user = await discordClient.users.fetch(season.creator.discordUserId);
-            if (user) {
-              // Get server context information
-              const serverContextService = new ServerContextService(this.prisma, discordClient);
-              const serverContext = await serverContextService.getSeasonServerContext(seasonId);
-
-              const successMessage = MessageHelpers.dmNotification(
-                'messages.season.activationSuccessNotification',
-                season.creator.discordUserId,
-                {
-                  seasonId,
-                  creatorName: season.creator.name,
-                  serverName: serverContext.serverName,
-                  gamesCreated: activationResult.data?.gamesCreated || 0,
-                  playersInSeason: activationResult.data?.playersInSeason || 0
-                }
-              );
-
-              // Use MessageAdapter to send the DM
-              const { MessageAdapter } = await import('../messaging/MessageAdapter.js');
-              await MessageAdapter.processInstruction(successMessage, undefined, 'en', discordClient);
-              
-              console.log(`SeasonService.sendSeasonActivationSuccessNotification: Success notification sent to creator ${season.creator.discordUserId} for season ${seasonId}`);
-            }
-          }
-        } catch (dmError) {
-          console.error(`SeasonService.sendSeasonActivationSuccessNotification: Failed to send DM to creator for season ${seasonId}:`, dmError);
-        }
-      }
-
-      // Also send notification to channel if season was created in a channel
-      if (season.guildId && season.channelId) {
-        try {
-          const discordClient = (this.turnService as any).discordClient;
-          if (discordClient) {
-            const channel = await discordClient.channels.fetch(season.channelId);
-            if (channel && channel.isTextBased()) {
-              const channelMessage = MessageHelpers.info(
-                'messages.season.activationSuccessChannelNotification',
-                {
-                  seasonId,
-                  gamesCreated: activationResult.data?.gamesCreated || 0,
-                  playersInSeason: activationResult.data?.playersInSeason || 0
-                }
-              );
-
-              const { MessageAdapter } = await import('../messaging/MessageAdapter.js');
-              const { MessageUtils } = await import('../utils/message-utils.js');
-              
-              // Convert MessageInstruction to Discord message format
-              const messageContent = (MessageAdapter as any).generateMessageContent(channelMessage, 'en');
-              await MessageUtils.send(channel, messageContent);
-              
-              console.log(`SeasonService.sendSeasonActivationSuccessNotification: Channel notification sent to ${season.channelId} for season ${seasonId}`);
-            }
-          }
-        } catch (channelError) {
-          console.error(`SeasonService.sendSeasonActivationSuccessNotification: Failed to send channel notification for season ${seasonId}:`, channelError);
-        }
-      }
-
-    } catch (error) {
-      console.error(`SeasonService.sendSeasonActivationSuccessNotification: Error sending success notification for season ${seasonId}:`, error);
-    }
   }
 
   /**

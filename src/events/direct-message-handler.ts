@@ -6,11 +6,10 @@ import { interpolate, strings } from '../lang/strings.js';
 import { Logger, SeasonTurnService, TurnOfferingService } from '../services/index.js';
 import { PlayerService } from '../services/PlayerService.js';
 import { SchedulerService } from '../services/SchedulerService.js';
+import { FormatUtils } from '../utils/format-utils.js';
 import { ErrorHandler } from '../utils/index.js';
 import { getSeasonTimeouts } from '../utils/seasonConfig.js';
 import { ServerContextService } from '../utils/server-context.js';
-
-
 
 /**
  * Enum representing the possible context types of a direct message
@@ -146,7 +145,40 @@ export class DirectMessageHandler implements EventHandler {
                 // 3. Check if player already has a PENDING turn (can't claim multiple)
                 const pendingTurns = await this.turnService.getTurnsForPlayer(player.id, 'PENDING');
                 if (pendingTurns.length > 0) {
+                    // Send the standard message
                     await msg.author.send(strings.messages.ready.alreadyHasPendingTurn);
+                    
+                    // Re-DM the pending turn prompt
+                    const pendingTurn = pendingTurns[0];
+                    const timeouts = await getSeasonTimeouts(this.prisma, pendingTurn.id);
+                    const submissionTimeoutMinutes = pendingTurn.type === 'WRITING' 
+                        ? timeouts.writingTimeoutMinutes 
+                        : timeouts.drawingTimeoutMinutes;
+                    
+                    // Get the previous turn content for context
+                    const previousTurn = await this.prisma.turn.findFirst({
+                        where: {
+                            gameId: pendingTurn.gameId,
+                            turnNumber: pendingTurn.turnNumber - 1,
+                            status: 'COMPLETED'
+                        }
+                    });
+                    
+                    // Send appropriate claim success message based on turn type
+                    if (pendingTurn.type === 'WRITING') {
+                        const message = interpolate(strings.messages.ready.claimSuccessWriting, {
+                            previousTurnImage: previousTurn?.imageUrl || '[Previous image not found]',
+                            submissionTimeoutFormatted: FormatUtils.formatTimeout(submissionTimeoutMinutes)
+                        });
+                        await msg.author.send(message);
+                    } else {
+                        const message = interpolate(strings.messages.ready.claimSuccessDrawing, {
+                            previousTurnWriting: previousTurn?.textContent || '[Previous text not found]',
+                            submissionTimeoutFormatted: FormatUtils.formatTimeout(submissionTimeoutMinutes)
+                        });
+                        await msg.author.send(message);
+                    }
+                    
                     return;
                 }
 
@@ -214,16 +246,29 @@ export class DirectMessageHandler implements EventHandler {
                 }
 
                 // 8. Send confirmation DM to the player
-                const serverContext = await this.serverContextService.getTurnServerContext(turnToClaim.id);
-                const successMessage = interpolate(strings.messages.ready.claimSuccess, {
-                    serverName: serverContext.serverName,
-                    gameId: turnToClaim.gameId,
-                    seasonId: (turnToClaim as any).game?.season?.id,
-                    turnNumber: turnToClaim.turnNumber,
-                    turnType: turnToClaim.type,
-                    submissionTimeoutMinutes: submissionTimeoutMinutes
+                // Get the previous turn content for context
+                const previousTurn = await this.prisma.turn.findFirst({
+                    where: {
+                        gameId: turnToClaim.gameId,
+                        turnNumber: turnToClaim.turnNumber - 1,
+                        status: 'COMPLETED'
+                    }
                 });
-                await msg.author.send(successMessage);
+                
+                // Send appropriate claim success message based on turn type
+                if (turnToClaim.type === 'WRITING') {
+                    const message = interpolate(strings.messages.ready.claimSuccessWriting, {
+                        previousTurnImage: previousTurn?.imageUrl || '[Previous image not found]',
+                        submissionTimeoutFormatted: FormatUtils.formatTimeout(submissionTimeoutMinutes)
+                    });
+                    await msg.author.send(message);
+                } else {
+                    const message = interpolate(strings.messages.ready.claimSuccessDrawing, {
+                        previousTurnWriting: previousTurn?.textContent || '[Previous text not found]',
+                        submissionTimeoutFormatted: FormatUtils.formatTimeout(submissionTimeoutMinutes)
+                    });
+                    await msg.author.send(message);
+                }
 
                 Logger.info(`Successfully processed /ready command for player ${player.id} (${msg.author.tag}), claimed turn ${turnToClaim.id}`);
             },
@@ -346,15 +391,16 @@ export class DirectMessageHandler implements EventHandler {
                 }
 
                 // 9. Send confirmation DM to the player
-                const serverContext = await this.serverContextService.getTurnServerContext(turnToSubmit.id);
+                // Get the game with season information
+                const gameWithSeason = await this.prisma.game.findUnique({
+                    where: { id: turnToSubmit.gameId },
+                    include: { season: true }
+                });
+                
+                const seasonId = gameWithSeason?.season?.id || 'Unknown';
+                
                 await msg.author.send(interpolate(strings.messages.submission.submitSuccess, {
-                    serverName: serverContext.serverName,
-                    gameId: turnToSubmit.gameId,
-                    seasonId: (turnToSubmit as any).game?.season?.id,
-                    turnNumber: turnToSubmit.turnNumber,
-                    turnType: turnToSubmit.type,
-                    contentType: contentType,
-                    contentPreview: contentType === 'text' ? content.substring(0, 100) : 'Image uploaded'
+                    seasonId: seasonId
                 }));
 
                 Logger.info(`Successfully processed turn submission for player ${player.id} (${msg.author.tag}), completed turn ${turnToSubmit.id}`);

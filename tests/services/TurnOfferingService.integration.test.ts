@@ -7,6 +7,7 @@ import { interpolate, strings } from '../../src/lang/strings.js';
 import { SchedulerService } from '../../src/services/SchedulerService.js';
 import { SeasonTurnService } from '../../src/services/SeasonTurnService.js';
 import { TurnOfferingService } from '../../src/services/TurnOfferingService.js';
+import { FormatUtils } from '../../src/utils/format-utils.js';
 import { DEFAULT_TIMEOUTS } from '../../src/utils/seasonConfig.js';
 
 // --- Mocks ---
@@ -140,7 +141,7 @@ describe('TurnOfferingService - Integration Tests', () => {
       seasonId: testSeason.id,
       turnNumber: availableTurn.turnNumber,
       turnType: availableTurn.type,
-      claimTimeoutMinutes: expectedClaimTimeoutMinutes,
+      claimTimeoutFormatted: FormatUtils.formatTimeout(expectedClaimTimeoutMinutes),
     });
     expect(mockDiscordUser.send).toHaveBeenCalledWith({ content: expectedDMContent });
 
@@ -183,7 +184,7 @@ describe('TurnOfferingService - Integration Tests', () => {
         seasonId: testSeason.id,
         turnNumber: availableTurn.turnNumber,
         turnType: availableTurn.type,
-        claimTimeoutMinutes: defaultClaimMinutes,
+        claimTimeoutFormatted: FormatUtils.formatTimeout(defaultClaimMinutes),
       });
     expect(mockDiscordUser.send).toHaveBeenCalledWith({ content: expectedDMContentWithDefault });
     

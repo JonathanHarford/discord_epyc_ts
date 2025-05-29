@@ -83,16 +83,9 @@ It will start in {timeRemaining}, or once {playersNeeded} more players join!`,
 
     // New season messages
     newSeason: {
-      createSuccessChannel: `{mentionUser} has started a new {gameName} season: **{seasonId}**
+      createSuccessChannel: `A new {gameName} season has started: **{seasonId}**
 Season will remain open for joining for {openDuration}.
 Use \`/join season:{seasonId}\` to join!`,
-      seasonActivateSuccess: `🎉 **{seasonId} has been activated!** 🎉
-
-**Status:** {status}
-**Games Created:** {gamesCreated}
-**Players:** {playersInSeason}
-
-The games have begun! Players will receive their first turn offers shortly.`,
       errorMinMaxPlayers: 'Minimum players ({minPlayers}) cannot be greater than maximum players ({maxPlayers}).',
       errorCreatorNotFound: 'Your player profile could not be found (Discord ID: {discordUserId}). Please try again later or contact support.',
       errorPlayerCreateFailed: 'Failed to create your player profile (Discord ID: {discordId}). Please try again later or contact support.',
@@ -118,8 +111,7 @@ The games have begun! Players will receive their first turn offers shortly.`,
       notAdmin: 'You do not have permission to use admin commands.',
       terminateSeasonSuccess: `**{seasonId}** has been successfully terminated.
 **Previous Status:** {previousStatus}
-**Players:** {playerCount}
-**Games:** {gameCount}`,
+**Players:** {playerCount}`,
       terminateSeasonErrorNotFound: '{seasonId} not found.',
       terminateSeasonErrorAlreadyTerminated: '{seasonId} is already terminated.',
       terminateSeasonErrorDatabase: 'A database error occurred while terminating {seasonId}. Error code: {errorCode}',
@@ -156,20 +148,10 @@ The season will start in {timeRemaining}, or once {playersNeeded} more players j
       joinPlayerNotFound: 'Your player profile could not be found. Please try again later or contact support.',
       joinSuccessButActivationFailed: `You have successfully joined **{seasonId}** (now {playerCount} players), but there was an issue automatically starting the season. An administrator has been notified and will investigate.`,
       
-      // Season activation
-      activateSuccess: `🎉 **{seasonId} has been activated!** 🎉
-
-**Status:** {status}
-**Games Created:** {gamesCreated}
-**Players:** {playersInSeason}
-
-The games have begun! Players will receive their first turn offers shortly.`,
-      
       // Admin season actions
       adminTerminateSuccess: `**{seasonId}** has been successfully terminated.
 **Previous Status:** {previousStatus}
-**Players:** {playerCount}
-**Games:** {gameCount}`,
+**Players:** {playerCount}`,
       adminTerminateErrorNotFound: '{seasonId} not found.',
       adminTerminateErrorAlreadyTerminated: '{seasonId} is already terminated.',
       adminTerminateErrorDatabase: 'A database error occurred while terminating {seasonId}. Error code: {errorCode}',
@@ -181,34 +163,14 @@ The games have begun! Players will receive their first turn offers shortly.`,
 
 **Duration:** {daysElapsed} days
 **Completion:** {completionPercentage}% ({completedTurns}/{totalTurns} turns)
-**Games:** {totalGames}
 **Players:** {totalPlayers}
-
-Created by: {creatorName}
 
 {gameResults}`,
       completionFallbackAnnouncement: `🎊 **{seasonId} Complete!** 🎊
 
 Season completion details are available. Check the season status for more information.`,
       
-      // Season activation notifications
-      activationSuccessNotification: `🎉 **Your Season is Now Active!** 🎉
-
-Hi {creatorName}! Your season **{seasonId}** has been successfully activated!
-
-**Server:** {serverName}
-**Games Created:** {gamesCreated}
-**Players:** {playersInSeason}
-
-Players will start receiving their turn offers shortly. Good luck with your season!`,
-      activationSuccessChannelNotification: `🎉 **{seasonId} Activated!** 🎉
-
-The season has been automatically activated and is now ready for play!
-
-**Games Created:** {gamesCreated}
-**Players:** {playersInSeason}
-
-Players will receive their first turn offers shortly.`,
+      // Season activation failure notifications (keep for admin notifications)
       activationFailureAdminNotification: `⚠️ **Season Activation Failed** ⚠️
 
 **Season ID:** {seasonId}
@@ -236,15 +198,7 @@ An administrator has been notified and will investigate the issue. You may try c
 
     // On-demand game messages
     ondemand: {
-      gameCompleted: `🎊 **On-Demand Game Complete!** 🎊
-
-**Game ID:** {gameId}
-**Created by:** {creatorName}
-**Turns:** {completedTurns}/{totalTurns}
-**Players:** {playerCount}
-**Reason:** {completionReason}
-
-Great job everyone!`,
+      gameCompleted: `🎊 **Game {gameId} ({completedTurns} turns) is Complete!** 🎊`,
       turnFlagged: `⚠️ **Turn Flagged for Review** ⚠️
 
 **Game ID:** {gameId}
@@ -275,24 +229,9 @@ Please review this content and take appropriate action. React with ✅ to approv
 
     // Turn messages
     turnOffer: {
-      newTurnAvailable: `🎨 **New Turn Available!** 🎨
-
-**Server:** {serverName}
-**Game:** {gameId}
-**Season:** {seasonId}
-**Turn:** {turnNumber} ({turnType})
-
-You have **{claimTimeoutMinutes} minutes** to claim this turn. React with ✅ to claim it!`,
-      initialTurnOffer: `🎮 **Your First Turn!** 🎮
-
-**Server:** {serverName}
-**Game:** {gameId}
-**Season:** {seasonId}
-**Turn Type:** {turnType}
-
-It's your first turn in this game! Please type \`/ready\` in this DM to claim your turn.
-
-⏰ You have **{claimTimeoutMinutes} minutes** to claim it before it's offered to another player.`
+      newTurnAvailable: `🎨 You have **{claimTimeoutFormatted}** to claim turn {turnNumber} in season {seasonId}. React with ✅ to claim it! 🎨`,
+      initialTurnOffer: `🎉 **{seasonId} has begun!** 🎉
+It's your first turn in this game! ⏰ You have **{claimTimeoutFormatted}** to claim it before it's offered to another player. React with ✅ to claim it!`
     },
 
     // Game messages (removed redundant seasonId message)
@@ -306,19 +245,15 @@ It's your first turn in this game! Please type \`/ready\` in this DM to claim yo
     // Ready messages
     ready: {
       playerNotFound: 'Player profile not found. Please try again later or contact support.',
-      noOfferedTurns: 'You have no offered turns available to claim.',
+      noOfferedTurns: 'There are no turns waiting for you!',
       alreadyHasPendingTurn: 'You already have a pending turn to complete.',
       claimFailed: 'Failed to claim the turn. Please try again.',
-      claimSuccess: `✅ **Turn Claimed Successfully!** ✅
-
-**Server:** {serverName}
-**Game:** {gameId}
-**Season:** {seasonId}
-**Turn:** {turnNumber} ({turnType})
-
-You can now submit your response for this turn.
-
-⏰ You have **{submissionTimeoutMinutes} minutes** to submit before your turn is automatically skipped.`
+      claimSuccessWriting: `Please reply to this DM with a caption for:
+{previousTurnImage}
+⏰ You have **{submissionTimeoutFormatted}**.`,
+      claimSuccessDrawing: `Please reply to this DM with a picture of:
+{previousTurnWriting}
+⏰ You have **{submissionTimeoutFormatted}**.`
     },
 
     // Submission messages
@@ -330,43 +265,35 @@ You can now submit your response for this turn.
       noContentFound: 'No content found in the submission. Please provide text or attach a file.',
       wrongContentType: 'Incorrect content type for this turn. Please check the turn requirements.',
       submitFailed: 'Failed to submit your turn. Please try again.',
-      submitSuccess: `🎉 **Turn Submitted Successfully!** 🎉
-
-**Server:** {serverName}
-**Game:** {gameId}
-**Season:** {seasonId}
-**Turn:** {turnNumber} ({turnType})
-**Content:** {contentType} - {contentPreview}
-
-Great job! The next player will be notified.`
+      submitSuccess: `🎉 **{seasonId}** turn submitted! 🎉`
     }
   },
 
   // Embed content
   embeds: {
     welcome: {
-      title: 'Thank you for using My Bot!',
-      description: 'Discord Bot TypeScript Template helps give developers a starting point for new Discord bots, so that much of the initial setup can be avoided and developers can instead focus on meaningful bot features.',
+      title: 'Welcome to Eat Poop You Cat!',
+      description: 'The hilarious drawing and writing game where stories transform through creative interpretation! Create seasons with friends, take turns writing captions and drawing pictures, and watch as your original ideas evolve into something completely unexpected.',
       fields: [
         {
-          name: 'Important Commands',
-          value: '/help - Find help or contact support.'
+          name: 'Getting Started',
+          value: '/season new - Create a new season\n/season join - Join an existing season\n/ready - Claim your turn (in DM)'
         },
         {
-          name: 'Links',
-          value: `[View Documentation](https://top.gg/)
-[Join Support Server](https://support.discord.com/)`
+          name: 'Need Help?',
+          value: `[Join Support Server](https://discord.gg/eatpoopyoucat)
+[View Commands](/help commands)`
         }
       ]
     },
     
     helpContactSupport: {
-      title: 'Help - Contact Support',
-      description: 'Have a question or feedback? Join our support server at the link below!',
+      title: 'Contact Support',
+      description: 'We love feedback! Join our support server at the link below!',
       fields: [
         {
           name: 'Links',
-          value: '[Join Support Server](https://support.discord.com/)'
+          value: '[Join Support Server](https://discord.gg/eatpoopyoucat)'
         }
       ]
     },
@@ -394,32 +321,28 @@ Great job! The next player will be notified.`
         {
           name: 'Links',
           value: `[View Documentation](https://top.gg/)
-[Join Support Server](https://support.discord.com/)`
+[Join Support Server](https://discord.gg/eatpoopyoucat)`
         }
             ]
     },
 
     about: {
-      title: 'My Bot - About',
-      description: 'Discord Bot TypeScript Template helps give developers a starting point for new Discord bots, so that much of the initial setup can be avoided and developers can instead focus on meaningful bot features.',
+      title: 'Eat Poop You Cat - About',
+      description: 'A Discord bot for playing the classic party game "Eat Poop You Cat" (also known as Telephone Pictionary). Players take turns writing captions and drawing pictures, creating hilarious chains of creative interpretation.',
       fields: [
         {
-          name: 'Author',
-          value: '[My Name](https://github.com/)'
+          name: 'How to Play',
+          value: 'Join a season, take turns writing captions for drawings and drawing pictures for captions. Watch as your original ideas transform through the creative interpretations of other players!'
         },
         {
           name: 'Links',
-          value: `[View Source Code](https://github.com/)
-[View Documentation](https://top.gg/)
-[View Terms of Service](https://github.com/KevinNovak/Discord-Bot-TypeScript-Template/blob/master/LEGAL.md#terms-of-service)
-[Vote for My Bot!](https://top.gg/)
-[Donate via PayPal](https://www.paypal.com/cgi-bin/webscr?cmd=_donations&business=EW389DYYSS4FC)
-[Join Support Server](https://support.discord.com/)
-[Invite My Bot to a Server!](https://discord.com/)`
+          value: `[Join Support Server](https://discord.gg/eatpoopyoucat)
+[View Source Code](https://github.com/)
+[Invite Bot to Server](https://discord.com/)`
         },
         {
           name: 'Created With',
-          value: '[Discord Bot TypeScript Template](https://github.com/KevinNovak/Discord-Bot-TypeScript-Template)'
+          value: 'Built with Discord.js, TypeScript, and lots of ❤️'
         }
       ]
     },
@@ -457,10 +380,8 @@ Great job! The next player will be notified.`
     },
 
     seasonStatus: {
-      title: 'Status: {seasonId}',
-      description: `**Status:** {seasonStatus}
-**Players:** {playerCount}/{maxPlayers} (min: {minPlayers})
-**Games:** {gameCount}`,
+      title: '{seasonId} - {seasonStatus} {pcComplete}',
+      description: `**Players:** {playerCount}/{maxPlayers} (min: {minPlayers})`,
       fields: [
         {
           name: 'Game Details',

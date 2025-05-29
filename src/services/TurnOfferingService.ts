@@ -8,6 +8,7 @@ import { SeasonTurnService } from './SeasonTurnService.js';
 import { selectNextPlayerPure } from '../game/pureGameLogic.js';
 import { MessageAdapter } from '../messaging/MessageAdapter.js';
 import { MessageHelpers } from '../messaging/MessageHelpers.js';
+import { FormatUtils } from '../utils/format-utils.js';
 import { getSeasonTimeouts } from '../utils/seasonConfig.js';
 import { ServerContextService } from '../utils/server-context.js';
 
@@ -245,7 +246,7 @@ export class TurnOfferingService {
                     seasonId: gameWithSeason.season?.id,
                     turnNumber: turn.turnNumber,
                     turnType: turn.type,
-                    claimTimeoutMinutes: timeouts.claimTimeoutMinutes
+                    claimTimeoutFormatted: FormatUtils.formatTimeout(timeouts.claimTimeoutMinutes)
                 }
             );
 
