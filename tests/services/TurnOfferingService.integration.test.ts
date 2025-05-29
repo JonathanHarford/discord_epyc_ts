@@ -4,14 +4,12 @@ import { nanoid } from 'nanoid';
 import { afterAll, beforeEach, describe, expect, it, vi } from 'vitest';
 
 import { interpolate, strings } from '../../src/lang/strings.js';
-import { Logger } from '../../src/services/logger.js';
 import { SchedulerService } from '../../src/services/SchedulerService.js';
-import { TurnOfferingService } from '../../src/services/TurnOfferingService.js';
 import { SeasonTurnService } from '../../src/services/SeasonTurnService.js';
+import { TurnOfferingService } from '../../src/services/TurnOfferingService.js';
 import { DEFAULT_TIMEOUTS } from '../../src/utils/seasonConfig.js';
 
 // --- Mocks ---
-vi.mock('../../src/services/logger.js'); // Basic mock for Logger
 
 // Mock DiscordClient and its methods needed
 const mockDiscordUser = { send: vi.fn() } as unknown as User;
@@ -137,6 +135,7 @@ describe('TurnOfferingService - Integration Tests', () => {
     // Check DM content - enhanced messaging layer sends an object with content property
     expect(mockDiscordClient.users.fetch).toHaveBeenCalledWith(testPlayer.discordUserId);
     const expectedDMContent = interpolate(strings.messages.turnOffer.newTurnAvailable, {
+      serverName: 'Direct Message', // Add server context for test scenarios
       gameId: testGame.id,
       seasonId: testSeason.id,
       turnNumber: availableTurn.turnNumber,
@@ -147,7 +146,7 @@ describe('TurnOfferingService - Integration Tests', () => {
 
     // Check scheduled job
     expect(mockScheduleJob).toHaveBeenCalledOnce();
-    const [jobId, scheduledDate, jobFunction, jobData, jobType] = mockScheduleJob.mock.calls[0];
+    const [jobId, scheduledDate, _jobFunction, jobData, jobType] = mockScheduleJob.mock.calls[0];
     
     expect(jobId).toBe('turn-claim-timeout-' + availableTurn.id);
     expect(jobType).toBe('turn-claim-timeout');
@@ -179,6 +178,7 @@ describe('TurnOfferingService - Integration Tests', () => {
 
     // Check DM - enhanced messaging layer sends an object with content property
     const expectedDMContentWithDefault = interpolate(strings.messages.turnOffer.newTurnAvailable, {
+        serverName: 'Direct Message', // Add server context for test scenarios
         gameId: testGame.id,
         seasonId: testSeason.id,
         turnNumber: availableTurn.turnNumber,

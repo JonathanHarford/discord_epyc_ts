@@ -1,4 +1,4 @@
-import { Game, Player, Prisma, PrismaClient, Season, SeasonConfig } from '@prisma/client';
+import { Game, Player, Prisma, PrismaClient } from '@prisma/client';
 import { humanId } from 'human-id'; // Import human-id
 import { DateTime } from 'luxon'; // Duration and DurationLikeObject might not be needed here anymore
 import { nanoid } from 'nanoid'; // Use named import for nanoid
@@ -9,6 +9,7 @@ import { SeasonTurnService } from './SeasonTurnService.js'; // Added .js extensi
 import { MessageHelpers } from '../messaging/MessageHelpers.js'; // Added MessageHelpers import
 import { MessageInstruction } from '../types/MessageInstruction.js'; // Added .js extension
 import { formatTimeRemaining, parseDuration } from '../utils/datetime.js'; // Import the new utility
+import { ServerContextService } from '../utils/server-context.js';
 
 // Define a more specific return type for findSeasonById, including config and player count
 type SeasonDetails = Prisma.SeasonGetPayload<{
@@ -624,12 +625,17 @@ export class SeasonService {
           if (discordClient) {
             const user = await discordClient.users.fetch(season.creator.discordUserId);
             if (user) {
+              // Get server context information
+              const serverContextService = new ServerContextService(this.prisma, discordClient);
+              const serverContext = await serverContextService.getSeasonServerContext(seasonId);
+
               const successMessage = MessageHelpers.dmNotification(
                 'messages.season.activationSuccessNotification',
                 season.creator.discordUserId,
                 {
                   seasonId,
                   creatorName: season.creator.name,
+                  serverName: serverContext.serverName,
                   gamesCreated: activationResult.data?.gamesCreated || 0,
                   playersInSeason: activationResult.data?.playersInSeason || 0
                 }

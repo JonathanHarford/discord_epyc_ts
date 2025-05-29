@@ -196,6 +196,7 @@ Season completion details are available. Check the season status for more inform
 
 Hi {creatorName}! Your season **{seasonId}** has been successfully activated!
 
+**Server:** {serverName}
 **Games Created:** {gamesCreated}
 **Players:** {playersInSeason}
 
@@ -276,6 +277,7 @@ Please review this content and take appropriate action. React with ✅ to approv
     turnOffer: {
       newTurnAvailable: `🎨 **New Turn Available!** 🎨
 
+**Server:** {serverName}
 **Game:** {gameId}
 **Season:** {seasonId}
 **Turn:** {turnNumber} ({turnType})
@@ -283,6 +285,7 @@ Please review this content and take appropriate action. React with ✅ to approv
 You have **{claimTimeoutMinutes} minutes** to claim this turn. React with ✅ to claim it!`,
       initialTurnOffer: `🎮 **Your First Turn!** 🎮
 
+**Server:** {serverName}
 **Game:** {gameId}
 **Season:** {seasonId}
 **Turn Type:** {turnType}
@@ -306,7 +309,14 @@ It's your first turn in this game! Please type \`/ready\` in this DM to claim yo
       noOfferedTurns: 'You have no offered turns available to claim.',
       alreadyHasPendingTurn: 'You already have a pending turn to complete.',
       claimFailed: 'Failed to claim the turn. Please try again.',
-      claimSuccess: 'Turn claimed successfully! You can now submit your response.'
+      claimSuccess: `✅ **Turn Claimed Successfully!** ✅
+
+**Server:** {serverName}
+**Game:** {gameId}
+**Season:** {seasonId}
+**Turn:** {turnNumber} ({turnType})
+
+You can now submit your response for this turn.`
     },
 
     // Submission messages
@@ -318,7 +328,15 @@ It's your first turn in this game! Please type \`/ready\` in this DM to claim yo
       noContentFound: 'No content found in the submission. Please provide text or attach a file.',
       wrongContentType: 'Incorrect content type for this turn. Please check the turn requirements.',
       submitFailed: 'Failed to submit your turn. Please try again.',
-      submitSuccess: 'Turn submitted successfully!'
+      submitSuccess: `🎉 **Turn Submitted Successfully!** 🎉
+
+**Server:** {serverName}
+**Game:** {gameId}
+**Season:** {seasonId}
+**Turn:** {turnNumber} ({turnType})
+**Content:** {contentType} - {contentPreview}
+
+Great job! The next player will be notified.`
     }
   },
 

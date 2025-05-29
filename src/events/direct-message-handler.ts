@@ -8,6 +8,7 @@ import { PlayerService } from '../services/PlayerService.js';
 import { SchedulerService } from '../services/SchedulerService.js';
 import { ErrorHandler } from '../utils/index.js';
 import { getSeasonTimeouts } from '../utils/seasonConfig.js';
+import { ServerContextService } from '../utils/server-context.js';
 
 
 
@@ -31,6 +32,7 @@ export class DirectMessageHandler implements EventHandler {
     private playerService: PlayerService;
     private schedulerService: SchedulerService;
     private turnOfferingService: TurnOfferingService;
+    private serverContextService: ServerContextService;
 
     constructor(
         prisma: PrismaClient,
@@ -46,6 +48,7 @@ export class DirectMessageHandler implements EventHandler {
         this.playerService = playerService;
         this.schedulerService = schedulerService;
         this.turnOfferingService = turnOfferingService;
+        this.serverContextService = new ServerContextService(prisma, discordClient);
     }
 
     /**
@@ -211,7 +214,9 @@ export class DirectMessageHandler implements EventHandler {
                 }
 
                 // 8. Send confirmation DM to the player
+                const serverContext = await this.serverContextService.getTurnServerContext(turnToClaim.id);
                 const successMessage = interpolate(strings.messages.ready.claimSuccess, {
+                    serverName: serverContext.serverName,
                     gameId: turnToClaim.gameId,
                     seasonId: (turnToClaim as any).game?.season?.id,
                     turnNumber: turnToClaim.turnNumber,
@@ -340,7 +345,9 @@ export class DirectMessageHandler implements EventHandler {
                 }
 
                 // 9. Send confirmation DM to the player
+                const serverContext = await this.serverContextService.getTurnServerContext(turnToSubmit.id);
                 await msg.author.send(interpolate(strings.messages.submission.submitSuccess, {
+                    serverName: serverContext.serverName,
                     gameId: turnToSubmit.gameId,
                     seasonId: (turnToSubmit as any).game?.season?.id,
                     turnNumber: turnToSubmit.turnNumber,

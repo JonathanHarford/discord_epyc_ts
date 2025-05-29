@@ -1,15 +1,15 @@
 import type { SelectNextPlayerInput } from '../game/types.js';
-import { Game, Player, PrismaClient, Turn } from '@prisma/client';
+import { Player, PrismaClient, Turn } from '@prisma/client';
 import { Client as DiscordClient } from 'discord.js';
 
 import { Logger } from './logger.js';
 import { SchedulerService } from './SchedulerService.js';
 import { SeasonTurnService } from './SeasonTurnService.js';
 import { selectNextPlayerPure } from '../game/pureGameLogic.js';
-import { interpolate, strings } from '../lang/strings.js';
 import { MessageAdapter } from '../messaging/MessageAdapter.js';
 import { MessageHelpers } from '../messaging/MessageHelpers.js';
 import { getSeasonTimeouts } from '../utils/seasonConfig.js';
+import { ServerContextService } from '../utils/server-context.js';
 
 export interface TurnOfferingResult {
     success: boolean;
@@ -27,6 +27,7 @@ export class TurnOfferingService {
     private discordClient: DiscordClient;
     private turnService: SeasonTurnService;
     private schedulerService: SchedulerService;
+    private serverContextService: ServerContextService;
 
     constructor(
         prisma: PrismaClient,
@@ -38,6 +39,7 @@ export class TurnOfferingService {
         this.discordClient = discordClient;
         this.turnService = turnService;
         this.schedulerService = schedulerService;
+        this.serverContextService = new ServerContextService(prisma, discordClient);
     }
 
     /**
@@ -230,11 +232,15 @@ export class TurnOfferingService {
             // Get season-specific timeout values
             const timeouts = await getSeasonTimeouts(this.prisma, turn.id);
 
+            // Get server context information
+            const serverContext = await this.serverContextService.getGameServerContext(gameId);
+
             // Create enhanced message instruction for turn offer
             const messageInstruction = MessageHelpers.dmNotification(
                 'messages.turnOffer.newTurnAvailable',
                 player.discordUserId,
                 {
+                    serverName: serverContext.serverName,
                     gameId: gameId,
                     seasonId: gameWithSeason.season?.id,
                     turnNumber: turn.turnNumber,
@@ -281,7 +287,7 @@ export class TurnOfferingService {
             const jobScheduled = await this.schedulerService.scheduleJob(
                 claimTimeoutJobId,
                 claimTimeoutDate,
-                async (jobData) => {
+                async (_jobData) => {
                     Logger.info(`Claim timeout triggered for turn ${turnId}, player ${playerId}`);
                     
                     // Import and create the ClaimTimeoutHandler
