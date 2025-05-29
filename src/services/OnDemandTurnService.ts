@@ -1,14 +1,12 @@
-import { Game, GameConfig, Player, Prisma, PrismaClient, Turn } from '@prisma/client';
+import { Game, GameConfig, Player, PrismaClient, Turn } from '@prisma/client';
 import { Client as DiscordClient } from 'discord.js';
 import { DateTime } from 'luxon';
 import { nanoid } from 'nanoid';
 
 import { ChannelConfigService } from './ChannelConfigService.js';
-import { SchedulerService } from './SchedulerService.js';
 import { TurnTimeoutService } from './interfaces/TurnTimeoutService.js';
+import { SchedulerService } from './SchedulerService.js';
 import { interpolate, strings } from '../lang/strings.js';
-import { MessageAdapter } from '../messaging/MessageAdapter.js';
-import { MessageHelpers } from '../messaging/MessageHelpers.js';
 import { parseDuration } from '../utils/datetime.js';
 
 export class OnDemandTurnService implements TurnTimeoutService {
@@ -453,17 +451,36 @@ export class OnDemandTurnService implements TurnTimeoutService {
     try {
       const user = await this.discordClient.users.fetch(player.discordUserId);
       
+      // Get the game config to determine timeout
+      const game = await this.prisma.game.findUnique({
+        where: { id: turn.gameId },
+        include: { config: true }
+      });
+
+      if (!game?.config) {
+        console.error(`Game config not found for turn ${turn.id}`);
+        return;
+      }
+
+      // Calculate timeout in minutes
+      const timeoutDuration = turn.type === 'WRITING' 
+        ? game.config.writingTimeout 
+        : game.config.drawingTimeout;
+      
+      const luxonDuration = parseDuration(timeoutDuration);
+      const timeoutMinutes = luxonDuration ? Math.floor(luxonDuration.as('minutes')) : 1440; // Default to 24 hours
+      
       let message = '';
       if (turn.type === 'WRITING') {
         if (previousTurn?.imageUrl) {
-          message = `It's your turn! Write a sentence or phrase describing this image:\n\n[Type your response directly in this DM]\n[To flag this turn as inappropriate, type "flag"]`;
+          message = `It's your turn! Write a sentence or phrase describing this image:\n\n[Type your response directly in this DM]\n[To flag this turn as inappropriate, type "flag"]\n\n⏰ You have **${timeoutMinutes} minutes** to submit before your turn is automatically skipped.`;
           // TODO: Send the image from previousTurn.imageUrl
         } else {
-          message = `You've started a new game! Please write a starting sentence or phrase.`;
+          message = `You've started a new game! Please write a starting sentence or phrase.\n\n⏰ You have **${timeoutMinutes} minutes** to submit before your turn is automatically skipped.`;
         }
       } else if (turn.type === 'DRAWING') {
         if (previousTurn?.textContent) {
-          message = `It's your turn! Draw an illustration based on this sentence:\n"${previousTurn.textContent}"\n\n[Attach your drawing as an image file in this DM]\n[To flag this turn as inappropriate, type "flag"]`;
+          message = `It's your turn! Draw an illustration based on this sentence:\n"${previousTurn.textContent}"\n\n[Attach your drawing as an image file in this DM]\n[To flag this turn as inappropriate, type "flag"]\n\n⏰ You have **${timeoutMinutes} minutes** to submit before your turn is automatically skipped.`;
         }
       }
 

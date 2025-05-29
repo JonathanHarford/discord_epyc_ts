@@ -316,7 +316,9 @@ It's your first turn in this game! Please type \`/ready\` in this DM to claim yo
 **Season:** {seasonId}
 **Turn:** {turnNumber} ({turnType})
 
-You can now submit your response for this turn.`
+You can now submit your response for this turn.
+
+⏰ You have **{submissionTimeoutMinutes} minutes** to submit before your turn is automatically skipped.`
     },
 
     // Submission messages

@@ -383,7 +383,7 @@ export class SeasonService {
     console.log(`SeasonService.activateSeason: Attempting to activate season ${seasonId}, triggered by: ${triggeredBy}`);
 
     // Define a function to perform the activation logic, which can be wrapped in a transaction or use an existing one.
-    const activationLogic = async (prismaClient: PrismaTransactionClient | PrismaClient) => {
+    const activationLogic = async (prismaClient: PrismaTransactionClient | PrismaClient): Promise<MessageInstruction> => {
       // 1. Fetch the season and its configuration
       const season = await prismaClient.season.findUnique({
         where: { id: seasonId },
@@ -420,7 +420,7 @@ export class SeasonService {
       console.log(`SeasonService.activateSeason: Season ${seasonId} has ${actualPlayerCountInTx} players currently in this transaction.`);
 
       // 4. Check min/max player conditions based on trigger
-      const { minPlayers, maxPlayers } = season.config;
+      const { minPlayers } = season.config;
 
       if (triggeredBy === 'open_duration_timeout') {
         if (minPlayers !== null && actualPlayerCountInTx < minPlayers) {

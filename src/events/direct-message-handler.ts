@@ -220,7 +220,8 @@ export class DirectMessageHandler implements EventHandler {
                     gameId: turnToClaim.gameId,
                     seasonId: (turnToClaim as any).game?.season?.id,
                     turnNumber: turnToClaim.turnNumber,
-                    turnType: turnToClaim.type
+                    turnType: turnToClaim.type,
+                    submissionTimeoutMinutes: submissionTimeoutMinutes
                 });
                 await msg.author.send(successMessage);
 
