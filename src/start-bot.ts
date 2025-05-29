@@ -30,6 +30,7 @@ import {
     JobService,
     Logger,
     PlayerService,
+    PlayerTurnService,
     SchedulerService,
     SeasonService,
     SeasonTurnService,
@@ -67,6 +68,7 @@ async function start(): Promise<void> {
     const turnOfferingService = new TurnOfferingService(prisma, client, turnService, schedulerService);
     const onDemandGameService = new OnDemandGameService(prisma, client);
     const onDemandTurnService = new OnDemandTurnService(prisma, client);
+    const playerTurnService = new PlayerTurnService(prisma);
     
     // Set dependencies for SchedulerService to handle different job types
     schedulerService.setDependencies({
@@ -85,9 +87,9 @@ async function start(): Promise<void> {
         new DevCommand(),
         new HelpCommand(),
         new InfoCommand(),
-        new SeasonCommand(prisma, seasonService),
+        new SeasonCommand(prisma, seasonService, playerTurnService),
         new AdminCommand(),
-        new GameCommand(prisma, onDemandGameService, onDemandTurnService),
+        new GameCommand(prisma, onDemandGameService, onDemandTurnService, playerTurnService),
 
         // Message Context Commands
         new ViewDateSent(),

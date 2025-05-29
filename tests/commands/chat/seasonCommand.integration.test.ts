@@ -1,11 +1,12 @@
 import { PrismaClient } from '@prisma/client';
-import { ChatInputCommandInteraction, Locale } from 'discord.js';
+import { Locale } from 'discord.js';
 import { nanoid } from 'nanoid';
-import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it, vi } from 'vitest';
+import { afterAll, beforeAll, beforeEach, describe, expect, it, vi } from 'vitest';
 
 import { SeasonCommand } from '../../../src/commands/chat/season-command.js';
 import { EventData } from '../../../src/models/internal-models.js';
 import { GameService } from '../../../src/services/GameService.js';
+import { PlayerTurnService } from '../../../src/services/PlayerTurnService.js';
 import { SchedulerService } from '../../../src/services/SchedulerService.js';
 import { SeasonService } from '../../../src/services/SeasonService.js';
 import { SeasonTurnService } from '../../../src/services/SeasonTurnService.js';
@@ -20,6 +21,7 @@ describe('SeasonCommand - Integration Tests', () => {
   let turnService: SeasonTurnService;
   let schedulerService: SchedulerService;
   let gameService: GameService;
+  let playerTurnService: PlayerTurnService;
   let commandInstance: SeasonCommand;
   let mockEventData: EventData;
   let testSeasonId: string;
@@ -41,7 +43,8 @@ describe('SeasonCommand - Integration Tests', () => {
     gameService = new GameService(prisma);
     turnService = new SeasonTurnService(prisma, {} as any); // Mock Discord client
     seasonService = new SeasonService(prisma, turnService, schedulerService, gameService);
-    commandInstance = new SeasonCommand(prisma, seasonService);
+    playerTurnService = new PlayerTurnService(prisma);
+    commandInstance = new SeasonCommand(prisma, seasonService, playerTurnService);
     mockEventData = new EventData(Locale.EnglishUS, Locale.EnglishUS);
     
     // Clean database and set up test data
@@ -234,6 +237,56 @@ describe('SeasonCommand - Integration Tests', () => {
       await commandInstance.execute(interaction, mockEventData);
 
       expect(interaction.editReply).toHaveBeenCalled();
+    });
+
+    it('should prevent joining a season when user has pending turns', async () => {
+      // Create a new player with a pending turn
+      const playerWithPendingTurn = await prisma.player.create({
+        data: {
+          id: nanoid(),
+          discordUserId: 'user-with-pending-turn',
+          name: 'UserWithPendingTurn'
+        }
+      });
+
+      // Create a game for the pending turn
+      const gameForPendingTurn = await prisma.game.create({
+        data: {
+          status: 'ACTIVE',
+          seasonId: testSeasonId,
+        },
+      });
+
+      // Create a pending turn for this player
+      await prisma.turn.create({
+        data: {
+          gameId: gameForPendingTurn.id,
+          playerId: playerWithPendingTurn.id,
+          turnNumber: 1,
+          type: 'WRITING',
+          status: 'PENDING',
+          claimedAt: new Date(),
+        },
+      });
+
+      // Try to join a season with this user
+      interaction.user.id = 'user-with-pending-turn';
+      interaction.options.getSubcommand.mockReturnValue('join');
+      interaction.options.getString.mockReturnValue(testSeasonId);
+
+      await commandInstance.execute(interaction, mockEventData);
+
+      // Should have called editReply with an error message
+      expect(interaction.editReply).toHaveBeenCalled();
+      
+      // Verify the user was NOT added to the season
+      const playerOnSeason = await prisma.playersOnSeasons.findFirst({
+        where: {
+          playerId: playerWithPendingTurn.id,
+          seasonId: testSeasonId
+        }
+      });
+      expect(playerOnSeason).toBeNull();
     });
   });
 

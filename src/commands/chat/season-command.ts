@@ -4,6 +4,7 @@ import { RateLimiter } from 'discord.js-rate-limiter';
 import { strings } from '../../lang/strings.js';
 import { SimpleMessage } from '../../messaging/SimpleMessage.js';
 import { EventData } from '../../models/internal-models.js';
+import { PlayerTurnService } from '../../services/PlayerTurnService.js';
 import { NewSeasonOptions, SeasonService } from '../../services/SeasonService.js';
 import { MessageInstruction } from '../../types/MessageInstruction.js';
 import { Command, CommandDeferType } from '../index.js';
@@ -16,7 +17,8 @@ export class SeasonCommand implements Command {
 
     constructor(
         private prisma: any, // Keep this as it's used in the constructor
-        private seasonService: SeasonService
+        private seasonService: SeasonService,
+        private playerTurnService: PlayerTurnService
     ) {}
 
     public async execute(intr: ChatInputCommandInteraction, _data: EventData): Promise<void> {
@@ -206,6 +208,34 @@ export class SeasonCommand implements Command {
         console.log(`[SeasonCommand] Received season: ${seasonId}, discordUserId: ${discordUserId}`);
 
         try {
+            // Check if user has pending turns before allowing them to join a season
+            const pendingCheck = await this.playerTurnService.checkPlayerPendingTurns(discordUserId);
+            
+            if (pendingCheck.error) {
+                await SimpleMessage.sendError(intr, 'Failed to check your turn status. Please try again.', {}, true);
+                return;
+            }
+
+            if (pendingCheck.hasPendingTurn && pendingCheck.pendingTurn) {
+                const turn = pendingCheck.pendingTurn;
+                const gameType = turn.game.season ? 'seasonal' : 'on-demand';
+                const gameIdentifier = turn.game.season 
+                    ? `Season ${turn.game.season.id}` 
+                    : `Game #${turn.game.id}`;
+                
+                const creatorInfo = turn.game.creator 
+                    ? ` started by ${turn.game.creator.name}` 
+                    : '';
+
+                await SimpleMessage.sendError(
+                    intr,
+                    `You have a pending turn waiting for you in ${gameType} game (${gameIdentifier}${creatorInfo}). Please complete your current turn before joining a new season.`,
+                    {},
+                    true
+                );
+                return;
+            }
+
             const season = await this.seasonService.findSeasonById(seasonId);
             
             if (!season) {

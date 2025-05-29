@@ -1,13 +1,14 @@
 export { ChannelConfigService } from './ChannelConfigService.js';
 export { CommandRegistrationService } from './command-registration-service.js';
 export { EventDataService } from './event-data-service.js';
+export { GameService } from './GameService.js';
 export { HttpService } from './http-service.js';
 export { JobService } from './job-service.js';
 export { Logger } from './logger.js';
 export { MasterApiService } from './master-api-service.js';
+export { PlayerService } from './PlayerService.js';
+export { PlayerTurnService } from './PlayerTurnService.js';
 export { SchedulerService } from './SchedulerService.js';
 export { SeasonService } from './SeasonService.js';
 export { SeasonTurnService } from './SeasonTurnService.js';
 export { TurnOfferingService } from './TurnOfferingService.js';
-export { GameService } from './GameService.js';
-export { PlayerService } from './PlayerService.js';

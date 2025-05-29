@@ -7,6 +7,7 @@ import { SimpleMessage } from '../../messaging/SimpleMessage.js';
 import { EventData } from '../../models/internal-models.js';
 import { OnDemandGameService } from '../../services/OnDemandGameService.js';
 import { OnDemandTurnService } from '../../services/OnDemandTurnService.js';
+import { PlayerTurnService } from '../../services/PlayerTurnService.js';
 import { Command, CommandDeferType } from '../command.js';
 
 export class GameCommand implements Command {
@@ -18,15 +19,18 @@ export class GameCommand implements Command {
     private prisma: PrismaClient;
     private onDemandGameService: OnDemandGameService;
     private onDemandTurnService: OnDemandTurnService;
+    private playerTurnService: PlayerTurnService;
 
     constructor(
         prisma: PrismaClient, 
         onDemandGameService: OnDemandGameService,
-        onDemandTurnService: OnDemandTurnService
+        onDemandTurnService: OnDemandTurnService,
+        playerTurnService: PlayerTurnService
     ) {
         this.prisma = prisma;
         this.onDemandGameService = onDemandGameService;
         this.onDemandTurnService = onDemandTurnService;
+        this.playerTurnService = playerTurnService;
     }
 
     public async execute(interaction: ChatInputCommandInteraction, data: EventData): Promise<void> {
@@ -55,6 +59,34 @@ export class GameCommand implements Command {
         console.log(`[GameCommand] Executing /game new command for user: ${interaction.user.id}, username: ${interaction.user.username}`);
         
         try {
+            // Check if user has pending turns before allowing them to start a new game
+            const pendingCheck = await this.playerTurnService.checkPlayerPendingTurns(interaction.user.id);
+            
+            if (pendingCheck.error) {
+                await SimpleMessage.sendError(interaction, 'Failed to check your turn status. Please try again.', {}, true);
+                return;
+            }
+
+            if (pendingCheck.hasPendingTurn && pendingCheck.pendingTurn) {
+                const turn = pendingCheck.pendingTurn;
+                const gameType = turn.game.season ? 'seasonal' : 'on-demand';
+                const gameIdentifier = turn.game.season 
+                    ? `Season ${turn.game.season.id}` 
+                    : `Game #${turn.game.id}`;
+                
+                const creatorInfo = turn.game.creator 
+                    ? ` started by ${turn.game.creator.name}` 
+                    : '';
+
+                await SimpleMessage.sendError(
+                    interaction,
+                    `You have a pending turn waiting for you in ${gameType} game (${gameIdentifier}${creatorInfo}). Please complete your current turn before starting a new game.`,
+                    {},
+                    true
+                );
+                return;
+            }
+
             // Create a new on-demand game
             const result = await this.onDemandGameService.createGame(
                 interaction.user.id,
@@ -86,6 +118,34 @@ export class GameCommand implements Command {
         console.log(`[GameCommand] Executing /game play command for user: ${interaction.user.id}, username: ${interaction.user.username}`);
         
         try {
+            // Check if user has pending turns before allowing them to join a game
+            const pendingCheck = await this.playerTurnService.checkPlayerPendingTurns(interaction.user.id);
+            
+            if (pendingCheck.error) {
+                await SimpleMessage.sendError(interaction, 'Failed to check your turn status. Please try again.', {}, true);
+                return;
+            }
+
+            if (pendingCheck.hasPendingTurn && pendingCheck.pendingTurn) {
+                const turn = pendingCheck.pendingTurn;
+                const gameType = turn.game.season ? 'seasonal' : 'on-demand';
+                const gameIdentifier = turn.game.season 
+                    ? `Season ${turn.game.season.id}` 
+                    : `Game #${turn.game.id}`;
+                
+                const creatorInfo = turn.game.creator 
+                    ? ` started by ${turn.game.creator.name}` 
+                    : '';
+
+                await SimpleMessage.sendError(
+                    interaction,
+                    `You have a pending turn waiting for you in ${gameType} game (${gameIdentifier}${creatorInfo}). Please complete your current turn before joining another game.`,
+                    {},
+                    true
+                );
+                return;
+            }
+
             // Find and join the best available game
             const result = await this.onDemandGameService.joinGame(
                 interaction.user.id,
