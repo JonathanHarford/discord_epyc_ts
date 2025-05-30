@@ -14,8 +14,9 @@ export const seasonCommandData = new SlashCommandBuilder()
             .setDescription('Get status information for a season')
             .addStringOption(option =>
                 option.setName('season')
-                    .setDescription('The ID of the season to check status for')
-                    .setRequired(true)
+                    .setDescription('The ID of the season to check status for. Type to search.')
+                    .setRequired(false) // Changed to false to allow triggering select menu if empty
+                    .setAutocomplete(true)
             )
     )
     .addSubcommand(subcommand =>
@@ -24,8 +25,9 @@ export const seasonCommandData = new SlashCommandBuilder()
             .setDescription('Join an existing open season')
             .addStringOption(option =>
                 option.setName('season')
-                    .setDescription('The ID of the season to join')
-                    .setRequired(true)
+                    .setDescription('The ID of the season to join. Type to search.')
+                    .setRequired(false) // Changed to false to allow triggering select menu if empty
+                    .setAutocomplete(true)
             )
     )
     .addSubcommand(subcommand =>

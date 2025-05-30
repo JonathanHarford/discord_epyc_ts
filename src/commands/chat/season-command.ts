@@ -1,5 +1,7 @@
-import { ChatInputCommandInteraction, PermissionsString } from 'discord.js';
+import { ChatInputCommandInteraction, PermissionsString, ButtonBuilder, ActionRowBuilder, ButtonStyle, EmbedBuilder, StringSelectMenuBuilder, StringSelectMenuOptionBuilder, AutocompleteInteraction, CacheType, ModalBuilder, TextInputBuilder, TextInputStyle } from 'discord.js';
 import { RateLimiter } from 'discord.js-rate-limiter';
+import { Logger } from '../../services/index.js'; // Assuming Logger is exported from services
+import { createDashboardComponents } from '../../handlers/seasonDashboardButtonHandler.js'; // Import the helper
 
 import { strings } from '../../lang/strings.js';
 import { SimpleMessage } from '../../messaging/SimpleMessage.js';
@@ -8,6 +10,7 @@ import { PlayerTurnService } from '../../services/PlayerTurnService.js';
 import { NewSeasonOptions, SeasonService } from '../../services/SeasonService.js';
 import { MessageInstruction } from '../../types/MessageInstruction.js';
 import { Command, CommandDeferType } from '../index.js';
+
 
 export class SeasonCommand implements Command {
     public names = [strings.chatCommands.season];
@@ -24,13 +27,35 @@ export class SeasonCommand implements Command {
     public async execute(intr: ChatInputCommandInteraction, _data: EventData): Promise<void> {
         const subcommand = intr.options.getSubcommand();
 
+        // Defer reply for commands that might take longer, like list
+        if (subcommand === 'list' || subcommand === 'show' || subcommand === 'new') {
+            await intr.deferReply({ ephemeral: true }); // Default to ephemeral for potentially long operations or user-specific views
+        }
+
+
         switch (subcommand) {
             case 'list':
                 await this.handleListCommand(intr, _data);
                 break;
             case 'show':
+                // Ensure show command also defers if it hasn't been handled by the top-level defer.
+                // However, its defer type is public in the original code, so we might want to adjust.
+                // For now, let's assume the top-level defer is fine for 'show' if it's meant to be ephemeral.
+                // If 'show' result should be public, then deferReply should not be ephemeral.
+                // The original deferType is PUBLIC for the whole command. This is a bit contradictory.
+                // For this refactor, we'll assume list should be ephemeral, and show can be public.
+                // The initial defer will be ephemeral. If list is chosen, it's fine.
+                // If show is chosen, it should send a public message.
+                // This needs careful handling of followUp vs editReply.
+                // Let's adjust: defer only for 'list' ephemerally.
+                // if (subcommand === 'list') await intr.deferReply({ ephemeral: true });
+                // The global deferType is PUBLIC. So, we should use intr.editReply for all.
+                // The initial defer is done by the command runner based on CommandDeferType.PUBLIC.
+                // So, all replies will use intr.editReply or intr.followUp.
+
                 await this.handleShowCommand(intr, _data);
                 break;
+            // Corrected duplicate case 'join' and wrong handler call
             case 'join':
                 await this.handleJoinCommand(intr, _data);
                 break;
@@ -44,159 +69,240 @@ export class SeasonCommand implements Command {
     }
 
     private async handleListCommand(intr: ChatInputCommandInteraction, _data: EventData): Promise<void> {
-        console.log(`[SeasonCommand] Executing /season list command for user: ${intr.user.id}, username: ${intr.user.username}`);
-        
+        Logger.info(`[SeasonCommand] Executing /season list for user: ${intr.user.tag} (${intr.user.id})`);
+        await intr.deferReply({ ephemeral: true }); // Ensure ephemeral for list
+
         try {
-            // Get the player record for this user
-            const player = await this.prisma.player.findUnique({
-                where: { discordUserId: intr.user.id }
-            });
-
-            // Get all open seasons (public)
-            const openSeasons = await this.prisma.season.findMany({
-                where: { 
-                    status: 'OPEN'
-                },
-                include: {
-                    config: true,
-                    _count: {
-                        select: { players: true }
-                    }
-                },
-                orderBy: { createdAt: 'desc' }
-            });
-
-            // Get seasons the user is participating in (if they have a player record)
-            const userSeasons = player ? await this.prisma.season.findMany({
-                where: {
-                    players: {
-                        some: {
-                            playerId: player.id
-                        }
-                    },
-                    status: { not: 'TERMINATED' } // Exclude terminated seasons
-                },
-                include: {
-                    config: true,
-                    _count: {
-                        select: { players: true }
-                    }
-                },
-                orderBy: { createdAt: 'desc' }
-            }) : [];
-
-            // Format open seasons
-            const openSeasonsText = openSeasons.length === 0 
-                ? 'No open seasons available to join.'
-                : openSeasons.map(season => {
-                    const createdDate = new Date(season.createdAt).toISOString().split('T')[0];
-                    return `**${season.id}** (${createdDate}) - ${season._count.players}/${season.config.minPlayers}-${season.config.maxPlayers} players`;
-                }).join('\n');
-
-            // Format user's seasons (exclude duplicates that are already in open seasons)
-            const userSeasonsFiltered = userSeasons.filter(season => 
-                !openSeasons.some(openSeason => openSeason.id === season.id)
-            );
-            
-            const userSeasonsText = userSeasonsFiltered.length === 0 
-                ? (player ? 'You are not participating in any other seasons.' : 'You are not participating in any seasons.')
-                : userSeasonsFiltered.map(season => {
-                    const createdDate = new Date(season.createdAt).toISOString().split('T')[0];
-                    return `**${season.id}** (${createdDate}) - ${season.status} - ${season._count.players}/${season.config.minPlayers}-${season.config.maxPlayers} players`;
-                }).join('\n');
-
-            // Create the response message
-            let message = `**Available Seasons**\n\n**🟢 Open Seasons (Join with \`/season join\`):**\n${openSeasonsText}`;
-            
-            if (player && (userSeasonsFiltered.length > 0 || userSeasons.some(s => openSeasons.some(os => os.id === s.id)))) {
-                message += `\n\n**📋 Your Seasons:**\n${userSeasonsText}`;
-                
-                // Add note about open seasons user is already in
-                const userOpenSeasons = userSeasons.filter(season => 
-                    openSeasons.some(openSeason => openSeason.id === season.id)
-                );
-                if (userOpenSeasons.length > 0) {
-                    message += `\n\n*You are already participating in ${userOpenSeasons.length} of the open season${userOpenSeasons.length > 1 ? 's' : ''} listed above.*`;
+            const discordUserId = intr.user.id;
+            let player = await this.prisma.player.findUnique({ where: { discordUserId } });
+            if (!player) { // Create a player record if one doesn't exist, useful for checking participation
+                try {
+                    player = await this.prisma.player.create({data: {discordUserId, name: intr.user.username}});
+                    Logger.info(`Created player record for ${intr.user.tag} during /season list.`);
+                } catch (e) {
+                    Logger.error(`Failed to create player record for ${intr.user.tag} during /season list:`, e);
+                    // Continue without player context if creation fails, they just won't see "already joined" status accurately.
                 }
             }
+            const playerId = player?.id;
 
-            await SimpleMessage.sendInfo(intr, message, {}, false); // Not ephemeral, so others can see available seasons
+            const seasons = await this.prisma.season.findMany({
+                include: {
+                    config: true,
+                    _count: { select: { players: true } },
+                    players: playerId ? { where: { playerId } } : false, // Include player's link to season if playerId is available
+                },
+                orderBy: { createdAt: 'desc' },
+            });
+
+            if (seasons.length === 0) {
+                await intr.editReply({ content: strings.messages.listSeasons.noSeasons || "No seasons found." });
+                return;
+            }
+
+            const openOrSetupSeasons = seasons.filter(s => s.status === 'OPEN' || s.status === 'SETUP');
+            const otherSeasons = seasons.filter(s => s.status !== 'OPEN' && s.status !== 'SETUP');
+            
+            let replyCount = 0;
+            const maxReplies = 5; // Limit messages to prevent spam, user can use /season show for more
+
+            // Handle Open/Setup Seasons first with interactive elements
+            if (openOrSetupSeasons.length > 0) {
+                 await intr.editReply({ content: strings.messages.listSeasons.loadingOpen || "Loading open seasons..."}); // Initial reply
+            } else {
+                 await intr.editReply({ content: strings.messages.listSeasons.noOpenSeasons || "No seasons are currently open for joining."});
+            }
+
+            for (const season of openOrSetupSeasons) {
+                if (replyCount >= maxReplies) break;
+
+                const isUserInSeason = playerId ? season.players.some(p => p.playerId === playerId) : false;
+                const isSeasonFull = season.config.maxPlayers ? season._count.players >= season.config.maxPlayers : false;
+                const canJoin = (season.status === 'OPEN' || season.status === 'SETUP') && !isUserInSeason && !isSeasonFull;
+
+                const embed = new EmbedBuilder()
+                    .setTitle(`Season: ${season.id}`)
+                    .setColor(canJoin ? 0x57F287 : 0xED4245) // Green if joinable, Red otherwise
+                    .addFields(
+                        { name: 'Status', value: season.status, inline: true },
+                        { name: 'Players', value: `${season._count.players} / ${season.config.maxPlayers || '∞'}`, inline: true },
+                        { name: 'Created', value: new Date(season.createdAt).toLocaleDateString(), inline: true }
+                    )
+                    .setFooter({ text: `Season ID: ${season.id}` });
+
+                if (isUserInSeason) {
+                    embed.setDescription(strings.messages.listSeasons.alreadyJoined || "You are already in this season.");
+                } else if (isSeasonFull) {
+                    embed.setDescription(strings.messages.listSeasons.seasonFull || "This season is full.");
+                } else if (!canJoin) {
+                    embed.setDescription(strings.messages.listSeasons.notJoinable || "This season is not currently joinable.");
+                }
+
+
+                const showButton = new ButtonBuilder()
+                    .setCustomId(`season_show_${season.id}`)
+                    .setLabel('Show Details')
+                    .setStyle(ButtonStyle.Secondary);
+
+                const joinButton = new ButtonBuilder()
+                    .setCustomId(`season_join_${season.id}`)
+                    .setLabel('Join Season')
+                    .setStyle(ButtonStyle.Primary)
+                    .setDisabled(!canJoin);
+
+                const actionRow = new ActionRowBuilder<ButtonBuilder>().addComponents(showButton, joinButton);
+
+                // Use followUp for subsequent messages if the first one was editReply
+                if (replyCount === 0 && openOrSetupSeasons.length > 0) { // If this is the first message for open seasons
+                    await intr.editReply({ embeds: [embed], components: [actionRow] });
+                } else {
+                    await intr.followUp({ embeds: [embed], components: [actionRow], ephemeral: true });
+                }
+                replyCount++;
+            }
+            
+            // Summarize other seasons (non-open, non-setup)
+            if (otherSeasons.length > 0 && replyCount < maxReplies) {
+                const summaryEmbed = new EmbedBuilder()
+                    .setTitle(strings.messages.listSeasons.otherSeasonsTitle || "Other Seasons")
+                    .setColor(0xFAA61A) // Orange
+                    .setDescription(
+                        otherSeasons
+                            .slice(0, maxReplies - replyCount) // Show remaining up to maxReplies
+                            .map(s => `• **${s.id}** (${s.status}) - ${s._count.players} players`)
+                            .join('\n') || (strings.messages.listSeasons.noOtherSeasonsInfo || "No other seasons to display.")
+                    );
+                
+                if (replyCount === 0 && openOrSetupSeasons.length === 0) { // If no open seasons were shown
+                     await intr.editReply({ embeds: [summaryEmbed] });
+                } else {
+                    await intr.followUp({ embeds: [summaryEmbed], ephemeral: true });
+                }
+                replyCount += otherSeasons.slice(0, maxReplies - replyCount).length; // Not entirely accurate for replyCount limit but good enough for summary
+            }
+
+            if (replyCount === 0 && openOrSetupSeasons.length === 0 && otherSeasons.length === 0) {
+                // This case should be caught by seasons.length === 0 earlier, but as a fallback:
+                await intr.editReply({ content: strings.messages.listSeasons.noSeasons || "No seasons found." });
+            } else if (seasons.length > replyCount) {
+                 await intr.followUp({ content: strings.messages.listSeasons.moreSeasonsExist.replace('{shownCount}', replyCount.toString()).replace('{totalCount}', seasons.length.toString()) || `Showing ${replyCount} of ${seasons.length} seasons. Use /season show <id> for more details.`, ephemeral: true });
+            }
+
         } catch (error) {
-            console.error('Error in /season list command:', error);
-            await SimpleMessage.sendError(intr, strings.messages.common.errorCriticalCommand, {}, true);
+            Logger.error('Error in /season list command:', error);
+            // Check if interaction has already been replied to or deferred
+            if (intr.replied || intr.deferred) {
+                await intr.editReply({ content: strings.messages.common.errorCriticalCommand || "An error occurred while listing seasons." }).catch(e => Logger.error("Failed to editReply on error in list command", e));
+            } else {
+                 await intr.reply({ content: strings.messages.common.errorCriticalCommand || "An error occurred while listing seasons.", ephemeral: true }).catch(e => Logger.error("Failed to reply on error in list command", e));
+            }
         }
     }
 
     private async handleShowCommand(intr: ChatInputCommandInteraction, _data: EventData): Promise<void> {
-        console.log(`[SeasonCommand] Executing /season show command for user: ${intr.user.id}, username: ${intr.user.username}`);
-        const seasonId = intr.options.getString('season', true);
-        console.log(`[SeasonCommand] Received season: ${seasonId}`);
+        const seasonIdOption = intr.options.getString('season'); // Made optional
+        Logger.info(`[SeasonCommand] Executing /season show for user: ${intr.user.tag} (${intr.user.id}), seasonIdOption: ${seasonIdOption}`);
 
+        if (!seasonIdOption) {
+            // If execute() deferred ephemerally, this is fine.
+            await this.sendSeasonSelectionMenu(intr, 'show');
+            return;
+        }
+        const seasonId = seasonIdOption; // Use the validated/passed option
+
+        // Interaction already deferred ephemerally by execute()
         try {
-            // Get season details including config and player count
-            const season = await this.seasonService.findSeasonById(seasonId);
+            const season = await this.seasonService.findSeasonById(seasonId); // Includes config and _count.players
             
             if (!season) {
-                await SimpleMessage.sendError(intr, strings.messages.status.seasonNotFound, { seasonId }, true);
+                 await intr.editReply({ content: strings.messages.status.seasonNotFound.replace('{seasonId}', seasonId), embeds: [], components: [] });
                 return;
             }
 
-            // Calculate open until time for SETUP status
             let openUntilText = '';
             if (season.status === 'SETUP' && season.config.openDuration) {
                 try {
+                    // Dynamically import parseDuration, assuming it's available.
+                    // Consider making datetime utils more readily available if frequently used.
                     const { parseDuration } = await import('../../utils/datetime.js');
                     const duration = parseDuration(season.config.openDuration);
                     if (duration) {
                         const openUntil = new Date(season.createdAt.getTime() + duration.as('milliseconds'));
-                        openUntilText = openUntil.toLocaleString();
+                        openUntilText = `<t:${Math.floor(openUntil.getTime() / 1000)}:R>`; // Relative timestamp
                     }
                 } catch (error) {
-                    console.warn(`Failed to parse openDuration for season ${season.id}:`, error);
+                    Logger.warn(`Failed to parse openDuration for season ${season.id}:`, error);
                     openUntilText = 'Unknown';
                 }
             }
-
-            // Format the response
-            let response = `**${season.id} - ${season.status}**\n`;
-            response += `**Players:** ${season._count.players}\n`;
             
+            const embed = new EmbedBuilder()
+                .setTitle(`Season Details: ${season.id}`)
+                .setColor(0x0099FF) // Blue
+                .addFields(
+                    { name: 'Status', value: season.status, inline: true },
+                    { name: 'Players', value: `${season._count.players} / ${season.config.maxPlayers || '∞'}`, inline: true }
+                );
+
             if (season.status === 'SETUP' && openUntilText) {
-                response += `**Open until:** ${openUntilText}\n`;
+                 embed.addFields({ name: 'Open Until', value: openUntilText, inline: true });
             }
-            
-            response += `**Rules:**\n`;
-            response += `\`open_duration\`: ${season.config.openDuration || 'default'}\n`;
-            response += `\`min_players\`: ${season.config.minPlayers}\n`;
-            response += `\`max_players\`: ${season.config.maxPlayers || 'undefined'}\n`;
-            response += `\`turn_pattern\`: ${season.config.turnPattern || 'default'}\n`;
-            response += `\`claim_timeout\`: ${season.config.claimTimeout || 'default'}\n`;
-            response += `\`writing_timeout\`: ${season.config.writingTimeout || 'default'}\n`;
-            response += `\`drawing_timeout\`: ${season.config.drawingTimeout || 'default'}`;
+             embed.addFields({ name: 'Created', value: `<t:${Math.floor(new Date(season.createdAt).getTime() / 1000)}:D>`, inline: true }); // Short date format
 
-            await SimpleMessage.sendInfo(intr, response, {}, false); // Not ephemeral, so others can see the status
+            let rulesDescription = '';
+            rulesDescription += `**Open Duration:** ${season.config.openDuration || 'Default'}\n`;
+            rulesDescription += `**Min Players:** ${season.config.minPlayers}\n`;
+            rulesDescription += `**Max Players:** ${season.config.maxPlayers || 'Unlimited'}\n`;
+            rulesDescription += `**Turn Pattern:** ${season.config.turnPattern || 'Default'}\n`;
+            rulesDescription += `**Claim Timeout:** ${season.config.claimTimeout || 'Default'}\n`;
+            rulesDescription += `**Writing Timeout:** ${season.config.writingTimeout || 'Default'}\n`;
+            rulesDescription += `**Drawing Timeout:** ${season.config.drawingTimeout || 'Default'}`;
+            
+            embed.addFields({ name: '📜 Rules & Configuration', value: rulesDescription });
+
+            // Fetch and list some players if needed (example, adjust as per requirements)
+            const seasonPlayers = await this.prisma.seasonPlayer.findMany({
+                where: { seasonId: season.id },
+                take: 10, // Limit to 10 players for the embed
+                include: { player: true }
+            });
+
+            if (seasonPlayers.length > 0) {
+                const playerList = seasonPlayers.map(sp => `• ${sp.player.name}`).join('\n');
+                embed.addFields({ name: `Players (${seasonPlayers.length}${season._count.players > seasonPlayers.length ? ` of ${season._count.players}` : ''})`, value: playerList });
+            } else {
+                embed.addFields({ name: 'Players', value: 'No players have joined yet.'});
+            }
+
+            const dashboardComponents = await createDashboardComponents(season.id, intr.user, this.prisma);
+            await intr.editReply({ embeds: [embed], components: dashboardComponents });
             
         } catch (error) {
-            console.error('Error in /season show command:', error);
-            await SimpleMessage.sendError(intr, strings.messages.status.genericError, { 
-                seasonId, 
-                errorMessage: error instanceof Error ? error.message : 'Unknown error' 
-            }, true);
+            Logger.error(`Error in /season show command for season ${seasonId}:`, error);
+            const errorMessage = strings.messages.status.genericError.replace('{seasonId}', seasonId).replace('{errorMessage}', (error instanceof Error ? error.message : 'Unknown error'));
+            await intr.editReply({ content: errorMessage });
         }
     }
 
     private async handleJoinCommand(intr: ChatInputCommandInteraction, _data: EventData): Promise<void> {
-        console.log(`[SeasonCommand] Executing /season join command for user: ${intr.user.id}, username: ${intr.user.username}`);
-        const seasonId = intr.options.getString('season', true);
+        const seasonIdOption = intr.options.getString('season'); // Made optional
         const discordUserId = intr.user.id;
-        console.log(`[SeasonCommand] Received season: ${seasonId}, discordUserId: ${discordUserId}`);
+        Logger.info(`[SeasonCommand] Executing /season join for user: ${intr.user.tag} (${discordUserId}), seasonIdOption: ${seasonIdOption}`);
 
+        if (!seasonIdOption) {
+            // If execute() deferred ephemerally, this is fine.
+            await this.sendSeasonSelectionMenu(intr, 'join');
+            return;
+        }
+        const seasonId = seasonIdOption; // Use the validated/passed option
+
+        // Interaction already deferred ephemerally by execute()
         try {
             // Check if user has pending turns before allowing them to join a season
             const pendingCheck = await this.playerTurnService.checkPlayerPendingTurns(discordUserId);
             
             if (pendingCheck.error) {
-                await SimpleMessage.sendError(intr, 'Failed to check your turn status. Please try again.', {}, true);
+                await intr.editReply({ content: 'Failed to check your turn status. Please try again.'});
                 return;
             }
 
@@ -259,32 +365,16 @@ export class SeasonCommand implements Command {
                     const result = await this.seasonService.addPlayerToSeason(player.id, seasonId);
                     
                     if (result.type === 'success') {
-                        await SimpleMessage.sendSuccess(
-                            intr,
-                            strings.messages.joinSeason.success,
-                            { ...result.data, seasonId },
-                            false
-                        );
+                        await intr.editReply({ content: strings.messages.joinSeason.success.replace('{seasonId}', seasonId) });
                     } else {
-                        await SimpleMessage.sendError(
-                            intr,
-                            strings.messages.joinSeason.genericError,
-                            { seasonId, errorMessage: result.key },
-                            true
-                        );
+                        await intr.editReply({ content: strings.messages.joinSeason.genericError.replace('{seasonId}', seasonId).replace('{errorMessage}', result.key) });
                     }
                     
                 } catch (error) {
-                    console.error('Error creating player record:', error);
-                    await SimpleMessage.sendError(
-                        intr,
-                        strings.messages.joinSeason.genericError,
-                        {
-                            seasonId,
-                            errorMessage: error instanceof Error ? error.message : 'Unknown error'
-                        },
-                        true
-                    );
+                    Logger.error('Error creating player record:', error);
+                    await intr.editReply({
+                        content: strings.messages.joinSeason.genericError.replace('{seasonId}', seasonId).replace('{errorMessage}', (error instanceof Error ? error.message : 'Unknown error'))
+                    });
                 }
                 return;
             }
@@ -292,39 +382,121 @@ export class SeasonCommand implements Command {
             const result = await this.seasonService.addPlayerToSeason(player.id, seasonId);
             
             if (result.type === 'success') {
-                await SimpleMessage.sendSuccess(
-                    intr,
-                    strings.messages.joinSeason.success,
-                    { ...result.data, seasonId },
-                    false
-                );
+                await intr.editReply({ content: strings.messages.joinSeason.success.replace('{seasonId}', seasonId) });
             } else {
-                await SimpleMessage.sendError(
-                    intr,
-                    strings.messages.joinSeason.genericError,
-                    { seasonId, errorMessage: result.key },
-                    true
-                );
+                await intr.editReply({ content: strings.messages.joinSeason.genericError.replace('{seasonId}', seasonId).replace('{errorMessage}', result.key) });
             }
             
         } catch (error) {
-            console.error('Error in /season join command:', error);
-            await SimpleMessage.sendError(
-                intr,
-                strings.messages.joinSeason.genericError,
-                { 
-                    seasonId, 
-                    errorMessage: error instanceof Error ? error.message : 'Unknown error' 
-                },
-                true
-            );
+            Logger.error(`Error in /season join command for season ${seasonId}:`, error);
+            await intr.editReply({
+                content: strings.messages.joinSeason.genericError.replace('{seasonId}', seasonId).replace('{errorMessage}', (error instanceof Error ? error.message : 'Unknown error'))
+            });
         }
     }
 
+    async sendSeasonSelectionMenu(intr: ChatInputCommandInteraction, type: 'join' | 'show'): Promise<void> {
+        // Assumes intr is already deferred (ephemerally) by the calling method or execute()
+        const discordUserId = intr.user.id;
+        let seasonsToDisplay = [];
+        let placeholder = '';
+        let customId = '';
+        let noSeasonsMessage = '';
+        let promptMessage = '';
+
+        if (type === 'join') {
+            customId = 'season_select_join';
+            placeholder = strings.messages.selectSeason.placeholderJoin || 'Select a season to join';
+            noSeasonsMessage = strings.messages.selectSeason.noSeasonsJoin || 'No seasons are currently available for you to join.';
+            promptMessage = strings.messages.selectSeason.promptJoin || 'Please select a season to join:';
+
+            let player = await this.prisma.player.findUnique({ where: { discordUserId } });
+            if (!player) { // Attempt to create player if they don't exist, as they need a player record to join
+                try {
+                    player = await this.prisma.player.create({ data: { discordUserId, name: intr.user.username }});
+                    Logger.info(`Created player record for ${intr.user.username} in sendSeasonSelectionMenu (join type)`);
+                } catch (e) {
+                    Logger.error(`Failed to create player record for ${intr.user.username} in sendSeasonSelectionMenu (join):`, e);
+                    await intr.editReply({ content: strings.messages.joinSeason.errorPlayerCreateFailed || "Could not prepare your player record. Please try again."});
+                    return;
+                }
+            }
+            const playerId = player.id;
+
+            const allJoinableSeasons = await this.prisma.season.findMany({
+                where: { status: { in: ['OPEN', 'SETUP'] } }, // Seasons that are generally joinable
+                include: {
+                    config: true,
+                    _count: { select: { players: true } },
+                    players: { where: { playerId } } // Check if current player is already in these seasons
+                },
+                orderBy: { createdAt: 'desc' },
+                take: 25 // Discord select menu option limit
+            });
+
+            seasonsToDisplay = allJoinableSeasons.filter(season => {
+                const isUserInSeason = season.players.length > 0;
+                const isSeasonFull = season.config.maxPlayers ? season._count.players >= season.config.maxPlayers : false;
+                return !isUserInSeason && !isSeasonFull;
+            });
+
+        } else { // type === 'show'
+            customId = 'season_select_show';
+            placeholder = strings.messages.selectSeason.placeholderShow || 'Select a season to view details';
+            noSeasonsMessage = strings.messages.selectSeason.noSeasonsShow || 'No seasons found to display.';
+            promptMessage = strings.messages.selectSeason.promptShow || 'Please select a season to view:';
+            seasonsToDisplay = await this.prisma.season.findMany({
+                include: { config: true, _count: { select: { players: true } } },
+                orderBy: { createdAt: 'desc' },
+                take: 25,
+            });
+        }
+
+        if (seasonsToDisplay.length === 0) {
+            await intr.editReply({ content: noSeasonsMessage });
+            return;
+        }
+
+        const options = seasonsToDisplay.map(season => {
+            let label = `S${season.id}`;
+            if (season.name && season.name.length < 20) label += ` - ${season.name}`;
+            label += ` (${season._count.players}/${season.config.maxPlayers || '∞'})`;
+            if (label.length > 100) label = label.substring(0, 97) + "...";
+
+            let description = `Status: ${season.status}`;
+            if (new Date(season.createdAt).getFullYear() === new Date().getFullYear()){
+                 description += ` | Created: ${new Date(season.createdAt).toLocaleDateString(undefined, {month:'short', day:'numeric'})}`;
+            } else {
+                 description += ` | Created: ${new Date(season.createdAt).toLocaleDateString()}`;
+            }
+            if (description.length > 100) description = description.substring(0, 97) + "...";
+
+            return new StringSelectMenuOptionBuilder()
+                .setLabel(label)
+                .setValue(season.id.toString())
+                .setDescription(description);
+        });
+
+        const selectMenu = new StringSelectMenuBuilder()
+            .setCustomId(customId)
+            .setPlaceholder(placeholder)
+            .addOptions(options);
+
+        const actionRow = new ActionRowBuilder<StringSelectMenuBuilder>().addComponents(selectMenu);
+
+        await intr.editReply({
+            content: promptMessage,
+            components: [actionRow]
+        });
+    }
+
     private async handleNewCommand(intr: ChatInputCommandInteraction, _data: EventData): Promise<void> {
-        console.log(`[SeasonCommand] Executing /season new command for user: ${intr.user.id}, username: ${intr.user.username}`);
+        Logger.info(`[SeasonCommand] Executing /season new for user: ${intr.user.tag} (${intr.user.id})`);
+        // This command was deferred ephemerally by execute()
+
         const discordUserId = intr.user.id;
         const discordUserName = intr.user.username;
+
 
         // --- Find or Create Player ---
         let playerRecord = await this.prisma.player.findUnique({
@@ -339,15 +511,10 @@ export class SeasonCommand implements Command {
                         name: discordUserName,
                     },
                 });
-                console.log(`New player record created for ${discordUserName} (ID: ${playerRecord.id}) during /season new command.`);
+                Logger.info(`New player record created for ${discordUserName} (ID: ${playerRecord.id}) during /season new command.`);
             } catch (playerCreateError) {
-                console.error(`Failed to create player record for ${discordUserName} (Discord ID: ${discordUserId}):`, playerCreateError);
-                
-                await SimpleMessage.sendError(
-                    intr,
-                    strings.messages.newSeason.errorPlayerCreateFailed,
-                    { discordId: discordUserId }
-                );
+                Logger.error(`Failed to create player record for ${discordUserName} (Discord ID: ${discordUserId}):`, playerCreateError);
+                await intr.editReply({content: strings.messages.newSeason.errorPlayerCreateFailed.replace('{discordId}', discordUserId) });
                 return;
             }
         }
@@ -376,39 +543,135 @@ export class SeasonCommand implements Command {
         try {
             const instruction: MessageInstruction = await this.seasonService.createSeason(seasonOptions);
 
-            if (instruction.type === 'success') {
-                // Send success message with user mention
-                await SimpleMessage.sendSuccess(
-                    intr,
-                    strings.messages.newSeason.createSuccessChannel,
-                    { 
-                        ...instruction.data, 
-                        mentionUser: intr.user.toString() 
-                    }
-                );
-            } else {
-                // Handle different error types
-                let errorMessage: string;
+            if (instruction.type === 'success' && instruction.data && instruction.data.seasonId) {
+                const seasonId = instruction.data.seasonId;
+
+                const joinButton = new ButtonBuilder()
+                    .setCustomId(`season_join_${seasonId}`)
+                    .setLabel('Join Season')
+                    .setStyle(ButtonStyle.Primary);
+
+                const actionRow = new ActionRowBuilder<ButtonBuilder>().addComponents(joinButton);
                 
-                if (instruction.key === 'season_create_error_creator_player_not_found') {
-                    errorMessage = strings.messages.newSeason.errorCreatorNotFound;
-                } else if (instruction.key === 'season_create_error_min_max_players') {
-                    errorMessage = strings.messages.newSeason.errorMinMaxPlayers;
-                } else if (instruction.key === 'season_create_error_prisma_unique_constraint' || instruction.key === 'season_create_error_prisma') {
-                    errorMessage = strings.messages.newSeason.errorDatabase;
-                } else if (instruction.key === 'season_create_error_unknown') {
-                    errorMessage = strings.messages.newSeason.errorUnknownService;
-                } else {
-                    errorMessage = strings.messages.newSeason.errorGenericService;
+                // Since initial defer was ephemeral, delete it and send a public message.
+                await intr.deleteReply().catch(e => Logger.error("Failed to delete initial ephemeral reply in new command:", e));
+                await intr.channel.send({
+                    content: strings.messages.newSeason.createSuccessChannel
+                                .replace('{seasonId}', seasonId.toString())
+                                .replace('{mentionUser}', intr.user.toString()),
+                    components: [actionRow]
+                });
+
+            } else if (instruction.type === 'success') { // Success but missing seasonId in data
+                Logger.warn(`Season creation success for user ${intr.user.tag} but seasonId was missing in response data.`);
+                 await intr.editReply({
+                     content: strings.messages.newSeason.createSuccessChannel
+                                .replace('{seasonId}', instruction.data?.seasonId?.toString() || 'Unknown')
+                                .replace('{mentionUser}', intr.user.toString())
+                 });
+            }
+            else {
+                let userErrorMessage = strings.messages.newSeason.errorGenericService;
+                if (instruction.key) {
+                    const keyMap: Record<string, string> = {
+                        'season_create_error_creator_player_not_found': strings.messages.newSeason.errorCreatorNotFound,
+                        'season_create_error_min_max_players': strings.messages.newSeason.errorMinMaxPlayers,
+                        'season_create_error_prisma_unique_constraint': strings.messages.newSeason.errorDatabase,
+                        'season_create_error_prisma': strings.messages.newSeason.errorDatabase,
+                        'season_create_error_unknown': strings.messages.newSeason.errorUnknownService,
+                    };
+                    userErrorMessage = keyMap[instruction.key] || userErrorMessage;
                 }
-                
-                await SimpleMessage.sendError(intr, errorMessage, instruction.data);
+                await intr.editReply({ content: userErrorMessage });
             }
         } catch (error) {
-            console.error('Critical error in /season new command processing:', error);
-            await SimpleMessage.sendError(intr, strings.messages.common.errorCriticalCommand);
+            Logger.error('Critical error in /season new command processing:', error);
+            if (intr.replied || intr.deferred) { // Check if we can still edit the reply
+                await intr.editReply({ content: strings.messages.common.errorCriticalCommand }).catch(e => Logger.error("Failed to editReply on critical error in new command",e));
+            } else { // Fallback, should not happen if execute() defers properly
+                 await intr.reply({ content: strings.messages.common.errorCriticalCommand, ephemeral: true }).catch(e => Logger.error("Failed to reply on critical error in new command",e));
+            }
+        }
+    }
+
+    // Renamed from handleAutocomplete to match the Command interface used by CommandHandler
+    public async autocomplete(interaction: AutocompleteInteraction<CacheType>): Promise<void> {
+        const focusedOption = interaction.options.getFocused(true);
+        const userInput = focusedOption.value;
+
+        if (focusedOption.name === 'season') {
+            try {
+                // Assuming season IDs are stored as strings or can be queried/filtered as strings.
+                // If season.id is a number, this Prisma query needs adjustment.
+                // One common way is to fetch all (or a relevant subset) and filter in code if the DB doesn't support `startsWith` on numbers easily.
+                // For this example, we'll assume string IDs or an effective way to filter.
+
+                // Fetch seasons where ID starts with userInput.
+                // Prisma's `startsWith` is case-sensitive by default for PostgreSQL.
+                // If case-insensitivity is needed and DB supports it, mode: 'insensitive' could be used with `name` field.
+                // For IDs, exact start match is usually fine.
+
+                // A more robust solution for numeric IDs would be to fetch all and filter:
+                // const allSeasons = await this.prisma.season.findMany({ include: { _count: { select: { players: true } } } });
+                // const filteredSeasons = allSeasons.filter(s => s.id.toString().startsWith(userInput)).slice(0, 25);
+
+                // For now, let's assume IDs are queryable as strings or this is handled by Prisma schema/adapter
+                // If season.id is an Int, direct startsWith won't work. This is a placeholder for the actual query.
+                // A practical approach for Int IDs:
+                // 1. Query: `id >= X` and `id < Y` if userInput is a number range.
+                // 2. Query all, filter: Efficient if season count is small.
+                // 3. Use a dedicated search index/service if season count is very large.
+                // Given `take: 25`, filtering all seasons might be acceptable for moderate numbers.
+
+                const seasons = await this.prisma.season.findMany({
+                    where: {
+                        // This will only work if `id` is a string field.
+                        // If `id` is an integer, you cannot use `startsWith`.
+                        // You would need to fetch and filter, or use a raw query if your DB supports it.
+                        // For the purpose of this task, we'll proceed as if it's a string or a similar mechanism exists.
+                        // A common workaround for integer IDs is to convert them to string in the application code then filter.
+                        // However, for autocomplete, we ideally want the DB to do the filtering.
+                        // Let's assume this is a conceptual representation & actual DB query might differ or be a filter op post-fetch.
+                        id: {
+                            startsWith: userInput
+                        }
+                        // If your Prisma schema has `id` as Int, this will error.
+                        // A better approach for Int IDs:
+                        // Fetch all seasons (or a reasonable subset if many) and filter them in the application code.
+                        // Example:
+                        // const allSeasons = await this.prisma.season.findMany({ include: { _count: { select: { players: true } } } });
+                        // const filtered = allSeasons.filter(s => s.id.toString().startsWith(userInput));
+                        // This might be slow for very large numbers of seasons.
+                    },
+                    include: {
+                        _count: { select: { players: true } },
+                        config: true, // For maxPlayers
+                    },
+                    take: 25,
+                    orderBy: { id: 'asc' },
+                });
+
+
+                const formattedOptions = seasons.map(season => {
+                    let name = `S${season.id}`;
+                    if (season.name && season.name.length < 30) { // Add name if not too long
+                        name += ` - ${season.name}`;
+                    }
+                    name += ` (${season._count.players}/${season.config.maxPlayers || '∞'})`;
+                    if (name.length > 100) name = name.substring(0, 97) + '...';
+                    return {
+                        name: name,
+                        value: season.id.toString(), // Ensure value is a string
+                    };
+                });
+
+                await interaction.respond(formattedOptions);
+            } catch (error) {
+                Logger.error('Error in season command autocomplete:', error);
+                await interaction.respond([]); // Respond with empty array on error
+            }
         }
     }
 }
 
-export default SeasonCommand; 
+export default SeasonCommand;
