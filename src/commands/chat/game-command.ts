@@ -177,37 +177,70 @@ export class GameCommand implements Command {
         console.log(`[GameCommand] Executing /game list command for user: ${interaction.user.id}, username: ${interaction.user.username}`);
         
         try {
-            // Get user's active games and available games
-            const result = await this.onDemandGameService.listGamesForPlayer(interaction.user.id, interaction.guildId!);
+            // Get games categorized by player participation
+            const result = await this.onDemandGameService.listGamesByPlayerParticipation(interaction.user.id, interaction.guildId!);
 
             if (!result.success) {
                 await SimpleMessage.sendError(interaction, result.error || 'Failed to list games', {}, true);
                 return;
             }
 
-            const userGames = result.activeGames || [];
-            const availableGames = result.availableGames || [];
+            const haventPlayed = result.haventPlayed || [];
+            const havePlayed = result.havePlayed || [];
+            const finished = result.finished || [];
 
-            // Format user's active games
-            const userGamesText = userGames.length === 0 
-                ? 'You have no active games.'
-                : userGames.map(game => {
+            // Format "You haven't played" section
+            const haventPlayedText = haventPlayed.length === 0 
+                ? '' 
+                : haventPlayed.map(game => {
                     const createdDate = new Date(game.createdAt).toISOString().split('T')[0];
-                    return `**Game #${game.id}** - Started by <@${game.creatorId}> (${createdDate})`;
+                    const creatorName = game.creator?.name || 'Unknown';
+                    return `@${creatorName} ${createdDate}`;
                 }).join('\n');
 
-            // Format available games
-            const availableGamesText = availableGames.length === 0 
-                ? 'No games available to join.'
-                : availableGames.map(game => {
+            // Format "You've played" section
+            const havePlayedText = havePlayed.length === 0 
+                ? '' 
+                : havePlayed.map(game => {
                     const createdDate = new Date(game.createdAt).toISOString().split('T')[0];
-                    return `**Game #${game.id}** - Started by <@${game.creatorId}> (${createdDate})`;
+                    const creatorName = game.creator?.name || 'Unknown';
+                    const completedTurns = game.turns.filter(turn => turn.status === 'COMPLETED');
+                    const turnCount = completedTurns.length;
+                    return `@${creatorName} ${createdDate} (${turnCount} turns)`;
                 }).join('\n');
 
-            // Create the response message
-            const message = `**Your Active Games:**\n${userGamesText}\n\n**Available Games to Join:**\n${availableGamesText}`;
+            // Format "Finished" section
+            const finishedText = finished.length === 0 
+                ? '' 
+                : finished.map(game => {
+                    const createdDate = new Date(game.createdAt).toISOString().split('T')[0];
+                    const creatorName = game.creator?.name || 'Unknown';
+                    const completedTurns = game.turns.filter(turn => turn.status === 'COMPLETED');
+                    const turnCount = completedTurns.length;
+                    return `@${creatorName} ${createdDate} (${turnCount} turns)`;
+                }).join('\n');
 
-            await SimpleMessage.sendInfo(interaction, message, {}, true); // Ephemeral - personal info
+            // Build the response message
+            let message = '';
+            
+            if (haventPlayedText) {
+                message += `**You haven't played:**\n${haventPlayedText}\n\n`;
+            }
+            
+            if (havePlayedText) {
+                message += `**You've played:**\n${havePlayedText}\n\n`;
+            }
+            
+            if (finishedText) {
+                message += `**Finished:**\n${finishedText}`;
+            }
+
+            // If no games at all, show a helpful message
+            if (!message.trim()) {
+                message = 'No games found. Use `/game new` to start a new game!';
+            }
+
+            await SimpleMessage.sendInfo(interaction, message.trim(), {}, true); // Ephemeral - personal info
 
         } catch (error) {
             console.error('Error in /game list command:', error);

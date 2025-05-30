@@ -818,4 +818,119 @@ export class OnDemandGameService {
       console.error(`Error sending game completion announcement for game ${game.id}:`, error);
     }
   }
+
+  /**
+   * Lists games categorized by player participation
+   * @param playerDiscordUserId The Discord user ID of the player
+   * @param guildId The Discord guild ID
+   * @returns Game list categorized by participation
+   */
+  async listGamesByPlayerParticipation(
+    playerDiscordUserId: string,
+    guildId: string
+  ): Promise<{
+    success: boolean;
+    playerId?: string;
+    haventPlayed?: GameWithConfig[];
+    havePlayed?: GameWithConfig[];
+    finished?: GameWithConfig[];
+    error?: string;
+  }> {
+    try {
+      // Get or create the player by Discord user ID
+      let player = await this.prisma.player.findUnique({
+        where: { discordUserId: playerDiscordUserId }
+      });
+
+      if (!player) {
+        // Player doesn't exist, create them with a default name
+        try {
+          player = await this.prisma.player.create({
+            data: {
+              discordUserId: playerDiscordUserId,
+              name: `User_${playerDiscordUserId.slice(-8)}`, // Use last 8 chars as fallback name
+            }
+          });
+          console.log(`Created new player ${player.id} for Discord user ${playerDiscordUserId}`);
+        } catch (error) {
+          console.error(`Failed to create player for Discord user ${playerDiscordUserId}:`, error);
+          return { success: false, error: 'Failed to create player record' };
+        }
+      }
+
+      // Get all on-demand games in this guild
+      const allGames = await this.prisma.game.findMany({
+        where: {
+          guildId: guildId,
+          seasonId: null, // Only on-demand games
+        },
+        include: {
+          config: true,
+          creator: true,
+          turns: {
+            orderBy: { turnNumber: 'asc' },
+            include: {
+              player: true
+            }
+          }
+        },
+        orderBy: { createdAt: 'desc' }
+      });
+
+      const haventPlayed: GameWithConfig[] = [];
+      const havePlayed: GameWithConfig[] = [];
+
+      // Get all finished games in this guild (regardless of player participation)
+      const finished = await this.prisma.game.findMany({
+        where: {
+          guildId: guildId,
+          seasonId: null, // Only on-demand games
+          status: 'COMPLETED'
+        },
+        include: {
+          config: true,
+          creator: true,
+          turns: {
+            orderBy: { turnNumber: 'asc' },
+            include: {
+              player: true
+            }
+          }
+        },
+        orderBy: { createdAt: 'desc' }
+      });
+
+      // Process only non-finished games for haven't played / have played categorization
+      const activeGames = allGames.filter(game => game.status !== 'COMPLETED');
+
+      for (const game of activeGames) {
+        // Check if player has any turns in this game
+        const playerTurns = game.turns.filter(turn => turn.playerId === player.id);
+        const hasParticipated = playerTurns.length > 0;
+
+        if (!hasParticipated) {
+          // Player hasn't played in this game
+          haventPlayed.push(game as GameWithConfig);
+        } else {
+          // Player has played and game is still ongoing
+          havePlayed.push(game as GameWithConfig);
+        }
+      }
+
+      return {
+        success: true,
+        playerId: player.id,
+        haventPlayed,
+        havePlayed,
+        finished
+      };
+
+    } catch (error) {
+      console.error(`Error listing games by player participation:`, error);
+      return { 
+        success: false, 
+        error: error instanceof Error ? error.message : 'Unknown error occurred' 
+      };
+    }
+  }
 } 
