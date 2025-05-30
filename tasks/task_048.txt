@@ -1,0 +1,43 @@
+# Task ID: 48
+# Title: Implement Season Join Button (A1)
+# Status: pending
+# Dependencies: 47
+# Priority: high
+# Description: Add an interactive 'Join Season' button to the success message displayed after a new season is created, allowing users to join with a single click.
+# Details:
+Modify the season creation success message generation in `season-command.ts`. Use `discord.js`'s `ButtonBuilder` and `ActionRowBuilder` to create a primary style button with a `customId` formatted as `season_join_${seasonId}`. Add this action row to the message components. Create a new `ButtonHandler` implementation that listens for `customId` starting with `season_join_`. In the handler, extract the `seasonId` from the `customId`, validate the user and season, and call the existing `SeasonService.addPlayerToSeason()` method. Provide user feedback (e.g., ephemeral reply) upon successful join or error.
+
+# Test Strategy:
+Create a new season using the command. Verify the success message includes the 'Join Season' button. Click the button as a different user and confirm they are added to the season. Test clicking the button multiple times or by users already in the season to ensure correct error handling.
+
+# Subtasks:
+## 1. Modify Success Message to Include Action Row [pending]
+### Dependencies: None
+### Description: Update the season creation success message in `season-command.ts` to support message components.
+### Details:
+Refactor the message generation logic to allow adding Discord message components, preparing for the inclusion of interactive buttons.
+
+## 2. Create 'Join Season' Button Using ButtonBuilder [pending]
+### Dependencies: 48.1
+### Description: Implement a primary style button labeled 'Join Season' with a customId formatted as `season_join_${seasonId}` using `ButtonBuilder`.
+### Details:
+Use `ButtonBuilder` to define the button's label, style, and customId. Ensure the button is created dynamically with the correct seasonId.
+
+## 3. Add Button to ActionRow and Attach to Message [pending]
+### Dependencies: 48.2
+### Description: Use `ActionRowBuilder` to add the 'Join Season' button and attach the action row to the success message's components.
+### Details:
+Create an action row, add the button to it, and include the action row in the message's components array.
+
+## 4. Implement ButtonHandler for 'season_join_' CustomId [pending]
+### Dependencies: 48.3
+### Description: Develop a handler that listens for button interactions with customIds starting with 'season_join_', extracts the seasonId, validates the user and season, and calls `SeasonService.addPlayerToSeason()`.
+### Details:
+Create a new ButtonHandler implementation that processes the interaction, performs necessary validation, and invokes the join logic.
+
+## 5. Provide User Feedback on Join Attempt [pending]
+### Dependencies: 48.4
+### Description: Send an ephemeral reply to the user indicating success or error after attempting to join the season via the button.
+### Details:
+Ensure the handler responds with appropriate feedback, such as a success message or error explanation, using ephemeral replies.
+

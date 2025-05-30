@@ -1,0 +1,43 @@
+# Task ID: 54
+# Title: Implement Admin Player Management Interface (C1)
+# Status: pending
+# Dependencies: 47
+# Priority: low
+# Description: Develop visual interfaces using user and role select menus for administrative tasks like adding or removing players from a season or assigning roles.
+# Details:
+Identify admin commands related to player/role management. Modify these commands to present messages containing `UserSelectMenuBuilder` or `RoleSelectMenuBuilder`. Set `setMinValues` and `setMaxValues` as appropriate (e.g., for bulk operations). Set a `customId` (e.g., `admin_remove_players`, `admin_assign_role`). Implement `SelectMenuHandler`s for these custom IDs. In the handlers, retrieve the selected user/role IDs (`interaction.values`). Implement the corresponding admin logic (e.g., calling `SeasonService.removePlayer`, updating user roles). **Crucially**, implement robust permission validation to ensure only authorized users can trigger these actions. Consider adding confirmation steps for destructive actions.
+
+# Test Strategy:
+As an administrator, invoke an admin command that uses a select menu. Verify the user/role select menu appears. Select one or multiple users/roles. Confirm the intended administrative action is performed correctly. Test as a non-admin user to ensure permission checks prevent unauthorized actions.
+
+# Subtasks:
+## 1. Identify and Refactor Admin Player/Role Management Commands [pending]
+### Dependencies: None
+### Description: Review existing admin commands related to player and role management. Refactor these commands to support visual interfaces using select menus.
+### Details:
+Catalog all admin commands for adding/removing players and assigning roles. Update command logic to prepare for integration with select menu components.
+
+## 2. Integrate User and Role Select Menus into Admin Commands [pending]
+### Dependencies: 54.1
+### Description: Modify admin commands to present Discord select menus (`UserSelectMenuBuilder` and `RoleSelectMenuBuilder`) for user and role selection.
+### Details:
+Implement select menus in command responses. Configure `setMinValues`, `setMaxValues`, and assign unique `customId` values for each operation (e.g., `admin_remove_players`, `admin_assign_role`).
+
+## 3. Implement SelectMenuHandlers for Admin Actions [pending]
+### Dependencies: 54.2
+### Description: Develop handlers for each select menu's `customId` to process selected user/role IDs and execute the corresponding admin logic.
+### Details:
+Create handlers that retrieve `interaction.values` and call appropriate services (e.g., `SeasonService.removePlayer`, role assignment logic).
+
+## 4. Enforce Robust Permission Validation for Admin Actions [pending]
+### Dependencies: 54.3
+### Description: Implement and validate permission checks to ensure only authorized users can trigger admin player/role management actions.
+### Details:
+Integrate permission validation logic based on admin roles or explicit permissions before processing any admin action. Ensure compliance with Discord's permission hierarchy.
+
+## 5. Add Confirmation Steps for Destructive Admin Actions [pending]
+### Dependencies: 54.4
+### Description: Implement confirmation prompts for destructive actions (e.g., removing players) to prevent accidental changes.
+### Details:
+Design and integrate confirmation dialogs or follow-up interactions before finalizing destructive operations.
+

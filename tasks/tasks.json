@@ -1963,6 +1963,541 @@
           "testStrategy": "End-to-end test the full on-demand game flow, including flagging, admin interventions, channel announcements, and turn pattern enforcement."
         }
       ]
+    },
+    {
+      "id": 47,
+      "title": "Implement Core Interaction Handling Framework",
+      "description": "Set up the foundational framework within the bot to listen for and handle interactions from buttons, select menus, modals, and autocomplete requests using Discord.js v14+.",
+      "details": "Extend the existing interaction handling logic (likely in `src/events/interactionCreate.ts`) to differentiate between various interaction types: `isButton()`, `isStringSelectMenu()`, `isModalSubmit()`, `isAutocomplete()`. Implement a routing mechanism based on `customId` for components and command names/options for autocomplete. Create base handler classes or interfaces for each component type (e.g., `ButtonHandler`, `SelectMenuHandler`, `ModalHandler`). Research and utilize the latest Discord.js v14+ API for handling these interactions. Ensure robust error handling for unhandled interactions or errors within handlers. Consider implementing a Component Factory pattern as suggested in the PRD for creating component instances.",
+      "testStrategy": "Deploy the framework and verify that the bot correctly identifies and logs different types of interactions (button clicks, menu selections, modal submissions, autocomplete requests) received from Discord.",
+      "priority": "high",
+      "dependencies": [],
+      "status": "pending",
+      "subtasks": [
+        {
+          "id": 1,
+          "title": "Extend Interaction Listener to Differentiate Interaction Types",
+          "description": "Update the interaction handling logic to detect and differentiate between buttons, select menus, modals, and autocomplete requests using Discord.js v14+ methods such as isButton(), isStringSelectMenu(), isModalSubmit(), and isAutocomplete().",
+          "dependencies": [],
+          "details": "Modify the main interaction listener (e.g., in src/events/interactionCreate.ts) to branch logic based on the type of interaction received, ensuring each type is correctly identified for further handling.[2][3]",
+          "status": "pending",
+          "testStrategy": "Trigger each interaction type in a test environment and verify that the correct branch of logic is executed for each."
+        },
+        {
+          "id": 2,
+          "title": "Implement Routing Mechanism for Component and Autocomplete Interactions",
+          "description": "Create a routing system that directs interactions to the appropriate handler based on customId for components and command names/options for autocomplete.",
+          "dependencies": [
+            1
+          ],
+          "details": "Design and implement a mechanism that maps customId values (for buttons, select menus, modals) and command names/options (for autocomplete) to their respective handler functions or classes.[2][4]",
+          "status": "pending",
+          "testStrategy": "Simulate interactions with various customIds and autocomplete commands, confirming that each is routed to the correct handler."
+        },
+        {
+          "id": 3,
+          "title": "Define Base Handler Classes or Interfaces for Each Interaction Type",
+          "description": "Establish base classes or interfaces (e.g., ButtonHandler, SelectMenuHandler, ModalHandler) to standardize the handling logic for each interaction type.",
+          "dependencies": [
+            2
+          ],
+          "details": "Create abstract classes or TypeScript interfaces that define the contract for handling each interaction type, ensuring consistency and reusability across handlers.",
+          "status": "pending",
+          "testStrategy": "Implement sample handlers for each type and verify they conform to the defined interfaces or extend the base classes."
+        },
+        {
+          "id": 4,
+          "title": "Integrate Component Factory Pattern for Handler Instantiation",
+          "description": "Implement a Component Factory pattern to dynamically create handler instances for each interaction type based on routing information.",
+          "dependencies": [
+            3
+          ],
+          "details": "Develop a factory that receives routing data (e.g., customId) and returns the appropriate handler instance, supporting scalability and maintainability as new components are added.",
+          "status": "pending",
+          "testStrategy": "Add new component handlers and confirm the factory correctly instantiates and routes to them without manual changes to the main logic."
+        },
+        {
+          "id": 5,
+          "title": "Implement Robust Error Handling for Unhandled and Faulty Interactions",
+          "description": "Add comprehensive error handling to manage unhandled interaction types and errors within handlers, ensuring clear logging and user feedback.",
+          "dependencies": [
+            4
+          ],
+          "details": "Ensure that all branches of the interaction handler include try/catch blocks, log errors, and provide fallback responses for unhandled cases to prevent silent failures.[2][5]",
+          "status": "pending",
+          "testStrategy": "Intentionally trigger errors and unhandled interactions to verify that errors are logged and users receive appropriate feedback."
+        }
+      ]
+    },
+    {
+      "id": 48,
+      "title": "Implement Season Join Button (A1)",
+      "description": "Add an interactive 'Join Season' button to the success message displayed after a new season is created, allowing users to join with a single click.",
+      "details": "Modify the season creation success message generation in `season-command.ts`. Use `discord.js`'s `ButtonBuilder` and `ActionRowBuilder` to create a primary style button with a `customId` formatted as `season_join_${seasonId}`. Add this action row to the message components. Create a new `ButtonHandler` implementation that listens for `customId` starting with `season_join_`. In the handler, extract the `seasonId` from the `customId`, validate the user and season, and call the existing `SeasonService.addPlayerToSeason()` method. Provide user feedback (e.g., ephemeral reply) upon successful join or error.",
+      "testStrategy": "Create a new season using the command. Verify the success message includes the 'Join Season' button. Click the button as a different user and confirm they are added to the season. Test clicking the button multiple times or by users already in the season to ensure correct error handling.",
+      "priority": "high",
+      "dependencies": [
+        47
+      ],
+      "status": "pending",
+      "subtasks": [
+        {
+          "id": 1,
+          "title": "Modify Success Message to Include Action Row",
+          "description": "Update the season creation success message in `season-command.ts` to support message components.",
+          "dependencies": [],
+          "details": "Refactor the message generation logic to allow adding Discord message components, preparing for the inclusion of interactive buttons.",
+          "status": "pending",
+          "testStrategy": "Verify that the success message can display message components without errors."
+        },
+        {
+          "id": 2,
+          "title": "Create 'Join Season' Button Using ButtonBuilder",
+          "description": "Implement a primary style button labeled 'Join Season' with a customId formatted as `season_join_${seasonId}` using `ButtonBuilder`.",
+          "dependencies": [
+            1
+          ],
+          "details": "Use `ButtonBuilder` to define the button's label, style, and customId. Ensure the button is created dynamically with the correct seasonId.",
+          "status": "pending",
+          "testStrategy": "Check that the button appears in the message and has the correct label and customId."
+        },
+        {
+          "id": 3,
+          "title": "Add Button to ActionRow and Attach to Message",
+          "description": "Use `ActionRowBuilder` to add the 'Join Season' button and attach the action row to the success message's components.",
+          "dependencies": [
+            2
+          ],
+          "details": "Create an action row, add the button to it, and include the action row in the message's components array.",
+          "status": "pending",
+          "testStrategy": "Confirm that the button is visible and clickable in the Discord message after season creation."
+        },
+        {
+          "id": 4,
+          "title": "Implement ButtonHandler for 'season_join_' CustomId",
+          "description": "Develop a handler that listens for button interactions with customIds starting with 'season_join_', extracts the seasonId, validates the user and season, and calls `SeasonService.addPlayerToSeason()`.",
+          "dependencies": [
+            3
+          ],
+          "details": "Create a new ButtonHandler implementation that processes the interaction, performs necessary validation, and invokes the join logic.",
+          "status": "pending",
+          "testStrategy": "Simulate button clicks and verify that the handler correctly processes valid and invalid join attempts."
+        },
+        {
+          "id": 5,
+          "title": "Provide User Feedback on Join Attempt",
+          "description": "Send an ephemeral reply to the user indicating success or error after attempting to join the season via the button.",
+          "dependencies": [
+            4
+          ],
+          "details": "Ensure the handler responds with appropriate feedback, such as a success message or error explanation, using ephemeral replies.",
+          "status": "pending",
+          "testStrategy": "Test various scenarios (successful join, already joined, invalid season) and confirm correct ephemeral feedback is shown."
+        }
+      ]
+    },
+    {
+      "id": 49,
+      "title": "Implement Interactive Season List (A2)",
+      "description": "Enhance the `/season list` command output to display each season with interactive buttons for actions like 'Show Details' and 'Join' (conditionally available).",
+      "details": "Modify the `/season list` command output generation in `season-command.ts`. For each season listed, create an `ActionRowBuilder` containing `ButtonBuilder` instances. Include a 'Show' button (`customId: season_show_${season.id}`). Conditionally include a 'Join' button (`customId: season_join_${season.id}`) that is enabled only if the season is active and the interacting user is not already a participant. Reuse or adapt the `season_join_` button handler logic from task 48. Create a new `ButtonHandler` for `season_show_` to trigger the `/season show` command logic or display season details. Ensure proper pagination or handling for many seasons.",
+      "testStrategy": "Run `/season list`. Verify each season entry has the correct buttons. Test clicking 'Show' on a season. Test clicking 'Join' on an active season you are not in. Verify the 'Join' button is disabled for seasons you are already in or inactive seasons.",
+      "priority": "high",
+      "dependencies": [
+        47,
+        48
+      ],
+      "status": "pending",
+      "subtasks": [
+        {
+          "id": 1,
+          "title": "Refactor /season list Output Generation",
+          "description": "Modify the `/season list` command output in `season-command.ts` to generate a list of seasons, each with an associated ActionRowBuilder for interactive buttons.",
+          "dependencies": [],
+          "details": "Ensure each season entry in the list is accompanied by an ActionRowBuilder to hold interactive buttons for user actions.",
+          "status": "pending",
+          "testStrategy": "Verify that the command output now includes an ActionRowBuilder for each season."
+        },
+        {
+          "id": 2,
+          "title": "Implement 'Show Details' Button and Handler",
+          "description": "Add a 'Show' button (`customId: season_show_${season.id}`) for each season and create a new ButtonHandler to trigger the `/season show` command logic or display season details.",
+          "dependencies": [
+            1
+          ],
+          "details": "Ensure the 'Show' button is present for every season and that clicking it displays the correct season details using the new handler.",
+          "status": "pending",
+          "testStrategy": "Test that clicking the 'Show' button for any season displays the correct details."
+        },
+        {
+          "id": 3,
+          "title": "Implement Conditional 'Join' Button and Handler Integration",
+          "description": "Add a 'Join' button (`customId: season_join_${season.id}`) for each season, enabled only if the season is active and the user is not already a participant. Integrate or adapt the button handler logic from task 48.",
+          "dependencies": [
+            1
+          ],
+          "details": "Ensure the 'Join' button is conditionally rendered and enabled, and that it correctly triggers the join logic.",
+          "status": "pending",
+          "testStrategy": "Test that the 'Join' button appears only when appropriate and successfully adds the user to the season."
+        },
+        {
+          "id": 4,
+          "title": "Implement Pagination or Overflow Handling",
+          "description": "Add pagination or another mechanism to handle cases where there are many seasons, ensuring the list remains user-friendly and navigable.",
+          "dependencies": [
+            1
+          ],
+          "details": "Choose and implement a strategy (pagination, scrolling, etc.) to manage long season lists.",
+          "status": "pending",
+          "testStrategy": "Test with a large number of seasons to confirm the list remains accessible and buttons function correctly."
+        },
+        {
+          "id": 5,
+          "title": "Comprehensive Testing and Validation",
+          "description": "Perform end-to-end testing of the enhanced `/season list` command, including all button interactions, conditional logic, and overflow handling.",
+          "dependencies": [
+            2,
+            3,
+            4
+          ],
+          "details": "Validate that all features work as intended, including edge cases and error handling.",
+          "status": "pending",
+          "testStrategy": "Run manual and automated tests covering all user scenarios, including permission checks and error states."
+        }
+      ]
+    },
+    {
+      "id": 50,
+      "title": "Implement Season Selection Dropdowns (A3)",
+      "description": "Replace manual season ID input in commands (like `/season join`, `/season show`) with a dropdown menu allowing users to select from a list of available seasons.",
+      "details": "Identify commands that require a season ID parameter (e.g., `/season join`, `/season show`). Instead of requiring a text input for the ID, modify the command flow to present a message containing a `StringSelectMenuBuilder`. Populate the select menu options using `addOptions()` with relevant seasons (e.g., open seasons for join, all seasons for show). Format options with labels like `Season ${season.id} (${playerCount}/${maxPlayers})`. Set a `customId` for the select menu (e.g., `season_select_join`, `season_select_show`). Create a new `SelectMenuHandler` implementation that listens for these `customId`s. In the handler, retrieve the selected season ID (`interaction.values[0]`) and proceed with the command logic using the selected ID.",
+      "testStrategy": "Invoke a command that now uses a season select menu (e.g., `/season join`). Verify the dropdown appears with correct season options. Select a season from the dropdown and confirm the command executes correctly for that season. Test with different numbers of available seasons.",
+      "priority": "high",
+      "dependencies": [
+        47
+      ],
+      "status": "pending",
+      "subtasks": [
+        {
+          "id": 1,
+          "title": "Identify Commands Requiring Season ID Input",
+          "description": "Review the codebase to list all commands that currently require a manual season ID input, such as `/season join` and `/season show`.",
+          "dependencies": [],
+          "details": "Compile a comprehensive list of all relevant commands to ensure none are missed in the dropdown implementation.",
+          "status": "pending",
+          "testStrategy": "Verify that all commands using season ID as a parameter are included in the list."
+        },
+        {
+          "id": 2,
+          "title": "Design and Build Season Selection Dropdowns",
+          "description": "Implement dropdown menus using StringSelectMenuBuilder for each identified command, formatting options with season details and setting appropriate custom IDs.",
+          "dependencies": [
+            1
+          ],
+          "details": "Use addOptions() to populate the dropdown with relevant seasons (e.g., open seasons for join, all seasons for show), and format labels as `Season ${season.id} (${playerCount}/${maxPlayers})`.",
+          "status": "pending",
+          "testStrategy": "Render dropdowns in a test environment and confirm correct population and formatting of options."
+        },
+        {
+          "id": 3,
+          "title": "Integrate Dropdowns into Command Flows",
+          "description": "Modify the command execution logic to present the dropdown menu instead of requesting manual season ID input.",
+          "dependencies": [
+            2
+          ],
+          "details": "Ensure that when a user invokes a command, the bot responds with a message containing the appropriate dropdown menu.",
+          "status": "pending",
+          "testStrategy": "Trigger each command and confirm that the dropdown appears instead of a text input prompt."
+        },
+        {
+          "id": 4,
+          "title": "Implement SelectMenuHandler for Season Selection",
+          "description": "Create a SelectMenuHandler that listens for dropdown interactions, retrieves the selected season ID, and continues the command logic using the selected value.",
+          "dependencies": [
+            3
+          ],
+          "details": "Handle custom IDs like `season_select_join` and `season_select_show`, extracting the selected value from interaction.values.",
+          "status": "pending",
+          "testStrategy": "Select a season from the dropdown and verify that the correct command logic executes with the chosen season ID."
+        },
+        {
+          "id": 5,
+          "title": "Test and Validate End-to-End User Experience",
+          "description": "Perform comprehensive testing of the new dropdown-based flows for all affected commands, ensuring correct behavior and user feedback.",
+          "dependencies": [
+            4
+          ],
+          "details": "Check for edge cases, such as no available seasons, invalid selections, and permission errors.",
+          "status": "pending",
+          "testStrategy": "Run user acceptance tests covering all scenarios, confirming that dropdowns function as intended and commands complete successfully."
+        }
+      ]
+    },
+    {
+      "id": 51,
+      "title": "Implement Autocomplete for Season Commands (B2)",
+      "description": "Add autocomplete functionality to slash commands that require season IDs or other parameters, providing dynamic suggestions as the user types.",
+      "details": "Identify slash commands that can benefit from autocomplete (e.g., `/season show`, `/season join`). In the command definition (`season-command-data.ts`), mark the relevant options as `autocomplete: true`. Implement the `handleAutocomplete` method in `season-command.ts`. Inside this method, check `interaction.options.getFocused()` to get the user's current input. Query the database or cache for seasons that match the focused input (e.g., by ID or partial ID). Use optimized queries for performance. Format the results into an array of `{ name: string, value: string }` objects and respond using `interaction.respond(options)`. Limit results to Discord's maximum (currently 25).",
+      "testStrategy": "Start typing a command with an autocomplete option (e.g., `/season show`). Verify that suggestions appear as you type. Test typing partial season IDs or names. Ensure suggestions are relevant and limited to 25. Select a suggestion and verify it populates the command input correctly.",
+      "priority": "medium",
+      "dependencies": [],
+      "status": "pending",
+      "subtasks": [
+        {
+          "id": 1,
+          "title": "Identify Eligible Slash Commands and Options",
+          "description": "Review all existing slash commands to determine which ones require season IDs or similar parameters that would benefit from autocomplete functionality.",
+          "dependencies": [],
+          "details": "Analyze commands such as `/season show` and `/season join` to identify all options where users input season IDs or related parameters. Document these commands and their relevant options for further implementation.",
+          "status": "pending",
+          "testStrategy": "Verify that all commands requiring season ID or similar input are listed and no eligible commands are missed."
+        },
+        {
+          "id": 2,
+          "title": "Enable Autocomplete in Command Definitions",
+          "description": "Update the command definitions to mark the identified options as supporting autocomplete.",
+          "dependencies": [
+            1
+          ],
+          "details": "In the command definition file (e.g., `season-command-data.ts`), set `autocomplete: true` for each relevant option using the appropriate builder method (e.g., `.setAutocomplete(true)`).",
+          "status": "pending",
+          "testStrategy": "Check that the command registration includes the autocomplete flag for all intended options and that Discord recognizes these options as autocompletable."
+        },
+        {
+          "id": 3,
+          "title": "Implement the Autocomplete Handler Method",
+          "description": "Create or update the `handleAutocomplete` method to process autocomplete interactions for the marked options.",
+          "dependencies": [
+            2
+          ],
+          "details": "In `season-command.ts`, implement logic to detect autocomplete interactions, retrieve the focused input using `interaction.options.getFocused()`, and prepare for dynamic suggestion generation.",
+          "status": "pending",
+          "testStrategy": "Trigger autocomplete interactions and confirm that the handler is invoked and receives the correct focused input."
+        },
+        {
+          "id": 4,
+          "title": "Query Data Source for Matching Suggestions",
+          "description": "Develop efficient queries to fetch season IDs or related data matching the user's input from the database or cache.",
+          "dependencies": [
+            3
+          ],
+          "details": "Optimize queries to quickly return up to 25 matching results based on partial or full user input, ensuring performance and scalability.",
+          "status": "pending",
+          "testStrategy": "Test with various input patterns to ensure relevant, fast, and accurate suggestions are returned, and that no more than 25 results are provided."
+        },
+        {
+          "id": 5,
+          "title": "Format and Respond with Autocomplete Suggestions",
+          "description": "Format the query results into the required array of `{ name: string, value: string }` objects and respond to the interaction.",
+          "dependencies": [
+            4
+          ],
+          "details": "Use `interaction.respond(options)` to send the formatted suggestions back to Discord, ensuring compliance with Discord's autocomplete response structure.",
+          "status": "pending",
+          "testStrategy": "Validate that the suggestions appear in the Discord client as the user types, are correctly formatted, and update dynamically based on input."
+        }
+      ]
+    },
+    {
+      "id": 52,
+      "title": "Implement Season Creation Wizard with Modals (B1)",
+      "description": "Develop a multi-step modal interface to guide users through the season creation process, replacing the single command with many parameters.",
+      "details": "Modify the `/season create` command to initiate a modal workflow instead of processing parameters directly. Create the first `ModalBuilder` (`customId: season_create_step1`) with input fields (`TextInputBuilder`) for basic parameters (e.g., player limits, duration). Implement a `ModalHandler` for `season_create_step1`. Upon submission, validate inputs, store the state temporarily (e.g., in a `Map` keyed by user ID as suggested), and potentially present a second modal (`customId: season_create_step2`) for advanced settings, or finalize creation if it's the last step. Implement subsequent modal handlers as needed. Upon final modal submission, retrieve the full state and call `SeasonService.createSeason()`. Implement state management logic to handle multi-step data persistence and cleanup.",
+      "testStrategy": "Run `/season create`. Verify the first modal appears. Fill in details and submit. Verify subsequent modals appear or the season is created. Test input validation within modals. Test cancelling or abandoning the modal flow. Test concurrent wizard sessions by different users.",
+      "priority": "medium",
+      "dependencies": [
+        47
+      ],
+      "status": "pending",
+      "subtasks": [
+        {
+          "id": 1,
+          "title": "Refactor /season create Command to Trigger Modal Workflow",
+          "description": "Modify the existing `/season create` command so that it initiates a modal-based multi-step workflow instead of processing all parameters directly.",
+          "dependencies": [],
+          "details": "Update the command handler to open the first modal (step 1) when invoked, removing direct parameter parsing from the command.",
+          "status": "pending",
+          "testStrategy": "Trigger the command and verify that the first modal appears instead of the old parameter-based flow."
+        },
+        {
+          "id": 2,
+          "title": "Implement Initial Modal (Step 1) and Handler",
+          "description": "Create the first modal (`customId: season_create_step1`) with input fields for basic season parameters and implement its submission handler.",
+          "dependencies": [
+            1
+          ],
+          "details": "Use a modal builder to define fields such as player limits and duration. Implement a handler to process and validate the submitted data.",
+          "status": "pending",
+          "testStrategy": "Submit the modal with valid and invalid data, ensuring correct validation and error handling."
+        },
+        {
+          "id": 3,
+          "title": "Design and Implement Multi-Step State Management",
+          "description": "Develop logic to persist user input across multiple modal steps, using a temporary storage solution (e.g., Map keyed by user ID).",
+          "dependencies": [
+            2
+          ],
+          "details": "Ensure that data from each modal step is stored and retrievable for subsequent steps or finalization. Implement cleanup logic for abandoned or completed flows.",
+          "status": "pending",
+          "testStrategy": "Simulate multi-step flows and verify that state persists correctly between steps and is cleaned up after completion."
+        },
+        {
+          "id": 4,
+          "title": "Implement Subsequent Modals and Handlers for Advanced Settings",
+          "description": "Create additional modal steps (e.g., `season_create_step2`) for advanced season settings, with corresponding handlers to collect and validate further input.",
+          "dependencies": [
+            3
+          ],
+          "details": "Define advanced fields as needed, present the next modal based on previous input, and update the stored state accordingly.",
+          "status": "pending",
+          "testStrategy": "Navigate through all modal steps, ensuring each collects and validates input and updates the state."
+        },
+        {
+          "id": 5,
+          "title": "Finalize Season Creation and Integrate with SeasonService",
+          "description": "On final modal submission, aggregate all collected data, call `SeasonService.createSeason()`, and provide user feedback. Ensure state is cleaned up.",
+          "dependencies": [
+            4
+          ],
+          "details": "Retrieve the full state for the user, invoke the creation service, handle success or error responses, and remove temporary state.",
+          "status": "pending",
+          "testStrategy": "Complete the full workflow and verify that a season is created with the correct parameters and that temporary state is cleared."
+        }
+      ]
+    },
+    {
+      "id": 53,
+      "title": "Implement Game Status Dashboard (B3)",
+      "description": "Create an interactive message or embed that displays the current status of a season/game with action buttons (e.g., Start Game, Refresh Status, Settings).",
+      "details": "Modify the `/season show` command or create a new command/message type to display a dynamic dashboard. Use an embed to show season details (status, players, config). Add `ActionRowBuilder`s with `ButtonBuilder`s for relevant actions like `game_start_${seasonId}`, `season_refresh_${seasonId}`, `season_settings_${seasonId}`. Implement `ButtonHandler`s for these custom IDs. The `season_refresh_` handler should update the message embed and components to reflect the latest season state. Ensure permission checks for actions like 'Start Game'. Consider using message updates (`interaction.update()`) to provide a real-time feel.",
+      "testStrategy": "Run `/season show` or the new dashboard command. Verify the dashboard message appears with correct status and buttons. Test clicking 'Refresh Status' and confirm the message updates. Test clicking action buttons (e.g., 'Start Game' if applicable) and verify the corresponding action occurs and the dashboard updates.",
+      "priority": "medium",
+      "dependencies": [
+        47
+      ],
+      "status": "pending",
+      "subtasks": [
+        {
+          "id": 1,
+          "title": "Design Dashboard Embed Structure",
+          "description": "Define the layout and content of the dashboard embed to display season/game status, player list, and configuration details.",
+          "dependencies": [],
+          "details": "Determine which fields and formatting will be used in the embed to clearly present all relevant season/game information.",
+          "status": "pending",
+          "testStrategy": "Review the embed in a test Discord channel to ensure all required information is displayed clearly and updates as expected."
+        },
+        {
+          "id": 2,
+          "title": "Implement Action Buttons and ActionRowBuilders",
+          "description": "Add interactive action buttons (Start Game, Refresh Status, Settings) to the dashboard using ActionRowBuilder and ButtonBuilder.",
+          "dependencies": [
+            1
+          ],
+          "details": "Configure each button with a unique custom ID (e.g., game_start_${seasonId}) and ensure they are attached to the embed message.",
+          "status": "pending",
+          "testStrategy": "Verify that all buttons appear correctly and are clickable in the dashboard message."
+        },
+        {
+          "id": 3,
+          "title": "Develop Button Handlers for Dashboard Actions",
+          "description": "Create handlers for each button's custom ID to process user interactions and trigger the appropriate actions.",
+          "dependencies": [
+            2
+          ],
+          "details": "Implement logic for game_start, season_refresh, and season_settings actions, ensuring each handler performs the correct operation.",
+          "status": "pending",
+          "testStrategy": "Simulate button clicks and confirm that each handler executes the intended functionality."
+        },
+        {
+          "id": 4,
+          "title": "Implement Real-Time Dashboard Updates",
+          "description": "Ensure the dashboard message and its components update in real time to reflect the latest season/game state.",
+          "dependencies": [
+            3
+          ],
+          "details": "Use interaction.update() to refresh the embed and buttons when actions like Refresh Status are triggered.",
+          "status": "pending",
+          "testStrategy": "Trigger state changes and confirm the dashboard updates immediately without requiring a new message."
+        },
+        {
+          "id": 5,
+          "title": "Add Permission Checks for Sensitive Actions",
+          "description": "Implement permission checks to restrict actions like 'Start Game' to authorized users only.",
+          "dependencies": [
+            3
+          ],
+          "details": "Verify user roles or permissions before executing sensitive actions and provide appropriate feedback if access is denied.",
+          "status": "pending",
+          "testStrategy": "Attempt restricted actions with both authorized and unauthorized users to ensure permissions are enforced."
+        }
+      ]
+    },
+    {
+      "id": 54,
+      "title": "Implement Admin Player Management Interface (C1)",
+      "description": "Develop visual interfaces using user and role select menus for administrative tasks like adding or removing players from a season or assigning roles.",
+      "details": "Identify admin commands related to player/role management. Modify these commands to present messages containing `UserSelectMenuBuilder` or `RoleSelectMenuBuilder`. Set `setMinValues` and `setMaxValues` as appropriate (e.g., for bulk operations). Set a `customId` (e.g., `admin_remove_players`, `admin_assign_role`). Implement `SelectMenuHandler`s for these custom IDs. In the handlers, retrieve the selected user/role IDs (`interaction.values`). Implement the corresponding admin logic (e.g., calling `SeasonService.removePlayer`, updating user roles). **Crucially**, implement robust permission validation to ensure only authorized users can trigger these actions. Consider adding confirmation steps for destructive actions.",
+      "testStrategy": "As an administrator, invoke an admin command that uses a select menu. Verify the user/role select menu appears. Select one or multiple users/roles. Confirm the intended administrative action is performed correctly. Test as a non-admin user to ensure permission checks prevent unauthorized actions.",
+      "priority": "low",
+      "dependencies": [
+        47
+      ],
+      "status": "pending",
+      "subtasks": [
+        {
+          "id": 1,
+          "title": "Identify and Refactor Admin Player/Role Management Commands",
+          "description": "Review existing admin commands related to player and role management. Refactor these commands to support visual interfaces using select menus.",
+          "dependencies": [],
+          "details": "Catalog all admin commands for adding/removing players and assigning roles. Update command logic to prepare for integration with select menu components.",
+          "status": "pending",
+          "testStrategy": "Verify that all relevant commands are identified and refactored without breaking existing functionality."
+        },
+        {
+          "id": 2,
+          "title": "Integrate User and Role Select Menus into Admin Commands",
+          "description": "Modify admin commands to present Discord select menus (`UserSelectMenuBuilder` and `RoleSelectMenuBuilder`) for user and role selection.",
+          "dependencies": [
+            1
+          ],
+          "details": "Implement select menus in command responses. Configure `setMinValues`, `setMaxValues`, and assign unique `customId` values for each operation (e.g., `admin_remove_players`, `admin_assign_role`).",
+          "status": "pending",
+          "testStrategy": "Trigger commands and confirm that select menus appear with correct configuration and options."
+        },
+        {
+          "id": 3,
+          "title": "Implement SelectMenuHandlers for Admin Actions",
+          "description": "Develop handlers for each select menu's `customId` to process selected user/role IDs and execute the corresponding admin logic.",
+          "dependencies": [
+            2
+          ],
+          "details": "Create handlers that retrieve `interaction.values` and call appropriate services (e.g., `SeasonService.removePlayer`, role assignment logic).",
+          "status": "pending",
+          "testStrategy": "Select users/roles via the menu and verify that the correct backend actions are performed."
+        },
+        {
+          "id": 4,
+          "title": "Enforce Robust Permission Validation for Admin Actions",
+          "description": "Implement and validate permission checks to ensure only authorized users can trigger admin player/role management actions.",
+          "dependencies": [
+            3
+          ],
+          "details": "Integrate permission validation logic based on admin roles or explicit permissions before processing any admin action. Ensure compliance with Discord's permission hierarchy.",
+          "status": "pending",
+          "testStrategy": "Attempt actions as both authorized and unauthorized users to confirm correct access control."
+        },
+        {
+          "id": 5,
+          "title": "Add Confirmation Steps for Destructive Admin Actions",
+          "description": "Implement confirmation prompts for destructive actions (e.g., removing players) to prevent accidental changes.",
+          "dependencies": [
+            4
+          ],
+          "details": "Design and integrate confirmation dialogs or follow-up interactions before finalizing destructive operations.",
+          "status": "pending",
+          "testStrategy": "Initiate destructive actions and verify that confirmation is required before execution."
+        }
+      ]
     }
   ]
 }

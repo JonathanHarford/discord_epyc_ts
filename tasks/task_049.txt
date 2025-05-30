@@ -1,0 +1,43 @@
+# Task ID: 49
+# Title: Implement Interactive Season List (A2)
+# Status: pending
+# Dependencies: 47, 48
+# Priority: high
+# Description: Enhance the `/season list` command output to display each season with interactive buttons for actions like 'Show Details' and 'Join' (conditionally available).
+# Details:
+Modify the `/season list` command output generation in `season-command.ts`. For each season listed, create an `ActionRowBuilder` containing `ButtonBuilder` instances. Include a 'Show' button (`customId: season_show_${season.id}`). Conditionally include a 'Join' button (`customId: season_join_${season.id}`) that is enabled only if the season is active and the interacting user is not already a participant. Reuse or adapt the `season_join_` button handler logic from task 48. Create a new `ButtonHandler` for `season_show_` to trigger the `/season show` command logic or display season details. Ensure proper pagination or handling for many seasons.
+
+# Test Strategy:
+Run `/season list`. Verify each season entry has the correct buttons. Test clicking 'Show' on a season. Test clicking 'Join' on an active season you are not in. Verify the 'Join' button is disabled for seasons you are already in or inactive seasons.
+
+# Subtasks:
+## 1. Refactor /season list Output Generation [pending]
+### Dependencies: None
+### Description: Modify the `/season list` command output in `season-command.ts` to generate a list of seasons, each with an associated ActionRowBuilder for interactive buttons.
+### Details:
+Ensure each season entry in the list is accompanied by an ActionRowBuilder to hold interactive buttons for user actions.
+
+## 2. Implement 'Show Details' Button and Handler [pending]
+### Dependencies: 49.1
+### Description: Add a 'Show' button (`customId: season_show_${season.id}`) for each season and create a new ButtonHandler to trigger the `/season show` command logic or display season details.
+### Details:
+Ensure the 'Show' button is present for every season and that clicking it displays the correct season details using the new handler.
+
+## 3. Implement Conditional 'Join' Button and Handler Integration [pending]
+### Dependencies: 49.1
+### Description: Add a 'Join' button (`customId: season_join_${season.id}`) for each season, enabled only if the season is active and the user is not already a participant. Integrate or adapt the button handler logic from task 48.
+### Details:
+Ensure the 'Join' button is conditionally rendered and enabled, and that it correctly triggers the join logic.
+
+## 4. Implement Pagination or Overflow Handling [pending]
+### Dependencies: 49.1
+### Description: Add pagination or another mechanism to handle cases where there are many seasons, ensuring the list remains user-friendly and navigable.
+### Details:
+Choose and implement a strategy (pagination, scrolling, etc.) to manage long season lists.
+
+## 5. Comprehensive Testing and Validation [pending]
+### Dependencies: 49.2, 49.3, 49.4
+### Description: Perform end-to-end testing of the enhanced `/season list` command, including all button interactions, conditional logic, and overflow handling.
+### Details:
+Validate that all features work as intended, including edge cases and error handling.
+

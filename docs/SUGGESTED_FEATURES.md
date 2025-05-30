@@ -62,7 +62,7 @@ const joinButton = new ButtonBuilder()
 #### A2. Interactive Season List Enhancement
 **Description**: Transform `/season list` into interactive interface with action buttons  
 **Current Flow**: Static text list of seasons  
-**Enhanced Flow**: Each season shows [View Details] [Join] [Leave] buttons  
+**Enhanced Flow**: Each season shows [Show] button, as well as [Join] if it's active and the user is not already in it.  
 
 **Benefits**:
 - One-click actions from season list

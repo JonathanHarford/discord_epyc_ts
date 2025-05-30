@@ -1,0 +1,43 @@
+# Task ID: 52
+# Title: Implement Season Creation Wizard with Modals (B1)
+# Status: pending
+# Dependencies: 47
+# Priority: medium
+# Description: Develop a multi-step modal interface to guide users through the season creation process, replacing the single command with many parameters.
+# Details:
+Modify the `/season create` command to initiate a modal workflow instead of processing parameters directly. Create the first `ModalBuilder` (`customId: season_create_step1`) with input fields (`TextInputBuilder`) for basic parameters (e.g., player limits, duration). Implement a `ModalHandler` for `season_create_step1`. Upon submission, validate inputs, store the state temporarily (e.g., in a `Map` keyed by user ID as suggested), and potentially present a second modal (`customId: season_create_step2`) for advanced settings, or finalize creation if it's the last step. Implement subsequent modal handlers as needed. Upon final modal submission, retrieve the full state and call `SeasonService.createSeason()`. Implement state management logic to handle multi-step data persistence and cleanup.
+
+# Test Strategy:
+Run `/season create`. Verify the first modal appears. Fill in details and submit. Verify subsequent modals appear or the season is created. Test input validation within modals. Test cancelling or abandoning the modal flow. Test concurrent wizard sessions by different users.
+
+# Subtasks:
+## 1. Refactor /season create Command to Trigger Modal Workflow [pending]
+### Dependencies: None
+### Description: Modify the existing `/season create` command so that it initiates a modal-based multi-step workflow instead of processing all parameters directly.
+### Details:
+Update the command handler to open the first modal (step 1) when invoked, removing direct parameter parsing from the command.
+
+## 2. Implement Initial Modal (Step 1) and Handler [pending]
+### Dependencies: 52.1
+### Description: Create the first modal (`customId: season_create_step1`) with input fields for basic season parameters and implement its submission handler.
+### Details:
+Use a modal builder to define fields such as player limits and duration. Implement a handler to process and validate the submitted data.
+
+## 3. Design and Implement Multi-Step State Management [pending]
+### Dependencies: 52.2
+### Description: Develop logic to persist user input across multiple modal steps, using a temporary storage solution (e.g., Map keyed by user ID).
+### Details:
+Ensure that data from each modal step is stored and retrievable for subsequent steps or finalization. Implement cleanup logic for abandoned or completed flows.
+
+## 4. Implement Subsequent Modals and Handlers for Advanced Settings [pending]
+### Dependencies: 52.3
+### Description: Create additional modal steps (e.g., `season_create_step2`) for advanced season settings, with corresponding handlers to collect and validate further input.
+### Details:
+Define advanced fields as needed, present the next modal based on previous input, and update the stored state accordingly.
+
+## 5. Finalize Season Creation and Integrate with SeasonService [pending]
+### Dependencies: 52.4
+### Description: On final modal submission, aggregate all collected data, call `SeasonService.createSeason()`, and provide user feedback. Ensure state is cleaned up.
+### Details:
+Retrieve the full state for the user, invoke the creation service, handle success or error responses, and remove temporary state.
+

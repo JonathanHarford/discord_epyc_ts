@@ -1,0 +1,43 @@
+# Task ID: 53
+# Title: Implement Game Status Dashboard (B3)
+# Status: pending
+# Dependencies: 47
+# Priority: medium
+# Description: Create an interactive message or embed that displays the current status of a season/game with action buttons (e.g., Start Game, Refresh Status, Settings).
+# Details:
+Modify the `/season show` command or create a new command/message type to display a dynamic dashboard. Use an embed to show season details (status, players, config). Add `ActionRowBuilder`s with `ButtonBuilder`s for relevant actions like `game_start_${seasonId}`, `season_refresh_${seasonId}`, `season_settings_${seasonId}`. Implement `ButtonHandler`s for these custom IDs. The `season_refresh_` handler should update the message embed and components to reflect the latest season state. Ensure permission checks for actions like 'Start Game'. Consider using message updates (`interaction.update()`) to provide a real-time feel.
+
+# Test Strategy:
+Run `/season show` or the new dashboard command. Verify the dashboard message appears with correct status and buttons. Test clicking 'Refresh Status' and confirm the message updates. Test clicking action buttons (e.g., 'Start Game' if applicable) and verify the corresponding action occurs and the dashboard updates.
+
+# Subtasks:
+## 1. Design Dashboard Embed Structure [pending]
+### Dependencies: None
+### Description: Define the layout and content of the dashboard embed to display season/game status, player list, and configuration details.
+### Details:
+Determine which fields and formatting will be used in the embed to clearly present all relevant season/game information.
+
+## 2. Implement Action Buttons and ActionRowBuilders [pending]
+### Dependencies: 53.1
+### Description: Add interactive action buttons (Start Game, Refresh Status, Settings) to the dashboard using ActionRowBuilder and ButtonBuilder.
+### Details:
+Configure each button with a unique custom ID (e.g., game_start_${seasonId}) and ensure they are attached to the embed message.
+
+## 3. Develop Button Handlers for Dashboard Actions [pending]
+### Dependencies: 53.2
+### Description: Create handlers for each button's custom ID to process user interactions and trigger the appropriate actions.
+### Details:
+Implement logic for game_start, season_refresh, and season_settings actions, ensuring each handler performs the correct operation.
+
+## 4. Implement Real-Time Dashboard Updates [pending]
+### Dependencies: 53.3
+### Description: Ensure the dashboard message and its components update in real time to reflect the latest season/game state.
+### Details:
+Use interaction.update() to refresh the embed and buttons when actions like Refresh Status are triggered.
+
+## 5. Add Permission Checks for Sensitive Actions [pending]
+### Dependencies: 53.3
+### Description: Implement permission checks to restrict actions like 'Start Game' to authorized users only.
+### Details:
+Verify user roles or permissions before executing sensitive actions and provide appropriate feedback if access is denied.
+
