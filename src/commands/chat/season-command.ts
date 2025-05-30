@@ -141,78 +141,40 @@ export class SeasonCommand implements Command {
                 return;
             }
 
-            // Get all games for this season with their turns
-            const games = await this.prisma.game.findMany({
-                where: { seasonId },
-                include: {
-                    turns: {
-                        orderBy: { turnNumber: 'asc' },
-                        include: {
-                            player: {
-                                select: { name: true, discordUserId: true }
-                            }
-                        }
+            // Calculate open until time for SETUP status
+            let openUntilText = '';
+            if (season.status === 'SETUP' && season.config.openDuration) {
+                try {
+                    const { parseDuration } = await import('../../utils/datetime.js');
+                    const duration = parseDuration(season.config.openDuration);
+                    if (duration) {
+                        const openUntil = new Date(season.createdAt.getTime() + duration.as('milliseconds'));
+                        openUntilText = openUntil.toLocaleString();
                     }
-                },
-                orderBy: { createdAt: 'asc' }
-            });
-
-            // Calculate status information
-            const gameDetails = games.map(game => {
-                const turns = game.turns;
-                const pendingTurns = turns.filter(turn => turn.status === 'PENDING').length;
-                const offeredTurns = turns.filter(turn => turn.status === 'OFFERED').length;
-                const completedTurns = turns.filter(turn => turn.status === 'COMPLETED').length;
-                const totalTurns = turns.length;
-                
-                // Find current turn (most recent non-completed turn)
-                const currentTurn = turns.find(turn => 
-                    turn.status === 'PENDING' || turn.status === 'OFFERED'
-                );
-
-                let gameInfo = `**Game ${game.id}** (${game.status})\n`;
-                gameInfo += `Turns: ${completedTurns}/${totalTurns} completed`;
-                if (pendingTurns > 0) gameInfo += `, ${pendingTurns} pending`;
-                if (offeredTurns > 0) gameInfo += `, ${offeredTurns} offered`;
-                
-                if (currentTurn) {
-                    gameInfo += `\nCurrent: Turn ${currentTurn.turnNumber} (${currentTurn.type}) - ${currentTurn.player?.name || 'Unknown'} (${currentTurn.status})`;
-                }
-                
-                return gameInfo;
-            }).join('\n\n');
-
-            // Calculate completion percentage for active/pending seasons
-            let pcComplete = '';
-            if (season.status === 'ACTIVE' || season.status === 'PENDING') {
-                // Get all turns for this season
-                const allTurns = await this.prisma.turn.findMany({
-                    where: {
-                        game: {
-                            seasonId: season.id
-                        }
-                    }
-                });
-                
-                const completedTurns = allTurns.filter(turn => turn.status === 'COMPLETED').length;
-                const totalTurns = allTurns.length;
-                
-                if (totalTurns > 0) {
-                    const percentage = Math.round((completedTurns / totalTurns) * 100);
-                    pcComplete = `(${percentage}%)`;
+                } catch (error) {
+                    console.warn(`Failed to parse openDuration for season ${season.id}:`, error);
+                    openUntilText = 'Unknown';
                 }
             }
 
-            await SimpleMessage.sendEmbed(intr, strings.embeds.seasonStatus, {
-                seasonId: season.id,
-                seasonStatus: season.status,
-                pcComplete: pcComplete,
-                playerCount: season._count.players,
-                minPlayers: season.config.minPlayers,
-                maxPlayers: season.config.maxPlayers,
-                gameCount: games.length,
-                gameDetails: gameDetails || 'No games found'
-            }, false, 'info'); // Not ephemeral, so others can see the status
+            // Format the response
+            let response = `**${season.id} - ${season.status}**\n`;
+            response += `**Players:** ${season._count.players}\n`;
+            
+            if (season.status === 'SETUP' && openUntilText) {
+                response += `**Open until:** ${openUntilText}\n`;
+            }
+            
+            response += `**Rules:**\n`;
+            response += `\`open_duration\`: ${season.config.openDuration || 'default'}\n`;
+            response += `\`min_players\`: ${season.config.minPlayers}\n`;
+            response += `\`max_players\`: ${season.config.maxPlayers || 'undefined'}\n`;
+            response += `\`turn_pattern\`: ${season.config.turnPattern || 'default'}\n`;
+            response += `\`claim_timeout\`: ${season.config.claimTimeout || 'default'}\n`;
+            response += `\`writing_timeout\`: ${season.config.writingTimeout || 'default'}\n`;
+            response += `\`drawing_timeout\`: ${season.config.drawingTimeout || 'default'}`;
+
+            await SimpleMessage.sendInfo(intr, response, {}, false); // Not ephemeral, so others can see the status
             
         } catch (error) {
             console.error('Error in /season show command:', error);

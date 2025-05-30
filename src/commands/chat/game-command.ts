@@ -231,24 +231,28 @@ export class GameCommand implements Command {
 
             // Format game information
             const createdDate = new Date(gameDetails.createdAt).toISOString().split('T')[0];
-            const lastActivityDate = gameDetails.lastActivityAt 
-                ? new Date(gameDetails.lastActivityAt).toISOString().split('T')[0]
-                : 'Never';
 
             // Get turn count and current turn info
             const totalTurns = gameDetails.turns.length;
             const completedTurns = gameDetails.turns.filter(t => t.status === 'COMPLETED').length;
-            const currentTurn = gameDetails.turns.find(t => t.status === 'PENDING' || t.status === 'OFFERED');
 
-            const message = `**Game #${gameId}**\n` +
-                `Started by: <@${gameDetails.creatorId}>\n` +
-                `Turns: ${completedTurns}/${totalTurns}\n` +
-                `Status: ${gameDetails.status}\n` +
-                `Started: ${createdDate}\n` +
-                `Last activity: ${lastActivityDate}` +
-                (currentTurn ? `\nCurrent turn: ${currentTurn.turnNumber} (${currentTurn.type}) - ${currentTurn.status}` : '');
+            // Format the response
+            let response = `**Game #${gameId} - ${gameDetails.status}**\n`;
+            response += `**Players:** ${totalTurns > 0 ? 'Active' : 'None'}\n`;
+            response += `**Created:** ${createdDate}\n`;
+            response += `**Turns:** ${completedTurns}/${totalTurns}\n`;
+            
+            if (gameDetails.config) {
+                response += `**Rules:**\n`;
+                response += `\`turn_pattern\`: ${gameDetails.config.turnPattern || 'default'}\n`;
+                response += `\`min_turns\`: ${gameDetails.config.minTurns || 'default'}\n`;
+                response += `\`max_turns\`: ${gameDetails.config.maxTurns || 'unlimited'}\n`;
+                response += `\`writing_timeout\`: ${gameDetails.config.writingTimeout || 'default'}\n`;
+                response += `\`drawing_timeout\`: ${gameDetails.config.drawingTimeout || 'default'}\n`;
+                response += `\`stale_timeout\`: ${gameDetails.config.staleTimeout || 'default'}`;
+            }
 
-            await SimpleMessage.sendInfo(interaction, message, {}, true); // Ephemeral - game details
+            await SimpleMessage.sendInfo(interaction, response, {}, true); // Ephemeral - game details
 
         } catch (error) {
             console.error('Error in /game show command:', error);

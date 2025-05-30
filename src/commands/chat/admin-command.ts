@@ -419,22 +419,17 @@ export class AdminCommand implements Command {
                 
                 const result = await this.configService.updateGuildDefaultConfig(guildId, updateData);
                 await this.handleMessageInstruction(result, intr);
-                
-                // After updating, show the current configuration
-                const config = await this.configService.getGuildDefaultConfig(guildId);
-                const configText = this.formatConfigForDisplay(config);
-                await SimpleMessage.sendInfo(intr, `**Updated Server Default Season Configuration**\n\n${configText}`, {}, false);
-                
-            } else {
-                // No parameters provided, just show the current configuration
-                const config = await this.configService.getGuildDefaultConfig(guildId);
-                const configText = this.formatConfigForDisplay(config);
-                await SimpleMessage.sendInfo(intr, `**Server Default Season Configuration**\n\n${configText}`, {}, true);
             }
+            
+            // Always show the current configuration (whether updated or just viewing)
+            const config = await this.configService.getGuildDefaultConfig(guildId);
+            const configText = this.formatConfigForDisplay(config);
+            const title = hasUpdates ? '**Updated Server Default Season Configuration**' : '**Server Default Season Configuration**';
+            await SimpleMessage.sendInfo(intr, `${title}\n\n${configText}`, {}, true);
             
         } catch (error) {
             console.error('Error in admin season config command:', error);
-            await SimpleMessage.sendError(intr, 'An error occurred while managing the server\'s default season configuration.', {}, true);
+            await SimpleMessage.sendError(intr, 'An error occurred while managing the season configuration.', {}, true);
         }
     }
     
@@ -588,44 +583,44 @@ export class AdminCommand implements Command {
             if (returns) updates.returns = returns;
             if (testMode !== null) updates.testMode = testMode;
 
-            // If no updates provided, show current config
-            if (Object.keys(updates).length === 0) {
-                const config = await this.prisma.gameConfig.findUnique({
+            const hasUpdates = Object.keys(updates).length > 0;
+
+            if (hasUpdates) {
+                // Update the config
+                let guildConfig = await this.prisma.gameConfig.findUnique({
                     where: { isGuildDefaultFor: guildId }
                 });
 
-                if (!config) {
-                    await SimpleMessage.sendInfo(intr, 'No game configuration found for this server. Default values will be used.', {}, true);
-                    return;
+                if (!guildConfig) {
+                    // Create new guild default config
+                    guildConfig = await this.prisma.gameConfig.create({
+                        data: {
+                            isGuildDefaultFor: guildId,
+                            ...updates
+                        }
+                    });
+                } else {
+                    // Update existing config
+                    guildConfig = await this.prisma.gameConfig.update({
+                        where: { id: guildConfig.id },
+                        data: updates
+                    });
                 }
-
-                const configDisplay = this.formatGameConfigForDisplay(config);
-                await SimpleMessage.sendInfo(intr, `**Game Configuration for this server:**\n\n${configDisplay}`, {}, true);
-                return;
             }
 
-            // Update the config
-            let guildConfig = await this.prisma.gameConfig.findUnique({
+            // Always show the current configuration (whether updated or just viewing)
+            const config = await this.prisma.gameConfig.findUnique({
                 where: { isGuildDefaultFor: guildId }
             });
 
-            if (!guildConfig) {
-                // Create new guild default config
-                guildConfig = await this.prisma.gameConfig.create({
-                    data: {
-                        isGuildDefaultFor: guildId,
-                        ...updates
-                    }
-                });
-            } else {
-                // Update existing config
-                guildConfig = await this.prisma.gameConfig.update({
-                    where: { id: guildConfig.id },
-                    data: updates
-                });
+            if (!config) {
+                await SimpleMessage.sendInfo(intr, 'No game configuration found for this server. Default values will be used.', {}, true);
+                return;
             }
 
-            await SimpleMessage.sendSuccess(intr, `Game configuration updated successfully!\n**Updated fields:** ${Object.keys(updates).join(', ')}`, {}, true);
+            const configDisplay = this.formatGameConfigForDisplay(config);
+            const title = hasUpdates ? '**Updated Game Configuration:**' : '**Game Configuration:**';
+            await SimpleMessage.sendInfo(intr, `${title}\n\n${configDisplay}`, {}, true);
 
         } catch (error) {
             console.error('Error in admin game config command:', error);
@@ -844,16 +839,11 @@ export class AdminCommand implements Command {
 
             await this.channelConfigService.updateGuildChannelConfig(guildId, updates);
             
-            const updatedFields = Object.keys(updates).map(key => {
-                switch (key) {
-                    case 'announceChannelId': return 'announce';
-                    case 'completedChannelId': return 'completed';
-                    case 'adminChannelId': return 'admin';
-                    default: return key;
-                }
-            });
-
-            await SimpleMessage.sendSuccess(intr, `Channel configuration updated successfully!\n**Updated fields:** ${updatedFields.join(', ')}`, {}, true);
+            // Get the updated configuration to display
+            const updatedConfig = await this.channelConfigService.getGuildChannelConfig(guildId);
+            const configDisplay = this.formatChannelConfigForDisplay(updatedConfig);
+            
+            await SimpleMessage.sendSuccess(intr, `**Channel configuration:**\n${configDisplay}`, {}, true);
 
         } catch (error) {
             console.error('Error in admin channel config command:', error);
@@ -862,9 +852,8 @@ export class AdminCommand implements Command {
     }
 
     private formatChannelConfigForDisplay(config: any): string {
-        return `**Channels:**\n` +
-               `• Announce: ${config.announceChannelId ? `<#${config.announceChannelId}>` : 'Not set'}\n` +
-               `• Completed: ${config.completedChannelId ? `<#${config.completedChannelId}>` : 'Not set'}\n` +
-               `• Admin: ${config.adminChannelId ? `<#${config.adminChannelId}>` : 'Not set'}`;
+        return `**announce:** ${config.announceChannelId ? `<#${config.announceChannelId}>` : 'Not set'}\n` +
+               `**completed:** ${config.completedChannelId ? `<#${config.completedChannelId}>` : 'Not set'}\n` +
+               `**admin:** ${config.adminChannelId ? `<#${config.adminChannelId}>` : 'Not set'}`;
     }
 } 
