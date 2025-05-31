@@ -193,6 +193,7 @@ export default [
       '*.config.js',
       '*.config.ts',
       'prisma/migrations/**',
+      'scripts/**',
     ],
   },
 ]; 

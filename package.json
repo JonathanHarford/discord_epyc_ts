@@ -44,6 +44,7 @@
         "prisma:format": "prisma format",
         "prisma:reset": "prisma migrate reset --force",
         "prisma:validate": "prisma validate",
+        "db:wipe": "node scripts/wipe-database.js",
         "test": "vitest run",
         "test:watch": "vitest",
         "test:coverage": "vitest run --coverage",
