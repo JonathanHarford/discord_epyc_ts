@@ -204,11 +204,7 @@ export const adminCommandData = new SlashCommandBuilder()
                             .setDescription('Return policy (e.g., "none", "2/3" for 2 times with 3 turn gap)')
                             .setRequired(false)
                     )
-                    .addBooleanOption(option =>
-                        option.setName('test_mode')
-                            .setDescription('Enable test mode with shortened timeouts')
-                            .setRequired(false)
-                    )
+
             )
             .addSubcommand(subcommand =>
                 subcommand

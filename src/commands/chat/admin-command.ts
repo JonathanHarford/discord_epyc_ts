@@ -570,8 +570,6 @@ export class AdminCommand implements Command {
             const minTurns = intr.options.getInteger('min_turns');
             const maxTurns = intr.options.getInteger('max_turns');
             const returns = intr.options.getString('returns');
-            const testMode = intr.options.getBoolean('test_mode');
-
             if (turnPattern) updates.turnPattern = turnPattern;
             if (writingTimeout) updates.writingTimeout = writingTimeout;
             if (writingWarning) updates.writingWarning = writingWarning;
@@ -581,7 +579,6 @@ export class AdminCommand implements Command {
             if (minTurns !== null) updates.minTurns = minTurns;
             if (maxTurns !== null) updates.maxTurns = maxTurns;
             if (returns) updates.returns = returns;
-            if (testMode !== null) updates.testMode = testMode;
 
             const hasUpdates = Object.keys(updates).length > 0;
 
@@ -786,8 +783,7 @@ export class AdminCommand implements Command {
                `• Drawing Warning: ${config.drawingWarning}\n` +
                `• Stale Timeout: ${config.staleTimeout}\n\n` +
                `**Game Settings:**\n` +
-               `• Returns Policy: ${config.returns}\n` +
-               `• Test Mode: ${config.testMode ? 'Enabled' : 'Disabled'}`;
+               `• Returns Policy: ${config.returns}`;
     }
 
     private async handleChannelCommand(intr: ChatInputCommandInteraction, _data: EventData): Promise<void> {

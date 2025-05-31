@@ -212,13 +212,5 @@ Bot→#games:
 	Started: 2 hours ago
 	Last activity: 15 minutes ago
 
-Admin→#games:
-	/admin game config test_mode:enable
 
-Bot→#games:
-	Test mode enabled. Games will use shortened timeouts:
-	- writing: 1m
-	- drawing: 2m
-	- stale: 5m
-	Use `/admin game add_test_player` to add virtual players.
 

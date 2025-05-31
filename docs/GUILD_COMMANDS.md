@@ -149,7 +149,6 @@ Administrative commands for managing the bot (requires appropriate permissions).
   - `min_turns` (optional): Minimum number of turns required
   - `max_turns` (optional): Maximum number of turns allowed
   - `returns` (optional): Return policy for players (e.g., "2/3" for 2 times per game with 3 turns between)
-  - `test_mode` (optional): Enable or disable test mode with shortened timeouts
 
 #### Channel Configuration (`/admin channel`)
 - `/admin channel config [options]` - Configure bot channels
