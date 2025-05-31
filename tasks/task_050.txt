@@ -1,6 +1,6 @@
 # Task ID: 50
 # Title: Implement Season Selection Dropdowns (A3)
-# Status: pending
+# Status: done
 # Dependencies: 47
 # Priority: high
 # Description: Replace manual season ID input in commands (like `/season join`, `/season show`) with a dropdown menu allowing users to select from a list of available seasons.
@@ -11,31 +11,31 @@ Identify commands that require a season ID parameter (e.g., `/season join`, `/se
 Invoke a command that now uses a season select menu (e.g., `/season join`). Verify the dropdown appears with correct season options. Select a season from the dropdown and confirm the command executes correctly for that season. Test with different numbers of available seasons.
 
 # Subtasks:
-## 1. Identify Commands Requiring Season ID Input [pending]
+## 1. Identify Commands Requiring Season ID Input [done]
 ### Dependencies: None
 ### Description: Review the codebase to list all commands that currently require a manual season ID input, such as `/season join` and `/season show`.
 ### Details:
 Compile a comprehensive list of all relevant commands to ensure none are missed in the dropdown implementation.
 
-## 2. Design and Build Season Selection Dropdowns [pending]
+## 2. Design and Build Season Selection Dropdowns [done]
 ### Dependencies: 50.1
 ### Description: Implement dropdown menus using StringSelectMenuBuilder for each identified command, formatting options with season details and setting appropriate custom IDs.
 ### Details:
 Use addOptions() to populate the dropdown with relevant seasons (e.g., open seasons for join, all seasons for show), and format labels as `Season ${season.id} (${playerCount}/${maxPlayers})`.
 
-## 3. Integrate Dropdowns into Command Flows [pending]
+## 3. Integrate Dropdowns into Command Flows [done]
 ### Dependencies: 50.2
 ### Description: Modify the command execution logic to present the dropdown menu instead of requesting manual season ID input.
 ### Details:
 Ensure that when a user invokes a command, the bot responds with a message containing the appropriate dropdown menu.
 
-## 4. Implement SelectMenuHandler for Season Selection [pending]
+## 4. Implement SelectMenuHandler for Season Selection [done]
 ### Dependencies: 50.3
 ### Description: Create a SelectMenuHandler that listens for dropdown interactions, retrieves the selected season ID, and continues the command logic using the selected value.
 ### Details:
 Handle custom IDs like `season_select_join` and `season_select_show`, extracting the selected value from interaction.values.
 
-## 5. Test and Validate End-to-End User Experience [pending]
+## 5. Test and Validate End-to-End User Experience [done]
 ### Dependencies: 50.4
 ### Description: Perform comprehensive testing of the new dropdown-based flows for all affected commands, ensuring correct behavior and user feedback.
 ### Details:

@@ -2176,7 +2176,7 @@
       "dependencies": [
         47
       ],
-      "status": "pending",
+      "status": "done",
       "subtasks": [
         {
           "id": 1,
@@ -2184,7 +2184,7 @@
           "description": "Review the codebase to list all commands that currently require a manual season ID input, such as `/season join` and `/season show`.",
           "dependencies": [],
           "details": "Compile a comprehensive list of all relevant commands to ensure none are missed in the dropdown implementation.",
-          "status": "pending",
+          "status": "done",
           "testStrategy": "Verify that all commands using season ID as a parameter are included in the list."
         },
         {
@@ -2195,7 +2195,7 @@
             1
           ],
           "details": "Use addOptions() to populate the dropdown with relevant seasons (e.g., open seasons for join, all seasons for show), and format labels as `Season ${season.id} (${playerCount}/${maxPlayers})`.",
-          "status": "pending",
+          "status": "done",
           "testStrategy": "Render dropdowns in a test environment and confirm correct population and formatting of options."
         },
         {
@@ -2206,7 +2206,7 @@
             2
           ],
           "details": "Ensure that when a user invokes a command, the bot responds with a message containing the appropriate dropdown menu.",
-          "status": "pending",
+          "status": "done",
           "testStrategy": "Trigger each command and confirm that the dropdown appears instead of a text input prompt."
         },
         {
@@ -2217,7 +2217,7 @@
             3
           ],
           "details": "Handle custom IDs like `season_select_join` and `season_select_show`, extracting the selected value from interaction.values.",
-          "status": "pending",
+          "status": "done",
           "testStrategy": "Select a season from the dropdown and verify that the correct command logic executes with the chosen season ID."
         },
         {
@@ -2228,7 +2228,7 @@
             4
           ],
           "details": "Check for edge cases, such as no available seasons, invalid selections, and permission errors.",
-          "status": "pending",
+          "status": "done",
           "testStrategy": "Run user acceptance tests covering all scenarios, confirming that dropdowns function as intended and commands complete successfully."
         }
       ]
