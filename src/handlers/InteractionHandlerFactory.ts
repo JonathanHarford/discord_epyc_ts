@@ -725,13 +725,13 @@ export class InteractionHandlerFactory {
         
         const totalCacheRequests = this.stats.cacheHits + this.stats.cacheMisses;
         const cacheEfficiency = totalCacheRequests > 0 ? 
-                               (this.stats.cacheHits / totalCacheRequests) * 100 : 0;
+                               (this.stats.cacheHits / totalCacheRequests) * 100 : 100; // Default to 100% when no cache requests
 
         let status: 'healthy' | 'degraded' | 'unhealthy' = 'healthy';
         
         if (errorRate > 50) {
             status = 'unhealthy';
-        } else if (errorRate > 10 || cacheEfficiency < 50) {
+        } else if (errorRate > 10 || (totalCacheRequests > 0 && cacheEfficiency < 50)) {
             status = 'degraded';
         }
 
