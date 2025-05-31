@@ -227,13 +227,32 @@ describe('SeasonJoinButtonHandler', () => {
     });
 
     it('should handle invalid seasonId format from customId', async () => {
-        mockInteraction.customId = 'season_join_invalidID'; // Non-numeric part
+        mockInteraction.customId = 'season_join_   '; // Empty/whitespace seasonId
 
         // No service calls should be made if customId parsing fails early
         await handler.execute(mockInteraction);
 
         expect(mockInteraction.reply).toHaveBeenCalledWith({
             content: strings.messages.joinSeason.genericErrorNoSeasonId,
+            ephemeral: true,
+        });
+    });
+
+    it('should handle valid nanoid seasonId format', async () => {
+        mockInteraction.customId = 'season_join_public-papers-warn'; // Valid nanoid string
+
+        mockPrismaClient.player.findUnique.mockResolvedValueOnce({ id: 'playerRecord9', discordUserId: 'user1', name: 'TestUser' });
+        (SeasonService.prototype.findSeasonById as any).mockResolvedValueOnce({
+            id: 'public-papers-warn', status: 'OPEN', config: { maxPlayers: 10 }, _count: { players: 5 }
+        });
+        mockPrismaClient.playersOnSeasons.findUnique.mockResolvedValueOnce(null); // Not in season
+        (SeasonService.prototype.addPlayerToSeason as any).mockResolvedValueOnce({ type: 'success', data: {} });
+
+        await handler.execute(mockInteraction);
+
+        expect(SeasonService.prototype.addPlayerToSeason).toHaveBeenCalledWith('playerRecord9', 'public-papers-warn');
+        expect(mockInteraction.reply).toHaveBeenCalledWith({
+            content: strings.messages.joinSeason.successButton.replace('{seasonId}', 'public-papers-warn'),
             ephemeral: true,
         });
     });

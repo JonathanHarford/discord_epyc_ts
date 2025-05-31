@@ -26,7 +26,7 @@ export class SeasonJoinButtonHandler implements ButtonHandler {
 
         Logger.info(`SeasonJoinButtonHandler: User ${discordUserName} (${discordUserId}) attempting to join season ${seasonId}`);
 
-        if (!seasonId || isNaN(parseInt(seasonId))) { // Basic validation for seasonId
+        if (!seasonId || seasonId.trim().length === 0) { // Basic validation for seasonId
             Logger.warn(`SeasonJoinButtonHandler: Invalid seasonId format from customId: ${interaction.customId}`);
             await interaction.reply({ content: strings.messages.joinSeason.genericErrorNoSeasonId, ephemeral: true });
             return;
