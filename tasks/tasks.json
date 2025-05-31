@@ -2107,7 +2107,7 @@
         47,
         48
       ],
-      "status": "pending",
+      "status": "done",
       "subtasks": [
         {
           "id": 1,
@@ -2137,7 +2137,7 @@
             1
           ],
           "details": "Ensure the 'Join' button is conditionally rendered and enabled, and that it correctly triggers the join logic.",
-          "status": "pending",
+          "status": "done",
           "testStrategy": "Test that the 'Join' button appears only when appropriate and successfully adds the user to the season."
         },
         {
@@ -2148,7 +2148,7 @@
             1
           ],
           "details": "Choose and implement a strategy (pagination, scrolling, etc.) to manage long season lists.",
-          "status": "pending",
+          "status": "done",
           "testStrategy": "Test with a large number of seasons to confirm the list remains accessible and buttons function correctly."
         },
         {
@@ -2161,7 +2161,7 @@
             4
           ],
           "details": "Validate that all features work as intended, including edge cases and error handling.",
-          "status": "pending",
+          "status": "done",
           "testStrategy": "Run manual and automated tests covering all user scenarios, including permission checks and error states."
         }
       ]
