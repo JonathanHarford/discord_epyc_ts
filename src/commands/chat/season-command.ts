@@ -7,8 +7,7 @@ import { SimpleMessage } from '../../messaging/SimpleMessage.js';
 import { EventData } from '../../models/internal-models.js';
 import { Logger } from '../../services/index.js'; // Assuming Logger is exported from services
 import { PlayerTurnService } from '../../services/PlayerTurnService.js';
-import { NewSeasonOptions, SeasonService } from '../../services/SeasonService.js';
-import { MessageInstruction } from '../../types/MessageInstruction.js';
+import { SeasonService } from '../../services/SeasonService.js';
 import { Command, CommandDeferType } from '../index.js';
 
 
@@ -547,105 +546,22 @@ export class SeasonCommand implements Command {
 
     private async handleNewCommand(intr: ChatInputCommandInteraction, _data: EventData): Promise<void> {
         Logger.info(`[SeasonCommand] Executing /season new for user: ${intr.user.tag} (${intr.user.id})`);
-        await intr.deferReply({ ephemeral: true }); // New command starts ephemeral, may become public later
-
-        const discordUserId = intr.user.id;
-        const discordUserName = intr.user.username;
-
-
-        // --- Find or Create Player ---
-        let playerRecord = await this.prisma.player.findUnique({
-            where: { discordUserId: discordUserId },
-        });
-
-        if (!playerRecord) {
-            try {
-                playerRecord = await this.prisma.player.create({
-                    data: {
-                        discordUserId: discordUserId,
-                        name: discordUserName,
-                    },
-                });
-                Logger.info(`New player record created for ${discordUserName} (ID: ${playerRecord.id}) during /season new command.`);
-            } catch (playerCreateError) {
-                Logger.error(`Failed to create player record for ${discordUserName} (Discord ID: ${discordUserId}):`, playerCreateError);
-                await intr.editReply({content: strings.messages.newSeason.errorPlayerCreateFailed.replace('{discordId}', discordUserId) });
-                return;
-            }
-        }
-        const creatorPlayerId = playerRecord.id;
-        // --- End Find or Create Player ---
-
-        const openDuration = intr.options.getString('open_duration');
-        const minPlayers = intr.options.getInteger('min_players');
-        const maxPlayers = intr.options.getInteger('max_players');
-        const turnPattern = intr.options.getString('turn_pattern');
-        const claimTimeout = intr.options.getString('claim_timeout');
-        const writingTimeout = intr.options.getString('writing_timeout');
-        const drawingTimeout = intr.options.getString('drawing_timeout');
-
-        const seasonOptions: NewSeasonOptions = {
-            creatorPlayerId,
-            ...(openDuration !== null && { openDuration }),
-            ...(minPlayers !== null && { minPlayers }),
-            ...(maxPlayers !== null && { maxPlayers }),
-            ...(turnPattern !== null && { turnPattern }),
-            ...(claimTimeout !== null && { claimTimeout }),
-            ...(writingTimeout !== null && { writingTimeout }),
-            ...(drawingTimeout !== null && { drawingTimeout }),
-        };
-
+        
+        // Import the modal builder
+        const { createSeasonCreationStep1Modal } = await import('../../utils/modalBuilders.js');
+        
+        // Create and show the modal
+        const modal = createSeasonCreationStep1Modal();
+        
         try {
-            const instruction: MessageInstruction = await this.seasonService.createSeason(seasonOptions);
-
-            if (instruction.type === 'success' && instruction.data && instruction.data.seasonId) {
-                const seasonId = instruction.data.seasonId;
-
-                const joinButton = new ButtonBuilder()
-                    .setCustomId(`season_join_${seasonId}`)
-                    .setLabel('Join Season')
-                    .setStyle(ButtonStyle.Primary);
-
-                const actionRow = new ActionRowBuilder<ButtonBuilder>().addComponents(joinButton);
-                
-                // Since initial defer was ephemeral, delete it and send a public message.
-                await intr.deleteReply().catch(e => Logger.error('Failed to delete initial ephemeral reply in new command:', e));
-                await intr.channel.send({
-                    content: strings.messages.newSeason.createSuccessChannel
-                                .replace('{seasonId}', seasonId.toString())
-                                .replace('{mentionUser}', intr.user.toString()),
-                    components: [actionRow]
-                });
-
-            } else if (instruction.type === 'success') { // Success but missing seasonId in data
-                Logger.warn(`Season creation success for user ${intr.user.tag} but seasonId was missing in response data.`);
-                 await intr.editReply({
-                     content: strings.messages.newSeason.createSuccessChannel
-                                .replace('{seasonId}', instruction.data?.seasonId?.toString() || 'Unknown')
-                                .replace('{mentionUser}', intr.user.toString())
-                 });
-            }
-            else {
-                let userErrorMessage: string = strings.messages.newSeason.errorGenericService;
-                if (instruction.key) {
-                    const keyMap: Record<string, string> = {
-                        'season_create_error_creator_player_not_found': strings.messages.newSeason.errorCreatorNotFound,
-                        'season_create_error_min_max_players': strings.messages.newSeason.errorMinMaxPlayers,
-                        'season_create_error_prisma_unique_constraint': strings.messages.newSeason.errorDatabase,
-                        'season_create_error_prisma': strings.messages.newSeason.errorDatabase,
-                        'season_create_error_unknown': strings.messages.newSeason.errorUnknownService,
-                    };
-                    userErrorMessage = keyMap[instruction.key] || userErrorMessage;
-                }
-                await intr.editReply({ content: userErrorMessage });
-            }
+            await intr.showModal(modal);
+            Logger.info(`[SeasonCommand] Displayed season creation modal for user: ${intr.user.tag}`);
         } catch (error) {
-            Logger.error('Critical error in /season new command processing:', error);
-            if (intr.replied || intr.deferred) { // Check if we can still edit the reply
-                await intr.editReply({ content: strings.messages.common.errorCriticalCommand }).catch(e => Logger.error('Failed to editReply on critical error in new command',e));
-            } else { // Fallback, should not happen if execute() defers properly
-                 await intr.reply({ content: strings.messages.common.errorCriticalCommand, ephemeral: true }).catch(e => Logger.error('Failed to reply on critical error in new command',e));
-            }
+            Logger.error('Error showing season creation modal:', error);
+            await intr.reply({ 
+                content: 'Sorry, there was an error opening the season creation form. Please try again.', 
+                ephemeral: true 
+            });
         }
     }
 

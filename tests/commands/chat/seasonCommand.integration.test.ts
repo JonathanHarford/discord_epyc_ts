@@ -124,6 +124,7 @@ describe('SeasonCommand - Integration Tests', () => {
       reply: vi.fn().mockResolvedValue(undefined),
       followUp: vi.fn().mockResolvedValue(undefined),
       deleteReply: vi.fn().mockResolvedValue(undefined),
+      showModal: vi.fn().mockResolvedValue(undefined),
       replied: false,
       deferred: true,
       options: {
@@ -445,32 +446,23 @@ describe('SeasonCommand - Integration Tests', () => {
   });
 
   describe('Season New Command', () => {
-    it('should create a new season with default settings', async () => {
+    it('should show season creation modal', async () => {
       interaction.options.getSubcommand.mockReturnValue('new');
       interaction.options.getString.mockReturnValue(null);
       interaction.options.getInteger.mockReturnValue(null);
 
       await commandInstance.execute(interaction, mockEventData);
 
-      // For successful season creation, expect deleteReply and channel.send to be called
-      expect(interaction.deleteReply).toHaveBeenCalled();
-      expect(interaction.channel.send).toHaveBeenCalled();
+      // For modal-based season creation, expect showModal to be called
+      expect(interaction.showModal).toHaveBeenCalled();
       
-      // Verify a new season was created
-      const newSeasons = await prisma.season.findMany({
-        where: {
-          creatorId: testPlayerId,
-          status: 'OPEN'
-        },
-        orderBy: {
-          createdAt: 'desc'
-        }
-      });
-      
-      expect(newSeasons.length).toBeGreaterThan(0);
+      // Verify the modal has the correct customId
+      const modalCall = interaction.showModal.mock.calls[0][0];
+      expect(modalCall.data.custom_id).toBe('season_create_step1');
+      expect(modalCall.data.title).toBe('Create New Season - Basic Settings');
     });
 
-    it('should create a new season with custom settings', async () => {
+    it('should show season creation modal regardless of parameters', async () => {
       interaction.options.getSubcommand.mockReturnValue('new');
       interaction.options.getString.mockImplementation((name: string) => {
         if (name === 'name') return 'Custom Season';
@@ -484,9 +476,12 @@ describe('SeasonCommand - Integration Tests', () => {
 
       await commandInstance.execute(interaction, mockEventData);
 
-      // For successful season creation, expect deleteReply and channel.send to be called
-      expect(interaction.deleteReply).toHaveBeenCalled();
-      expect(interaction.channel.send).toHaveBeenCalled();
+      // For modal-based season creation, expect showModal to be called
+      expect(interaction.showModal).toHaveBeenCalled();
+      
+      // Verify the modal has the correct customId
+      const modalCall = interaction.showModal.mock.calls[0][0];
+      expect(modalCall.data.custom_id).toBe('season_create_step1');
     });
   });
 
