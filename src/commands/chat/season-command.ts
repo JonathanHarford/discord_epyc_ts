@@ -81,44 +81,34 @@ export class SeasonCommand implements Command {
                 return;
             }
 
-            const openOrSetupSeasons = seasons.filter(s => s.status === 'OPEN' || s.status === 'SETUP');
-            const otherSeasons = seasons.filter(s => s.status !== 'OPEN' && s.status !== 'SETUP');
-            
-            let replyCount = 0;
-            const maxReplies = 5; // Limit messages to prevent spam, user can use /season show for more
+            // Separate seasons into joinable and others
+            const joinableSeasons = seasons.filter(s => {
+                const isUserInSeason = playerId ? s.players.some(p => p.playerId === playerId) : false;
+                const isSeasonFull = s.config.maxPlayers ? s._count.players >= s.config.maxPlayers : false;
+                return (s.status === 'OPEN' || s.status === 'SETUP') && !isUserInSeason && !isSeasonFull;
+            });
 
-            // Handle Open/Setup Seasons first with interactive elements
-            if (openOrSetupSeasons.length > 0) {
-                 await intr.editReply({ content: strings.messages.listSeasons.loadingOpen || 'Loading open seasons...'}); // Initial reply
-            } else {
-                 await intr.editReply({ content: strings.messages.listSeasons.noOpenSeasons || 'No seasons are currently open for joining.'});
-            }
+            // All other seasons (including joined ones, completed, terminated, etc.)
+            const otherSeasons = seasons.filter(s => {
+                const isUserInSeason = playerId ? s.players.some(p => p.playerId === playerId) : false;
+                const isSeasonFull = s.config.maxPlayers ? s._count.players >= s.config.maxPlayers : false;
+                const isJoinable = (s.status === 'OPEN' || s.status === 'SETUP') && !isUserInSeason && !isSeasonFull;
+                return !isJoinable;
+            });
 
-            for (const season of openOrSetupSeasons) {
-                if (replyCount >= maxReplies) break;
-
-                const isUserInSeason = playerId ? season.players.some(p => p.playerId === playerId) : false;
-                const isSeasonFull = season.config.maxPlayers ? season._count.players >= season.config.maxPlayers : false;
-                const canJoin = (season.status === 'OPEN' || season.status === 'SETUP') && !isUserInSeason && !isSeasonFull;
-
+            // Show the first joinable season with full details and buttons
+            if (joinableSeasons.length > 0) {
+                const season = joinableSeasons[0]; // Show only the first joinable season
+                
                 const embed = new EmbedBuilder()
                     .setTitle(`Season: ${season.id}`)
-                    .setColor(canJoin ? 0x57F287 : 0xED4245) // Green if joinable, Red otherwise
+                    .setColor(0x57F287) // Green for joinable
                     .addFields(
                         { name: 'Status', value: season.status, inline: true },
                         { name: 'Players', value: `${season._count.players} / ${season.config.maxPlayers || '∞'}`, inline: true },
                         { name: 'Created', value: new Date(season.createdAt).toLocaleDateString(), inline: true }
-                    )
-                    .setFooter({ text: `Season ID: ${season.id}` });
-
-                if (isUserInSeason) {
-                    embed.setDescription(strings.messages.listSeasons.alreadyJoined || 'You are already in this season.');
-                } else if (isSeasonFull) {
-                    embed.setDescription(strings.messages.listSeasons.seasonFull || 'This season is full.');
-                } else if (!canJoin) {
-                    embed.setDescription(strings.messages.listSeasons.notJoinable || 'This season is not currently joinable.');
-                }
-
+                    );
+                    // Removed the redundant Season ID footer
 
                 const showButton = new ButtonBuilder()
                     .setCustomId(`season_show_${season.id}`)
@@ -128,45 +118,44 @@ export class SeasonCommand implements Command {
                 const joinButton = new ButtonBuilder()
                     .setCustomId(`season_join_${season.id}`)
                     .setLabel('Join Season')
-                    .setStyle(ButtonStyle.Primary)
-                    .setDisabled(!canJoin);
+                    .setStyle(ButtonStyle.Primary);
 
                 const actionRow = new ActionRowBuilder<ButtonBuilder>().addComponents(showButton, joinButton);
 
-                // Use followUp for subsequent messages if the first one was editReply
-                if (replyCount === 0 && openOrSetupSeasons.length > 0) { // If this is the first message for open seasons
-                    await intr.editReply({ embeds: [embed], components: [actionRow] });
-                } else {
-                    await intr.followUp({ embeds: [embed], components: [actionRow], ephemeral: true });
-                }
-                replyCount++;
+                await intr.editReply({ embeds: [embed], components: [actionRow] });
+            } else {
+                await intr.editReply({ content: strings.messages.listSeasons.noOpenSeasons || 'No seasons are currently open for joining.' });
             }
             
-            // Summarize other seasons (non-open, non-setup)
-            if (otherSeasons.length > 0 && replyCount < maxReplies) {
+            // Show all other seasons in a compact format
+            if (otherSeasons.length > 0) {
+                const formatSeasonLine = (s: any): string => {
+                    const isUserInSeason = playerId ? s.players.some(p => p.playerId === playerId) : false;
+                    const createdDate = new Date(s.createdAt).toLocaleDateString();
+                    let statusText = s.status;
+                    
+                    if (isUserInSeason) {
+                        statusText = 'JOINED';
+                    }
+                    
+                    return `${s.id} ${createdDate} (${statusText})`;
+                };
+
+                const otherSeasonsText = otherSeasons
+                    .map(formatSeasonLine)
+                    .join('\n');
+
                 const summaryEmbed = new EmbedBuilder()
                     .setTitle(strings.messages.listSeasons.otherSeasonsTitle || 'Other Seasons')
                     .setColor(0xFAA61A) // Orange
-                    .setDescription(
-                        otherSeasons
-                            .slice(0, maxReplies - replyCount) // Show remaining up to maxReplies
-                            .map(s => `• **${s.id}** (${s.status}) - ${s._count.players} players`)
-                            .join('\n') || (strings.messages.listSeasons.noOtherSeasonsInfo || 'No other seasons to display.')
-                    );
+                    .setDescription(otherSeasonsText + '\n\nUse `/season show` to view.')
+                    .setFooter({ text: 'Use `/season show` to view details.' });
                 
-                if (replyCount === 0 && openOrSetupSeasons.length === 0) { // If no open seasons were shown
-                     await intr.editReply({ embeds: [summaryEmbed] });
+                if (joinableSeasons.length === 0) {
+                    await intr.editReply({ embeds: [summaryEmbed] });
                 } else {
                     await intr.followUp({ embeds: [summaryEmbed], ephemeral: true });
                 }
-                replyCount += otherSeasons.slice(0, maxReplies - replyCount).length; // Not entirely accurate for replyCount limit but good enough for summary
-            }
-
-            if (replyCount === 0 && openOrSetupSeasons.length === 0 && otherSeasons.length === 0) {
-                // This case should be caught by seasons.length === 0 earlier, but as a fallback:
-                await intr.editReply({ content: strings.messages.listSeasons.noSeasons || 'No seasons found.' });
-            } else if (seasons.length > replyCount) {
-                 await intr.followUp({ content: strings.messages.listSeasons.moreSeasonsExist.replace('{shownCount}', replyCount.toString()).replace('{totalCount}', seasons.length.toString()) || `Showing ${replyCount} of ${seasons.length} seasons. Use /season show <id> for more details.`, ephemeral: true });
             }
 
         } catch (error) {

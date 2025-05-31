@@ -158,6 +158,98 @@ describe('SeasonCommand - Integration Tests', () => {
       expect(interaction.editReply).toHaveBeenCalled();
     });
 
+    it('should show joinable season with buttons and other seasons in compact format', async () => {
+      // Create additional season configs
+      const completedSeasonConfig = await prisma.seasonConfig.create({
+        data: { 
+          id: nanoid(),
+          minPlayers: 4,
+          maxPlayers: 8,
+          claimTimeout: '300s',
+          writingTimeout: '600s',
+          drawingTimeout: '900s'
+        }
+      });
+
+      const terminatedSeasonConfig = await prisma.seasonConfig.create({
+        data: { 
+          id: nanoid(),
+          minPlayers: 4,
+          maxPlayers: 8,
+          claimTimeout: '300s',
+          writingTimeout: '600s',
+          drawingTimeout: '900s'
+        }
+      });
+
+      // Create additional seasons to test the new format
+      const completedSeason = await prisma.season.create({
+        data: {
+          id: nanoid(),
+          status: 'COMPLETED',
+          configId: completedSeasonConfig.id,
+          creatorId: testPlayerId
+        }
+      });
+
+      const terminatedSeason = await prisma.season.create({
+        data: {
+          id: nanoid(),
+          status: 'TERMINATED',
+          configId: terminatedSeasonConfig.id,
+          creatorId: testPlayerId
+        }
+      });
+
+      // Create a new user who hasn't joined any seasons
+      const newUser = await prisma.player.create({
+        data: {
+          id: nanoid(),
+          discordUserId: 'new-user-for-list-test',
+          name: 'NewUserForListTest'
+        }
+      });
+
+      interaction.user.id = 'new-user-for-list-test';
+      interaction.options.getSubcommand.mockReturnValue('list');
+
+      await commandInstance.execute(interaction, mockEventData);
+
+      // Should call editReply for the joinable season
+      expect(interaction.editReply).toHaveBeenCalled();
+      
+      // Should call followUp for the "Other Seasons" section
+      expect(interaction.followUp).toHaveBeenCalled();
+
+      // Check that editReply was called with an embed (joinable season)
+      const editReplyCall = interaction.editReply.mock.calls[0][0];
+      expect(editReplyCall.embeds).toBeDefined();
+      expect(editReplyCall.embeds.length).toBe(1);
+      expect(editReplyCall.components).toBeDefined();
+      expect(editReplyCall.components.length).toBe(1);
+
+      // Check that followUp was called with the "Other Seasons" embed
+      const followUpCall = interaction.followUp.mock.calls[0][0];
+      expect(followUpCall.embeds).toBeDefined();
+      expect(followUpCall.embeds.length).toBe(1);
+      expect(followUpCall.embeds[0].data.title).toContain('Other Seasons');
+
+      // Clean up test data
+      await prisma.season.deleteMany({
+        where: {
+          id: { in: [completedSeason.id, terminatedSeason.id] }
+        }
+      });
+      await prisma.seasonConfig.deleteMany({
+        where: {
+          id: { in: [completedSeasonConfig.id, terminatedSeasonConfig.id] }
+        }
+      });
+      await prisma.player.delete({
+        where: { id: newUser.id }
+      });
+    });
+
     it('should handle case with no seasons', async () => {
       // Temporarily remove all seasons
       await prisma.playersOnSeasons.deleteMany();
