@@ -109,39 +109,113 @@ export class SeasonCommand implements Command {
                 return !isUserInSeason && !isJoinable;
             });
 
-            // Format seasons using text blocks like game list
-            const formatSeasonLine = (s: any): string => {
+            // Format seasons with interactive buttons
+            const formatSeasonWithButtons = (s: any): { content: string, components: ActionRowBuilder<ButtonBuilder>[] } => {
                 const createdDate = new Date(s.createdAt).toISOString().split('T')[0];
                 const creatorName = s.creator?.name || 'Unknown';
                 const playerCount = s._count.players;
                 const maxPlayers = s.config.maxPlayers || '∞';
-                return `@${creatorName} ${createdDate} (${playerCount}/${maxPlayers})`;
+                const seasonLine = `**${s.id}** - @${creatorName} ${createdDate} (${playerCount}/${maxPlayers})`;
+
+                // Create buttons for this season
+                const buttons: ButtonBuilder[] = [];
+                
+                // Always add Show button
+                const showButton = new ButtonBuilder()
+                    .setCustomId(`season_show_${s.id}`)
+                    .setLabel('Show Details')
+                    .setStyle(ButtonStyle.Secondary);
+                buttons.push(showButton);
+
+                // Conditionally add Join button
+                const isUserInSeason = playerId ? s.players.some(p => p.playerId === playerId) : false;
+                const isSeasonFull = s.config.maxPlayers ? s._count.players >= s.config.maxPlayers : false;
+                const canJoin = (s.status === 'OPEN' || s.status === 'SETUP') && !isUserInSeason && !isSeasonFull;
+                
+                if (canJoin) {
+                    const joinButton = new ButtonBuilder()
+                        .setCustomId(`season_join_${s.id}`)
+                        .setLabel('Join Season')
+                        .setStyle(ButtonStyle.Primary);
+                    buttons.push(joinButton);
+                } else if (isUserInSeason) {
+                    // Show disabled join button for seasons user is already in
+                    const joinedButton = new ButtonBuilder()
+                        .setCustomId(`season_joined_${s.id}`)
+                        .setLabel('Already Joined')
+                        .setStyle(ButtonStyle.Success)
+                        .setDisabled(true);
+                    buttons.push(joinedButton);
+                }
+
+                const actionRow = new ActionRowBuilder<ButtonBuilder>().addComponents(buttons);
+                
+                return {
+                    content: seasonLine,
+                    components: [actionRow]
+                };
             };
 
-            // Build the response message using text blocks
+            // Build the response with interactive components
+            const seasonEntries: { content: string, components: ActionRowBuilder<ButtonBuilder>[] }[] = [];
             let message = '';
 
             if (joinableSeasons.length > 0) {
-                const joinableText = joinableSeasons.map(formatSeasonLine).join('\n');
-                message += `**You can join:**\n${joinableText}\n\n`;
+                message += `**You can join:**\n`;
+                joinableSeasons.forEach(season => {
+                    const entry = formatSeasonWithButtons(season);
+                    seasonEntries.push(entry);
+                });
+                message += '\n';
             }
 
             if (joinedSeasons.length > 0) {
-                const joinedText = joinedSeasons.map(formatSeasonLine).join('\n');
-                message += `**You've joined:**\n${joinedText}\n\n`;
+                message += `**You've joined:**\n`;
+                joinedSeasons.forEach(season => {
+                    const entry = formatSeasonWithButtons(season);
+                    seasonEntries.push(entry);
+                });
+                message += '\n';
             }
 
             if (otherSeasons.length > 0) {
-                const otherText = otherSeasons.map(formatSeasonLine).join('\n');
-                message += `**Other seasons:**\n${otherText}`;
+                message += `**Other seasons:**\n`;
+                otherSeasons.forEach(season => {
+                    const entry = formatSeasonWithButtons(season);
+                    seasonEntries.push(entry);
+                });
             }
 
             // If no seasons at all, show a helpful message
-            if (!message.trim()) {
-                message = 'No seasons found. Use `/season new` to start a new season!';
+            if (seasonEntries.length === 0) {
+                await intr.editReply({ content: 'No seasons found. Use `/season new` to start a new season!' });
+                return;
             }
 
-            await intr.editReply({ content: message.trim() });
+            // Discord has a limit of 5 action rows per message, so we need to handle pagination
+            // For now, we'll send the first 5 seasons with buttons and the rest as text
+            const maxSeasonsWithButtons = 5;
+            
+            if (seasonEntries.length <= maxSeasonsWithButtons) {
+                // All seasons can have buttons
+                const allComponents = seasonEntries.flatMap(entry => entry.components);
+                const fullContent = message + seasonEntries.map(entry => entry.content).join('\n');
+                await intr.editReply({ content: fullContent, components: allComponents });
+            } else {
+                // Need to implement pagination or show some with buttons and some without
+                const seasonsWithButtons = seasonEntries.slice(0, maxSeasonsWithButtons);
+                const seasonsWithoutButtons = seasonEntries.slice(maxSeasonsWithButtons);
+                
+                const allComponents = seasonsWithButtons.flatMap(entry => entry.components);
+                let fullContent = message + seasonsWithButtons.map(entry => entry.content).join('\n');
+                
+                if (seasonsWithoutButtons.length > 0) {
+                    fullContent += '\n\n**Additional seasons (use `/season show <id>` for details):**\n';
+                    fullContent += seasonsWithoutButtons.map(entry => entry.content.replace(/\*\*/g, '')).join('\n');
+                }
+                
+                await intr.editReply({ content: fullContent, components: allComponents });
+            }
 
         } catch (error) {
             Logger.error('Error in /season list command:', error);

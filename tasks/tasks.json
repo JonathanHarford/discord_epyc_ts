@@ -2115,7 +2115,7 @@
           "description": "Modify the `/season list` command output in `season-command.ts` to generate a list of seasons, each with an associated ActionRowBuilder for interactive buttons.",
           "dependencies": [],
           "details": "Ensure each season entry in the list is accompanied by an ActionRowBuilder to hold interactive buttons for user actions.",
-          "status": "pending",
+          "status": "done",
           "testStrategy": "Verify that the command output now includes an ActionRowBuilder for each season."
         },
         {
@@ -2126,7 +2126,7 @@
             1
           ],
           "details": "Ensure the 'Show' button is present for every season and that clicking it displays the correct season details using the new handler.",
-          "status": "pending",
+          "status": "done",
           "testStrategy": "Test that clicking the 'Show' button for any season displays the correct details."
         },
         {
@@ -2242,61 +2242,61 @@
       "priority": "medium",
       "dependencies": [],
       "status": "done",
-              "subtasks": [
-          {
-            "id": 1,
-            "title": "Identify Eligible Slash Commands and Options",
-            "description": "Review all existing slash commands to determine which ones require season IDs or similar parameters that would benefit from autocomplete functionality.",
-            "dependencies": [],
-            "details": "Analyze commands such as `/season show` and `/season join` to identify all options where users input season IDs or related parameters. Document these commands and their relevant options for further implementation.",
-            "status": "done",
-            "testStrategy": "Verify that all commands requiring season ID or similar input are listed and no eligible commands are missed."
-          },
-          {
-            "id": 2,
-            "title": "Enable Autocomplete in Command Definitions",
-            "description": "Update the command definitions to mark the identified options as supporting autocomplete.",
-            "dependencies": [
-              1
-            ],
-            "details": "In the command definition file (e.g., `season-command-data.ts`), set `autocomplete: true` for each relevant option using the appropriate builder method (e.g., `.setAutocomplete(true)`).",
-            "status": "done",
-            "testStrategy": "Check that the command registration includes the autocomplete flag for all intended options and that Discord recognizes these options as autocompletable."
-          },
-          {
-            "id": 3,
-            "title": "Implement the Autocomplete Handler Method",
-            "description": "Create or update the `handleAutocomplete` method to process autocomplete interactions for the marked options.",
-            "dependencies": [
-              2
-            ],
-            "details": "In `season-command.ts`, implement logic to detect autocomplete interactions, retrieve the focused input using `interaction.options.getFocused()`, and prepare for dynamic suggestion generation.",
-            "status": "done",
-            "testStrategy": "Trigger autocomplete interactions and confirm that the handler is invoked and receives the correct focused input."
-          },
-          {
-            "id": 4,
-            "title": "Query Data Source for Matching Suggestions",
-            "description": "Develop efficient queries to fetch season IDs or related data matching the user's input from the database or cache.",
-            "dependencies": [
-              3
-            ],
-            "details": "Optimize queries to quickly return up to 25 matching results based on partial or full user input, ensuring performance and scalability.",
-            "status": "done",
-            "testStrategy": "Test with various input patterns to ensure relevant, fast, and accurate suggestions are returned, and that no more than 25 results are provided."
-          },
-          {
-            "id": 5,
-            "title": "Format and Respond with Autocomplete Suggestions",
-            "description": "Format the query results into the required array of `{ name: string, value: string }` objects and respond to the interaction.",
-            "dependencies": [
-              4
-            ],
-            "details": "Use `interaction.respond(options)` to send the formatted suggestions back to Discord, ensuring compliance with Discord's autocomplete response structure.",
-            "status": "done",
-            "testStrategy": "Validate that the suggestions appear in the Discord client as the user types, are correctly formatted, and update dynamically based on input."
-          }
-        ]
+      "subtasks": [
+        {
+          "id": 1,
+          "title": "Identify Eligible Slash Commands and Options",
+          "description": "Review all existing slash commands to determine which ones require season IDs or similar parameters that would benefit from autocomplete functionality.",
+          "dependencies": [],
+          "details": "Analyze commands such as `/season show` and `/season join` to identify all options where users input season IDs or related parameters. Document these commands and their relevant options for further implementation.",
+          "status": "done",
+          "testStrategy": "Verify that all commands requiring season ID or similar input are listed and no eligible commands are missed."
+        },
+        {
+          "id": 2,
+          "title": "Enable Autocomplete in Command Definitions",
+          "description": "Update the command definitions to mark the identified options as supporting autocomplete.",
+          "dependencies": [
+            1
+          ],
+          "details": "In the command definition file (e.g., `season-command-data.ts`), set `autocomplete: true` for each relevant option using the appropriate builder method (e.g., `.setAutocomplete(true)`).",
+          "status": "done",
+          "testStrategy": "Check that the command registration includes the autocomplete flag for all intended options and that Discord recognizes these options as autocompletable."
+        },
+        {
+          "id": 3,
+          "title": "Implement the Autocomplete Handler Method",
+          "description": "Create or update the `handleAutocomplete` method to process autocomplete interactions for the marked options.",
+          "dependencies": [
+            2
+          ],
+          "details": "In `season-command.ts`, implement logic to detect autocomplete interactions, retrieve the focused input using `interaction.options.getFocused()`, and prepare for dynamic suggestion generation.",
+          "status": "done",
+          "testStrategy": "Trigger autocomplete interactions and confirm that the handler is invoked and receives the correct focused input."
+        },
+        {
+          "id": 4,
+          "title": "Query Data Source for Matching Suggestions",
+          "description": "Develop efficient queries to fetch season IDs or related data matching the user's input from the database or cache.",
+          "dependencies": [
+            3
+          ],
+          "details": "Optimize queries to quickly return up to 25 matching results based on partial or full user input, ensuring performance and scalability.",
+          "status": "done",
+          "testStrategy": "Test with various input patterns to ensure relevant, fast, and accurate suggestions are returned, and that no more than 25 results are provided."
+        },
+        {
+          "id": 5,
+          "title": "Format and Respond with Autocomplete Suggestions",
+          "description": "Format the query results into the required array of `{ name: string, value: string }` objects and respond to the interaction.",
+          "dependencies": [
+            4
+          ],
+          "details": "Use `interaction.respond(options)` to send the formatted suggestions back to Discord, ensuring compliance with Discord's autocomplete response structure.",
+          "status": "done",
+          "testStrategy": "Validate that the suggestions appear in the Discord client as the user types, are correctly formatted, and update dynamically based on input."
+        }
+      ]
     },
     {
       "id": 52,

@@ -11,13 +11,13 @@ Modify the `/season list` command output generation in `season-command.ts`. For 
 Run `/season list`. Verify each season entry has the correct buttons. Test clicking 'Show' on a season. Test clicking 'Join' on an active season you are not in. Verify the 'Join' button is disabled for seasons you are already in or inactive seasons.
 
 # Subtasks:
-## 1. Refactor /season list Output Generation [pending]
+## 1. Refactor /season list Output Generation [done]
 ### Dependencies: None
 ### Description: Modify the `/season list` command output in `season-command.ts` to generate a list of seasons, each with an associated ActionRowBuilder for interactive buttons.
 ### Details:
 Ensure each season entry in the list is accompanied by an ActionRowBuilder to hold interactive buttons for user actions.
 
-## 2. Implement 'Show Details' Button and Handler [pending]
+## 2. Implement 'Show Details' Button and Handler [done]
 ### Dependencies: 49.1
 ### Description: Add a 'Show' button (`customId: season_show_${season.id}`) for each season and create a new ButtonHandler to trigger the `/season show` command logic or display season details.
 ### Details:
