@@ -1,13 +1,13 @@
 import { User } from 'discord.js';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
-import { strings } from '../../lang/strings.js';
-import prisma from '../../lib/prisma.js';
-import { SeasonService } from '../../services/SeasonService.js';
-import { SeasonJoinButtonHandler } from '../seasonJoinButtonHandler.js';
+import { SeasonJoinButtonHandler } from '../../src/handlers/seasonJoinButtonHandler.js';
+import { strings } from '../../src/lang/strings.js';
+import prisma from '../../src/lib/prisma.js';
+import { SeasonService } from '../../src/services/SeasonService.js';
 
 // Mock Prisma
-vi.mock('../../lib/prisma', () => ({
+vi.mock('../../src/lib/prisma', () => ({
   default: {
     player: {
       findUnique: vi.fn(),
@@ -24,11 +24,11 @@ vi.mock('../../lib/prisma', () => ({
 }));
 
 // Mock services
-vi.mock('../../services/SeasonService');
-vi.mock('../../services/PlayerService');
+vi.mock('../../src/services/SeasonService');
+vi.mock('../../src/services/PlayerService');
 
 // Mock Logger and strings to prevent issues if they are called
-vi.mock('../../services/index.js', () => ({
+vi.mock('../../src/services/index.js', () => ({
     Logger: {
         info: vi.fn(),
         warn: vi.fn(),
@@ -36,7 +36,7 @@ vi.mock('../../services/index.js', () => ({
         debug: vi.fn(),
     }
 }));
-vi.mock('../../lang/strings.js', () => ({
+vi.mock('../../src/lang/strings.js', () => ({
     strings: {
         messages: {
             joinSeason: {
