@@ -17,6 +17,7 @@ import { ServerContextService } from '../utils/server-context.js';
 export enum DMContextType {
     READY_COMMAND = 'READY_COMMAND',
     TURN_SUBMISSION = 'TURN_SUBMISSION',
+    SLASH_COMMAND = 'SLASH_COMMAND',
     OTHER = 'OTHER'
 }
 
@@ -82,6 +83,11 @@ export class DirectMessageHandler implements EventHandler {
             return DMContextType.READY_COMMAND;
         }
         
+        // Check if the message content appears to be any other slash command
+        if (msg.content.trim().startsWith('/') && !msg.content.toLowerCase().includes('/ready')) {
+            return DMContextType.SLASH_COMMAND;
+        }
+        
         // Check if the message has an attachment (potentially a turn submission)
         if (msg.attachments.size > 0) {
             return DMContextType.TURN_SUBMISSION;
@@ -108,6 +114,9 @@ export class DirectMessageHandler implements EventHandler {
         switch (contextType) {
             case DMContextType.READY_COMMAND:
                 await this.handleReadyCommand(msg);
+                break;
+            case DMContextType.SLASH_COMMAND:
+                await this.handleSlashCommandDM(msg);
                 break;
             case DMContextType.TURN_SUBMISSION:
                 await this.handleTurnSubmission(msg);
@@ -274,6 +283,23 @@ export class DirectMessageHandler implements EventHandler {
             },
             msg,
             { dmContextType: DMContextType.READY_COMMAND }
+        );
+        
+        await wrappedHandler();
+    }
+
+    /**
+     * Handle a direct message that appears to be a slash command (other than /ready).
+     * @param msg The direct message to handle
+     */
+    private async handleSlashCommandDM(msg: Message): Promise<void> {
+        const wrappedHandler = ErrorHandler.wrapDMHandler(
+            async () => {
+                Logger.info(`Received slash command in DM from ${msg.author.tag}: ${msg.content}`);
+                await msg.author.send('I only do commands on servers! Please use slash commands in a server channel where I\'m available.');
+            },
+            msg,
+            { dmContextType: DMContextType.SLASH_COMMAND }
         );
         
         await wrappedHandler();

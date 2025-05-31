@@ -3,7 +3,7 @@ import { Client, DMChannel, Message, User } from 'discord.js';
 import { nanoid } from 'nanoid';
 import { afterAll, beforeAll, beforeEach, describe, expect, it, vi } from 'vitest';
 
-import { DirectMessageHandler } from '../../src/events/direct-message-handler.js';
+import { DirectMessageHandler, DMContextType } from '../../src/events/direct-message-handler.js';
 import { Logger } from '../../src/services/index.js';
 import { PlayerService } from '../../src/services/PlayerService.js';
 import { SchedulerService } from '../../src/services/SchedulerService.js';
@@ -568,6 +568,73 @@ describe('DirectMessageHandler - Integration Tests', () => {
                 expect(scheduledDate.getTime()).toBeGreaterThanOrEqual(now + expectedTimeoutMillis - 5000);
                 expect(scheduledDate.getTime()).toBeLessThanOrEqual(now + expectedTimeoutMillis + 5000);
             });
+        });
+    });
+
+    describe('DM Context Identification', () => {
+        it('should identify slash commands correctly', async () => {
+            mockMessage.content = '/game list';
+            
+            // Access the private method for testing
+            const identifyContext = (handler as any).identifyDMContext.bind(handler);
+            const context = await identifyContext(mockMessage);
+            
+            expect(context).toBe(DMContextType.SLASH_COMMAND);
+        });
+
+        it('should identify /ready command correctly', async () => {
+            mockMessage.content = '/ready';
+            
+            const identifyContext = (handler as any).identifyDMContext.bind(handler);
+            const context = await identifyContext(mockMessage);
+            
+            expect(context).toBe(DMContextType.READY_COMMAND);
+        });
+
+        it('should not identify /ready as a general slash command', async () => {
+            mockMessage.content = '/ready';
+            
+            const identifyContext = (handler as any).identifyDMContext.bind(handler);
+            const context = await identifyContext(mockMessage);
+            
+            expect(context).not.toBe(DMContextType.SLASH_COMMAND);
+        });
+
+        it('should identify various slash commands', async () => {
+            const slashCommands = ['/season list', '/game new', '/admin player list'];
+            
+            const identifyContext = (handler as any).identifyDMContext.bind(handler);
+            
+            for (const command of slashCommands) {
+                mockMessage.content = command;
+                const context = await identifyContext(mockMessage);
+                expect(context).toBe(DMContextType.SLASH_COMMAND);
+            }
+        });
+
+        it('should not identify non-slash commands as slash commands', async () => {
+            const nonSlashMessages = ['hello', 'some text', 'ready', 'game list'];
+            
+            const identifyContext = (handler as any).identifyDMContext.bind(handler);
+            
+            for (const message of nonSlashMessages) {
+                mockMessage.content = message;
+                const context = await identifyContext(mockMessage);
+                expect(context).not.toBe(DMContextType.SLASH_COMMAND);
+            }
+        });
+    });
+
+    describe('Slash Command Handling', () => {
+        it('should send server-only message for slash commands', async () => {
+            mockMessage.content = '/game list';
+            
+            const handleSlashCommand = (handler as any).handleSlashCommandDM.bind(handler);
+            await handleSlashCommand(mockMessage);
+            
+            expect(mockUser.send).toHaveBeenCalledWith(
+                'I only do commands on servers! Please use slash commands in a server channel where I\'m available.'
+            );
         });
     });
 }); 

@@ -684,19 +684,53 @@ export class AdminCommand implements Command {
             // Limit the results
             const limitedGames = games.slice(0, limit);
             
-            let gamesList = limitedGames.map(game => {
-                const statusEmoji = game.status === 'ACTIVE' ? '🟢' : game.status === 'COMPLETED' ? '✅' : '🔴';
-                const turnCount = game.turns?.length || 0;
-                const lastActivity = game.lastActivityAt ? new Date(game.lastActivityAt).toLocaleDateString() : 'Unknown';
-                return `${statusEmoji} **${game.id}** (${game.status})\n` +
-                       `   Creator: ${game.creator?.name || 'Unknown'}\n` +
-                       `   Turns: ${turnCount} | Last Activity: ${lastActivity}`;
-            }).join('\n\n');
+            // Group games by status for better organization
+            const activeGames = limitedGames.filter(game => game.status === 'ACTIVE');
+            const completedGames = limitedGames.filter(game => game.status === 'COMPLETED');
+            const terminatedGames = limitedGames.filter(game => game.status === 'TERMINATED');
+            
+            let message = '';
+            
+            // Format active games section
+            if (activeGames.length > 0) {
+                message += '**Active games:**\n';
+                message += activeGames.map(game => {
+                    const createdDate = new Date(game.createdAt).toISOString().split('T')[0];
+                    const creatorName = game.creator?.name || 'Unknown';
+                    const turnCount = game.turns?.length || 0;
+                    const completedTurns = game.turns?.filter(t => t.status === 'COMPLETED').length || 0;
+                    return `@${creatorName} ${createdDate} (${completedTurns}/${turnCount} turns)`;
+                }).join('\n');
+                message += '\n\n';
+            }
+            
+            // Format completed games section
+            if (completedGames.length > 0) {
+                message += '**Completed games:**\n';
+                message += completedGames.map(game => {
+                    const createdDate = new Date(game.createdAt).toISOString().split('T')[0];
+                    const creatorName = game.creator?.name || 'Unknown';
+                    const turnCount = game.turns?.length || 0;
+                    return `@${creatorName} ${createdDate} (${turnCount} turns)`;
+                }).join('\n');
+                message += '\n\n';
+            }
+            
+            // Format terminated games section
+            if (terminatedGames.length > 0) {
+                message += '**Terminated games:**\n';
+                message += terminatedGames.map(game => {
+                    const createdDate = new Date(game.createdAt).toISOString().split('T')[0];
+                    const creatorName = game.creator?.name || 'Unknown';
+                    const turnCount = game.turns?.length || 0;
+                    return `@${creatorName} ${createdDate} (${turnCount} turns)`;
+                }).join('\n');
+            }
 
             const filterText = statusFilter ? ` (Status: ${statusFilter})` : '';
-            const showingText = games.length > limit ? `\nShowing ${limit} of ${games.length} games.` : '';
+            const showingText = games.length > limit ? `\n\nShowing ${limit} of ${games.length} games.` : '';
             
-            await SimpleMessage.sendInfo(intr, `**Games in this server${filterText}:**\n\n${gamesList}${showingText}`, {}, true);
+            await SimpleMessage.sendInfo(intr, `**Games in this server${filterText}:**\n\n${message.trim()}${showingText}`, {}, true);
 
         } catch (error) {
             console.error('Error in admin game list command:', error);
