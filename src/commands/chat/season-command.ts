@@ -554,71 +554,161 @@ export class SeasonCommand implements Command {
     // Renamed from handleAutocomplete to match the Command interface used by CommandHandler
     public async autocomplete(interaction: AutocompleteInteraction<CacheType>, _option: AutocompleteFocusedOption): Promise<ApplicationCommandOptionChoiceData<string | number>[]> {
         const focusedOption = interaction.options.getFocused(true);
-        const userInput = focusedOption.value;
+        const userInput = focusedOption.value.toLowerCase().trim();
+        const subcommand = interaction.options.getSubcommand();
 
         if (focusedOption.name === 'season') {
             try {
-                // Assuming season IDs are stored as strings or can be queried/filtered as strings.
-                // If season.id is a number, this Prisma query needs adjustment.
-                // One common way is to fetch all (or a relevant subset) and filter in code if the DB doesn't support `startsWith` on numbers easily.
-                // For this example, we'll assume string IDs or an effective way to filter.
-
-                // Fetch seasons where ID starts with userInput.
-                // Prisma's `startsWith` is case-sensitive by default for PostgreSQL.
-                // If case-insensitivity is needed and DB supports it, mode: 'insensitive' could be used with `name` field.
-                // For IDs, exact start match is usually fine.
-
-                // A more robust solution for numeric IDs would be to fetch all and filter:
-                // const allSeasons = await this.prisma.season.findMany({ include: { _count: { select: { players: true } } } });
-                // const filteredSeasons = allSeasons.filter(s => s.id.toString().startsWith(userInput)).slice(0, 25);
-
-                // For now, let's assume IDs are queryable as strings or this is handled by Prisma schema/adapter
-                // If season.id is an Int, direct startsWith won't work. This is a placeholder for the actual query.
-                // A practical approach for Int IDs:
-                // 1. Query: `id >= X` and `id < Y` if userInput is a number range.
-                // 2. Query all, filter: Efficient if season count is small.
-                // 3. Use a dedicated search index/service if season count is very large.
-                // Given `take: 25`, filtering all seasons might be acceptable for moderate numbers.
-
-                const seasons = await this.prisma.season.findMany({
-                    where: {
-                        // This will only work if `id` is a string field.
-                        // If `id` is an integer, you cannot use `startsWith`.
-                        // You would need to fetch and filter, or use a raw query if your DB supports it.
-                        // For the purpose of this task, we'll proceed as if it's a string or a similar mechanism exists.
-                        // A common workaround for integer IDs is to convert them to string in the application code then filter.
-                        // However, for autocomplete, we ideally want the DB to do the filtering.
-                        // Let's assume this is a conceptual representation & actual DB query might differ or be a filter op post-fetch.
-                        id: {
-                            startsWith: userInput
-                        }
-                        // If your Prisma schema has `id` as Int, this will error.
-                        // A better approach for Int IDs:
-                        // Fetch all seasons (or a reasonable subset if many) and filter them in the application code.
-                        // Example:
-                        // const allSeasons = await this.prisma.season.findMany({ include: { _count: { select: { players: true } } } });
-                        // const filtered = allSeasons.filter(s => s.id.toString().startsWith(userInput));
-                        // This might be slow for very large numbers of seasons.
-                    },
-                    include: {
-                        _count: { select: { players: true } },
-                        config: true, // For maxPlayers
-                    },
-                    take: 25,
-                    orderBy: { id: 'asc' },
+                const discordUserId = interaction.user.id;
+                
+                // Get user's player record to check participation
+                const player = await this.prisma.player.findUnique({ 
+                    where: { discordUserId },
+                    select: { id: true }
                 });
+                const playerId = player?.id;
 
+                // Build base query with includes
+                const baseInclude = {
+                    _count: { select: { players: true } },
+                    config: { select: { maxPlayers: true } },
+                    creator: { select: { name: true } },
+                    players: playerId ? { 
+                        where: { playerId },
+                        select: { playerId: true }
+                    } : false
+                };
+
+                let seasons: any[] = [];
+
+                if (userInput.length === 0) {
+                    // No input - show most relevant seasons
+                    if (subcommand === 'join') {
+                        // For join: prioritize open/setup seasons user can join
+                        seasons = await this.prisma.season.findMany({
+                            where: {
+                                status: { in: ['OPEN', 'SETUP'] },
+                                // Exclude terminated seasons
+                                NOT: { status: 'TERMINATED' }
+                            },
+                            include: baseInclude,
+                            orderBy: [
+                                { status: 'asc' }, // OPEN before SETUP
+                                { createdAt: 'desc' }
+                            ],
+                            take: 25
+                        });
+                    } else {
+                        // For show: show user's seasons first, then recent active ones
+                        const userSeasons = playerId ? await this.prisma.season.findMany({
+                            where: {
+                                players: { some: { playerId } },
+                                NOT: { status: 'TERMINATED' }
+                            },
+                            include: baseInclude,
+                            orderBy: { createdAt: 'desc' },
+                            take: 15
+                        }) : [];
+
+                        const otherSeasons = await this.prisma.season.findMany({
+                            where: {
+                                NOT: { 
+                                    OR: [
+                                        { status: 'TERMINATED' },
+                                        ...(playerId ? [{ players: { some: { playerId } } }] : [])
+                                    ]
+                                }
+                            },
+                            include: baseInclude,
+                            orderBy: { createdAt: 'desc' },
+                            take: 25 - userSeasons.length
+                        });
+
+                        seasons = [...userSeasons, ...otherSeasons];
+                    }
+                } else {
+                    // User typed something - search by creator name or season ID
+                    const searchConditions = [];
+                    
+                    // Search by creator name (case insensitive)
+                    searchConditions.push({
+                        creator: {
+                            name: {
+                                contains: userInput,
+                                mode: 'insensitive' as const
+                            }
+                        }
+                    });
+
+                    // If input looks like it could be a season ID (starts with common nanoid chars)
+                    if (userInput.length >= 2) {
+                        searchConditions.push({
+                            id: {
+                                contains: userInput,
+                                mode: 'insensitive' as const
+                            }
+                        });
+                    }
+
+                    seasons = await this.prisma.season.findMany({
+                        where: {
+                            AND: [
+                                { NOT: { status: 'TERMINATED' } },
+                                { OR: searchConditions }
+                            ]
+                        },
+                        include: baseInclude,
+                        orderBy: [
+                            { createdAt: 'desc' }
+                        ],
+                        take: 25
+                    });
+                }
+
+                // Filter seasons based on command context
+                if (subcommand === 'join') {
+                    seasons = seasons.filter(season => {
+                        const isUserInSeason = playerId && season.players?.some((p: any) => p.playerId === playerId);
+                        const isSeasonFull = season.config.maxPlayers && season._count.players >= season.config.maxPlayers;
+                        const isJoinable = ['OPEN', 'SETUP'].includes(season.status);
+                        return isJoinable && !isUserInSeason && !isSeasonFull;
+                    });
+                }
 
                 const formattedOptions = seasons.map(season => {
-                    let name = `S${season.id}`;
-                    if (season.name && season.name.length < 30) { // Add name if not too long
-                        name += ` - ${season.name}`;
+                    const creatorName = season.creator?.name || 'Unknown';
+                    const playerCount = season._count.players;
+                    const maxPlayers = season.config.maxPlayers || '∞';
+                    const isUserInSeason = playerId && season.players?.some((p: any) => p.playerId === playerId);
+                    
+                    // Format: "S{shortId} - @{creator} ({players}/{max}) [{status}]"
+                    const shortId = season.id.substring(0, 8); // First 8 chars of nanoid
+                    let name = `S${shortId} - @${creatorName} (${playerCount}/${maxPlayers})`;
+                    
+                    // Add status indicator
+                    const statusMap: Record<string, string> = {
+                        'SETUP': '🔧',
+                        'OPEN': '🟢', 
+                        'ACTIVE': '🎮',
+                        'COMPLETED': '✅',
+                        'PAUSED': '⏸️'
+                    };
+                    const statusIcon = statusMap[season.status] || '❓';
+                    name += ` ${statusIcon}`;
+                    
+                    // Add user participation indicator
+                    if (isUserInSeason) {
+                        name += ' 👤';
                     }
-                    name += ` (${season._count.players}/${season.config.maxPlayers || '∞'})`;
-                    if (name.length > 100) name = name.substring(0, 97) + '...';
+
+                    // Truncate if too long (Discord limit is 100 chars)
+                    if (name.length > 97) {
+                        name = name.substring(0, 94) + '...';
+                    }
+
                     return {
                         name: name,
-                        value: season.id.toString(), // Ensure value is a string
+                        value: season.id
                     };
                 });
 
