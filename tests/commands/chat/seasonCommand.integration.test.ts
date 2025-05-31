@@ -272,6 +272,67 @@ describe('SeasonCommand - Integration Tests', () => {
         }
       });
     });
+
+    it('should show pagination buttons when there are many seasons', async () => {
+      // Create multiple seasons to trigger pagination (need more than 4)
+      const seasonConfigs = await Promise.all(
+        Array.from({ length: 6 }, () => 
+          prisma.seasonConfig.create({
+            data: { 
+              id: nanoid(),
+              minPlayers: 4,
+              maxPlayers: 8,
+              claimTimeout: '300s',
+              writingTimeout: '600s',
+              drawingTimeout: '900s'
+            }
+          })
+        )
+      );
+
+      const manySeasons = await Promise.all(
+        seasonConfigs.map((config, _i) => 
+          prisma.season.create({
+            data: {
+              id: nanoid(),
+              status: 'OPEN',
+              configId: config.id,
+              creatorId: testPlayerId
+            }
+          })
+        )
+      );
+
+      interaction.options.getSubcommand.mockReturnValue('list');
+
+      await commandInstance.execute(interaction, mockEventData);
+
+      expect(interaction.editReply).toHaveBeenCalled();
+      
+      // Check that the response includes pagination buttons
+      const editReplyCall = interaction.editReply.mock.calls[0][0];
+      expect(editReplyCall.components).toBeDefined();
+      
+      // Should have pagination buttons (next button should be present)
+      const hasNextButton = editReplyCall.components.some((row: any) => 
+        row.components?.some((component: any) => 
+          component.data?.custom_id?.includes('season_list_next')
+        )
+      );
+      expect(hasNextButton).toBe(true);
+
+      // Clean up the extra seasons
+      await prisma.season.deleteMany({
+        where: {
+          id: { in: manySeasons.map(s => s.id) }
+        }
+      });
+      await prisma.seasonConfig.deleteMany({
+        where: {
+          id: { in: seasonConfigs.map(c => c.id) }
+        }
+      });
+    });
   });
 
   describe('Season Show Command', () => {

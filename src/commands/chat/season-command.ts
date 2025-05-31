@@ -193,27 +193,51 @@ export class SeasonCommand implements Command {
             }
 
             // Discord has a limit of 5 action rows per message, so we need to handle pagination
-            // For now, we'll send the first 5 seasons with buttons and the rest as text
-            const maxSeasonsWithButtons = 5;
+            // Implement proper pagination with navigation buttons
+            const maxSeasonsPerPage = 4; // Reserve 1 row for navigation buttons
             
-            if (seasonEntries.length <= maxSeasonsWithButtons) {
-                // All seasons can have buttons
+            if (seasonEntries.length <= maxSeasonsPerPage) {
+                // All seasons fit on one page
                 const allComponents = seasonEntries.flatMap(entry => entry.components);
                 const fullContent = message + seasonEntries.map(entry => entry.content).join('\n');
                 await intr.editReply({ content: fullContent, components: allComponents });
             } else {
-                // Need to implement pagination or show some with buttons and some without
-                const seasonsWithButtons = seasonEntries.slice(0, maxSeasonsWithButtons);
-                const seasonsWithoutButtons = seasonEntries.slice(maxSeasonsWithButtons);
+                // Multiple pages needed - show first page with navigation
+                const currentPage = 0;
+                const totalPages = Math.ceil(seasonEntries.length / maxSeasonsPerPage);
+                const startIndex = currentPage * maxSeasonsPerPage;
+                const endIndex = Math.min(startIndex + maxSeasonsPerPage, seasonEntries.length);
                 
-                const allComponents = seasonsWithButtons.flatMap(entry => entry.components);
-                let fullContent = message + seasonsWithButtons.map(entry => entry.content).join('\n');
+                const currentPageSeasons = seasonEntries.slice(startIndex, endIndex);
+                const seasonComponents = currentPageSeasons.flatMap(entry => entry.components);
                 
-                if (seasonsWithoutButtons.length > 0) {
-                    fullContent += '\n\n**Additional seasons (use `/season show <id>` for details):**\n';
-                    fullContent += seasonsWithoutButtons.map(entry => entry.content.replace(/\*\*/g, '')).join('\n');
-                }
+                // Create navigation buttons
+                const navigationRow = new ActionRowBuilder<ButtonBuilder>();
                 
+                const prevButton = new ButtonBuilder()
+                    .setCustomId(`season_list_prev_${currentPage}_${intr.user.id}`)
+                    .setLabel('◀ Previous')
+                    .setStyle(ButtonStyle.Secondary)
+                    .setDisabled(currentPage === 0);
+                
+                const pageButton = new ButtonBuilder()
+                    .setCustomId(`season_list_page_info_${currentPage}_${intr.user.id}`)
+                    .setLabel(`Page ${currentPage + 1}/${totalPages}`)
+                    .setStyle(ButtonStyle.Secondary)
+                    .setDisabled(true);
+                
+                const nextButton = new ButtonBuilder()
+                    .setCustomId(`season_list_next_${currentPage}_${intr.user.id}`)
+                    .setLabel('Next ▶')
+                    .setStyle(ButtonStyle.Secondary)
+                    .setDisabled(currentPage >= totalPages - 1);
+                
+                navigationRow.addComponents(prevButton, pageButton, nextButton);
+                
+                let fullContent = message + currentPageSeasons.map(entry => entry.content).join('\n');
+                fullContent += `\n\n*Showing ${startIndex + 1}-${endIndex} of ${seasonEntries.length} seasons*`;
+                
+                const allComponents = [...seasonComponents, navigationRow];
                 await intr.editReply({ content: fullContent, components: allComponents });
             }
 

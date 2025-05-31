@@ -19,7 +19,7 @@ import {
     TriggerHandler,
 } from './events/index.js';
 import { CustomClient } from './extensions/index.js';
-import { AdminButtonHandler, ExampleButtonHandler, SeasonCreateModalHandler, SeasonDashboardButtonHandler, SeasonJoinButtonHandler, SeasonSelectMenuHandler, SeasonShowButtonHandler } from './handlers/index.js';
+import { AdminButtonHandler, ExampleButtonHandler, SeasonCreateModalHandler, SeasonDashboardButtonHandler, SeasonJoinButtonHandler, SeasonListPaginationButtonHandler, SeasonSelectMenuHandler, SeasonShowButtonHandler } from './handlers/index.js';
 import { Job, StaleGameCleanupJob } from './jobs/index.js';
 import prisma from './lib/prisma.js';
 import { Bot } from './models/bot.js';
@@ -165,6 +165,8 @@ async function start(): Promise<void> {
     bot.addButtonHandler(new SeasonDashboardButtonHandler());
     // Register admin button handler
     bot.addButtonHandler(new AdminButtonHandler());
+    // Register season list pagination button handler
+    bot.addButtonHandler(new SeasonListPaginationButtonHandler());
     // To test other handlers, you would add them here:
     // bot.addAutocompleteHandler(new ExampleAutocompleteHandler());
 }
