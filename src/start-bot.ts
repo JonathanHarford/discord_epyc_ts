@@ -18,6 +18,7 @@ import {
     ReactionHandler,
     TriggerHandler,
 } from './events/index.js';
+import { ExampleButtonHandler, SeasonJoinButtonHandler, SeasonShowButtonHandler, SeasonSelectMenuHandler, SeasonCreateModalHandler, SeasonDashboardButtonHandler } from './handlers/index.js';
 import { CustomClient } from './extensions/index.js';
 import { Job, StaleGameCleanupJob } from './jobs/index.js';
 import prisma from './lib/prisma.js';
@@ -149,6 +150,21 @@ async function start(): Promise<void> {
     );
 
     await bot.start();
+
+    // Register example handlers
+    bot.addButtonHandler(new ExampleButtonHandler());
+    // Register season join button handler
+    bot.addButtonHandler(new SeasonJoinButtonHandler());
+    // Register season show button handler
+    bot.addButtonHandler(new SeasonShowButtonHandler());
+    // Register season select menu handler
+    bot.addSelectMenuHandler(new SeasonSelectMenuHandler());
+    // Register season create modal handler
+    bot.addModalHandler(new SeasonCreateModalHandler());
+    // Register season dashboard button handler
+    bot.addButtonHandler(new SeasonDashboardButtonHandler());
+    // To test other handlers, you would add them here:
+    // bot.addAutocompleteHandler(new ExampleAutocompleteHandler());
 }
 
 process.on('unhandledRejection', (reason, _promise) => {
