@@ -19,7 +19,7 @@ import {
 import { createRequire } from 'node:module';
 
 import {
-    ButtonHandler,
+    ButtonHandler as LegacyButtonHandler,
     CommandHandler,
     GuildJoinHandler,
     GuildLeaveHandler,
@@ -55,7 +55,7 @@ export class Bot {
         private guildLeaveHandler: GuildLeaveHandler,
         private messageHandler: MessageHandler,
         private commandHandler: CommandHandler,
-        private legacyButtonHandler: ButtonHandler, // Renamed to avoid conflict
+        private legacyButtonHandler: LegacyButtonHandler | null, // Made optional
         private reactionHandler: ReactionHandler,
         private jobService: JobService
     ) {}

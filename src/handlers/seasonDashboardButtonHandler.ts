@@ -1,20 +1,30 @@
-import { ButtonInteraction, CacheType, EmbedBuilder, ActionRowBuilder, ButtonBuilder, ButtonStyle } from 'discord.js';
-import { ButtonHandler } from './buttonHandler.js';
-import { SeasonService } from '../services/SeasonService.js';
-import { GameService } from '../services/GameService.js'; // Conceptual, might not exist yet
+import { ActionRowBuilder, ButtonBuilder, ButtonInteraction, ButtonStyle, CacheType, EmbedBuilder } from 'discord.js';
+
+import prisma from '../lib/prisma.js';
+import { GameService } from '../services/GameService.js';
 import { Logger } from '../services/index.js';
-import { strings } from '../lang/strings.js';
-import prisma from '../lib/prisma.js'; // For direct prisma interactions
+import { SchedulerService } from '../services/SchedulerService.js';
+import { SeasonService } from '../services/SeasonService.js';
+import { SeasonTurnService } from '../services/SeasonTurnService.js';
+
+import { ButtonHandler } from './buttonHandler.js';
 
 // Instantiate services - adjust if using a DI container
-const seasonService = new SeasonService(prisma);
+// Service instances will be created in the execute method
 const gameService = new GameService(prisma); // Assuming GameService is similar
 
 // Helper function to create dashboard components
 // Exported for use in season-command.ts and other handlers
 export async function createDashboardComponents(seasonId: string, interactionUser: { id: string }, prismaClient: typeof prisma): Promise<ActionRowBuilder<ButtonBuilder>[]> {
     // Passed prismaClient for testability or if service isn't a singleton/easily accessible
-    const season = await new SeasonService(prismaClient).findSeasonByIdWithCreator(seasonId); // Re-instantiate service or use singleton
+    const season = await prismaClient.season.findUnique({
+        where: { id: seasonId },
+        include: {
+            config: true,
+            _count: { select: { players: true } },
+            creator: true
+        }
+    });
 
     if (!season) {
         const errorButton = new ButtonBuilder().setCustomId(`error_season_not_found_${seasonId}`).setLabel("Error: Season Not Found").setStyle(ButtonStyle.Danger).setDisabled(true);
@@ -22,7 +32,7 @@ export async function createDashboardComponents(seasonId: string, interactionUse
     }
 
     let userPlayerRecord = await prismaClient.player.findUnique({where: {discordUserId: interactionUser.id}});
-    const isCreator = season.creatorPlayerId === userPlayerRecord?.id;
+    const isCreator = season.creatorId === userPlayerRecord?.id;
     // TODO: Add role-based admin check if needed: const isAdmin = interaction.member.permissions.has("ADMINISTRATOR");
     const canManage = isCreator; // || isAdmin;
 
@@ -87,6 +97,12 @@ export class SeasonDashboardButtonHandler implements ButtonHandler {
     customIdPrefix = 'season_dashboard_'; // Will handle refresh, start, settings
 
     public async execute(interaction: ButtonInteraction<CacheType>): Promise<void> {
+        // Create service instances
+        const schedulerService = new SchedulerService(prisma);
+        const gameService = new GameService(prisma);
+        const turnService = new SeasonTurnService(prisma, interaction.client, schedulerService);
+        const seasonService = new SeasonService(prisma, turnService, schedulerService, gameService);
+
         const parts = interaction.customId.substring(this.customIdPrefix.length).split('_');
         const action = parts[0];
         const seasonId = parts[1]; // Assuming format is "season_dashboard_action_seasonId"
@@ -103,27 +119,34 @@ export class SeasonDashboardButtonHandler implements ButtonHandler {
                 await this.handleRefresh(interaction, seasonId);
                 break;
             case 'start':
-                await this.handleStartGame(interaction, seasonId);
+                await this.handleStartGame(interaction, seasonId, seasonService, gameService);
                 break;
             case 'settings':
                 await this.handleSettings(interaction, seasonId);
                 break;
             default:
                 Logger.warn(`SeasonDashboardButtonHandler: Unknown action '${action}' for season ${seasonId}`);
-                await interaction.reply({ content: "This action is not recognized.", ephemeral: true });
+                await interaction.reply({ content: 'This action is not recognized.', ephemeral: true });
         }
     }
 
     private async handleRefresh(interaction: ButtonInteraction<CacheType>, seasonId: string): Promise<void> {
         try {
-            const season = await seasonService.findSeasonByIdWithPlayers(seasonId); // Method needs to include players for player count, and config
+            const season = await prisma.season.findUnique({
+                where: { id: seasonId },
+                include: {
+                    config: true,
+                    _count: { select: { players: true } },
+                    players: true
+                }
+            });
             if (!season) {
                 await interaction.update({ content: "Season not found or an error occurred.", embeds: [], components: [] });
                 return;
             }
 
             const embed = this.buildSeasonEmbed(season); // Re-use embed logic
-            const components = await createDashboardComponents(seasonId, interaction.user); // Re-create buttons with updated state
+            const components = await createDashboardComponents(seasonId, interaction.user, prisma); // Re-create buttons with updated state
 
             await interaction.update({ embeds: [embed], components: components });
         } catch (error) {
@@ -132,7 +155,7 @@ export class SeasonDashboardButtonHandler implements ButtonHandler {
         }
     }
 
-    private async handleStartGame(interaction: ButtonInteraction<CacheType>, seasonId: string): Promise<void> {
+    private async handleStartGame(interaction: ButtonInteraction<CacheType>, seasonId: string, seasonService: SeasonService, gameService: GameService): Promise<void> {
         try {
             const player = await prisma.player.findUnique({ where: { discordUserId: interaction.user.id } });
             if (!player) {
@@ -140,14 +163,14 @@ export class SeasonDashboardButtonHandler implements ButtonHandler {
                 return;
             }
 
-            const season = await seasonService.findSeasonByIdWithCreator(seasonId);
+            const season = await seasonService.findSeasonById(seasonId);
             if (!season) {
                 await interaction.reply({ content: "Season not found.", ephemeral: true });
                 return;
             }
 
             // Permission Check
-            if (season.creatorPlayerId !== player.id /* && !isAdmin(interaction.member) */) {
+            if (season.creatorId !== player.id /* && !isAdmin(interaction.member) */) {
                 await interaction.reply({ content: "You do not have permission to start this season.", ephemeral: true });
                 return;
             }
@@ -162,15 +185,15 @@ export class SeasonDashboardButtonHandler implements ButtonHandler {
                 return;
             }
 
-            const result = await gameService.startGame(seasonId, player.id); // Conceptual method
+            const result = await seasonService.activateSeason(seasonId, { triggeredBy: 'max_players' });
 
             if (result.type === 'success') {
-                const updatedSeason = await seasonService.findSeasonByIdWithPlayers(seasonId);
+                const updatedSeason = await seasonService.findSeasonById(seasonId);
                 const embed = this.buildSeasonEmbed(updatedSeason);
-                const components = await createDashboardComponents(seasonId, interaction.user);
+                const components = await createDashboardComponents(seasonId, interaction.user, prisma);
                 await interaction.update({ content: `Season ${seasonId} started successfully!`, embeds: [embed], components });
             } else {
-                await interaction.reply({ content: `Failed to start season: ${result.message || 'Unknown error.'}`, ephemeral: true });
+                await interaction.reply({ content: `Failed to start season: ${result.key || 'Unknown error.'}`, ephemeral: true });
             }
         } catch (error) {
             Logger.error(`Error starting game for season S${seasonId}:`, error);

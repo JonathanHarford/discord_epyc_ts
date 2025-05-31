@@ -144,7 +144,7 @@ async function start(): Promise<void> {
         guildLeaveHandler,
         messageHandler,
         commandHandler,
-        buttonHandler,
+        null, // No legacy button handler needed
         reactionHandler,
         new JobService(jobs)
     );

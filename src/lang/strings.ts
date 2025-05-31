@@ -73,12 +73,16 @@ export const strings = {
     joinSeason: {
       success: `You have joined **{seasonId}**!
 It will start in {timeRemaining}, or once {playersNeeded} more players join!`,
+      successButton: 'You have successfully joined **{seasonId}**!',
       seasonNotFound: '**{seasonId}** not found.',
       notOpen: '**{seasonId}** is not currently open for joining.',
       alreadyJoined: 'You have already joined **{seasonId}**.',
       full: '**{seasonId}** is full.',
+      seasonFull: '**{seasonId}** is full.',
       playerNotFound: 'Your player profile could not be found. Please try again later or contact support.',
-      genericError: 'An unknown error occurred while trying to join **{seasonId}**. Error: {errorMessage}'
+      errorPlayerCreateFailed: 'Failed to create your player profile. Please try again later or contact support.',
+      genericError: 'An unknown error occurred while trying to join **{seasonId}**. Error: {errorMessage}',
+      genericErrorNoSeasonId: 'An error occurred while trying to join the season. Please try again later or contact support.'
     },
 
     // New season messages
@@ -86,6 +90,7 @@ It will start in {timeRemaining}, or once {playersNeeded} more players join!`,
       createSuccessChannel: `A new {gameName} season has started: **{seasonId}**
 Season will remain open for joining for {openDuration}.
 Use \`/join season:{seasonId}\` to join!`,
+      createSuccessEphemeral: 'Season **{seasonId}** has been created successfully!',
       errorMinMaxPlayers: 'Minimum players ({minPlayers}) cannot be greater than maximum players ({maxPlayers}).',
       errorCreatorNotFound: 'Your player profile could not be found (Discord ID: {discordUserId}). Please try again later or contact support.',
       errorPlayerCreateFailed: 'Failed to create your player profile (Discord ID: {discordId}). Please try again later or contact support.',
@@ -115,6 +120,19 @@ Use \`/join season:{seasonId}\` to join!`,
       promptJoin: 'Please select a season to join:',
       promptShow: 'Please select a season to view:',
       selectionProcessing: 'Processing your selection for Season {seasonId}...'
+    },
+
+    // List seasons messages
+    listSeasons: {
+      noSeasons: 'No seasons found.',
+      loadingOpen: 'Loading open seasons...',
+      noOpenSeasons: 'No seasons are currently open for joining.',
+      alreadyJoined: 'You are already in this season.',
+      seasonFull: 'This season is full.',
+      notJoinable: 'This season is not currently joinable.',
+      otherSeasonsTitle: 'Other Seasons',
+      noOtherSeasonsInfo: 'No other seasons to display.',
+      moreSeasonsExist: 'Showing {shownCount} of {totalCount} seasons. Use /season show to see more details.'
     },
 
     // Admin messages

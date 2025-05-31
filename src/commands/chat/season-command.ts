@@ -1,4 +1,4 @@
-import { ChatInputCommandInteraction, PermissionsString, ButtonBuilder, ActionRowBuilder, ButtonStyle, EmbedBuilder, StringSelectMenuBuilder, StringSelectMenuOptionBuilder, AutocompleteInteraction, CacheType, ModalBuilder, TextInputBuilder, TextInputStyle } from 'discord.js';
+import { ActionRowBuilder, ApplicationCommandOptionChoiceData, AutocompleteFocusedOption, AutocompleteInteraction, ButtonBuilder, ButtonStyle, CacheType, ChatInputCommandInteraction, EmbedBuilder, PermissionsString, StringSelectMenuBuilder, StringSelectMenuOptionBuilder } from 'discord.js';
 import { RateLimiter } from 'discord.js-rate-limiter';
 import { Logger } from '../../services/index.js'; // Assuming Logger is exported from services
 import { createDashboardComponents } from '../../handlers/seasonDashboardButtonHandler.js'; // Import the helper
@@ -571,7 +571,7 @@ export class SeasonCommand implements Command {
                  });
             }
             else {
-                let userErrorMessage = strings.messages.newSeason.errorGenericService;
+                let userErrorMessage: string = strings.messages.newSeason.errorGenericService;
                 if (instruction.key) {
                     const keyMap: Record<string, string> = {
                         'season_create_error_creator_player_not_found': strings.messages.newSeason.errorCreatorNotFound,
@@ -595,7 +595,7 @@ export class SeasonCommand implements Command {
     }
 
     // Renamed from handleAutocomplete to match the Command interface used by CommandHandler
-    public async autocomplete(interaction: AutocompleteInteraction<CacheType>): Promise<void> {
+    public async autocomplete(interaction: AutocompleteInteraction<CacheType>, option: AutocompleteFocusedOption): Promise<ApplicationCommandOptionChoiceData<string | number>[]> {
         const focusedOption = interaction.options.getFocused(true);
         const userInput = focusedOption.value;
 
@@ -666,11 +666,14 @@ export class SeasonCommand implements Command {
                 });
 
                 await interaction.respond(formattedOptions);
+                return formattedOptions;
             } catch (error) {
                 Logger.error('Error in season command autocomplete:', error);
                 await interaction.respond([]); // Respond with empty array on error
+                return [];
             }
         }
+        return [];
     }
 }
 

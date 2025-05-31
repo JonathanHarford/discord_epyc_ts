@@ -1,4 +1,4 @@
-import { ChatInputCommandInteraction, Locale } from 'discord.js';
+import { Locale } from 'discord.js';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 import { strings } from '../../../src/lang/strings.js';

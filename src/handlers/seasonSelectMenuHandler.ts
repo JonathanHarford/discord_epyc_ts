@@ -1,17 +1,15 @@
-import { StringSelectMenuInteraction, CacheType, EmbedBuilder } from 'discord.js';
-import { SelectMenuHandler } from './selectMenuHandler.js';
-import { SeasonService } from '../services/SeasonService.js';
-import { PlayerService } from '../services/PlayerService.js'; // For consistency if SeasonJoinButtonHandler uses it
-import { Logger } from '../services/index.js';
+import { CacheType, EmbedBuilder, StringSelectMenuInteraction } from 'discord.js';
+
 import { strings } from '../lang/strings.js';
 import prisma from '../lib/prisma.js';
-import { CommandDeferType } from '../commands/index.js'; // For potential use if calling command methods
+import { GameService } from '../services/GameService.js';
+import { Logger } from '../services/index.js';
+import { SchedulerService } from '../services/SchedulerService.js';
+import { SeasonService } from '../services/SeasonService.js';
+import { SeasonTurnService } from '../services/SeasonTurnService.js';
 
-// Direct instantiation or get from DI container if available
-const seasonService = new SeasonService(prisma);
-import { createDashboardComponents } from './seasonDashboardButtonHandler.js'; // Import the helper
-
-// const playerService = new PlayerService(prisma); // Instantiate if needed
+import { createDashboardComponents } from './seasonDashboardButtonHandler.js';
+import { SelectMenuHandler } from './selectMenuHandler.js';
 
 export class SeasonSelectMenuHandler implements SelectMenuHandler {
     // We will match exact custom IDs in the Bot model dispatcher for these specific select menus
@@ -20,6 +18,12 @@ export class SeasonSelectMenuHandler implements SelectMenuHandler {
     customIdPrefix = 'season_select_';
 
     public async execute(interaction: StringSelectMenuInteraction<CacheType>): Promise<void> {
+        // Create service instances
+        const schedulerService = new SchedulerService(prisma);
+        const gameService = new GameService(prisma);
+        const turnService = new SeasonTurnService(prisma, interaction.client, schedulerService);
+        const seasonService = new SeasonService(prisma, turnService, schedulerService, gameService);
+
         const selectedSeasonId = interaction.values[0];
         const discordUserId = interaction.user.id;
         const discordUserName = interaction.user.username;
@@ -38,17 +42,17 @@ export class SeasonSelectMenuHandler implements SelectMenuHandler {
         }
 
         if (interaction.customId === 'season_select_join') {
-            await this.handleJoinSelection(interaction, selectedSeasonId, discordUserId, discordUserName);
+            await this.handleJoinSelection(interaction, selectedSeasonId, discordUserId, discordUserName, seasonService);
         } else if (interaction.customId === 'season_select_show') {
-            await this.handleShowSelection(interaction, selectedSeasonId);
+            await this.handleShowSelection(interaction, selectedSeasonId, seasonService);
         } else {
             Logger.warn(`SeasonSelectMenuHandler: Unknown customId: ${interaction.customId}`);
             // interaction.update already happened, so we might send a followUp here if needed
-            await interaction.followUp({ content: "Sorry, I can't determine what to do with this selection.", ephemeral: true });
+            await interaction.followUp({ content: 'Sorry, I can\'t determine what to do with this selection.', ephemeral: true });
         }
     }
 
-    private async handleJoinSelection(interaction: StringSelectMenuInteraction<CacheType>, seasonId: string, discordUserId: string, discordUserName: string): Promise<void> {
+    private async handleJoinSelection(interaction: StringSelectMenuInteraction<CacheType>, seasonId: string, discordUserId: string, discordUserName: string, seasonService: SeasonService): Promise<void> {
         Logger.info(`SeasonSelectMenuHandler: Handling JOIN for season ${seasonId} by user ${discordUserId}`);
         try {
             let player = await prisma.player.findUnique({ where: { discordUserId } });
@@ -72,8 +76,8 @@ export class SeasonSelectMenuHandler implements SelectMenuHandler {
                 return;
             }
 
-            const isPlayerInSeason = await prisma.seasonPlayer.findUnique({
-                where: { playerId_seasonId: { playerId: player.id, seasonId: parseInt(seasonId) } },
+            const isPlayerInSeason = await prisma.playersOnSeasons.findUnique({
+                where: { playerId_seasonId: { playerId: player.id, seasonId: seasonId } },
             });
             if (isPlayerInSeason) {
                 await interaction.followUp({ content: strings.messages.joinSeason.alreadyJoined.replace('{seasonId}', seasonId), ephemeral: true });
@@ -109,7 +113,7 @@ export class SeasonSelectMenuHandler implements SelectMenuHandler {
         }
     }
 
-    private async handleShowSelection(interaction: StringSelectMenuInteraction<CacheType>, seasonId: string): Promise<void> {
+    private async handleShowSelection(interaction: StringSelectMenuInteraction<CacheType>, seasonId: string, seasonService: SeasonService): Promise<void> {
         Logger.info(`SeasonSelectMenuHandler: Handling SHOW for season ${seasonId} by user ${interaction.user.id}`);
         try {
             const season = await seasonService.findSeasonById(seasonId);
@@ -154,7 +158,7 @@ export class SeasonSelectMenuHandler implements SelectMenuHandler {
             rulesDesc += `**Drawing Timeout:** ${season.config.drawingTimeout || 'Default'}`;
             embed.addFields({ name: '📜 Rules & Configuration', value: rulesDesc });
 
-            const seasonPlayers = await prisma.seasonPlayer.findMany({
+            const seasonPlayers = await prisma.playersOnSeasons.findMany({
                 where: { seasonId: season.id }, take: 10, include: { player: {select: {name: true}}}
             });
             if (seasonPlayers.length > 0) {

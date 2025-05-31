@@ -6,7 +6,6 @@ import { nanoid } from 'nanoid';
 import { ChannelConfigService } from './ChannelConfigService.js';
 import { TurnTimeoutService } from './interfaces/TurnTimeoutService.js';
 import { SchedulerService } from './SchedulerService.js';
-import { interpolate, strings } from '../lang/strings.js';
 import { parseDuration } from '../utils/datetime.js';
 
 export class OnDemandTurnService implements TurnTimeoutService {
@@ -199,11 +198,11 @@ export class OnDemandTurnService implements TurnTimeoutService {
   }
 
   /**
-   * Submits a turn with content (text or image)
+   * Submits a turn with content
    * @param turnId The ID of the turn to submit
-   * @param playerId The ID of the player submitting
-   * @param content The content (text for writing, image URL for drawing)
-   * @param contentType The type of content ('text' or 'image')
+   * @param playerId The ID of the player submitting the turn
+   * @param content The content of the turn (text or image URL)
+   * @param contentType The type of content being submitted
    * @returns Success status and turn details
    */
   async submitTurn(
@@ -226,28 +225,20 @@ export class OnDemandTurnService implements TurnTimeoutService {
       }
 
       if (turn.status !== 'PENDING') {
-        return { success: false, error: 'Turn is not pending submission' };
+        return { success: false, error: 'Turn is not pending' };
       }
 
       if (turn.playerId !== playerId) {
         return { success: false, error: 'Turn is not assigned to this player' };
       }
 
-      // Validate content type matches turn type
-      if (turn.type === 'WRITING' && contentType !== 'text') {
-        return { success: false, error: 'Writing turns require text content' };
-      }
-
-      if (turn.type === 'DRAWING' && contentType !== 'image') {
-        return { success: false, error: 'Drawing turns require image content' };
-      }
-
-      // Update turn with content
+      // Update turn with content and mark as completed
       const updatedTurn = await this.prisma.turn.update({
         where: { id: turnId },
         data: {
           status: 'COMPLETED',
-          ...(contentType === 'text' ? { textContent: content } : { imageUrl: content }),
+          textContent: contentType === 'text' ? content : null,
+          imageUrl: contentType === 'image' ? content : null,
           completedAt: new Date(),
         },
         include: {
@@ -339,15 +330,14 @@ export class OnDemandTurnService implements TurnTimeoutService {
 
   /**
    * Dismisses an offered turn, making it available again
-   * For on-demand games, this unassigns a turn and makes it available
-   * @param turnId The ID of the turn to dismiss/unassign
-   * @returns Success status with optional turn data or error message
+   * @param turnId The ID of the turn to dismiss
+   * @returns Success status and turn details
    */
   async dismissOffer(turnId: string): Promise<{ success: boolean; turn?: Turn; error?: string }> {
     try {
       const turn = await this.prisma.turn.findUnique({
         where: { id: turnId },
-        include: { 
+        include: {
           game: true,
           player: true
         }
@@ -410,6 +400,30 @@ export class OnDemandTurnService implements TurnTimeoutService {
         return { success: false, error: 'Turn is not pending' };
       }
 
+      // Check if this is the initial turn (turn number 1) - if so, delete the game
+      if (turn.turnNumber === 1) {
+        console.log(`Initial turn ${turnId} skipped, deleting game ${turn.gameId}`);
+        
+        // Cancel any pending timeouts for this game
+        if (this.schedulerService) {
+          await this.schedulerService.cancelJobsForGame(turn.gameId);
+        }
+
+        // Send notification to player that the game was deleted
+        if (turn.player) {
+          await this.sendGameDeletedNotification(turn, turn.player);
+        }
+
+        // Delete the game (this will cascade delete the turns due to foreign key constraints)
+        await this.prisma.game.delete({
+          where: { id: turn.gameId }
+        });
+
+        console.log(`Game ${turn.gameId} deleted due to initial turn timeout`);
+        return { success: true, turn: turn };
+      }
+
+      // For non-initial turns, proceed with normal skip logic
       // Update turn to skipped
       const updatedTurn = await this.prisma.turn.update({
         where: { id: turnId },
@@ -437,6 +451,121 @@ export class OnDemandTurnService implements TurnTimeoutService {
         success: false, 
         error: error instanceof Error ? error.message : 'Unknown error occurred' 
       };
+    }
+  }
+
+  /**
+   * Sends a turn warning to a player
+   * @param turnId The ID of the turn to send warning for
+   */
+  async sendTurnWarning(turnId: string): Promise<void> {
+    try {
+      const turn = await this.prisma.turn.findUnique({
+        where: { id: turnId },
+        include: { 
+          game: { include: { config: true } },
+          player: true
+        }
+      });
+
+      if (!turn || !turn.player) {
+        console.error(`Turn ${turnId} or player not found for warning`);
+        return;
+      }
+
+      if (turn.status !== 'PENDING') {
+        console.log(`Turn ${turnId} is not pending, skipping warning`);
+        return;
+      }
+
+      const user = await this.discordClient.users.fetch(turn.player.discordUserId);
+      
+      // Calculate remaining time
+      const timeoutDuration = turn.type === 'WRITING' 
+        ? turn.game?.config?.writingTimeout 
+        : turn.game?.config?.drawingTimeout;
+      
+      const luxonDuration = parseDuration(timeoutDuration || '24h');
+      const timeoutMinutes = luxonDuration ? Math.floor(luxonDuration.as('minutes')) : 1440;
+      
+      // Assume warning is sent at 50% of timeout duration
+      const remainingMinutes = Math.floor(timeoutMinutes / 2);
+      
+      const message = `⚠️ **Turn Reminder** ⚠️\n\nYou have approximately **${remainingMinutes} minutes** remaining to submit your turn before it times out.\n\nPlease submit your ${turn.type.toLowerCase()} soon to avoid losing your turn!`;
+      
+      await user.send(message);
+      console.log(`Warning sent to player ${turn.player.id} for turn ${turnId}`);
+
+    } catch (error) {
+      console.error(`Error sending turn warning for turn ${turnId}:`, error);
+    }
+  }
+
+  /**
+   * Schedules timeout jobs for a turn
+   * @param turn The turn to schedule timeouts for
+   * @param config The game configuration
+   */
+  private async scheduleTurnTimeout(turn: Turn, config: GameConfig): Promise<void> {
+    if (!this.schedulerService) {
+      console.warn(`SchedulerService not available, timeout not scheduled for turn ${turn.id}`);
+      return;
+    }
+
+    try {
+      // Get timeout duration based on turn type
+      const timeoutDuration = turn.type === 'WRITING' 
+        ? config.writingTimeout 
+        : config.drawingTimeout;
+      
+      const warningDuration = turn.type === 'WRITING' 
+        ? config.writingWarning 
+        : config.drawingWarning;
+
+      const luxonTimeoutDuration = parseDuration(timeoutDuration);
+      const luxonWarningDuration = parseDuration(warningDuration);
+
+      if (!luxonTimeoutDuration) {
+        console.error(`Invalid timeout duration: ${timeoutDuration}`);
+        return;
+      }
+
+      // Schedule warning if warning duration is specified
+      if (luxonWarningDuration) {
+        const warningDate = DateTime.now().plus(luxonWarningDuration).toJSDate();
+        const warningJobId = `turn-warning-${turn.id}`;
+        
+        await this.schedulerService.scheduleJob(
+          warningJobId,
+          warningDate,
+          async () => {
+            await this.sendTurnWarning(turn.id);
+          },
+          { turnId: turn.id },
+          'turn-warning'
+        );
+
+        console.log(`Scheduled turn warning for turn ${turn.id} at ${warningDate.toISOString()}`);
+      }
+
+      // Schedule timeout
+      const timeoutDate = DateTime.now().plus(luxonTimeoutDuration).toJSDate();
+      const timeoutJobId = `turn-timeout-${turn.id}`;
+      
+      await this.schedulerService.scheduleJob(
+        timeoutJobId,
+        timeoutDate,
+        async () => {
+          await this.skipTurn(turn.id);
+        },
+        { turnId: turn.id },
+        'turn-timeout'
+      );
+
+      console.log(`Scheduled turn timeout for turn ${turn.id} at ${timeoutDate.toISOString()}`);
+
+    } catch (error) {
+      console.error(`Error scheduling timeout for turn ${turn.id}:`, error);
     }
   }
 
@@ -516,6 +645,18 @@ export class OnDemandTurnService implements TurnTimeoutService {
   }
 
   /**
+   * Sends a notification when a game is deleted due to initial turn timeout
+   */
+  private async sendGameDeletedNotification(turn: Turn, player: Player): Promise<void> {
+    try {
+      const user = await this.discordClient.users.fetch(player.discordUserId);
+      await user.send(`Your game has been automatically deleted because you didn't take your initial turn within the time limit. You can start a new game anytime with \`/game new\`.`);
+    } catch (error) {
+      console.error(`Error sending game deleted notification to player ${player.id}:`, error);
+    }
+  }
+
+  /**
    * Sends a flag notification to the admin channel
    */
   private async sendFlagNotification(turn: Turn & { game: Game; player: Player | null }, flaggerId: string): Promise<void> {
@@ -532,156 +673,34 @@ export class OnDemandTurnService implements TurnTimeoutService {
         return;
       }
 
-      // Get the channel
       const channel = await this.discordClient.channels.fetch(adminChannelId);
       if (!channel || !channel.isTextBased()) {
         console.error(`Admin channel ${adminChannelId} not found or not text-based`);
         return;
       }
 
-      // Get flagger information
-      const flagger = await this.prisma.player.findUnique({
-        where: { id: flaggerId }
+      const flagger = await this.prisma.player.findFirst({
+        where: { discordUserId: flaggerId }
       });
 
-      // Create the message content directly
-      const messageContent = interpolate(strings.messages.ondemand.turnFlagged, {
-        turnId: turn.id,
-        gameId: turn.gameId,
-        turnNumber: turn.turnNumber,
-        turnType: turn.type,
-        flaggerName: flagger?.name || flagger?.discordUserId || 'Unknown',
-        flaggerId: flaggerId,
-        turnContent: turn.textContent || '[Image content]',
-        playerName: turn.player?.name || turn.player?.discordUserId || 'Unknown'
-      });
+      const message = `🚩 **Turn Flagged**\n\n` +
+        `**Game:** ${turn.gameId}\n` +
+        `**Turn:** ${turn.id} (Turn #${turn.turnNumber})\n` +
+        `**Player:** ${turn.player?.name || 'Unknown'}\n` +
+        `**Flagged by:** ${flagger?.name || 'Unknown'}\n` +
+        `**Content:** ${turn.textContent || turn.imageUrl || 'No content'}\n\n` +
+        `The game has been paused pending review.`;
 
-      // Send the message directly to the channel (cast to text-based channel)
-      const sentMessage = await (channel as any).send({ content: messageContent });
-
-      // Add reaction buttons for admin approval/rejection
-      try {
-        await sentMessage.react('✅'); // Approve
-        await sentMessage.react('❌'); // Reject
-      } catch (error) {
-        console.error(`Error adding reactions to flag notification for turn ${turn.id}:`, error);
+      // Type guard ensures channel has send method
+      if ('send' in channel) {
+        await channel.send(message);
+      } else {
+        console.error(`Channel ${adminChannelId} does not support sending messages`);
       }
-
-      console.log(`Flag notification sent to admin channel ${adminChannelId} for turn ${turn.id}`);
+      console.log(`Flag notification sent to admin channel for turn ${turn.id}`);
 
     } catch (error) {
       console.error(`Error sending flag notification for turn ${turn.id}:`, error);
     }
   }
-
-  /**
-   * Schedules a timeout job for a turn
-   */
-  private async scheduleTurnTimeout(turn: Turn, config: GameConfig): Promise<void> {
-    if (!this.schedulerService) return;
-
-    try {
-      const timeoutDuration = turn.type === 'WRITING' 
-        ? config.writingTimeout 
-        : config.drawingTimeout;
-      
-      const warningDuration = turn.type === 'WRITING'
-        ? config.writingWarning
-        : config.drawingWarning;
-      
-      const luxonTimeoutDuration = parseDuration(timeoutDuration);
-      const luxonWarningDuration = parseDuration(warningDuration);
-      
-      if (!luxonTimeoutDuration || luxonTimeoutDuration.as('milliseconds') <= 0) {
-        console.warn(`Invalid timeout duration for turn ${turn.id}: ${timeoutDuration}`);
-        return;
-      }
-
-      // Schedule warning job if warning duration is valid and less than timeout duration
-      if (luxonWarningDuration && luxonWarningDuration.as('milliseconds') > 0) {
-        const warningTime = DateTime.now().plus(luxonTimeoutDuration).minus(luxonWarningDuration).toJSDate();
-        
-        // Only schedule warning if it's in the future
-        if (warningTime.getTime() > Date.now()) {
-          const warningJobId = `turn-warning-${turn.id}`;
-
-          await this.schedulerService.scheduleJob(
-            warningJobId,
-            warningTime,
-            async () => {
-              console.log(`Turn warning job running for turn ${turn.id}`);
-              await this.sendTurnWarning(turn.id);
-            },
-            { turnId: turn.id },
-            'turn-warning'
-          );
-
-          console.log(`Scheduled warning for turn ${turn.id} at ${warningTime.toISOString()}`);
-        }
-      }
-
-      // Schedule main timeout job
-      const timeoutTime = DateTime.now().plus(luxonTimeoutDuration).toJSDate();
-      const jobId = `turn-timeout-${turn.id}`;
-
-      await this.schedulerService.scheduleJob(
-        jobId,
-        timeoutTime,
-        async () => {
-          console.log(`Turn timeout job running for turn ${turn.id}`);
-          await this.skipTurn(turn.id);
-        },
-        { turnId: turn.id },
-        'turn-timeout'
-      );
-
-      console.log(`Scheduled timeout for turn ${turn.id} at ${timeoutTime.toISOString()}`);
-
-    } catch (error) {
-      console.error(`Error scheduling timeout for turn ${turn.id}:`, error);
-    }
-  }
-
-  /**
-   * Sends a warning DM to a player about their upcoming turn timeout
-   */
-  public async sendTurnWarning(turnId: string): Promise<void> {
-    try {
-      const turn = await this.prisma.turn.findUnique({
-        where: { id: turnId },
-        include: { 
-          player: true,
-          game: { include: { config: true } }
-        }
-      });
-
-      if (!turn || !turn.player || !turn.game?.config) {
-        console.error(`Turn, player, or config not found for warning ${turnId}`);
-        return;
-      }
-
-      // Only send warning if turn is still pending
-      if (turn.status !== 'PENDING') {
-        console.log(`Turn ${turnId} is no longer pending, skipping warning`);
-        return;
-      }
-
-      const user = await this.discordClient.users.fetch(turn.player.discordUserId);
-      
-      const warningDuration = turn.type === 'WRITING' 
-        ? turn.game.config.writingWarning 
-        : turn.game.config.drawingWarning;
-      
-      const luxonWarningDuration = parseDuration(warningDuration);
-      const warningMinutes = luxonWarningDuration ? Math.floor(luxonWarningDuration.as('minutes')) : 1;
-      
-      const message = `⚠️ **Turn Timeout Warning** ⚠️\n\nYour turn will timeout in **${warningMinutes} minute${warningMinutes !== 1 ? 's' : ''}**! Please submit your ${turn.type.toLowerCase()} turn soon to avoid being skipped.`;
-      
-      await user.send(message);
-      console.log(`Warning sent to player ${turn.player.id} for turn ${turnId}`);
-      
-    } catch (error) {
-      console.error(`Error sending turn warning for turn ${turnId}:`, error);
-    }
-  }
-} 
+}

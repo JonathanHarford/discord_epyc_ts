@@ -1,24 +1,25 @@
 import { ButtonInteraction, CacheType } from 'discord.js';
-import { ButtonHandler } from './buttonHandler.js';
-import { SeasonService } from '../services/SeasonService.js';
-import { PlayerService } from '../services/PlayerService.js'; // Assuming PlayerService might be needed for player creation/lookup
-import { Logger } from '../services/index.js'; // Assuming Logger is exported from services/index.js
-import { strings } from '../lang/strings.js'; // For user-facing messages
-import prisma from '../lib/prisma.js'; // Direct prisma import if services don't cover all needs or for quick lookups
 
-// It's often better to inject services via constructor if DI is set up.
-// For this task, we'll instantiate them directly or use potentially singleton instances.
-// This might need adjustment based on how services are managed in the broader application.
-const seasonService = new SeasonService(prisma);
-// PlayerService might not be directly needed if SeasonService handles player creation/checks,
-// but it's included here for completeness if direct player checks are required.
-// const playerService = new PlayerService(prisma);
+import { ButtonHandler } from './buttonHandler.js';
+import { strings } from '../lang/strings.js';
+import prisma from '../lib/prisma.js';
+import { GameService } from '../services/GameService.js';
+import { Logger } from '../services/index.js';
+import { SchedulerService } from '../services/SchedulerService.js';
+import { SeasonService } from '../services/SeasonService.js';
+import { SeasonTurnService } from '../services/SeasonTurnService.js';
 
 
 export class SeasonJoinButtonHandler implements ButtonHandler {
     customIdPrefix = 'season_join_';
 
     public async execute(interaction: ButtonInteraction<CacheType>): Promise<void> {
+        // Create service instances
+        const schedulerService = new SchedulerService(prisma);
+        const gameService = new GameService(prisma);
+        const turnService = new SeasonTurnService(prisma, interaction.client, schedulerService);
+        const seasonService = new SeasonService(prisma, turnService, schedulerService, gameService);
+
         const seasonId = interaction.customId.substring(this.customIdPrefix.length);
         const discordUserId = interaction.user.id;
         const discordUserName = interaction.user.username;
@@ -31,7 +32,7 @@ export class SeasonJoinButtonHandler implements ButtonHandler {
             return;
         }
 
-        const numericSeasonId = parseInt(seasonId);
+
 
         try {
             // 1. Find or create player record (SeasonService might also do this, depends on its design)
@@ -45,7 +46,7 @@ export class SeasonJoinButtonHandler implements ButtonHandler {
                     Logger.info(`SeasonJoinButtonHandler: Created new player record for ${discordUserName} (${discordUserId})`);
                 } catch (error) {
                     Logger.error(`SeasonJoinButtonHandler: Failed to create player record for ${discordUserName} (${discordUserId}):`, error);
-                    await interaction.reply({ content: strings.messages.joinSeason.errorPlayerCreateFailed || "Could not prepare your player record. Please try again.", ephemeral: true });
+                    await interaction.reply({ content: strings.messages.joinSeason.errorPlayerCreateFailed || 'Could not prepare your player record. Please try again.', ephemeral: true });
                     return;
                 }
             }
@@ -68,11 +69,11 @@ export class SeasonJoinButtonHandler implements ButtonHandler {
             }
 
             // 3. Check if player is already in the season (SeasonService might also do this)
-            const isPlayerInSeason = await prisma.seasonPlayer.findUnique({
+            const isPlayerInSeason = await prisma.playersOnSeasons.findUnique({
                 where: {
                     playerId_seasonId: {
                         playerId: playerId,
-                        seasonId: numericSeasonId, // Assuming numericSeasonId is the correct type for DB
+                        seasonId: seasonId, // Use string seasonId as per schema
                     },
                 },
             });

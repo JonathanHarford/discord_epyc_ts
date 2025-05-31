@@ -1,15 +1,14 @@
 import { ButtonInteraction, CacheType, EmbedBuilder } from 'discord.js';
 import { ButtonHandler } from './buttonHandler.js';
 import { SeasonService } from '../services/SeasonService.js';
+import { SeasonTurnService } from '../services/SeasonTurnService.js';
+import { SchedulerService } from '../services/SchedulerService.js';
+import { GameService } from '../services/GameService.js';
 import { Logger } from '../services/index.js';
 import { strings } from '../lang/strings.js';
 import prisma from '../lib/prisma.js'; // Direct prisma import
 
 import { createDashboardComponents } from './seasonDashboardButtonHandler.js'; // Import the helper
-
-// Assuming SeasonService can be instantiated like this.
-// Adjust if a DI pattern or singleton access is used elsewhere.
-const seasonService = new SeasonService(prisma);
 
 export class SeasonShowButtonHandler implements ButtonHandler {
     customIdPrefix = 'season_show_';
@@ -25,6 +24,12 @@ export class SeasonShowButtonHandler implements ButtonHandler {
         }
 
         try {
+            // Create service instances
+            const schedulerService = new SchedulerService(prisma);
+            const gameService = new GameService(prisma);
+            const turnService = new SeasonTurnService(prisma, interaction.client, schedulerService);
+            const seasonService = new SeasonService(prisma, turnService, schedulerService, gameService);
+
             const season = await seasonService.findSeasonById(seasonId); // Includes config and _count.players
 
             if (!season) {
@@ -71,7 +76,7 @@ export class SeasonShowButtonHandler implements ButtonHandler {
 
             embed.addFields({ name: '📜 Rules & Configuration', value: rulesDescription });
 
-            const seasonPlayers = await prisma.seasonPlayer.findMany({
+            const seasonPlayers = await prisma.playersOnSeasons.findMany({
                 where: { seasonId: season.id },
                 take: 25, // Show up to 25 players
                 include: { player: { select: { name: true } } }

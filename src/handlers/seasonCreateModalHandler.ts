@@ -1,17 +1,18 @@
-import { ModalSubmitInteraction, CacheType, ActionRowBuilder, ButtonBuilder, ButtonStyle } from 'discord.js';
+import { ActionRowBuilder, ButtonBuilder, ButtonStyle, CacheType, ModalSubmitInteraction } from 'discord.js';
+
 import { ModalHandler } from './modalHandler.js';
-import { SeasonService, NewSeasonOptions } from '../services/SeasonService.js';
-import { Logger } from '../services/index.js';
 import { strings } from '../lang/strings.js';
-import prisma from '../lib/prisma.js'; // For direct prisma interactions if needed by services
+import prisma from '../lib/prisma.js';
+import { GameService } from '../services/GameService.js';
+import { Logger } from '../services/index.js';
+import { SchedulerService } from '../services/SchedulerService.js';
+import { NewSeasonOptions, SeasonService } from '../services/SeasonService.js';
+import { SeasonTurnService } from '../services/SeasonTurnService.js';
 
 // Temporary state storage for multi-step modal (if we extend it)
 // For a single step, it's less critical but good for structure.
 // Key: userId, Value: Partial<NewSeasonOptions> or a specific type for wizard data
 export const seasonCreationState = new Map<string, Partial<NewSeasonOptions>>();
-
-// Instantiate services - adjust if using a DI container
-const seasonService = new SeasonService(prisma);
 
 export class SeasonCreateModalHandler implements ModalHandler {
     customIdPrefix = 'season_create_';
@@ -21,12 +22,18 @@ export class SeasonCreateModalHandler implements ModalHandler {
             await this.handleStep1(interaction);
         } else {
             Logger.warn(`SeasonCreateModalHandler: Received unhandled customId: ${interaction.customId}`);
-            await interaction.reply({ content: "Sorry, this action isn't recognized.", ephemeral: true });
+            await interaction.reply({ content: 'Sorry, this action isn\'t recognized.', ephemeral: true });
         }
     }
 
     private async handleStep1(interaction: ModalSubmitInteraction<CacheType>): Promise<void> {
         const userId = interaction.user.id;
+
+        // Create service instances
+        const schedulerService = new SchedulerService(prisma);
+        const gameService = new GameService(prisma);
+        const turnService = new SeasonTurnService(prisma, interaction.client, schedulerService);
+        const seasonService = new SeasonService(prisma, turnService, schedulerService, gameService);
 
         try {
             const seasonName = interaction.fields.getTextInputValue('seasonNameInput'); // Optional
@@ -39,23 +46,24 @@ export class SeasonCreateModalHandler implements ModalHandler {
             const minPlayers = parseInt(minPlayersStr);
 
             if (isNaN(maxPlayers) || maxPlayers <= 0) {
-                await interaction.reply({ content: "Max Players must be a positive number.", ephemeral: true });
+                await interaction.reply({ content: 'Max Players must be a positive number.', ephemeral: true });
                 return;
             }
             if (isNaN(minPlayers) || minPlayers <= 0) {
-                await interaction.reply({ content: "Min Players must be a positive number.", ephemeral: true });
+                await interaction.reply({ content: 'Min Players must be a positive number.', ephemeral: true });
                 return;
             }
             if (minPlayers > maxPlayers) {
-                await interaction.reply({ content: "Min Players cannot be greater than Max Players.", ephemeral: true });
+                await interaction.reply({ content: 'Min Players cannot be greater than Max Players.', ephemeral: true });
                 return;
             }
-            // Add openDuration validation if necessary (e.g., regex for "7d", "24h")
+            // Add openDuration validation if necessary (e.g., regex for '7d', '24h')
 
             // --- Store data (conceptually, for single step this directly becomes options) ---
             const currentData: Partial<NewSeasonOptions> = seasonCreationState.get(userId) || {};
 
-            if (seasonName) currentData.name = seasonName;
+            // Note: NewSeasonOptions doesn't have a 'name' field, removing this line
+            // if (seasonName) currentData.name = seasonName;
             currentData.maxPlayers = maxPlayers;
             currentData.minPlayers = minPlayers;
             if (openDuration) currentData.openDuration = openDuration;
@@ -121,7 +129,7 @@ export class SeasonCreateModalHandler implements ModalHandler {
                  });
             } else {
                 // Handle specific error keys from result.key
-                let userErrorMessage = strings.messages.newSeason.errorGenericService;
+                let userErrorMessage: string = strings.messages.newSeason.errorGenericService;
                  if (result.key) {
                     const keyMap: Record<string, string> = {
                         'season_create_error_creator_player_not_found': strings.messages.newSeason.errorCreatorNotFound,

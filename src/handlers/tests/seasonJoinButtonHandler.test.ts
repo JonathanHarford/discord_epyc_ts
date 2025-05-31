@@ -1,3 +1,4 @@
+import { describe, it, expect, beforeEach, vi } from 'vitest';
 import { ButtonInteraction, User } from 'discord.js';
 import { SeasonJoinButtonHandler } from '../seasonJoinButtonHandler';
 import { SeasonService } from '../../services/SeasonService';
@@ -7,38 +8,36 @@ import { Logger } from '../../services'; // Logger is used
 import { strings } from '../../lang/strings'; // Strings are used
 
 // Mock Prisma
-jest.mock('../../lib/prisma', () => ({
-  __esModule: true,
+vi.mock('../../lib/prisma', () => ({
   default: {
     player: {
-      findUnique: jest.fn(),
-      create: jest.fn(),
+      findUnique: vi.fn(),
+      create: vi.fn(),
     },
     season: {
-      findUnique: jest.fn(), // Assuming SeasonService uses this
+      findUnique: vi.fn(), // Assuming SeasonService uses this
     },
-    seasonPlayer: {
-      findUnique: jest.fn(), // Used directly in the handler
+    playersOnSeasons: {
+      findUnique: vi.fn(), // Used directly in the handler
     },
     // Add other models and methods as needed by SeasonService/PlayerService
   },
 }));
 
 // Mock services
-jest.mock('../../services/SeasonService');
-jest.mock('../../services/PlayerService');
+vi.mock('../../services/SeasonService');
+vi.mock('../../services/PlayerService');
 
 // Mock Logger and strings to prevent issues if they are called
-jest.mock('../../services/index.js', () => ({
-    ...jest.requireActual('../../services/index.js'), // Keep other exports if any
+vi.mock('../../services/index.js', () => ({
     Logger: {
-        info: jest.fn(),
-        warn: jest.fn(),
-        error: jest.fn(),
-        debug: jest.fn(),
+        info: vi.fn(),
+        warn: vi.fn(),
+        error: vi.fn(),
+        debug: vi.fn(),
     }
 }));
-jest.mock('../../lang/strings.js', () => ({
+vi.mock('../../lang/strings.js', () => ({
     strings: {
         messages: {
             joinSeason: {
@@ -59,55 +58,44 @@ jest.mock('../../lang/strings.js', () => ({
 
 describe('SeasonJoinButtonHandler', () => {
     let handler: SeasonJoinButtonHandler;
-    let mockInteraction: jest.Mocked<ButtonInteraction>;
-    let mockSeasonService: jest.Mocked<SeasonService>;
-    let mockPlayerService: jest.Mocked<PlayerService>; // PlayerService might not be directly used if SeasonService handles player logic
+    let mockInteraction: any;
+    let mockSeasonService: any;
+    let mockPlayerService: any; // PlayerService might not be directly used if SeasonService handles player logic
 
-    const mockPrismaClient = prisma as jest.Mocked<typeof prisma>;
+    const mockPrismaClient = prisma as any;
 
     beforeEach(() => {
         // Reset mocks for SeasonService and PlayerService before each test
-        // This ensures that `new SeasonService()` in the handler gets the mocked version
-        SeasonService.mockClear();
-        PlayerService.mockClear();
-
-        // Instantiate the mocked service that will be used by the handler
-        // The actual instances created inside the handler will be this mocked one due to jest.mock
-        mockSeasonService = new (SeasonService as jest.Mock<SeasonService>)(mockPrismaClient) as jest.Mocked<SeasonService>;
-        // mockPlayerService = new (PlayerService as jest.Mock<PlayerService>)(mockPrismaClient) as jest.Mocked<PlayerService>;
+        vi.clearAllMocks();
 
         // Setup default mock implementations for service methods if SeasonService is used by handler
-        // This needs to be done on the prototype if the handler news up the service itself.
-        // Or, ensure the constructor mock returns these specific instances.
-        // For this handler, SeasonService is new'd up inside. So we mock the constructor's return or methods on prototype.
-        // Let's mock specific methods on the prototype that SeasonService instance would call.
-        SeasonService.prototype.findSeasonById = jest.fn();
-        SeasonService.prototype.addPlayerToSeason = jest.fn();
+        SeasonService.prototype.findSeasonById = vi.fn();
+        SeasonService.prototype.addPlayerToSeason = vi.fn();
 
         handler = new SeasonJoinButtonHandler();
 
         mockInteraction = {
             customId: 'season_join_123',
             user: { id: 'user1', username: 'TestUser' } as User,
-            reply: jest.fn().mockResolvedValue(undefined),
-            followUp: jest.fn().mockResolvedValue(undefined), // For consistency if used
-        } as unknown as jest.Mocked<ButtonInteraction>;
+            reply: vi.fn().mockResolvedValue(undefined),
+            followUp: vi.fn().mockResolvedValue(undefined), // For consistency if used
+        };
 
         // Reset Prisma mocks
         mockPrismaClient.player.findUnique.mockReset();
         mockPrismaClient.player.create.mockReset();
-        mockPrismaClient.seasonPlayer.findUnique.mockReset();
+        mockPrismaClient.playersOnSeasons.findUnique.mockReset();
     });
 
     it('should successfully add a player to an open season', async () => {
         mockInteraction.customId = 'season_join_1';
 
         mockPrismaClient.player.findUnique.mockResolvedValueOnce({ id: 'playerRecord1', discordUserId: 'user1', name: 'TestUser' });
-        (SeasonService.prototype.findSeasonById as jest.Mock).mockResolvedValueOnce({
+        (SeasonService.prototype.findSeasonById as any).mockResolvedValueOnce({
             id: '1', status: 'OPEN', config: { maxPlayers: 10 }, _count: { players: 5 }
         });
-        mockPrismaClient.seasonPlayer.findUnique.mockResolvedValueOnce(null); // Not in season
-        (SeasonService.prototype.addPlayerToSeason as jest.Mock).mockResolvedValueOnce({ type: 'success', data: {} });
+        mockPrismaClient.playersOnSeasons.findUnique.mockResolvedValueOnce(null); // Not in season
+        (SeasonService.prototype.addPlayerToSeason as any).mockResolvedValueOnce({ type: 'success', data: {} });
 
         await handler.execute(mockInteraction);
 
@@ -123,11 +111,11 @@ describe('SeasonJoinButtonHandler', () => {
 
         mockPrismaClient.player.findUnique.mockResolvedValueOnce(null); // Player not found
         mockPrismaClient.player.create.mockResolvedValueOnce({ id: 'playerRecord2', discordUserId: 'user1', name: 'TestUser' }); // Player created
-        (SeasonService.prototype.findSeasonById as jest.Mock).mockResolvedValueOnce({
+        (SeasonService.prototype.findSeasonById as any).mockResolvedValueOnce({
             id: '2', status: 'OPEN', config: { maxPlayers: 10 }, _count: { players: 5 }
         });
-        mockPrismaClient.seasonPlayer.findUnique.mockResolvedValueOnce(null); // Not in season
-        (SeasonService.prototype.addPlayerToSeason as jest.Mock).mockResolvedValueOnce({ type: 'success', data: {} });
+        mockPrismaClient.playersOnSeasons.findUnique.mockResolvedValueOnce(null); // Not in season
+        (SeasonService.prototype.addPlayerToSeason as any).mockResolvedValueOnce({ type: 'success', data: {} });
 
         await handler.execute(mockInteraction);
 
@@ -144,10 +132,10 @@ describe('SeasonJoinButtonHandler', () => {
         mockInteraction.customId = 'season_join_3';
 
         mockPrismaClient.player.findUnique.mockResolvedValueOnce({ id: 'playerRecord3', discordUserId: 'user1', name: 'TestUser' });
-        (SeasonService.prototype.findSeasonById as jest.Mock).mockResolvedValueOnce({
+        (SeasonService.prototype.findSeasonById as any).mockResolvedValueOnce({
             id: '3', status: 'OPEN', config: { maxPlayers: 10 }, _count: { players: 5 }
         });
-        mockPrismaClient.seasonPlayer.findUnique.mockResolvedValueOnce({ playerId: 'playerRecord3', seasonId: 3 }); // Already in season
+        mockPrismaClient.playersOnSeasons.findUnique.mockResolvedValueOnce({ playerId: 'playerRecord3', seasonId: 3 }); // Already in season
 
         await handler.execute(mockInteraction);
 
@@ -162,7 +150,7 @@ describe('SeasonJoinButtonHandler', () => {
         mockInteraction.customId = 'season_join_4';
 
         mockPrismaClient.player.findUnique.mockResolvedValueOnce({ id: 'playerRecord4', discordUserId: 'user1', name: 'TestUser' });
-        (SeasonService.prototype.findSeasonById as jest.Mock).mockResolvedValueOnce(null); // Season not found
+        (SeasonService.prototype.findSeasonById as any).mockResolvedValueOnce(null); // Season not found
 
         await handler.execute(mockInteraction);
 
@@ -176,7 +164,7 @@ describe('SeasonJoinButtonHandler', () => {
         mockInteraction.customId = 'season_join_5';
 
         mockPrismaClient.player.findUnique.mockResolvedValueOnce({ id: 'playerRecord5', discordUserId: 'user1', name: 'TestUser' });
-        (SeasonService.prototype.findSeasonById as jest.Mock).mockResolvedValueOnce({
+        (SeasonService.prototype.findSeasonById as any).mockResolvedValueOnce({
             id: '5', status: 'IN_PROGRESS', config: { maxPlayers: 10 }, _count: { players: 5 }
         });
 
@@ -192,13 +180,13 @@ describe('SeasonJoinButtonHandler', () => {
         mockInteraction.customId = 'season_join_6';
 
         mockPrismaClient.player.findUnique.mockResolvedValueOnce({ id: 'playerRecord6', discordUserId: 'user1', name: 'TestUser' });
-        (SeasonService.prototype.findSeasonById as jest.Mock).mockResolvedValueOnce({ // Season found
+        (SeasonService.prototype.findSeasonById as any).mockResolvedValueOnce({ // Season found
             id: '6', status: 'OPEN', config: { maxPlayers: 5 }, _count: { players: 5 } // Season is full
         });
         // This check is now inside addPlayerToSeason or a new specific check in handler
         // For this test, let's assume findSeasonById is enough, and addPlayerToSeason returns 'season_full'
-        mockPrismaClient.seasonPlayer.findUnique.mockResolvedValueOnce(null); // Not in season yet
-        (SeasonService.prototype.addPlayerToSeason as jest.Mock).mockResolvedValueOnce({ type: 'error', key: 'season_full' });
+        mockPrismaClient.playersOnSeasons.findUnique.mockResolvedValueOnce(null); // Not in season yet
+        (SeasonService.prototype.addPlayerToSeason as any).mockResolvedValueOnce({ type: 'error', key: 'season_full' });
 
 
         await handler.execute(mockInteraction);
@@ -227,11 +215,11 @@ describe('SeasonJoinButtonHandler', () => {
         mockInteraction.customId = 'season_join_8';
 
         mockPrismaClient.player.findUnique.mockResolvedValueOnce({ id: 'playerRecord8', discordUserId: 'user1', name: 'TestUser' });
-        (SeasonService.prototype.findSeasonById as jest.Mock).mockResolvedValueOnce({
+        (SeasonService.prototype.findSeasonById as any).mockResolvedValueOnce({
             id: '8', status: 'OPEN', config: { maxPlayers: 10 }, _count: { players: 3 }
         });
-        mockPrismaClient.seasonPlayer.findUnique.mockResolvedValueOnce(null); // Not in season
-        (SeasonService.prototype.addPlayerToSeason as jest.Mock).mockResolvedValueOnce({ type: 'error', key: 'some_other_error' });
+        mockPrismaClient.playersOnSeasons.findUnique.mockResolvedValueOnce(null); // Not in season
+        (SeasonService.prototype.addPlayerToSeason as any).mockResolvedValueOnce({ type: 'error', key: 'some_other_error' });
 
         await handler.execute(mockInteraction);
 
