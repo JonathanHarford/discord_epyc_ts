@@ -106,6 +106,17 @@ Use \`/join season:{seasonId}\` to join!`,
       errorCriticalCommand: 'A critical unexpected error occurred. Please contact support.'
     },
 
+    // Select season messages
+    selectSeason: {
+      placeholderJoin: 'Select a season to join',
+      placeholderShow: 'Select a season to view details',
+      noSeasonsJoin: 'No seasons are currently available for you to join.',
+      noSeasonsShow: 'No seasons found to display.',
+      promptJoin: 'Please select a season to join:',
+      promptShow: 'Please select a season to view:',
+      selectionProcessing: 'Processing your selection for Season {seasonId}...'
+    },
+
     // Admin messages
     admin: {
       notAdmin: 'You do not have permission to use admin commands.',
