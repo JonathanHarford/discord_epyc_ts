@@ -19,7 +19,7 @@ import {
     TriggerHandler,
 } from './events/index.js';
 import { CustomClient } from './extensions/index.js';
-import { Job } from './jobs/index.js';
+import { Job, StaleGameCleanupJob } from './jobs/index.js';
 import prisma from './lib/prisma.js';
 import { Bot } from './models/bot.js';
 import { FlaggedTurnApprovalReaction, FlaggedTurnRejectionReaction } from './reactions/flagged-turn-reaction.js';
@@ -67,13 +67,14 @@ async function start(): Promise<void> {
     const seasonService = new SeasonService(prisma, turnService, schedulerService, gameService);
     const turnOfferingService = new TurnOfferingService(prisma, client, turnService, schedulerService);
     const onDemandGameService = new OnDemandGameService(prisma, client);
-    const onDemandTurnService = new OnDemandTurnService(prisma, client);
+    const onDemandTurnService = new OnDemandTurnService(prisma, client, schedulerService);
     const playerTurnService = new PlayerTurnService(prisma);
     
     // Set dependencies for SchedulerService to handle different job types
     schedulerService.setDependencies({
         discordClient: client,
         seasonTurnService: turnService,
+        onDemandTurnService: onDemandTurnService,
         turnOfferingService: turnOfferingService,
         seasonService: seasonService
     });
@@ -130,6 +131,7 @@ async function start(): Promise<void> {
 
     // Jobs
     let jobs: Job[] = [
+        new StaleGameCleanupJob(prisma, onDemandGameService),
         // Add new jobs here as needed. These are different from scheduled tasks via SchedulerService.
     ];
 

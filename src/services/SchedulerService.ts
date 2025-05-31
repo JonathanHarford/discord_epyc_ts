@@ -3,11 +3,11 @@ import { Client as DiscordClient } from 'discord.js';
 import * as schedule from 'node-schedule';
 
 import { Logger } from './index.js';
-import { SeasonService } from './SeasonService.js';
-import { TurnOfferingService } from './TurnOfferingService.js';
-import { SeasonTurnService } from './SeasonTurnService.js';
-import { OnDemandTurnService } from './OnDemandTurnService.js';
 import { TurnTimeoutService } from './interfaces/TurnTimeoutService.js';
+import { OnDemandTurnService } from './OnDemandTurnService.js';
+import { SeasonService } from './SeasonService.js';
+import { SeasonTurnService } from './SeasonTurnService.js';
+import { TurnOfferingService } from './TurnOfferingService.js';
 // import Logs from '../../lang/logs.json'; // If you have specific logs for scheduler
 
 // Job data types for different job types
@@ -25,16 +25,16 @@ interface SubmissionTimeoutJobData {
     playerId: string;
 }
 
-// Union type for all possible job data
-type JobData = SeasonActivationJobData | ClaimTimeoutJobData | SubmissionTimeoutJobData | Record<string, unknown>;
-
-interface JobDetails {
-    id: string;
-    fireDate: Date;
-    jobType: string;
-    // Using JobData union type instead of any for better type safety
-    data?: JobData;
+interface TurnWarningJobData {
+    turnId: string;
 }
+
+interface TurnTimeoutJobData {
+    turnId: string;
+}
+
+// Union type for all possible job data
+type JobData = SeasonActivationJobData | ClaimTimeoutJobData | SubmissionTimeoutJobData | TurnWarningJobData | TurnTimeoutJobData | Record<string, unknown>;
 
 export type JobCallback = (data?: JobData) => void | Promise<void>;
 
@@ -433,6 +433,12 @@ export class SchedulerService {
             case 'turn-submission-timeout':
                 await this.handleSubmissionTimeoutJob(jobId, jobData);
                 break;
+            case 'turn-warning':
+                await this.handleTurnWarningJob(jobId, jobData);
+                break;
+            case 'turn-timeout':
+                await this.handleTurnTimeoutJob(jobId, jobData);
+                break;
             default:
                 Logger.warn(`No handler implemented for job type '${jobType}' (job ID: '${jobId}'). Job will be marked as failed.`);
                 throw new Error(`No handler for job type: ${jobType}`);
@@ -442,9 +448,9 @@ export class SchedulerService {
     /**
      * Handle a season activation job.
      * @param jobId The job ID.
-     * @param jobData The job data.
+     * @param _jobData The job data.
      */
-    private async handleSeasonActivationJob(jobId: string, jobData?: JobData): Promise<void> {
+    private async handleSeasonActivationJob(jobId: string, _jobData?: JobData): Promise<void> {
         // Extract season ID from job ID (format: "season-activation-{seasonId}")
         const seasonId = jobId.replace('season-activation-', '');
         
@@ -579,5 +585,87 @@ export class SchedulerService {
         }
 
         Logger.info(`Successfully handled submission timeout for turn ${turnId}`);
+    }
+
+    /**
+     * Handle a turn warning job.
+     * @param jobId The job ID (format: "turn-warning-{turnId}").
+     * @param jobData The job data containing turnId.
+     */
+    private async handleTurnWarningJob(jobId: string, jobData?: JobData): Promise<void> {
+        // Extract turn ID from job ID (format: "turn-warning-{turnId}")
+        const turnId = jobId.replace('turn-warning-', '');
+        
+        if (!turnId) {
+            throw new Error(`Invalid turn warning job ID format: ${jobId}`);
+        }
+
+        // Validate job data and type guard
+        if (!jobData || !('turnId' in jobData)) {
+            throw new Error(`Invalid job data for turn warning job ${jobId}: missing turnId`);
+        }
+
+        const turnWarningData = jobData as TurnWarningJobData;
+        const { turnId: dataTransId } = turnWarningData;
+        
+        // Ensure turnId from job ID matches turnId from job data
+        if (turnId !== dataTransId) {
+            throw new Error(`Turn ID mismatch in turn warning job ${jobId}: ${turnId} vs ${dataTransId}`);
+        }
+
+        Logger.info(`Handling turn warning job for turn ${turnId}`);
+
+        // Check if we have the required dependencies
+        if (!this.dependencies.onDemandTurnService) {
+            throw new Error(`Missing OnDemandTurnService dependency for turn warning handler`);
+        }
+
+        // Call the OnDemandTurnService method directly
+        await this.dependencies.onDemandTurnService.sendTurnWarning(turnId);
+
+        Logger.info(`Successfully handled turn warning for turn ${turnId}`);
+    }
+
+    /**
+     * Handle a turn timeout job.
+     * @param jobId The job ID (format: "turn-timeout-{turnId}").
+     * @param jobData The job data containing turnId.
+     */
+    private async handleTurnTimeoutJob(jobId: string, jobData?: JobData): Promise<void> {
+        // Extract turn ID from job ID (format: "turn-timeout-{turnId}")
+        const turnId = jobId.replace('turn-timeout-', '');
+        
+        if (!turnId) {
+            throw new Error(`Invalid turn timeout job ID format: ${jobId}`);
+        }
+
+        // Validate job data and type guard
+        if (!jobData || !('turnId' in jobData)) {
+            throw new Error(`Invalid job data for turn timeout job ${jobId}: missing turnId`);
+        }
+
+        const turnTimeoutData = jobData as TurnTimeoutJobData;
+        const { turnId: dataTransId } = turnTimeoutData;
+        
+        // Ensure turnId from job ID matches turnId from job data
+        if (turnId !== dataTransId) {
+            throw new Error(`Turn ID mismatch in turn timeout job ${jobId}: ${turnId} vs ${dataTransId}`);
+        }
+
+        Logger.info(`Handling turn timeout job for turn ${turnId}`);
+
+        // Check if we have the required dependencies
+        if (!this.dependencies.onDemandTurnService) {
+            throw new Error(`Missing OnDemandTurnService dependency for turn timeout handler`);
+        }
+
+        // Call the OnDemandTurnService method directly
+        const result = await this.dependencies.onDemandTurnService.skipTurn(turnId);
+
+        if (!result.success) {
+            throw new Error(`Turn timeout handling failed for turn ${turnId}: ${result.error}`);
+        }
+
+        Logger.info(`Successfully handled turn timeout for turn ${turnId}`);
     }
 } 

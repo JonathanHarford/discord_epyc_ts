@@ -585,13 +585,43 @@ export class OnDemandTurnService implements TurnTimeoutService {
         ? config.writingTimeout 
         : config.drawingTimeout;
       
-      const luxonDuration = parseDuration(timeoutDuration);
-      if (!luxonDuration || luxonDuration.as('milliseconds') <= 0) {
+      const warningDuration = turn.type === 'WRITING'
+        ? config.writingWarning
+        : config.drawingWarning;
+      
+      const luxonTimeoutDuration = parseDuration(timeoutDuration);
+      const luxonWarningDuration = parseDuration(warningDuration);
+      
+      if (!luxonTimeoutDuration || luxonTimeoutDuration.as('milliseconds') <= 0) {
         console.warn(`Invalid timeout duration for turn ${turn.id}: ${timeoutDuration}`);
         return;
       }
 
-      const timeoutTime = DateTime.now().plus(luxonDuration).toJSDate();
+      // Schedule warning job if warning duration is valid and less than timeout duration
+      if (luxonWarningDuration && luxonWarningDuration.as('milliseconds') > 0) {
+        const warningTime = DateTime.now().plus(luxonTimeoutDuration).minus(luxonWarningDuration).toJSDate();
+        
+        // Only schedule warning if it's in the future
+        if (warningTime.getTime() > Date.now()) {
+          const warningJobId = `turn-warning-${turn.id}`;
+
+          await this.schedulerService.scheduleJob(
+            warningJobId,
+            warningTime,
+            async () => {
+              console.log(`Turn warning job running for turn ${turn.id}`);
+              await this.sendTurnWarning(turn.id);
+            },
+            { turnId: turn.id },
+            'turn-warning'
+          );
+
+          console.log(`Scheduled warning for turn ${turn.id} at ${warningTime.toISOString()}`);
+        }
+      }
+
+      // Schedule main timeout job
+      const timeoutTime = DateTime.now().plus(luxonTimeoutDuration).toJSDate();
       const jobId = `turn-timeout-${turn.id}`;
 
       await this.schedulerService.scheduleJob(
@@ -609,6 +639,49 @@ export class OnDemandTurnService implements TurnTimeoutService {
 
     } catch (error) {
       console.error(`Error scheduling timeout for turn ${turn.id}:`, error);
+    }
+  }
+
+  /**
+   * Sends a warning DM to a player about their upcoming turn timeout
+   */
+  public async sendTurnWarning(turnId: string): Promise<void> {
+    try {
+      const turn = await this.prisma.turn.findUnique({
+        where: { id: turnId },
+        include: { 
+          player: true,
+          game: { include: { config: true } }
+        }
+      });
+
+      if (!turn || !turn.player || !turn.game?.config) {
+        console.error(`Turn, player, or config not found for warning ${turnId}`);
+        return;
+      }
+
+      // Only send warning if turn is still pending
+      if (turn.status !== 'PENDING') {
+        console.log(`Turn ${turnId} is no longer pending, skipping warning`);
+        return;
+      }
+
+      const user = await this.discordClient.users.fetch(turn.player.discordUserId);
+      
+      const warningDuration = turn.type === 'WRITING' 
+        ? turn.game.config.writingWarning 
+        : turn.game.config.drawingWarning;
+      
+      const luxonWarningDuration = parseDuration(warningDuration);
+      const warningMinutes = luxonWarningDuration ? Math.floor(luxonWarningDuration.as('minutes')) : 1;
+      
+      const message = `⚠️ **Turn Timeout Warning** ⚠️\n\nYour turn will timeout in **${warningMinutes} minute${warningMinutes !== 1 ? 's' : ''}**! Please submit your ${turn.type.toLowerCase()} turn soon to avoid being skipped.`;
+      
+      await user.send(message);
+      console.log(`Warning sent to player ${turn.player.id} for turn ${turnId}`);
+      
+    } catch (error) {
+      console.error(`Error sending turn warning for turn ${turnId}:`, error);
     }
   }
 } 
