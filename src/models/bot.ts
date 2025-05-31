@@ -24,6 +24,7 @@ import {
 import {
     AutocompleteHandler,
     ButtonHandler,
+    InteractionHandlerFactory,
     ModalHandler,
     SelectMenuHandler,
 } from '../handlers/index.js';
@@ -38,6 +39,9 @@ let Logs = require('../../lang/logs.json');
 export class Bot {
     private ready = false;
 
+    private interactionFactory = new InteractionHandlerFactory();
+
+    // Legacy handler maps for backward compatibility
     private buttonHandlers: Map<string, ButtonHandler> = new Map();
     private selectMenuHandlers: Map<string, SelectMenuHandler> = new Map();
     private modalHandlers: Map<string, ModalHandler> = new Map();
@@ -56,36 +60,41 @@ export class Bot {
     ) {}
 
     public addButtonHandler(handler: ButtonHandler): void {
-        // For now, assumes customIdPrefix is the full ID for exact match
-        // More complex prefix matching could be added here if needed
-        if (this.buttonHandlers.has(handler.customIdPrefix)) {
-            Logger.warn(`Button handler with customIdPrefix ${handler.customIdPrefix} is being overwritten.`);
-        }
+        // Register with both factory and legacy map for backward compatibility
+        this.interactionFactory.registerButtonHandler(handler);
         this.buttonHandlers.set(handler.customIdPrefix, handler);
     }
 
     public addSelectMenuHandler(handler: SelectMenuHandler): void {
-        if (this.selectMenuHandlers.has(handler.customIdPrefix)) {
-            Logger.warn(`Select menu handler with customIdPrefix ${handler.customIdPrefix} is being overwritten.`);
-        }
+        this.interactionFactory.registerSelectMenuHandler(handler);
         this.selectMenuHandlers.set(handler.customIdPrefix, handler);
     }
 
     public addModalHandler(handler: ModalHandler): void {
-        if (this.modalHandlers.has(handler.customIdPrefix)) {
-            Logger.warn(`Modal handler with customIdPrefix ${handler.customIdPrefix} is being overwritten.`);
-        }
+        this.interactionFactory.registerModalHandler(handler);
         this.modalHandlers.set(handler.customIdPrefix, handler);
     }
 
     public addAutocompleteHandler(handler: AutocompleteHandler): void {
-        // Using commandName as the primary key.
-        // If optionName is also relevant for routing, the key structure might need adjustment
-        // or the execute method within the handler would need to check the optionName.
-        if (this.autocompleteHandlers.has(handler.commandName)) {
-            Logger.warn(`Autocomplete handler for command ${handler.commandName} is being overwritten.`);
-        }
+        this.interactionFactory.registerAutocompleteHandler(handler);
         this.autocompleteHandlers.set(handler.commandName, handler);
+    }
+
+    /**
+     * Get statistics about registered interaction handlers
+     */
+    public getInteractionStats(): {
+        buttonHandlers: number;
+        selectMenuHandlers: number;
+        modalHandlers: number;
+        autocompleteHandlers: number;
+        cacheSize: {
+            buttons: number;
+            selectMenus: number;
+            modals: number;
+        };
+    } {
+        return this.interactionFactory.getStats();
     }
 
     public async start(): Promise<void> {
@@ -218,84 +227,54 @@ export class Bot {
                 Logger.error(`Error during autocomplete processing routed via main onInteraction for ${intr.commandName}:`, error);
             }
         } else if (intr.isButton()) {
-            // console.log(`Button interaction: ${intr.customId}`); // Original logging
-            let foundHandler = false;
-            for (const [prefix, handler] of this.buttonHandlers) {
-                if (intr.customId.startsWith(prefix)) {
-                    try {
-                        await handler.execute(intr);
-                        foundHandler = true;
-                        break;
-                    } catch (error) {
-                        Logger.error(`Error executing button handler for customId ${intr.customId} (prefix ${prefix}):`, error);
+            try {
+                // Try the new factory first
+                const handled = await this.interactionFactory.handleButtonInteraction(intr);
+                if (!handled) {
+                    // Fallback to legacy button handler if available
+                    if (this.legacyButtonHandler) {
+                        await this.legacyButtonHandler.process(intr);
+                    } else {
+                        Logger.warn(`No button handler found for customId: ${intr.customId}`);
                         if (intr.isRepliable()) {
-                            await intr.reply({ content: 'There was an error processing this action.', ephemeral: true }).catch(err => Logger.error('Failed to send error reply for button interaction:', err));
+                            await intr.reply({ content: 'This button is not currently handled.', ephemeral: true }).catch(err => Logger.error('Failed to send error reply for unhandled button:', err));
                         }
                     }
                 }
-            }
-            if (!foundHandler) {
-                Logger.warn(`No button handler found for customId: ${intr.customId}`);
-                // Check if it's a legacy button interaction
-                if (this.legacyButtonHandler) {
-                    try {
-                        // Assuming legacyButtonHandler.process can handle this or ignore if not relevant
-                        await this.legacyButtonHandler.process(intr);
-                    } catch (error) {
-                        Logger.error(`Error processing button with legacyButtonHandler for customId ${intr.customId}:`, error);
-                         if (intr.isRepliable()) {
-                            await intr.reply({ content: 'This button is not currently handled.', ephemeral: true }).catch(err => Logger.error('Failed to send error reply for legacy button:', err));
-                        }
-                    }
-                } else if (intr.isRepliable()) {
-                    await intr.reply({ content: 'This button is not currently handled.', ephemeral: true }).catch(err => Logger.error('Failed to send error reply for unhandled button:', err));
+            } catch (error) {
+                Logger.error(`Error executing button handler for customId ${intr.customId}:`, error);
+                if (intr.isRepliable()) {
+                    await intr.reply({ content: 'There was an error processing this action.', ephemeral: true }).catch(err => Logger.error('Failed to send error reply for button interaction:', err));
                 }
             }
         } else if (intr.isStringSelectMenu()) {
-            // console.log(`Select menu interaction: ${intr.customId}`); // Original logging
-            let foundHandler = false;
-            for (const [prefix, handler] of this.selectMenuHandlers) {
-                if (intr.customId.startsWith(prefix)) {
-                    try {
-                        await handler.execute(intr);
-                        foundHandler = true;
-                        break;
-                    } catch (error) {
-                        Logger.error(`Error executing select menu handler for customId ${intr.customId} (prefix ${prefix}):`, error);
-                        if (intr.isRepliable()) {
-                            await intr.reply({ content: 'There was an error processing this selection.', ephemeral: true }).catch(err => Logger.error('Failed to send error reply for select menu interaction:', err));
-                        }
+            try {
+                const handled = await this.interactionFactory.handleSelectMenuInteraction(intr);
+                if (!handled) {
+                    Logger.warn(`No select menu handler found for customId: ${intr.customId}`);
+                    if (intr.isRepliable()) {
+                        await intr.reply({ content: 'This selection is not currently handled.', ephemeral: true }).catch(err => Logger.error('Failed to send error reply for unhandled select menu:', err));
                     }
                 }
-            }
-            if (!foundHandler) {
-                Logger.warn(`No select menu handler found for customId: ${intr.customId}`);
+            } catch (error) {
+                Logger.error(`Error executing select menu handler for customId ${intr.customId}:`, error);
                 if (intr.isRepliable()) {
-                    await intr.reply({ content: 'This selection is not currently handled.', ephemeral: true }).catch(err => Logger.error('Failed to send error reply for unhandled select menu:', err));
+                    await intr.reply({ content: 'There was an error processing this selection.', ephemeral: true }).catch(err => Logger.error('Failed to send error reply for select menu interaction:', err));
                 }
             }
         } else if (intr.isModalSubmit()) {
-            // console.log(`Modal submit interaction: ${intr.customId}`); // Original logging
-            let foundHandler = false;
-            for (const [prefix, handler] of this.modalHandlers) {
-                if (intr.customId.startsWith(prefix)) {
-                    try {
-                        await handler.execute(intr);
-                        foundHandler = true;
-                        break;
-                    } catch (error) {
-                        Logger.error(`Error executing modal submit handler for customId ${intr.customId} (prefix ${prefix}):`, error);
-                        if (intr.isRepliable()) {
-                             // Modals are often followed by an update/reply. If it fails, an ephemeral message is good.
-                            await intr.reply({ content: 'There was an error processing your submission.', ephemeral: true }).catch(err => Logger.error('Failed to send error reply for modal submission:', err));
-                        }
+            try {
+                const handled = await this.interactionFactory.handleModalInteraction(intr);
+                if (!handled) {
+                    Logger.warn(`No modal submit handler found for customId: ${intr.customId}`);
+                    if (intr.isRepliable()) {
+                        await intr.reply({ content: 'This submission is not currently handled.', ephemeral: true }).catch(err => Logger.error('Failed to send error reply for unhandled modal:', err));
                     }
                 }
-            }
-            if (!foundHandler) {
-                Logger.warn(`No modal submit handler found for customId: ${intr.customId}`);
-                 if (intr.isRepliable()) {
-                    await intr.reply({ content: 'This submission is not currently handled.', ephemeral: true }).catch(err => Logger.error('Failed to send error reply for unhandled modal:', err));
+            } catch (error) {
+                Logger.error(`Error executing modal submit handler for customId ${intr.customId}:`, error);
+                if (intr.isRepliable()) {
+                    await intr.reply({ content: 'There was an error processing your submission.', ephemeral: true }).catch(err => Logger.error('Failed to send error reply for modal submission:', err));
                 }
             }
         } else {
