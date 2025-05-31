@@ -15,7 +15,7 @@ import { Command, CommandDeferType } from '../index.js';
 export class SeasonCommand implements Command {
     public names = [strings.chatCommands.season];
     public cooldown = new RateLimiter(1, 5000);
-    public deferType = CommandDeferType.PUBLIC;
+    public deferType = CommandDeferType.NONE;
     public requireClientPerms: PermissionsString[] = [];
 
     constructor(
@@ -27,10 +27,7 @@ export class SeasonCommand implements Command {
     public async execute(intr: ChatInputCommandInteraction, _data: EventData): Promise<void> {
         const subcommand = intr.options.getSubcommand();
 
-        // Defer reply for commands that might take longer, like list
-        if (subcommand === 'list' || subcommand === 'show' || subcommand === 'new') {
-            await intr.deferReply({ ephemeral: true }); // Default to ephemeral for potentially long operations or user-specific views
-        }
+        // Note: Interaction is already deferred by CommandHandler based on deferType
 
 
         switch (subcommand) {
@@ -38,24 +35,8 @@ export class SeasonCommand implements Command {
                 await this.handleListCommand(intr, _data);
                 break;
             case 'show':
-                // Ensure show command also defers if it hasn't been handled by the top-level defer.
-                // However, its defer type is public in the original code, so we might want to adjust.
-                // For now, let's assume the top-level defer is fine for 'show' if it's meant to be ephemeral.
-                // If 'show' result should be public, then deferReply should not be ephemeral.
-                // The original deferType is PUBLIC for the whole command. This is a bit contradictory.
-                // For this refactor, we'll assume list should be ephemeral, and show can be public.
-                // The initial defer will be ephemeral. If list is chosen, it's fine.
-                // If show is chosen, it should send a public message.
-                // This needs careful handling of followUp vs editReply.
-                // Let's adjust: defer only for 'list' ephemerally.
-                // if (subcommand === 'list') await intr.deferReply({ ephemeral: true });
-                // The global deferType is PUBLIC. So, we should use intr.editReply for all.
-                // The initial defer is done by the command runner based on CommandDeferType.PUBLIC.
-                // So, all replies will use intr.editReply or intr.followUp.
-
                 await this.handleShowCommand(intr, _data);
                 break;
-            // Corrected duplicate case 'join' and wrong handler call
             case 'join':
                 await this.handleJoinCommand(intr, _data);
                 break;
@@ -70,7 +51,7 @@ export class SeasonCommand implements Command {
 
     private async handleListCommand(intr: ChatInputCommandInteraction, _data: EventData): Promise<void> {
         Logger.info(`[SeasonCommand] Executing /season list for user: ${intr.user.tag} (${intr.user.id})`);
-        await intr.deferReply({ ephemeral: true }); // Ensure ephemeral for list
+        await intr.deferReply({ ephemeral: true }); // List is user-specific, should be ephemeral
 
         try {
             const discordUserId = intr.user.id;
@@ -204,13 +185,14 @@ export class SeasonCommand implements Command {
         Logger.info(`[SeasonCommand] Executing /season show for user: ${intr.user.tag} (${intr.user.id}), seasonIdOption: ${seasonIdOption}`);
 
         if (!seasonIdOption) {
-            // If execute() deferred ephemerally, this is fine.
+            await intr.deferReply({ ephemeral: true }); // Selection menu is user-specific
             await this.sendSeasonSelectionMenu(intr, 'show');
             return;
         }
+        
+        await intr.deferReply({ ephemeral: false }); // Show command can be public
         const seasonId = seasonIdOption; // Use the validated/passed option
 
-        // Interaction already deferred ephemerally by execute()
         try {
             const season = await this.seasonService.findSeasonById(seasonId); // Includes config and _count.players
             
@@ -261,7 +243,7 @@ export class SeasonCommand implements Command {
             embed.addFields({ name: '📜 Rules & Configuration', value: rulesDescription });
 
             // Fetch and list some players if needed (example, adjust as per requirements)
-            const seasonPlayers = await this.prisma.seasonPlayer.findMany({
+            const seasonPlayers = await this.prisma.playersOnSeasons.findMany({
                 where: { seasonId: season.id },
                 take: 10, // Limit to 10 players for the embed
                 include: { player: true }
@@ -290,13 +272,14 @@ export class SeasonCommand implements Command {
         Logger.info(`[SeasonCommand] Executing /season join for user: ${intr.user.tag} (${discordUserId}), seasonIdOption: ${seasonIdOption}`);
 
         if (!seasonIdOption) {
-            // If execute() deferred ephemerally, this is fine.
+            await intr.deferReply({ ephemeral: true }); // Selection menu is user-specific
             await this.sendSeasonSelectionMenu(intr, 'join');
             return;
         }
+        
+        await intr.deferReply({ ephemeral: true }); // Join actions are user-specific
         const seasonId = seasonIdOption; // Use the validated/passed option
 
-        // Interaction already deferred ephemerally by execute()
         try {
             // Check if user has pending turns before allowing them to join a season
             const pendingCheck = await this.playerTurnService.checkPlayerPendingTurns(discordUserId);
@@ -396,7 +379,7 @@ export class SeasonCommand implements Command {
     }
 
     async sendSeasonSelectionMenu(intr: ChatInputCommandInteraction, type: 'join' | 'show'): Promise<void> {
-        // Assumes intr is already deferred (ephemerally) by the calling method or execute()
+        // Assumes intr is already deferred by the calling method
         const discordUserId = intr.user.id;
         let seasonsToDisplay = [];
         let placeholder = '';
@@ -492,7 +475,7 @@ export class SeasonCommand implements Command {
 
     private async handleNewCommand(intr: ChatInputCommandInteraction, _data: EventData): Promise<void> {
         Logger.info(`[SeasonCommand] Executing /season new for user: ${intr.user.tag} (${intr.user.id})`);
-        // This command was deferred ephemerally by execute()
+        await intr.deferReply({ ephemeral: true }); // New command starts ephemeral, may become public later
 
         const discordUserId = intr.user.id;
         const discordUserName = intr.user.username;

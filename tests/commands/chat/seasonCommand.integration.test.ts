@@ -123,6 +123,7 @@ describe('SeasonCommand - Integration Tests', () => {
       editReply: vi.fn().mockResolvedValue(undefined),
       reply: vi.fn().mockResolvedValue(undefined),
       followUp: vi.fn().mockResolvedValue(undefined),
+      deleteReply: vi.fn().mockResolvedValue(undefined),
       replied: false,
       deferred: true,
       options: {
@@ -133,11 +134,16 @@ describe('SeasonCommand - Integration Tests', () => {
       user: {
         id: 'test-user-id',
         username: 'TestUser',
-        displayName: 'TestUser'
+        displayName: 'TestUser',
+        tag: 'TestUser#0000',
+        toString: vi.fn().mockReturnValue('<@test-user-id>')
       },
       guild: {
         id: 'test-guild-id',
         shardId: 0
+      },
+      channel: {
+        send: vi.fn().mockResolvedValue(undefined)
       }
     };
   });
@@ -298,7 +304,9 @@ describe('SeasonCommand - Integration Tests', () => {
 
       await commandInstance.execute(interaction, mockEventData);
 
-      expect(interaction.editReply).toHaveBeenCalled();
+      // For successful season creation, expect deleteReply and channel.send to be called
+      expect(interaction.deleteReply).toHaveBeenCalled();
+      expect(interaction.channel.send).toHaveBeenCalled();
       
       // Verify a new season was created
       const newSeasons = await prisma.season.findMany({
@@ -328,7 +336,9 @@ describe('SeasonCommand - Integration Tests', () => {
 
       await commandInstance.execute(interaction, mockEventData);
 
-      expect(interaction.editReply).toHaveBeenCalled();
+      // For successful season creation, expect deleteReply and channel.send to be called
+      expect(interaction.deleteReply).toHaveBeenCalled();
+      expect(interaction.channel.send).toHaveBeenCalled();
     });
   });
 
