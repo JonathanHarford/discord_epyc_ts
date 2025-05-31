@@ -3,8 +3,8 @@ import { Client as DiscordClient } from 'discord.js';
 
 import { interpolate, strings } from '../lang/strings.js';
 import { Logger } from '../services/index.js';
-import { TurnOfferingService } from '../services/TurnOfferingService.js';
 import { TurnTimeoutService } from '../services/interfaces/TurnTimeoutService.js';
+import { TurnOfferingService } from '../services/TurnOfferingService.js';
 
 /**
  * Handler for submission timeout events.

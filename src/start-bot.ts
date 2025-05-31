@@ -18,8 +18,8 @@ import {
     ReactionHandler,
     TriggerHandler,
 } from './events/index.js';
-import { ExampleButtonHandler, SeasonJoinButtonHandler, SeasonShowButtonHandler, SeasonSelectMenuHandler, SeasonCreateModalHandler, SeasonDashboardButtonHandler } from './handlers/index.js';
 import { CustomClient } from './extensions/index.js';
+import { ExampleButtonHandler, SeasonCreateModalHandler, SeasonDashboardButtonHandler, SeasonJoinButtonHandler, SeasonSelectMenuHandler, SeasonShowButtonHandler } from './handlers/index.js';
 import { Job, StaleGameCleanupJob } from './jobs/index.js';
 import prisma from './lib/prisma.js';
 import { Bot } from './models/bot.js';
@@ -123,7 +123,7 @@ async function start(): Promise<void> {
     let guildJoinHandler = new GuildJoinHandler(eventDataService);
     let guildLeaveHandler = new GuildLeaveHandler();
     let commandHandler = new CommandHandler(commands, eventDataService);
-    let buttonHandler = new ButtonHandler(buttons, eventDataService);
+    let _buttonHandler = new ButtonHandler(buttons, eventDataService);
     let triggerHandler = new TriggerHandler(triggers, eventDataService);
     let playerService = new PlayerService(prisma);
     let directMessageHandler = new DirectMessageHandler(prisma, client, turnService, playerService, schedulerService, turnOfferingService);

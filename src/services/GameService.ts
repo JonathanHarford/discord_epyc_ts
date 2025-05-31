@@ -76,7 +76,7 @@ export class GameService {
       }
 
       // Create one game per player
-      const gameCreationPromises = season.players.map(async (_playerOnSeason, index) => {
+      const gameCreationPromises = season.players.map(async (_playerOnSeason, _index) => {
         return await prismaClient.game.create({
           data: {
             id: nanoid(),

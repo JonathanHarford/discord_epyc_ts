@@ -3,12 +3,12 @@ import { Client, DMChannel, Message, User } from 'discord.js';
 import { nanoid } from 'nanoid';
 import { afterAll, beforeAll, beforeEach, describe, expect, it, vi } from 'vitest';
 
-import { DirectMessageHandler, DMContextType } from '../../src/events/direct-message-handler.js';
+import { DirectMessageHandler } from '../../src/events/direct-message-handler.js';
 import { Logger } from '../../src/services/index.js';
 import { PlayerService } from '../../src/services/PlayerService.js';
 import { SchedulerService } from '../../src/services/SchedulerService.js';
-import { TurnOfferingService } from '../../src/services/TurnOfferingService.js';
 import { SeasonTurnService } from '../../src/services/SeasonTurnService.js';
+import { TurnOfferingService } from '../../src/services/TurnOfferingService.js';
 import { DEFAULT_TIMEOUTS } from '../../src/utils/seasonConfig.js';
 
 // Mock the Logger

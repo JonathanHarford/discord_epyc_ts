@@ -36,7 +36,7 @@ export class SeasonCreateModalHandler implements ModalHandler {
         const seasonService = new SeasonService(prisma, turnService, schedulerService, gameService);
 
         try {
-            const seasonName = interaction.fields.getTextInputValue('seasonNameInput'); // Optional
+            const _seasonName = interaction.fields.getTextInputValue('seasonNameInput'); // Optional
             const maxPlayersStr = interaction.fields.getTextInputValue('maxPlayersInput');
             const minPlayersStr = interaction.fields.getTextInputValue('minPlayersInput');
             const openDuration = interaction.fields.getTextInputValue('openDurationInput'); // Optional

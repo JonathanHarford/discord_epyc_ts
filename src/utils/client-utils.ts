@@ -225,7 +225,7 @@ export class ClientUtils {
 
     public static async findNotifyChannel(
         guild: Guild,
-        langCode: Locale
+        _langCode: Locale
     ): Promise<TextChannel | NewsChannel> {
         // Prefer the system channel
         let systemChannel = guild.systemChannel;

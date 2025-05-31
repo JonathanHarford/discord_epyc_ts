@@ -1,11 +1,10 @@
-import { describe, it, expect, beforeEach, vi } from 'vitest';
-import { ButtonInteraction, User } from 'discord.js';
-import { SeasonJoinButtonHandler } from '../seasonJoinButtonHandler';
-import { SeasonService } from '../../services/SeasonService';
-import { PlayerService } from '../../services/PlayerService';
-import prisma from '../../lib/prisma'; // Prisma is used by services
-import { Logger } from '../../services'; // Logger is used
-import { strings } from '../../lang/strings'; // Strings are used
+import { User } from 'discord.js';
+import { beforeEach, describe, expect, it, vi } from 'vitest';
+
+import { strings } from '../../lang/strings.js';
+import prisma from '../../lib/prisma.js';
+import { SeasonService } from '../../services/SeasonService.js';
+import { SeasonJoinButtonHandler } from '../seasonJoinButtonHandler.js';
 
 // Mock Prisma
 vi.mock('../../lib/prisma', () => ({
@@ -41,14 +40,14 @@ vi.mock('../../lang/strings.js', () => ({
     strings: {
         messages: {
             joinSeason: {
-                successButton: "Successfully joined Season {seasonId}!",
-                alreadyJoined: "You are already in Season {seasonId}.",
-                seasonNotFound: "Season {seasonId} not found.",
-                notOpen: "Season {seasonId} is not open for joining (status: {status}).",
-                seasonFull: "Season {seasonId} is full.",
-                errorPlayerCreateFailed: "Could not prepare your player record. Please try again.",
-                genericError: "Failed to join season {seasonId}: {errorMessage}",
-                genericErrorNoSeasonId: "Could not determine the season ID for joining."
+                successButton: 'Successfully joined Season {seasonId}!',
+                alreadyJoined: 'You are already in Season {seasonId}.',
+                seasonNotFound: 'Season {seasonId} not found.',
+                notOpen: 'Season {seasonId} is not open for joining (status: {status}).',
+                seasonFull: 'Season {seasonId} is full.',
+                errorPlayerCreateFailed: 'Could not prepare your player record. Please try again.',
+                genericError: 'Failed to join season {seasonId}: {errorMessage}',
+                genericErrorNoSeasonId: 'Could not determine the season ID for joining.'
             },
             // Add other string keys if used by the handler indirectly
         }
@@ -59,8 +58,6 @@ vi.mock('../../lang/strings.js', () => ({
 describe('SeasonJoinButtonHandler', () => {
     let handler: SeasonJoinButtonHandler;
     let mockInteraction: any;
-    let mockSeasonService: any;
-    let mockPlayerService: any; // PlayerService might not be directly used if SeasonService handles player logic
 
     const mockPrismaClient = prisma as any;
 
@@ -201,12 +198,12 @@ describe('SeasonJoinButtonHandler', () => {
         mockInteraction.customId = 'season_join_7';
 
         mockPrismaClient.player.findUnique.mockResolvedValueOnce(null); // Player not found
-        mockPrismaClient.player.create.mockRejectedValueOnce(new Error("DB error creating player")); // Player creation fails
+        mockPrismaClient.player.create.mockRejectedValueOnce(new Error('DB error creating player')); // Player creation fails
 
         await handler.execute(mockInteraction);
 
         expect(mockInteraction.reply).toHaveBeenCalledWith({
-            content: strings.messages.joinSeason.errorPlayerCreateFailed || "Could not prepare your player record. Please try again.",
+            content: strings.messages.joinSeason.errorPlayerCreateFailed || 'Could not prepare your player record. Please try again.',
             ephemeral: true,
         });
     });

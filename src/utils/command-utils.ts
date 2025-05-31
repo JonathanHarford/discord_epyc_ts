@@ -6,9 +6,8 @@ import {
     ThreadChannel,
 } from 'discord.js';
 
-import { FormatUtils, InteractionUtils } from './index.js';
+import { InteractionUtils } from './index.js';
 import { Command } from '../commands/index.js';
-import { strings } from '../lang/strings.js';
 import { Permission } from '../models/enum-helpers/index.js';
 import { EventData } from '../models/internal-models.js';
 
@@ -37,7 +36,7 @@ export class CommandUtils {
     public static async runChecks(
         command: Command,
         intr: CommandInteraction | MessageComponentInteraction | ModalSubmitInteraction,
-        data: EventData
+        _data: EventData
     ): Promise<boolean> {
         if (command.cooldown) {
             let limited = command.cooldown.take(intr.user.id);

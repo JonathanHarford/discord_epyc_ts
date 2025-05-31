@@ -2,7 +2,7 @@ import { DMChannel, PermissionsString, UserContextMenuCommandInteraction } from 
 import { RateLimiter } from 'discord.js-rate-limiter';
 import { DateTime } from 'luxon';
 
-import { strings } from '../../lang/strings.js';
+
 import { SimpleMessage } from '../../messaging/SimpleMessage.js';
 import { EventData } from '../../models/internal-models.js';
 import { Command, CommandDeferType } from '../index.js';
@@ -13,7 +13,7 @@ export class ViewDateJoined implements Command {
     public deferType = CommandDeferType.HIDDEN;
     public requireClientPerms: PermissionsString[] = [];
 
-    public async execute(intr: UserContextMenuCommandInteraction, data: EventData): Promise<void> {
+    public async execute(intr: UserContextMenuCommandInteraction, _data: EventData): Promise<void> {
         let joinDate: Date;
         if (!(intr.channel instanceof DMChannel)) {
             let member = await intr.guild.members.fetch(intr.targetUser.id);

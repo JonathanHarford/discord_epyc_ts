@@ -1,8 +1,8 @@
 import { Message, MessageReaction, User } from 'discord.js';
 
-import { EventData } from '../models/internal-models.js';
 import { Reaction } from './reaction.js';
 import prisma from '../lib/prisma.js';
+import { EventData } from '../models/internal-models.js';
 import { OnDemandGameService } from '../services/OnDemandGameService.js';
 import { OnDemandTurnService } from '../services/OnDemandTurnService.js';
 import { SchedulerService } from '../services/SchedulerService.js';

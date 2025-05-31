@@ -1,11 +1,11 @@
 import { ActionRowBuilder, ApplicationCommandOptionChoiceData, AutocompleteFocusedOption, AutocompleteInteraction, ButtonBuilder, ButtonStyle, CacheType, ChatInputCommandInteraction, EmbedBuilder, PermissionsString, StringSelectMenuBuilder, StringSelectMenuOptionBuilder } from 'discord.js';
 import { RateLimiter } from 'discord.js-rate-limiter';
-import { Logger } from '../../services/index.js'; // Assuming Logger is exported from services
-import { createDashboardComponents } from '../../handlers/seasonDashboardButtonHandler.js'; // Import the helper
 
+import { createDashboardComponents } from '../../handlers/seasonDashboardButtonHandler.js'; // Import the helper
 import { strings } from '../../lang/strings.js';
 import { SimpleMessage } from '../../messaging/SimpleMessage.js';
 import { EventData } from '../../models/internal-models.js';
+import { Logger } from '../../services/index.js'; // Assuming Logger is exported from services
 import { PlayerTurnService } from '../../services/PlayerTurnService.js';
 import { NewSeasonOptions, SeasonService } from '../../services/SeasonService.js';
 import { MessageInstruction } from '../../types/MessageInstruction.js';
@@ -96,7 +96,7 @@ export class SeasonCommand implements Command {
             });
 
             if (seasons.length === 0) {
-                await intr.editReply({ content: strings.messages.listSeasons.noSeasons || "No seasons found." });
+                await intr.editReply({ content: strings.messages.listSeasons.noSeasons || 'No seasons found.' });
                 return;
             }
 
@@ -108,9 +108,9 @@ export class SeasonCommand implements Command {
 
             // Handle Open/Setup Seasons first with interactive elements
             if (openOrSetupSeasons.length > 0) {
-                 await intr.editReply({ content: strings.messages.listSeasons.loadingOpen || "Loading open seasons..."}); // Initial reply
+                 await intr.editReply({ content: strings.messages.listSeasons.loadingOpen || 'Loading open seasons...'}); // Initial reply
             } else {
-                 await intr.editReply({ content: strings.messages.listSeasons.noOpenSeasons || "No seasons are currently open for joining."});
+                 await intr.editReply({ content: strings.messages.listSeasons.noOpenSeasons || 'No seasons are currently open for joining.'});
             }
 
             for (const season of openOrSetupSeasons) {
@@ -131,11 +131,11 @@ export class SeasonCommand implements Command {
                     .setFooter({ text: `Season ID: ${season.id}` });
 
                 if (isUserInSeason) {
-                    embed.setDescription(strings.messages.listSeasons.alreadyJoined || "You are already in this season.");
+                    embed.setDescription(strings.messages.listSeasons.alreadyJoined || 'You are already in this season.');
                 } else if (isSeasonFull) {
-                    embed.setDescription(strings.messages.listSeasons.seasonFull || "This season is full.");
+                    embed.setDescription(strings.messages.listSeasons.seasonFull || 'This season is full.');
                 } else if (!canJoin) {
-                    embed.setDescription(strings.messages.listSeasons.notJoinable || "This season is not currently joinable.");
+                    embed.setDescription(strings.messages.listSeasons.notJoinable || 'This season is not currently joinable.');
                 }
 
 
@@ -164,13 +164,13 @@ export class SeasonCommand implements Command {
             // Summarize other seasons (non-open, non-setup)
             if (otherSeasons.length > 0 && replyCount < maxReplies) {
                 const summaryEmbed = new EmbedBuilder()
-                    .setTitle(strings.messages.listSeasons.otherSeasonsTitle || "Other Seasons")
+                    .setTitle(strings.messages.listSeasons.otherSeasonsTitle || 'Other Seasons')
                     .setColor(0xFAA61A) // Orange
                     .setDescription(
                         otherSeasons
                             .slice(0, maxReplies - replyCount) // Show remaining up to maxReplies
                             .map(s => `• **${s.id}** (${s.status}) - ${s._count.players} players`)
-                            .join('\n') || (strings.messages.listSeasons.noOtherSeasonsInfo || "No other seasons to display.")
+                            .join('\n') || (strings.messages.listSeasons.noOtherSeasonsInfo || 'No other seasons to display.')
                     );
                 
                 if (replyCount === 0 && openOrSetupSeasons.length === 0) { // If no open seasons were shown
@@ -183,7 +183,7 @@ export class SeasonCommand implements Command {
 
             if (replyCount === 0 && openOrSetupSeasons.length === 0 && otherSeasons.length === 0) {
                 // This case should be caught by seasons.length === 0 earlier, but as a fallback:
-                await intr.editReply({ content: strings.messages.listSeasons.noSeasons || "No seasons found." });
+                await intr.editReply({ content: strings.messages.listSeasons.noSeasons || 'No seasons found.' });
             } else if (seasons.length > replyCount) {
                  await intr.followUp({ content: strings.messages.listSeasons.moreSeasonsExist.replace('{shownCount}', replyCount.toString()).replace('{totalCount}', seasons.length.toString()) || `Showing ${replyCount} of ${seasons.length} seasons. Use /season show <id> for more details.`, ephemeral: true });
             }
@@ -192,9 +192,9 @@ export class SeasonCommand implements Command {
             Logger.error('Error in /season list command:', error);
             // Check if interaction has already been replied to or deferred
             if (intr.replied || intr.deferred) {
-                await intr.editReply({ content: strings.messages.common.errorCriticalCommand || "An error occurred while listing seasons." }).catch(e => Logger.error("Failed to editReply on error in list command", e));
+                await intr.editReply({ content: strings.messages.common.errorCriticalCommand || 'An error occurred while listing seasons.' }).catch(e => Logger.error('Failed to editReply on error in list command', e));
             } else {
-                 await intr.reply({ content: strings.messages.common.errorCriticalCommand || "An error occurred while listing seasons.", ephemeral: true }).catch(e => Logger.error("Failed to reply on error in list command", e));
+                 await intr.reply({ content: strings.messages.common.errorCriticalCommand || 'An error occurred while listing seasons.', ephemeral: true }).catch(e => Logger.error('Failed to reply on error in list command', e));
             }
         }
     }
@@ -417,7 +417,7 @@ export class SeasonCommand implements Command {
                     Logger.info(`Created player record for ${intr.user.username} in sendSeasonSelectionMenu (join type)`);
                 } catch (e) {
                     Logger.error(`Failed to create player record for ${intr.user.username} in sendSeasonSelectionMenu (join):`, e);
-                    await intr.editReply({ content: strings.messages.joinSeason.errorPlayerCreateFailed || "Could not prepare your player record. Please try again."});
+                    await intr.editReply({ content: strings.messages.joinSeason.errorPlayerCreateFailed || 'Could not prepare your player record. Please try again.'});
                     return;
                 }
             }
@@ -461,7 +461,7 @@ export class SeasonCommand implements Command {
             let label = `S${season.id}`;
             if (season.name && season.name.length < 20) label += ` - ${season.name}`;
             label += ` (${season._count.players}/${season.config.maxPlayers || '∞'})`;
-            if (label.length > 100) label = label.substring(0, 97) + "...";
+            if (label.length > 100) label = label.substring(0, 97) + '...';
 
             let description = `Status: ${season.status}`;
             if (new Date(season.createdAt).getFullYear() === new Date().getFullYear()){
@@ -469,7 +469,7 @@ export class SeasonCommand implements Command {
             } else {
                  description += ` | Created: ${new Date(season.createdAt).toLocaleDateString()}`;
             }
-            if (description.length > 100) description = description.substring(0, 97) + "...";
+            if (description.length > 100) description = description.substring(0, 97) + '...';
 
             return new StringSelectMenuOptionBuilder()
                 .setLabel(label)
@@ -554,7 +554,7 @@ export class SeasonCommand implements Command {
                 const actionRow = new ActionRowBuilder<ButtonBuilder>().addComponents(joinButton);
                 
                 // Since initial defer was ephemeral, delete it and send a public message.
-                await intr.deleteReply().catch(e => Logger.error("Failed to delete initial ephemeral reply in new command:", e));
+                await intr.deleteReply().catch(e => Logger.error('Failed to delete initial ephemeral reply in new command:', e));
                 await intr.channel.send({
                     content: strings.messages.newSeason.createSuccessChannel
                                 .replace('{seasonId}', seasonId.toString())
@@ -587,15 +587,15 @@ export class SeasonCommand implements Command {
         } catch (error) {
             Logger.error('Critical error in /season new command processing:', error);
             if (intr.replied || intr.deferred) { // Check if we can still edit the reply
-                await intr.editReply({ content: strings.messages.common.errorCriticalCommand }).catch(e => Logger.error("Failed to editReply on critical error in new command",e));
+                await intr.editReply({ content: strings.messages.common.errorCriticalCommand }).catch(e => Logger.error('Failed to editReply on critical error in new command',e));
             } else { // Fallback, should not happen if execute() defers properly
-                 await intr.reply({ content: strings.messages.common.errorCriticalCommand, ephemeral: true }).catch(e => Logger.error("Failed to reply on critical error in new command",e));
+                 await intr.reply({ content: strings.messages.common.errorCriticalCommand, ephemeral: true }).catch(e => Logger.error('Failed to reply on critical error in new command',e));
             }
         }
     }
 
     // Renamed from handleAutocomplete to match the Command interface used by CommandHandler
-    public async autocomplete(interaction: AutocompleteInteraction<CacheType>, option: AutocompleteFocusedOption): Promise<ApplicationCommandOptionChoiceData<string | number>[]> {
+    public async autocomplete(interaction: AutocompleteInteraction<CacheType>, _option: AutocompleteFocusedOption): Promise<ApplicationCommandOptionChoiceData<string | number>[]> {
         const focusedOption = interaction.options.getFocused(true);
         const userInput = focusedOption.value;
 

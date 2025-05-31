@@ -15,7 +15,7 @@ import {
   SelectNextPlayerResult,
   TurnOperationInput,
   TurnOperationResult,
-  TurnStatus,
+
   TurnType,
   TurnValidationResult,
 } from './types.js';
@@ -283,7 +283,7 @@ export function processPlayerOperationPure(input: PlayerOperationInput): PlayerO
  * @param input - Player data to validate
  * @returns Validation result
  */
-export function validatePlayerDataPure(input: PlayerOperationInput): PlayerValidationResult {
+export function validatePlayerDataPure(_input: PlayerOperationInput): PlayerValidationResult {
   // Implementation will be added in next subtask
   throw new Error('Not implemented yet');
 }
@@ -384,7 +384,7 @@ export function processTurnClaimPure(input: TurnOperationInput): TurnOperationRe
  * @param input - Turn, player, and submission data
  * @returns Validation result
  */
-export function validateTurnSubmissionPure(input: TurnOperationInput): TurnValidationResult {
+export function validateTurnSubmissionPure(_input: TurnOperationInput): TurnValidationResult {
   // Implementation will be added in next subtask
   throw new Error('Not implemented yet');
 }
@@ -396,7 +396,7 @@ export function validateTurnSubmissionPure(input: TurnOperationInput): TurnValid
  * @param input - Turn, player, and submission data
  * @returns Result with turn update instructions
  */
-export function processTurnSubmissionPure(input: TurnOperationInput): TurnOperationResult {
+export function processTurnSubmissionPure(_input: TurnOperationInput): TurnOperationResult {
   // Implementation will be added in next subtask
   throw new Error('Not implemented yet');
 }
@@ -408,7 +408,7 @@ export function processTurnSubmissionPure(input: TurnOperationInput): TurnOperat
  * @param input - Turn and player data
  * @returns Validation result
  */
-export function validateTurnOfferPure(input: TurnOperationInput): TurnValidationResult {
+export function validateTurnOfferPure(_input: TurnOperationInput): TurnValidationResult {
   // Implementation will be added in next subtask
   throw new Error('Not implemented yet');
 }
@@ -420,7 +420,7 @@ export function validateTurnOfferPure(input: TurnOperationInput): TurnValidation
  * @param input - Turn and player data
  * @returns Result with turn update instructions
  */
-export function processTurnOfferPure(input: TurnOperationInput): TurnOperationResult {
+export function processTurnOfferPure(_input: TurnOperationInput): TurnOperationResult {
   // Implementation will be added in next subtask
   throw new Error('Not implemented yet');
 }
@@ -432,7 +432,7 @@ export function processTurnOfferPure(input: TurnOperationInput): TurnOperationRe
  * @param input - Turn data
  * @returns Validation result
  */
-export function validateTurnSkipPure(input: TurnOperationInput): TurnValidationResult {
+export function validateTurnSkipPure(_input: TurnOperationInput): TurnValidationResult {
   // Implementation will be added in next subtask
   throw new Error('Not implemented yet');
 }
@@ -444,7 +444,7 @@ export function validateTurnSkipPure(input: TurnOperationInput): TurnValidationR
  * @param input - Turn data
  * @returns Result with turn update instructions
  */
-export function processTurnSkipPure(input: TurnOperationInput): TurnOperationResult {
+export function processTurnSkipPure(_input: TurnOperationInput): TurnOperationResult {
   // Implementation will be added in next subtask
   throw new Error('Not implemented yet');
 }
@@ -456,7 +456,7 @@ export function processTurnSkipPure(input: TurnOperationInput): TurnOperationRes
  * @param input - Turn and player data
  * @returns Validation result
  */
-export function validateDismissOfferPure(input: TurnOperationInput): TurnValidationResult {
+export function validateDismissOfferPure(_input: TurnOperationInput): TurnValidationResult {
   // Implementation will be added in next subtask
   throw new Error('Not implemented yet');
 }
@@ -468,7 +468,7 @@ export function validateDismissOfferPure(input: TurnOperationInput): TurnValidat
  * @param input - Turn and player data
  * @returns Result with turn update instructions
  */
-export function processDismissOfferPure(input: TurnOperationInput): TurnOperationResult {
+export function processDismissOfferPure(_input: TurnOperationInput): TurnOperationResult {
   // Implementation will be added in next subtask
   throw new Error('Not implemented yet');
 }
@@ -485,7 +485,7 @@ export function processDismissOfferPure(input: TurnOperationInput): TurnOperatio
  * @param configId - ID of the season configuration
  * @returns Validation result
  */
-export function validateSeasonCreationPure(creatorId: string, configId: string): { isValid: boolean; error?: string } {
+export function validateSeasonCreationPure(_creatorId: string, _configId: string): { isValid: boolean; error?: string } {
   // Implementation will be added in next subtask
   throw new Error('Not implemented yet');
 }
@@ -498,7 +498,7 @@ export function validateSeasonCreationPure(creatorId: string, configId: string):
  * @param configId - ID of the season configuration
  * @returns Result with season creation instructions
  */
-export function processSeasonCreationPure(creatorId: string, configId: string): {
+export function processSeasonCreationPure(_creatorId: string, _configId: string): {
   success: boolean;
   seasonData?: {
     creatorId: string;

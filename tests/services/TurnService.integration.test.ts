@@ -619,7 +619,7 @@ describe('SeasonTurnService Integration Tests', () => {
     let turn1: Turn;
     let turn2: Turn;
     let otherPlayer: Player;
-    let otherGame: Game;
+    let _otherGame: Game;
 
     beforeEach(async () => {
       // Create additional test data
@@ -630,7 +630,7 @@ describe('SeasonTurnService Integration Tests', () => {
         },
       });
 
-      otherGame = await prisma.game.create({
+      _otherGame = await prisma.game.create({
         data: {
           status: 'ACTIVE',
           seasonId: testSeason.id,

@@ -1,5 +1,7 @@
 import { CacheType, EmbedBuilder, StringSelectMenuInteraction } from 'discord.js';
 
+import { createDashboardComponents } from './seasonDashboardButtonHandler.js';
+import { SelectMenuHandler } from './selectMenuHandler.js';
 import { strings } from '../lang/strings.js';
 import prisma from '../lib/prisma.js';
 import { GameService } from '../services/GameService.js';
@@ -8,8 +10,6 @@ import { SchedulerService } from '../services/SchedulerService.js';
 import { SeasonService } from '../services/SeasonService.js';
 import { SeasonTurnService } from '../services/SeasonTurnService.js';
 
-import { createDashboardComponents } from './seasonDashboardButtonHandler.js';
-import { SelectMenuHandler } from './selectMenuHandler.js';
 
 export class SeasonSelectMenuHandler implements SelectMenuHandler {
     // We will match exact custom IDs in the Bot model dispatcher for these specific select menus
@@ -107,7 +107,7 @@ export class SeasonSelectMenuHandler implements SelectMenuHandler {
         } catch (error) {
             Logger.error(`SeasonSelectMenuHandler: Error processing join selection for season ${seasonId} by user ${discordUserId}:`, error);
             await interaction.followUp({
-                content: strings.messages.joinSeason.genericError.replace('{seasonId}', seasonId).replace('{errorMessage}', (error instanceof Error ? error.message : "Unknown error")),
+                content: strings.messages.joinSeason.genericError.replace('{seasonId}', seasonId).replace('{errorMessage}', (error instanceof Error ? error.message : 'Unknown error')),
                 ephemeral: true
             });
         }
@@ -174,7 +174,7 @@ export class SeasonSelectMenuHandler implements SelectMenuHandler {
         } catch (error) {
             Logger.error(`SeasonSelectMenuHandler: Error processing show selection for season ${seasonId} by user ${interaction.user.id}:`, error);
             await interaction.followUp({
-                content: strings.messages.status.genericError.replace('{seasonId}', seasonId).replace('{errorMessage}', (error instanceof Error ? error.message : "Unknown error")),
+                content: strings.messages.status.genericError.replace('{seasonId}', seasonId).replace('{errorMessage}', (error instanceof Error ? error.message : 'Unknown error')),
                 ephemeral: true
             });
         }

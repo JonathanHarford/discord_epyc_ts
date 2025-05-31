@@ -1,23 +1,16 @@
 import { 
   BaseMessageOptions, 
-  ChatInputCommandInteraction,
   Client,
   CommandInteraction, 
   EmbedBuilder, 
   InteractionEditReplyOptions, 
-  InteractionReplyOptions,
-  MessageContextMenuCommandInteraction,
-  MessageCreateOptions,
-  TextChannel,
-  User,
-  UserContextMenuCommandInteraction
+  InteractionReplyOptions
 } from 'discord.js';
 
-import { SimpleMessage } from './SimpleMessage.js';
 import { ErrorEventBus, ErrorEventType } from '../events/error-event-bus.js';
 import { interpolate, strings } from '../lang/strings.js';
 import { MessageInstruction } from '../types/MessageInstruction.js';
-import { ErrorHandler, ErrorSeverity, ErrorType } from '../utils/error-handler.js';
+import { ErrorHandler, ErrorType } from '../utils/error-handler.js';
 import { MessageUtils } from '../utils/message-utils.js';
 
 /**

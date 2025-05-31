@@ -81,7 +81,7 @@ describe('Season Activation End-to-End Tests', () => {
   it('should handle the full max_players activation flow with player joins', async () => {
     // STEP 1: Create a new season with max players set
     const maxPlayers = 3;
-    const seasonConfig = await prisma.seasonConfig.create({
+    const _seasonConfig = await prisma.seasonConfig.create({
       data: {
         maxPlayers,
         minPlayers: 2,
@@ -160,7 +160,7 @@ describe('Season Activation End-to-End Tests', () => {
     const minPlayers = 2;
     const initialPlayers = 3; // More than minPlayers
     
-    const seasonConfig = await prisma.seasonConfig.create({
+    const _seasonConfig = await prisma.seasonConfig.create({
       data: {
         maxPlayers: 5,
         minPlayers,
@@ -234,7 +234,7 @@ describe('Season Activation End-to-End Tests', () => {
     const minPlayers = 3;
     const initialPlayers = 2; // Less than minPlayers
     
-    const seasonConfig = await prisma.seasonConfig.create({
+    const _seasonConfig = await prisma.seasonConfig.create({
       data: {
         maxPlayers: 5,
         minPlayers,

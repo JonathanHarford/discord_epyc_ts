@@ -1,4 +1,4 @@
-import { Game, Player, PlayersOnSeasons, PrismaClient, Season, SeasonConfig, Turn } from '@prisma/client';
+import { Game, Player, PrismaClient, Season, SeasonConfig, Turn } from '@prisma/client';
 import { nanoid } from 'nanoid';
 import { afterAll, beforeEach, describe, expect, it, vi } from 'vitest';
 
@@ -56,7 +56,7 @@ async function activateSeason(seasonId: string, prismaClient: PrismaClient): Pro
     }
 
     return updatedSeason;
-  } catch (error) {
+  } catch (_error) {
     return null;
   }
 }
@@ -143,15 +143,23 @@ async function selectNextPlayer(gameId: string, turnType: string, prismaClient: 
       }
     });
 
-    if (!game) {
-      return { success: false, error: 'Game not found' };
-    }
+      if (!game) {
+    return { success: false, error: 'Game not found' };
+  }
 
-    // Get season players
-    const seasonPlayers = await prismaClient.playersOnSeasons.findMany({
-      where: { seasonId: game.seasonId },
-      include: { player: true }
-    });
+  if (!game.season) {
+    return { success: false, error: 'Game has no season data' };
+  }
+
+  // Get season players
+  if (!game.seasonId) {
+    return { success: false, error: 'Game has no season' };
+  }
+  
+  const seasonPlayers = await prismaClient.playersOnSeasons.findMany({
+    where: { seasonId: game.seasonId },
+    include: { player: true }
+  });
 
     if (seasonPlayers.length === 0) {
       return { success: false, error: 'No players in season' };
@@ -171,7 +179,7 @@ async function selectNextPlayer(gameId: string, turnType: string, prismaClient: 
 
     // Use pure function for selection
     const result = selectNextPlayerPure({ 
-      gameData: game,
+      gameData: game as any, // Type assertion since we've checked game.season exists
       seasonPlayers: seasonPlayers.map(p => p.player),
       allSeasonGames,
       turnType: turnType as 'WRITING' | 'DRAWING'
@@ -186,21 +194,23 @@ async function selectNextPlayer(gameId: string, turnType: string, prismaClient: 
       playerId: result.playerId, 
       player: result.player 
     };
-  } catch (error) {
+  } catch (_error) {
     return { success: false, error: 'Database error' };
   }
 }
 
 async function checkGameCompletion(gameId: string, prismaClient: PrismaClient): Promise<boolean> {
   try {
-    const game = await prismaClient.game.findUnique({ where: { id: gameId } });
-    if (!game) return false;
+      const game = await prismaClient.game.findUnique({ where: { id: gameId } });
+  if (!game) return false;
 
-    // Get season players
-    const seasonPlayers = await prismaClient.playersOnSeasons.findMany({
-      where: { seasonId: game.seasonId },
-      include: { player: true }
-    });
+  // Get season players
+  if (!game.seasonId) return false;
+  
+  const seasonPlayers = await prismaClient.playersOnSeasons.findMany({
+    where: { seasonId: game.seasonId },
+    include: { player: true }
+  });
 
     if (seasonPlayers.length === 0) return false;
 
@@ -231,7 +241,7 @@ async function checkGameCompletion(gameId: string, prismaClient: PrismaClient): 
     }
 
     return false;
-  } catch (error) {
+  } catch (_error) {
     return false;
   }
 }
@@ -527,7 +537,7 @@ describe('Next Player Logic Unit Tests', () => {
     });
 
     let playerAStats: any;
-    let playerBStats: any;
+    let _playerBStats: any;
     let playerCStats: any;
     
     let playerAId: string;
@@ -540,7 +550,7 @@ describe('Next Player Logic Unit Tests', () => {
       playerCId = `playerC-${nanoid()}`;
 
       playerAStats = createPlayerStats(playerAId);
-      playerBStats = createPlayerStats(playerBId); // For ID reference mostly
+      _playerBStats = createPlayerStats(playerBId); // For ID reference mostly
       playerCStats = createPlayerStats(playerCId);
     });
 

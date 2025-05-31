@@ -215,7 +215,7 @@ export class CommandHandler implements EventHandler {
         }
     }
 
-    private async sendError(intr: CommandInteraction, data: EventData): Promise<void> {
+    private async sendError(intr: CommandInteraction, _data: EventData): Promise<void> {
         try {
             await SimpleMessage.sendEmbed(
                 intr,

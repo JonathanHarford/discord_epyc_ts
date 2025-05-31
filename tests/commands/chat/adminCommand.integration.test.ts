@@ -1,7 +1,7 @@
 import { PrismaClient } from '@prisma/client';
 import { Locale } from 'discord.js';
 import { nanoid } from 'nanoid';
-import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it, vi } from 'vitest';
+import { afterAll, beforeAll, beforeEach, describe, expect, it, vi } from 'vitest';
 
 import { AdminCommand } from '../../../src/commands/chat/admin-command.js';
 import { EventData } from '../../../src/models/internal-models.js';
@@ -16,8 +16,8 @@ describe('AdminCommand - Integration Tests', () => {
   let prisma: PrismaClient;
   let testSeasonId: string;
   let terminatedSeasonId: string;
-  let testPlayerId: string;
-  let bannedPlayerId: string;
+  let _testPlayerId: string;
+  let _bannedPlayerId: string;
   let commandInstance: AdminCommand;
   let mockEventData: EventData;
   let testGuildId: string;
@@ -64,7 +64,7 @@ describe('AdminCommand - Integration Tests', () => {
         name: 'Test Player'
       }
     });
-    testPlayerId = testPlayer.id;
+    _testPlayerId = testPlayer.id;
 
     const bannedPlayer = await prisma.player.create({
       data: {
@@ -74,7 +74,7 @@ describe('AdminCommand - Integration Tests', () => {
         bannedAt: new Date()
       }
     });
-    bannedPlayerId = bannedPlayer.id;
+    _bannedPlayerId = bannedPlayer.id;
 
     // Create an active season for testing termination
     const testSeason = await prisma.season.create({
@@ -465,7 +465,7 @@ describe('AdminCommand - Integration Tests', () => {
 
     it('should ban a player without a reason', async () => {
       // Create a fresh test player for this test
-      const freshPlayer = await prisma.player.create({
+      const _freshPlayer = await prisma.player.create({
         data: {
           id: nanoid(),
           discordUserId: 'fresh-player-no-reason',

@@ -2,7 +2,7 @@ import { Player, PrismaClient, Season, SeasonConfig } from '@prisma/client';
 import { nanoid } from 'nanoid';
 import { afterAll, beforeEach, describe, expect, it, vi } from 'vitest';
 
-import { processSeasonCreationPure, validateSeasonCreationPure } from '../../src/game/pureGameLogic.js';
+// import { processSeasonCreationPure, validateSeasonCreationPure } from '../../src/game/pureGameLogic.js';
 
 
 // Mock logger
@@ -57,7 +57,7 @@ async function createSeason(creatorId: string, configId: string, prismaClient: P
         status: 'SETUP'
       }
     });
-  } catch (error) {
+  } catch (_error) {
     return null;
   }
 }

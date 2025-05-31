@@ -5,7 +5,7 @@ import { type Mock } from 'vitest';
 
 import { Logger } from '../../src/services/index.js';
 import { parseDuration } from '../../src/utils/datetime.js';
-import { DEFAULT_TIMEOUTS, getSeasonTimeouts, SeasonTimeouts } from '../../src/utils/seasonConfig.js';
+import { DEFAULT_TIMEOUTS, getSeasonTimeouts } from '../../src/utils/seasonConfig.js';
 
 // Use a separate Prisma client for tests
 const prisma = new PrismaClient();

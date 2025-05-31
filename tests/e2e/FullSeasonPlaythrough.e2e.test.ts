@@ -1,6 +1,5 @@
 import { PrismaClient } from '@prisma/client';
 import { 
-  ApplicationCommandOptionType, 
   ChatInputCommandInteraction, 
   Client as DiscordClient,
   Guild,
@@ -16,11 +15,11 @@ import { afterAll, beforeAll, beforeEach, describe, expect, it, vi } from 'vites
 
 
 // Import all command classes for testing
+import { AdminCommand } from '../../src/commands/chat/admin-command.js';
 import { DevCommand } from '../../src/commands/chat/dev-command.js';
+import { HelpCommand } from '../../src/commands/chat/help-command.js';
 import { InfoCommand } from '../../src/commands/chat/info-command.js';
 import { SeasonCommand } from '../../src/commands/chat/season-command.js';
-import { AdminCommand } from '../../src/commands/chat/admin-command.js';
-import { HelpCommand } from '../../src/commands/chat/help-command.js';
 import { ViewDateSent } from '../../src/commands/message/view-date-sent.js';
 import { ViewDateJoined } from '../../src/commands/user/view-date-joined.js';
 import { EventData } from '../../src/models/internal-models.js';
@@ -29,8 +28,8 @@ import { GameService } from '../../src/services/GameService.js';
 import { PlayerService } from '../../src/services/PlayerService.js';
 import { SchedulerService } from '../../src/services/SchedulerService.js';
 import { SeasonService } from '../../src/services/SeasonService.js';
-import { TurnOfferingService } from '../../src/services/TurnOfferingService.js';
 import { SeasonTurnService } from '../../src/services/SeasonTurnService.js';
+import { TurnOfferingService } from '../../src/services/TurnOfferingService.js';
 import { truncateTables } from '../utils/testUtils.js';
 
 // Mock SimpleMessage to capture command outputs
@@ -59,9 +58,9 @@ describe('Full Season Playthrough + All Commands End-to-End Test', () => {
   let seasonService: SeasonService;
   let turnService: SeasonTurnService;
   let turnOfferingService: TurnOfferingService;
-  let playerService: PlayerService;
+  let _playerService: PlayerService;
   let gameService: GameService;
-  let configService: ConfigService;
+  let _configService: ConfigService;
   let mockSchedulerService: SchedulerService;
   let mockDiscordClient: any;
   let testPlayers: any[] = [];
@@ -241,14 +240,14 @@ describe('Full Season Playthrough + All Commands End-to-End Test', () => {
     turnOfferingService = new TurnOfferingService(prisma, mockDiscordClient as unknown as DiscordClient, turnService, mockSchedulerService);
     gameService = new GameService(prisma);
     seasonService = new SeasonService(prisma, turnService, mockSchedulerService, gameService);
-    playerService = new PlayerService(prisma);
-    configService = new ConfigService(prisma);
+    _playerService = new PlayerService(prisma);
+    _configService = new ConfigService(prisma);
     
     // Initialize command instances
     helpCommand = new HelpCommand();
     infoCommand = new InfoCommand();
     devCommand = new DevCommand();
-    seasonCommand = new SeasonCommand(prisma, seasonService);
+    seasonCommand = new SeasonCommand(prisma, seasonService, _playerService);
     adminCommand = new AdminCommand();
     viewDateJoinedCommand = new ViewDateJoined();
     viewDateSentCommand = new ViewDateSent();
@@ -694,7 +693,7 @@ describe('Full Season Playthrough + All Commands End-to-End Test', () => {
     // Create drawing turns for each game
     for (const game of gamesAfterWriting) {
       // Create the next turn (drawing turn)
-      const drawingTurn = await prisma.turn.create({
+      const _drawingTurn = await prisma.turn.create({
         data: {
           id: nanoid(),
           gameId: game.id,

@@ -1,8 +1,9 @@
+import { BaseMessageOptions, CommandInteraction, TextChannel, User } from 'discord.js';
 import { vi } from 'vitest';
-import { BaseMessageOptions, CommandInteraction, User, TextChannel } from 'discord.js';
-import { MessageAdapter } from '../../src/messaging/MessageAdapter'; // Adjust path as needed
-import { MessageUtils } from '../../src/utils/message-utils'; // Adjust path as needed
-import { SimpleMessage } from '../../src/messaging/SimpleMessage'; // Added import
+
+import { MessageAdapter } from '../../src/messaging/MessageAdapter.js'; // Adjust path as needed
+import { SimpleMessage } from '../../src/messaging/SimpleMessage.js'; // Added import
+import { MessageUtils } from '../../src/utils/message-utils.js'; // Adjust path as needed
 
 let capturedMessages: BaseMessageOptions[] = [];
 let interactionSpy: ReturnType<typeof vi.spyOn> | undefined;
@@ -21,7 +22,7 @@ export function startCapturingMessages() {
   interactionSpy = vi.spyOn(MessageAdapter, 'sendInteractionResponse')
     .mockImplementation(async (_interaction: CommandInteraction, content: BaseMessageOptions) => {
       capturedMessages.push(content);
-      return Promise.resolve();
+      return await Promise.resolve();
     });
 
   // Spy on direct messages
@@ -39,7 +40,7 @@ export function startCapturingMessages() {
      .mockImplementation(async (_target: User | TextChannel, content: BaseMessageOptions) => {
        capturedMessages.push(content);
        // Mock a message object if the original method returns one
-       return Promise.resolve({ id: 'mock-message-id' } as any);
+       return await Promise.resolve({ id: 'mock-message-id' } as any);
      });
 
   // Spy on SimpleMessage responses
@@ -47,7 +48,7 @@ export function startCapturingMessages() {
   simpleMessageSpy = vi.spyOn(SimpleMessage as any, 'sendResponse')
     .mockImplementation(async (_interaction: CommandInteraction, content: BaseMessageOptions, _ephemeral?: boolean) => {
       capturedMessages.push(content);
-      return Promise.resolve();
+      return await Promise.resolve();
     });
 
   // Spy on User.prototype.send for direct DMs
@@ -62,7 +63,7 @@ export function startCapturingMessages() {
         capturedMessages.push(options);
       }
       // Return a mock message or something that fulfills the promise type
-      return Promise.resolve({ id: 'mock-dm-message-id' } as any); 
+      return await Promise.resolve({ id: 'mock-dm-message-id' } as any); 
     });
 }
 

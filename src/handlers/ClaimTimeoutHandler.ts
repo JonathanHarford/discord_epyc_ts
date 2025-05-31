@@ -2,9 +2,8 @@ import { PrismaClient } from '@prisma/client';
 import { Client as DiscordClient } from 'discord.js';
 
 import { Logger } from '../services/index.js';
-import { SchedulerService } from '../services/SchedulerService.js';
-import { TurnOfferingService } from '../services/TurnOfferingService.js';
 import { TurnTimeoutService } from '../services/interfaces/TurnTimeoutService.js';
+import { TurnOfferingService } from '../services/TurnOfferingService.js';
 
 /**
  * Handler for claim timeout events.

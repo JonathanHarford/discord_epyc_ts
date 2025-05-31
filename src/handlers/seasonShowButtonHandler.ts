@@ -1,14 +1,14 @@
 import { ButtonInteraction, CacheType, EmbedBuilder } from 'discord.js';
+
 import { ButtonHandler } from './buttonHandler.js';
-import { SeasonService } from '../services/SeasonService.js';
-import { SeasonTurnService } from '../services/SeasonTurnService.js';
-import { SchedulerService } from '../services/SchedulerService.js';
-import { GameService } from '../services/GameService.js';
-import { Logger } from '../services/index.js';
+import { createDashboardComponents } from './seasonDashboardButtonHandler.js'; // Import the helper
 import { strings } from '../lang/strings.js';
 import prisma from '../lib/prisma.js'; // Direct prisma import
-
-import { createDashboardComponents } from './seasonDashboardButtonHandler.js'; // Import the helper
+import { GameService } from '../services/GameService.js';
+import { Logger } from '../services/index.js';
+import { SchedulerService } from '../services/SchedulerService.js';
+import { SeasonService } from '../services/SeasonService.js';
+import { SeasonTurnService } from '../services/SeasonTurnService.js';
 
 export class SeasonShowButtonHandler implements ButtonHandler {
     customIdPrefix = 'season_show_';
@@ -99,9 +99,9 @@ export class SeasonShowButtonHandler implements ButtonHandler {
             Logger.error(`SeasonShowButtonHandler: Error showing details for season ${seasonId}:`, error);
             const errorMessage = strings.messages.status.genericError.replace('{seasonId}', seasonId).replace('{errorMessage}', (error instanceof Error ? error.message : 'Unknown error'));
             if (interaction.replied || interaction.deferred) {
-                await interaction.followUp({ content: errorMessage, ephemeral: true }).catch(e => Logger.error("SeasonShowButtonHandler: Failed to followUp on error",e));
+                await interaction.followUp({ content: errorMessage, ephemeral: true }).catch(e => Logger.error('SeasonShowButtonHandler: Failed to followUp on error',e));
             } else {
-                await interaction.reply({ content: errorMessage, ephemeral: true }).catch(e => Logger.error("SeasonShowButtonHandler: Failed to reply on error",e));
+                await interaction.reply({ content: errorMessage, ephemeral: true }).catch(e => Logger.error('SeasonShowButtonHandler: Failed to reply on error',e));
             }
         }
     }

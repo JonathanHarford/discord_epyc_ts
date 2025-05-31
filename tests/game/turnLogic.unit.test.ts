@@ -1,4 +1,4 @@
-import { Game, Player, PrismaClient, Season, SeasonConfig, Turn } from '@prisma/client';
+import { Game, Player, PrismaClient, Season, Turn } from '@prisma/client';
 import { nanoid } from 'nanoid';
 import { afterAll, beforeEach, describe, expect, it, vi } from 'vitest';
 
@@ -44,7 +44,7 @@ async function claimTurn(turnId: string, playerId: string, prismaClient: PrismaC
         claimedAt: new Date()
       }
     });
-  } catch (error) {
+  } catch (_error) {
     return null;
   }
 }
@@ -79,7 +79,7 @@ async function submitTurn(turnId: string, playerId: string, submissionData: any,
       where: { id: turnId },
       data: updateData
     });
-  } catch (error) {
+  } catch (_error) {
     return null;
   }
 }
@@ -100,7 +100,7 @@ async function offerTurn(turnId: string, playerId: string, prismaClient: PrismaC
         offeredAt: new Date()
       }
     });
-  } catch (error) {
+  } catch (_error) {
     return null;
   }
 }
@@ -123,7 +123,7 @@ async function skipTurn(turnId: string, prismaClient: PrismaClient): Promise<Tur
         skippedAt: new Date()
       }
     });
-  } catch (error) {
+  } catch (_error) {
     return null;
   }
 }
@@ -145,7 +145,7 @@ async function dismissOffer(turnId: string, playerId: string, prismaClient: Pris
         offeredAt: null
       }
     });
-  } catch (error) {
+  } catch (_error) {
     return null;
   }
 }

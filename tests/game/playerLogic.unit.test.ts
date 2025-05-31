@@ -2,7 +2,7 @@ import { Player, PrismaClient } from '@prisma/client';
 import { nanoid } from 'nanoid';
 import { afterAll, beforeEach, describe, expect, it, vi } from 'vitest';
 
-import { processPlayerOperationPure, validatePlayerDataPure } from '../../src/game/pureGameLogic.js';
+import { processPlayerOperationPure } from '../../src/game/pureGameLogic.js';
 
 
 // Mock logger
@@ -59,7 +59,7 @@ async function addPlayer(discordUserId: string, name: string, prismaClient: Pris
       // Return existing player unchanged
       return existingPlayer;
     }
-  } catch (error) {
+  } catch (_error) {
     return null;
   }
 }

@@ -1,6 +1,6 @@
 import { PrismaClient } from '@prisma/client';
 import { nanoid } from 'nanoid';
-import { afterAll, beforeEach, describe, expect, it, vi } from 'vitest';
+import { afterAll, beforeEach, describe, expect, it } from 'vitest';
 
 import { DEFAULT_TIMEOUTS, getSeasonTimeouts } from '../../src/utils/seasonConfig.js';
 
@@ -8,10 +8,10 @@ import { DEFAULT_TIMEOUTS, getSeasonTimeouts } from '../../src/utils/seasonConfi
 const prisma = new PrismaClient();
 
 describe('Season Timeout Integration Tests', () => {
-  let testTurnId: string;
-  let testGameId: string;
-  let testSeasonId: string;
-  let testSeasonConfigId: string;
+  let _testTurnId: string;
+  let _testGameId: string;
+  let _testSeasonId: string;
+  let _testSeasonConfigId: string;
   let testPlayerId: string;
 
   beforeEach(async () => {

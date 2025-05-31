@@ -1,28 +1,23 @@
 import {
-    AutocompleteInteraction,
-    ButtonInteraction,
     Client,
-    CommandInteraction,
     Events,
     Guild,
     Interaction,
     Message,
     MessageReaction,
-    ModalSubmitInteraction,
     PartialMessageReaction,
     PartialUser,
     RateLimitData,
     RESTEvents,
-    StringSelectMenuInteraction,
     User,
 } from 'discord.js';
 import { createRequire } from 'node:module';
 
 import {
-    ButtonHandler as LegacyButtonHandler,
     CommandHandler,
     GuildJoinHandler,
     GuildLeaveHandler,
+    ButtonHandler as LegacyButtonHandler,
     MessageHandler,
     ReactionHandler,
 } from '../events/index.js';

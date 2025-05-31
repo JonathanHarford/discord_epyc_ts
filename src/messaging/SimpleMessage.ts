@@ -1,11 +1,8 @@
 import { 
   BaseMessageOptions, 
-  ChatInputCommandInteraction,
   CommandInteraction,
   EmbedBuilder, 
-  MessageContextMenuCommandInteraction,
-  resolveColor,
-  UserContextMenuCommandInteraction
+  resolveColor
 } from 'discord.js';
 
 import { interpolate, strings } from '../lang/strings.js';

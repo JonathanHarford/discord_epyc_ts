@@ -1,8 +1,8 @@
-import { Game, Player, PrismaClient, Season, Turn } from '@prisma/client';
+import { Game, Player, Season } from '@prisma/client';
 import { beforeEach, describe, expect, it, Mock, vi } from 'vitest';
 
 import * as pureGameLogic from '../../src/game/pureGameLogic.js';
-import { GameCreationResult, GameService, GameStatusResult, GameWithDetails } from '../../src/services/GameService.js';
+import { GameCreationResult, GameService, GameStatusResult } from '../../src/services/GameService.js';
 
 // Mock the pure game logic module
 vi.mock('../../src/game/pureGameLogic.js', () => ({
@@ -53,7 +53,11 @@ describe('GameService', () => {
     createdAt: new Date(),
     updatedAt: new Date(),
     completedAt: null,
-    seasonId: 'test-season'
+    seasonId: 'test-season',
+    configId: null,
+    creatorId: null,
+    guildId: null,
+    lastActivityAt: new Date()
   };
 
   const mockPlayer: Player = {

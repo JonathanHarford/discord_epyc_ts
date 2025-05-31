@@ -266,7 +266,7 @@ export class ErrorHandler {
      * @param error The original error
      * @returns ErrorSeverity level
      */
-    private static determineSeverity(type: ErrorType, error: Error): ErrorSeverity {
+    private static determineSeverity(type: ErrorType, _error: Error): ErrorSeverity {
         switch (type) {
             case ErrorType.VALIDATION:
             case ErrorType.BUSINESS_LOGIC:
@@ -302,7 +302,7 @@ export class ErrorHandler {
      * @param error The original error
      * @returns User-friendly message
      */
-    private static generateUserMessage(type: ErrorType, error: Error): string {
+    private static generateUserMessage(type: ErrorType, _error: Error): string {
         switch (type) {
             case ErrorType.VALIDATION:
                 return 'Please check your input and try again.';

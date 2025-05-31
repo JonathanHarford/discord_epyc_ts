@@ -335,7 +335,7 @@ describe('SeasonService Integration Tests', () => {
   it('should cancel season on timeout when min players not met', async () => {
     // Arrange: Create a season with fewer players than min required
     const minPlayers = 3;
-    const initialPlayers = 1; // Less than minPlayers
+    const _initialPlayers = 1; // Less than minPlayers
     
     const seasonConfig = await prisma.seasonConfig.create({
       data: { 
