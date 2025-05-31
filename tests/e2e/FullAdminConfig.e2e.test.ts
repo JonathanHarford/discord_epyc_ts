@@ -92,7 +92,7 @@ class TestAdminCommand extends AdminCommand {
       const schedulerService = new SchedulerService((this as any).prisma);
       const gameService = new GameService((this as any).prisma);
       (this as any).seasonService = new SeasonService((this as any).prisma, turnService, schedulerService, gameService);
-      (this as any).onDemandGameService = new OnDemandGameService((this as any).prisma, intr.client);
+      (this as any).onDemandGameService = new OnDemandGameService((this as any).prisma, intr.client, schedulerService);
     }
 
     const subcommandGroup = intr.options.getSubcommandGroup();

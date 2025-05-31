@@ -3,6 +3,7 @@ import { nanoid } from 'nanoid';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
 import { OnDemandGameService } from '../../src/services/OnDemandGameService.js';
+import { SchedulerService } from '../../src/services/SchedulerService.js';
 
 const prisma = new PrismaClient();
 
@@ -12,6 +13,12 @@ const _mockDiscordClient = {
     fetch: vi.fn()
   }
 } as any;
+
+// Mock SchedulerService
+const _mockSchedulerService = {
+  scheduleJob: vi.fn().mockResolvedValue(true),
+  cancelJob: vi.fn().mockResolvedValue(true),
+} as unknown as SchedulerService;
 
 describe('OnDemandGameService', () => {
   let onDemandGameService: OnDemandGameService;
@@ -28,7 +35,7 @@ describe('OnDemandGameService', () => {
       prisma.player.deleteMany(),
     ]);
 
-    onDemandGameService = new OnDemandGameService(prisma, _mockDiscordClient);
+    onDemandGameService = new OnDemandGameService(prisma, _mockDiscordClient, _mockSchedulerService);
     testGuildId = `test-guild-${nanoid()}`;
 
     // Create test player

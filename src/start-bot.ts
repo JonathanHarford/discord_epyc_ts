@@ -67,7 +67,7 @@ async function start(): Promise<void> {
     const turnService = new SeasonTurnService(prisma, client, schedulerService);
     const seasonService = new SeasonService(prisma, turnService, schedulerService, gameService);
     const turnOfferingService = new TurnOfferingService(prisma, client, turnService, schedulerService);
-    const onDemandGameService = new OnDemandGameService(prisma, client);
+    const onDemandGameService = new OnDemandGameService(prisma, client, schedulerService);
     const onDemandTurnService = new OnDemandTurnService(prisma, client, schedulerService);
     const playerTurnService = new PlayerTurnService(prisma);
     
