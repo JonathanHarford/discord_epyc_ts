@@ -89,4 +89,31 @@ export class FormatUtils {
             }
         }
     }
+
+    /**
+     * Formats a timeout duration in minutes to a compact format.
+     * Uses short units like "1m", "53s", "1d5h3m2s" for more concise display.
+     * 
+     * @param minutes - The timeout duration in minutes
+     * @returns A compact formatted string like "30m", "2h", "1d5h3m"
+     */
+    public static formatTimeoutCompact(minutes: number): string {
+        const totalSeconds = minutes * 60;
+        
+        const days = Math.floor(totalSeconds / 86400);
+        const hours = Math.floor((totalSeconds % 86400) / 3600);
+        const mins = Math.floor((totalSeconds % 3600) / 60);
+        const secs = totalSeconds % 60;
+        
+        let result = '';
+        if (days > 0) result += `${days}d`;
+        if (hours > 0) result += `${hours}h`;
+        if (mins > 0) result += `${mins}m`;
+        if (secs > 0) result += `${secs}s`;
+        
+        // If everything is 0, return "0s"
+        if (result === '') result = '0s';
+        
+        return result;
+    }
 }

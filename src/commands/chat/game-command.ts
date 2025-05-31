@@ -50,7 +50,7 @@ export class GameCommand implements Command {
                 await this.handleShowCommand(interaction, data);
                 break;
             default:
-                await SimpleMessage.sendEmbed(interaction, strings.embeds.errorEmbeds.notImplemented, {}, true, 'warning');
+                await SimpleMessage.sendError(interaction, 'Command not implemented yet.', {}, true);
                 return;
         }
     }
@@ -72,10 +72,10 @@ export class GameCommand implements Command {
                 const gameType = turn.game.season ? 'seasonal' : 'on-demand';
                 const gameIdentifier = turn.game.season 
                     ? `Season ${turn.game.season.id}` 
-                    : `Game #${turn.game.id}`;
+                    : `Game started on ${new Date(turn.game.createdAt).toLocaleDateString()}`;
                 
                 const creatorInfo = turn.game.creator 
-                    ? ` started by ${turn.game.creator.name}` 
+                    ? ` by @${turn.game.creator.name}` 
                     : '';
 
                 await SimpleMessage.sendError(
@@ -101,7 +101,7 @@ export class GameCommand implements Command {
             // Send public announcement
             await SimpleMessage.sendInfo(
                 interaction, 
-                `<@${interaction.user.id}> has started a new game! Use \`/game play\` to join.`,
+                `<@${interaction.user.id}> has started a new game!`,
                 {},
                 false // Not ephemeral - public announcement
             );
@@ -131,10 +131,10 @@ export class GameCommand implements Command {
                 const gameType = turn.game.season ? 'seasonal' : 'on-demand';
                 const gameIdentifier = turn.game.season 
                     ? `Season ${turn.game.season.id}` 
-                    : `Game #${turn.game.id}`;
+                    : `Game started on ${new Date(turn.game.createdAt).toLocaleDateString()}`;
                 
                 const creatorInfo = turn.game.creator 
-                    ? ` started by ${turn.game.creator.name}` 
+                    ? ` by @${turn.game.creator.name}` 
                     : '';
 
                 await SimpleMessage.sendError(

@@ -18,6 +18,7 @@ export class PlayerTurnService {
       game: {
         id: string;
         status: string;
+        createdAt: Date;
         season?: {
           id: string;
           status: string;
@@ -49,7 +50,10 @@ export class PlayerTurnService {
         },
         include: {
           game: {
-            include: {
+            select: {
+              id: true,
+              status: true,
+              createdAt: true,
               season: {
                 select: {
                   id: true,
@@ -97,6 +101,7 @@ export class PlayerTurnService {
       game: {
         id: string;
         status: string;
+        createdAt: Date;
         season?: {
           id: string;
           status: string;
@@ -128,7 +133,10 @@ export class PlayerTurnService {
         },
         include: {
           game: {
-            include: {
+            select: {
+              id: true,
+              status: true,
+              createdAt: true,
               season: {
                 select: {
                   id: true,

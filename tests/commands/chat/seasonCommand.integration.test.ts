@@ -215,24 +215,19 @@ describe('SeasonCommand - Integration Tests', () => {
 
       await commandInstance.execute(interaction, mockEventData);
 
-      // Should call editReply for the joinable season
+      // Should call editReply with text content (new text block format)
       expect(interaction.editReply).toHaveBeenCalled();
       
-      // Should call followUp for the "Other Seasons" section
-      expect(interaction.followUp).toHaveBeenCalled();
-
-      // Check that editReply was called with an embed (joinable season)
+      // Check that editReply was called with text content (not embeds)
       const editReplyCall = interaction.editReply.mock.calls[0][0];
-      expect(editReplyCall.embeds).toBeDefined();
-      expect(editReplyCall.embeds.length).toBe(1);
-      expect(editReplyCall.components).toBeDefined();
-      expect(editReplyCall.components.length).toBe(1);
-
-      // Check that followUp was called with the "Other Seasons" embed
-      const followUpCall = interaction.followUp.mock.calls[0][0];
-      expect(followUpCall.embeds).toBeDefined();
-      expect(followUpCall.embeds.length).toBe(1);
-      expect(followUpCall.embeds[0].data.title).toContain('Other Seasons');
+      expect(editReplyCall.content).toBeDefined();
+      expect(typeof editReplyCall.content).toBe('string');
+      
+      // Should contain sections for different season types
+      expect(editReplyCall.content).toContain('Other seasons:');
+      
+      // Should not use followUp anymore (single response with text blocks)
+      expect(interaction.followUp).not.toHaveBeenCalled();
 
       // Clean up test data
       await prisma.season.deleteMany({

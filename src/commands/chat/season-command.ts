@@ -44,7 +44,7 @@ export class SeasonCommand implements Command {
                 await this.handleNewCommand(intr, _data);
                 break;
             default:
-                await SimpleMessage.sendEmbed(intr, strings.embeds.errorEmbeds.notImplemented, {}, true, 'warning');
+                await SimpleMessage.sendError(intr, 'Command not implemented yet.', {}, true);
                 return;
         }
     }
@@ -72,6 +72,7 @@ export class SeasonCommand implements Command {
                     config: true,
                     _count: { select: { players: true } },
                     players: playerId ? { where: { playerId } } : false, // Include player's link to season if playerId is available
+                    creator: { select: { name: true } }
                 },
                 orderBy: { createdAt: 'desc' },
             });
@@ -81,82 +82,66 @@ export class SeasonCommand implements Command {
                 return;
             }
 
-            // Separate seasons into joinable and others
-            const joinableSeasons = seasons.filter(s => {
+            // Filter out terminated seasons for regular users (admins can see them via admin commands)
+            const visibleSeasons = seasons.filter(s => s.status !== 'TERMINATED');
+
+            if (visibleSeasons.length === 0) {
+                await intr.editReply({ content: 'No active seasons found.' });
+                return;
+            }
+
+            // Categorize seasons
+            const joinableSeasons = visibleSeasons.filter(s => {
                 const isUserInSeason = playerId ? s.players.some(p => p.playerId === playerId) : false;
                 const isSeasonFull = s.config.maxPlayers ? s._count.players >= s.config.maxPlayers : false;
                 return (s.status === 'OPEN' || s.status === 'SETUP') && !isUserInSeason && !isSeasonFull;
             });
 
-            // All other seasons (including joined ones, completed, terminated, etc.)
-            const otherSeasons = seasons.filter(s => {
+            const joinedSeasons = visibleSeasons.filter(s => {
+                const isUserInSeason = playerId ? s.players.some(p => p.playerId === playerId) : false;
+                return isUserInSeason;
+            });
+
+            const otherSeasons = visibleSeasons.filter(s => {
                 const isUserInSeason = playerId ? s.players.some(p => p.playerId === playerId) : false;
                 const isSeasonFull = s.config.maxPlayers ? s._count.players >= s.config.maxPlayers : false;
                 const isJoinable = (s.status === 'OPEN' || s.status === 'SETUP') && !isUserInSeason && !isSeasonFull;
-                return !isJoinable;
+                return !isUserInSeason && !isJoinable;
             });
 
-            // Show the first joinable season with full details and buttons
+            // Format seasons using text blocks like game list
+            const formatSeasonLine = (s: any): string => {
+                const createdDate = new Date(s.createdAt).toISOString().split('T')[0];
+                const creatorName = s.creator?.name || 'Unknown';
+                const playerCount = s._count.players;
+                const maxPlayers = s.config.maxPlayers || '∞';
+                return `@${creatorName} ${createdDate} (${playerCount}/${maxPlayers})`;
+            };
+
+            // Build the response message using text blocks
+            let message = '';
+
             if (joinableSeasons.length > 0) {
-                const season = joinableSeasons[0]; // Show only the first joinable season
-                
-                const embed = new EmbedBuilder()
-                    .setTitle(`Season: ${season.id}`)
-                    .setColor(0x57F287) // Green for joinable
-                    .addFields(
-                        { name: 'Status', value: season.status, inline: true },
-                        { name: 'Players', value: `${season._count.players} / ${season.config.maxPlayers || '∞'}`, inline: true },
-                        { name: 'Created', value: new Date(season.createdAt).toLocaleDateString(), inline: true }
-                    );
-                    // Removed the redundant Season ID footer
-
-                const showButton = new ButtonBuilder()
-                    .setCustomId(`season_show_${season.id}`)
-                    .setLabel('Show Details')
-                    .setStyle(ButtonStyle.Secondary);
-
-                const joinButton = new ButtonBuilder()
-                    .setCustomId(`season_join_${season.id}`)
-                    .setLabel('Join Season')
-                    .setStyle(ButtonStyle.Primary);
-
-                const actionRow = new ActionRowBuilder<ButtonBuilder>().addComponents(showButton, joinButton);
-
-                await intr.editReply({ embeds: [embed], components: [actionRow] });
-            } else {
-                await intr.editReply({ content: strings.messages.listSeasons.noOpenSeasons || 'No seasons are currently open for joining.' });
+                const joinableText = joinableSeasons.map(formatSeasonLine).join('\n');
+                message += `**You can join:**\n${joinableText}\n\n`;
             }
-            
-            // Show all other seasons in a compact format
+
+            if (joinedSeasons.length > 0) {
+                const joinedText = joinedSeasons.map(formatSeasonLine).join('\n');
+                message += `**You've joined:**\n${joinedText}\n\n`;
+            }
+
             if (otherSeasons.length > 0) {
-                const formatSeasonLine = (s: any): string => {
-                    const isUserInSeason = playerId ? s.players.some(p => p.playerId === playerId) : false;
-                    const createdDate = new Date(s.createdAt).toLocaleDateString();
-                    let statusText = s.status;
-                    
-                    if (isUserInSeason) {
-                        statusText = 'JOINED';
-                    }
-                    
-                    return `${s.id} ${createdDate} (${statusText})`;
-                };
-
-                const otherSeasonsText = otherSeasons
-                    .map(formatSeasonLine)
-                    .join('\n');
-
-                const summaryEmbed = new EmbedBuilder()
-                    .setTitle(strings.messages.listSeasons.otherSeasonsTitle || 'Other Seasons')
-                    .setColor(0xFAA61A) // Orange
-                    .setDescription(otherSeasonsText + '\n\nUse `/season show` to view.')
-                    .setFooter({ text: 'Use `/season show` to view details.' });
-                
-                if (joinableSeasons.length === 0) {
-                    await intr.editReply({ embeds: [summaryEmbed] });
-                } else {
-                    await intr.followUp({ embeds: [summaryEmbed], ephemeral: true });
-                }
+                const otherText = otherSeasons.map(formatSeasonLine).join('\n');
+                message += `**Other seasons:**\n${otherText}`;
             }
+
+            // If no seasons at all, show a helpful message
+            if (!message.trim()) {
+                message = 'No seasons found. Use `/season new` to start a new season!';
+            }
+
+            await intr.editReply({ content: message.trim() });
 
         } catch (error) {
             Logger.error('Error in /season list command:', error);
@@ -283,10 +268,10 @@ export class SeasonCommand implements Command {
                 const gameType = turn.game.season ? 'seasonal' : 'on-demand';
                 const gameIdentifier = turn.game.season 
                     ? `Season ${turn.game.season.id}` 
-                    : `Game #${turn.game.id}`;
+                    : `Game started on ${new Date(turn.game.createdAt).toLocaleDateString()}`;
                 
                 const creatorInfo = turn.game.creator 
-                    ? ` started by ${turn.game.creator.name}` 
+                    ? ` by @${turn.game.creator.name}` 
                     : '';
 
                 await SimpleMessage.sendError(

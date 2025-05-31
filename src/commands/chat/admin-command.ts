@@ -1,5 +1,5 @@
 import { PrismaClient } from '@prisma/client';
-import { ChatInputCommandInteraction, PermissionsString } from 'discord.js';
+import { ActionRowBuilder, ButtonBuilder, ButtonStyle, ChatInputCommandInteraction, EmbedBuilder, PermissionsString } from 'discord.js';
 import { createRequire } from 'node:module';
 
 import { interpolate, strings } from '../../lang/strings.js';
@@ -368,7 +368,37 @@ export class AdminCommand implements Command {
                 `${g.id} (${g.status})`
             ).join(', ') || 'None';
 
-            await SimpleMessage.sendInfo(intr, `**Season Details**\n\n**ID:** ${season.id}\n**Status:** ${season.status}\n**Creator:** ${seasonStats?.creator.name} (${seasonStats?.creator.discordUserId})\n**Created:** ${season.createdAt.toISOString()}\n**Players:** ${seasonStats?._count.players || 0}\n**Games:** ${seasonStats?._count.games || 0}\n**Min Players:** ${season.config.minPlayers}\n**Max Players:** ${season.config.maxPlayers}\n**Turn Pattern:** ${season.config.turnPattern || 'Default'}\n**Open Duration:** ${season.config.openDuration || 'Default'}\n**Recent Games:** ${recentGames}`, {}, true);
+            // Create embed for season details
+            const embed = new EmbedBuilder()
+                .setTitle(`Season Details: ${season.id}`)
+                .setColor(season.status === 'TERMINATED' ? 0xFF0000 : 0x0099FF) // Red for terminated, blue otherwise
+                .addFields(
+                    { name: 'Status', value: season.status, inline: true },
+                    { name: 'Creator', value: `${seasonStats?.creator.name} (${seasonStats?.creator.discordUserId})`, inline: true },
+                    { name: 'Created', value: new Date(season.createdAt).toLocaleDateString(), inline: true },
+                    { name: 'Players', value: `${seasonStats?._count.players || 0}`, inline: true },
+                    { name: 'Games', value: `${seasonStats?._count.games || 0}`, inline: true },
+                    { name: 'Min Players', value: `${season.config.minPlayers}`, inline: true },
+                    { name: 'Max Players', value: `${season.config.maxPlayers || 'Unlimited'}`, inline: true },
+                    { name: 'Turn Pattern', value: season.config.turnPattern || 'Default', inline: true },
+                    { name: 'Open Duration', value: season.config.openDuration || 'Default', inline: true },
+                    { name: 'Recent Games', value: recentGames, inline: false }
+                );
+
+            // Create action buttons
+            const components = [];
+            if (season.status !== 'TERMINATED') {
+                const terminateButton = new ButtonBuilder()
+                    .setCustomId(`admin_season_terminate_${seasonId}`)
+                    .setLabel('Terminate')
+                    .setStyle(ButtonStyle.Danger)
+                    .setEmoji('🛑');
+
+                const actionRow = new ActionRowBuilder<ButtonBuilder>().addComponents(terminateButton);
+                components.push(actionRow);
+            }
+
+            await intr.editReply({ embeds: [embed], components });
 
         } catch (error) {
             console.error('Error in admin season show command:', error);

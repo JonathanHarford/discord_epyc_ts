@@ -294,7 +294,7 @@ It's your first turn in this game! ⏰ You have **{claimTimeoutFormatted}** to c
       noContentFound: 'No content found in the submission. Please provide text or attach a file.',
       wrongContentType: 'Incorrect content type for this turn. Please check the turn requirements.',
       submitFailed: 'Failed to submit your turn. Please try again.',
-      submitSuccess: `🎉 **{seasonId}** turn submitted! 🎉`
+      submitSuccess: `🎉 Turn submitted! Completed games will be posted in #finished-games 🎉`
     }
   },
 

@@ -1,3 +1,4 @@
+export * from './adminButtonHandler.js';
 export * from './buttonHandler.js';
 export * from './selectMenuHandler.js';
 export * from './modalHandler.js';
