@@ -60,7 +60,84 @@ The implementation for all fixes is complete. Thoroughly test each specific issu
 ### Dependencies: None
 ### Description: Test Completed Games Channel Link: Complete a game and verify the final message includes a clickable link or mention to the correct channel.
 ### Details:
+<info added on 2025-06-02T12:28:47.728Z>
+## Two-Account Testing Strategy for Task 55
 
+### Account Setup
+- **Account A (Primary)**: Main testing account with admin/moderator permissions
+- **Account B (Secondary)**: Regular user account for multi-player scenarios
+
+### Testing Strategy by Feature
+
+#### 1. Completed Games Channel Link Testing
+**Approach**: Use both accounts to complete a quick game
+- Account A: Create a season with minimal requirements (2 players, immediate start)
+- Account B: Join the season to trigger game start
+- Both accounts: Play through turns quickly to reach completion
+- **Verify**: Final submission message includes clickable `#finished-games` link
+
+#### 2. Season Creation Templating Testing
+**Approach**: Single account testing with various parameters
+- Account A: Create multiple seasons with different configurations:
+  - `/season new` with different game types
+  - Vary open duration settings
+  - Test different minimum player counts
+- **Verify**: Success messages show correct `{seasonId}`, `{gameName}`, `{openDuration}`, `{mentionUser}` values
+
+#### 3. Season Join Feedback Testing
+**Approach**: Test both activation trigger types
+- **Player-based trigger**:
+  - Account A: Create season requiring 3+ players
+  - Account B: Join season
+  - **Verify**: Message shows "X more players needed"
+- **Time-based trigger**:
+  - Account A: Create season with open duration (e.g., 1 hour)
+  - Account B: Join season
+  - **Verify**: Message shows start date/time
+
+#### 4. Turn Claim Button Testing
+**Approach**: Start new game and test first turn claiming
+- Account A: Create 2-player season
+- Account B: Join to start game
+- Wait for first turn offer DM
+- **Verify**: DM contains "Claim Turn" button (not reaction instruction)
+- Click button to claim turn
+- **Verify**: Turn is successfully claimed
+
+#### 5. Turn Timeout Display Testing
+**Approach**: Create game with short timeout for testing
+- Account A: Create season with very short turn timeout (e.g., 5 minutes)
+- Account B: Join and start game
+- Account A: Claim first turn but don't submit
+- Wait for timeout warning
+- **Verify**: Warning shows precise time format (e.g., "3m44s")
+
+#### 6. Completed Games Channel Posting Testing
+**Approach**: Complete multiple games and verify channel posts
+- Repeat completion process from test #1
+- Complete 2-3 different games
+- **Verify**: Each completion posts summary in `#finished-games` channel
+
+### Efficient Testing Order
+1. **Setup Phase**: Create test seasons with Account A
+2. **Join Phase**: Use Account B to join and trigger various scenarios
+3. **Gameplay Phase**: Alternate between accounts to progress games
+4. **Verification Phase**: Check all UI elements and channel posts
+
+### Time-Saving Tips
+- Use shortest possible game configurations (2 players, minimal turns)
+- Test multiple features simultaneously when possible
+- Keep both Discord clients open side-by-side
+- Use different game types to test template variations
+- Create seasons with very short timeouts for timeout testing
+
+### Expected Test Duration
+- Total testing time: ~30-45 minutes
+- Each feature test: 5-8 minutes
+- Setup and verification: 10-15 minutes
+
+This strategy ensures comprehensive coverage of all 6 UI/UX fixes while maximizing efficiency with limited accounts.
+</info added on 2025-06-02T12:28:47.728Z>
 
 ## 2. undefined [todo]
 ### Dependencies: None
