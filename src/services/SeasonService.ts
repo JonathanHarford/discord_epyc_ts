@@ -332,32 +332,54 @@ export class SeasonService {
       // Calculate timing information for the success message
       let timeRemaining = 'unknown';
       let playersNeeded = 0;
+      let activationTrigger = 'unknown';
 
-      // Calculate time remaining if openDuration is set
-      if (season.config.openDuration) {
+      // Determine primary activation trigger and calculate appropriate values
+      if (maxPlayers !== null && season.config.openDuration) {
+        // Both triggers exist - determine which is more likely to trigger first
+        const playersToMax = maxPlayers - updatedPlayerCount;
+        if (playersToMax <= 2) { // Close to max players
+          activationTrigger = 'max_players';
+          playersNeeded = playersToMax;
+        } else {
+          activationTrigger = 'open_duration';
+          // Calculate time remaining from season creation (approximation)
+          const luxonDuration = parseDuration(season.config.openDuration);
+          if (luxonDuration && luxonDuration.as('milliseconds') > 0) {
+            timeRemaining = formatTimeRemaining(luxonDuration);
+          }
+        }
+      } else if (maxPlayers !== null) {
+        // Only max players trigger
+        activationTrigger = 'max_players';
+        playersNeeded = maxPlayers - updatedPlayerCount;
+      } else if (season.config.openDuration) {
+        // Only open duration trigger
+        activationTrigger = 'open_duration';
         const luxonDuration = parseDuration(season.config.openDuration);
         if (luxonDuration && luxonDuration.as('milliseconds') > 0) {
-          // Calculate time remaining from season creation
-          // Note: We don't have season.createdAt in our current schema, so we'll use a placeholder
-          // In a real implementation, you'd want to track when the season was created or when the timer started
           timeRemaining = formatTimeRemaining(luxonDuration);
         }
       }
 
-      // Calculate players needed to reach max
-      if (maxPlayers !== null) {
-        playersNeeded = maxPlayers - updatedPlayerCount;
+      // Choose appropriate message key based on activation trigger
+      let messageKey = 'messages.season.joinSuccess';
+      if (activationTrigger === 'max_players') {
+        messageKey = 'messages.season.joinSuccessPlayersNeeded';
+      } else if (activationTrigger === 'open_duration') {
+        messageKey = 'messages.season.joinSuccessTimeRemaining';
       }
 
       return {
         type: 'success',
-        key: 'messages.season.joinSuccess',
+        key: messageKey,
         data: {
           seasonId: season.id,
           currentPlayers: updatedPlayerCount,
           maxPlayers: maxPlayers,
           timeRemaining: timeRemaining,
           playersNeeded: playersNeeded,
+          activationTrigger: activationTrigger,
         },
       };
     });

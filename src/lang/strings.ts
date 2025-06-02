@@ -170,6 +170,10 @@ Use \`/join season:{seasonId}\` to join!`,
       // Join season messages - mapping old LangKeys to specific keys
       joinSuccess: `You have successfully joined **{seasonId}**!
 The season will start in {timeRemaining}, or once {playersNeeded} more players join!`,
+      joinSuccessPlayersNeeded: `You have successfully joined **{seasonId}**!
+The game will start when {playersNeeded} more players have joined.`,
+      joinSuccessTimeRemaining: `You have successfully joined **{seasonId}**!
+The game will start in {timeRemaining}.`,
       joinSeasonNotFound: '{seasonId} not found.',
       joinNotOpen: '{seasonId} is not currently open for joining.',
       joinAlreadyJoined: 'You have already joined **{seasonId}**.',
@@ -258,13 +262,17 @@ Please review this content and take appropriate action. React with ✅ to approv
 
     // Turn messages
     turnOffer: {
-      newTurnAvailable: `🎨 You have **{claimTimeoutFormatted}** to claim turn {turnNumber} in season {seasonId}. React with ✅ to claim it! 🎨`,
+      newTurnAvailable: `🎨 You have **{claimTimeoutFormatted}** to claim turn {turnNumber} in season {seasonId}. Click the button below to claim it! 🎨`,
       initialTurnOffer: `🎉 **{seasonId} has begun!** 🎉
-It's your first turn in this game! ⏰ You have **{claimTimeoutFormatted}** to claim it before it's offered to another player. React with ✅ to claim it!`
+It's your first turn in this game! ⏰ You have **{claimTimeoutFormatted}** to claim it before it's offered to another player. Click the button below to claim it!`,
+      claimButton: 'Claim Turn',
+      turnClaimed: '🎨 This turn has been claimed by {playerName}! 🎨'
     },
 
     // Game messages (removed redundant seasonId message)
-    game: {},
+    game: {
+      completionAnnouncement: '🎉 Game **{gameId}** in season **{seasonId}** has been completed! Check out all finished games in {finishedGamesLink}! 🎉'
+    },
 
     // Turn timeout messages
     turnTimeout: {
@@ -294,7 +302,7 @@ It's your first turn in this game! ⏰ You have **{claimTimeoutFormatted}** to c
       noContentFound: 'No content found in the submission. Please provide text or attach a file.',
       wrongContentType: 'Incorrect content type for this turn. Please check the turn requirements.',
       submitFailed: 'Failed to submit your turn. Please try again.',
-      submitSuccess: `🎉 Turn submitted! Completed games will be posted in #finished-games 🎉`
+      submitSuccess: `🎉 Turn submitted! Completed games will be posted in {finishedGamesLink} 🎉`
     }
   },
 

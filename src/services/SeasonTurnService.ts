@@ -1,11 +1,10 @@
 import type { CheckGameCompletionInput, CheckSeasonCompletionInput } from '../game/types.js';
 import { Game, Player, Prisma, PrismaClient, Turn } from '@prisma/client';
-import { Client as DiscordClient } from 'discord.js';
+import { ActionRowBuilder, ButtonBuilder, ButtonStyle, Client as DiscordClient } from 'discord.js';
 import { nanoid } from 'nanoid';
 
 import { checkGameCompletionPure, checkSeasonCompletionPure } from '../game/pureGameLogic.js';
-import { MessageAdapter } from '../messaging/MessageAdapter.js';
-import { MessageHelpers } from '../messaging/MessageHelpers.js';
+import { interpolate, strings } from '../lang/strings.js';
 import { SchedulerService } from '../services/SchedulerService.js';
 import { TurnTimeoutService } from './interfaces/TurnTimeoutService.js';
 import { FormatUtils } from '../utils/format-utils.js';
@@ -81,27 +80,30 @@ export class SeasonTurnService implements TurnTimeoutService {
       }
 
       try {
-        // Create enhanced message instruction for initial turn offer
-        const messageInstruction = MessageHelpers.dmNotification(
-          'messages.turnOffer.initialTurnOffer',
-          player.discordUserId,
-          {
-            gameId: game.id,
-            seasonId: seasonId,
-            turnType: initialTurnType,
-            claimTimeoutFormatted: FormatUtils.formatTimeout(timeouts.claimTimeoutMinutes)
-          }
-        );
+        // Create the claim button
+        const claimButton = new ButtonBuilder()
+          .setCustomId(`turn_claim_${newTurn.id}`)
+          .setLabel(strings.messages.turnOffer.claimButton)
+          .setStyle(ButtonStyle.Primary);
 
-        // Send DM using enhanced messaging layer
-        await MessageAdapter.processInstruction(
-          messageInstruction,
-          undefined, // No interaction for DMs
-          'en',
-          this.discordClient
-        );
+        const actionRow = new ActionRowBuilder<ButtonBuilder>().addComponents(claimButton);
 
-        console.log(`Successfully sent initial turn offer DM to player ${player.id} (${player.discordUserId}) for game ${game.id}, turn ${newTurn.id}`);
+        // Create the message content with interpolated variables
+        const messageContent = interpolate(strings.messages.turnOffer.initialTurnOffer, {
+          gameId: game.id,
+          seasonId: seasonId,
+          turnType: initialTurnType,
+          claimTimeoutFormatted: FormatUtils.formatTimeout(timeouts.claimTimeoutMinutes)
+        });
+
+        // Send DM with button directly using Discord client
+        const user = await this.discordClient.users.fetch(player.discordUserId);
+        await user.send({
+          content: messageContent,
+          components: [actionRow]
+        });
+
+        console.log(`Successfully sent initial turn offer DM with claim button to player ${player.id} (${player.discordUserId}) for game ${game.id}, turn ${newTurn.id}`);
       } catch (dmError) {
         console.error(`Failed to send initial turn offer DM to player ${player.id} (${player.discordUserId}) for game ${game.id}:`, dmError);
         // Log error, but proceed as turn is programmatically offered.
@@ -341,6 +343,30 @@ export class SeasonTurnService implements TurnTimeoutService {
           
           console.log(`Game ${existingTurn.gameId} marked as COMPLETED after turn ${turnId} submission`);
           
+          // Post to completed games channel
+          try {
+            const { ChannelConfigService } = await import('./ChannelConfigService.js');
+            const channelConfigService = new ChannelConfigService(this.prisma);
+            const completedChannelId = await channelConfigService.getCompletedChannelId(existingTurn.game.seasonId);
+            
+            if (completedChannelId) {
+              const completedChannel = await this.discordClient.channels.fetch(completedChannelId);
+              if (completedChannel?.isTextBased() && 'send' in completedChannel) {
+                const gameCompletionMessage = interpolate(strings.messages.game.completionAnnouncement, {
+                  gameId: existingTurn.gameId,
+                  seasonId: existingTurn.game.seasonId,
+                  finishedGamesLink: `<#${completedChannelId}>`
+                });
+                
+                await completedChannel.send(gameCompletionMessage);
+                console.log(`Posted game completion announcement for game ${existingTurn.gameId} to completed channel ${completedChannelId}`);
+              }
+            }
+          } catch (channelPostError) {
+            console.error(`Failed to post game completion to completed channel for game ${existingTurn.gameId}:`, channelPostError);
+            // Don't fail the turn submission if channel posting fails
+          }
+          
           // Check if the season is now completed after this game completion
           try {
             // Gather data for pure season completion check
@@ -523,6 +549,30 @@ export class SeasonTurnService implements TurnTimeoutService {
           });
           
           console.log(`Game ${existingTurn.gameId} marked as COMPLETED after turn ${turnId} skip`);
+          
+          // Post to completed games channel
+          try {
+            const { ChannelConfigService } = await import('./ChannelConfigService.js');
+            const channelConfigService = new ChannelConfigService(this.prisma);
+            const completedChannelId = await channelConfigService.getCompletedChannelId(existingTurn.game.seasonId);
+            
+            if (completedChannelId) {
+              const completedChannel = await this.discordClient.channels.fetch(completedChannelId);
+              if (completedChannel?.isTextBased() && 'send' in completedChannel) {
+                const gameCompletionMessage = interpolate(strings.messages.game.completionAnnouncement, {
+                  gameId: existingTurn.gameId,
+                  seasonId: existingTurn.game.seasonId,
+                  finishedGamesLink: `<#${completedChannelId}>`
+                });
+                
+                await completedChannel.send(gameCompletionMessage);
+                console.log(`Posted game completion announcement for game ${existingTurn.gameId} to completed channel ${completedChannelId}`);
+              }
+            }
+          } catch (channelPostError) {
+            console.error(`Failed to post game completion to completed channel for game ${existingTurn.gameId}:`, channelPostError);
+            // Don't fail the turn skip if channel posting fails
+          }
           
           // Check if the season is now completed after this game completion
           try {

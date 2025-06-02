@@ -425,8 +425,23 @@ export class DirectMessageHandler implements EventHandler {
                 
                 const seasonId = gameWithSeason?.season?.id || 'Unknown';
                 
+                // Get the completed games channel ID for the link
+                let finishedGamesLink = '#finished-games';
+                try {
+                    const { ChannelConfigService } = await import('../services/ChannelConfigService.js');
+                    const channelConfigService = new ChannelConfigService(this.prisma);
+                    const completedChannelId = await channelConfigService.getCompletedChannelId(seasonId);
+                    if (completedChannelId) {
+                        finishedGamesLink = `<#${completedChannelId}>`;
+                    }
+                } catch (channelError) {
+                    Logger.warn(`Failed to get completed channel ID for season ${seasonId}:`, channelError);
+                    // Use default link if channel lookup fails
+                }
+                
                 await msg.author.send(interpolate(strings.messages.submission.submitSuccess, {
-                    seasonId: seasonId
+                    seasonId: seasonId,
+                    finishedGamesLink: finishedGamesLink
                 }));
 
                 Logger.info(`Successfully processed turn submission for player ${player.id} (${msg.author.tag}), completed turn ${turnToSubmit.id}`);

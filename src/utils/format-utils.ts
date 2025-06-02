@@ -116,4 +116,37 @@ export class FormatUtils {
         
         return result;
     }
+
+    /**
+     * Formats remaining time from a future date to a precise format.
+     * Shows format like "3m44s", "1h23m", "2d5h" for timeout warnings.
+     * 
+     * @param futureDate - The target date/time
+     * @returns A precise formatted string like "3m44s", "1h23m", or "expired" if past
+     */
+    public static formatRemainingTime(futureDate: Date): string {
+        const now = new Date();
+        const diffMs = futureDate.getTime() - now.getTime();
+        
+        if (diffMs <= 0) {
+            return 'expired';
+        }
+        
+        const totalSeconds = Math.floor(diffMs / 1000);
+        const days = Math.floor(totalSeconds / 86400);
+        const hours = Math.floor((totalSeconds % 86400) / 3600);
+        const minutes = Math.floor((totalSeconds % 3600) / 60);
+        const seconds = totalSeconds % 60;
+        
+        // Show most significant units only (max 2 units for readability)
+        if (days > 0) {
+            return hours > 0 ? `${days}d${hours}h` : `${days}d`;
+        } else if (hours > 0) {
+            return minutes > 0 ? `${hours}h${minutes}m` : `${hours}h`;
+        } else if (minutes > 0) {
+            return seconds > 0 ? `${minutes}m${seconds}s` : `${minutes}m`;
+        } else {
+            return `${seconds}s`;
+        }
+    }
 }

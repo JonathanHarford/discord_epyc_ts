@@ -1,13 +1,12 @@
 import type { SelectNextPlayerInput } from '../game/types.js';
 import { Player, PrismaClient, Turn } from '@prisma/client';
-import { Client as DiscordClient } from 'discord.js';
+import { ActionRowBuilder, ButtonBuilder, ButtonStyle, Client as DiscordClient } from 'discord.js';
 
 import { Logger } from './logger.js';
 import { SchedulerService } from './SchedulerService.js';
 import { SeasonTurnService } from './SeasonTurnService.js';
 import { selectNextPlayerPure } from '../game/pureGameLogic.js';
-import { MessageAdapter } from '../messaging/MessageAdapter.js';
-import { MessageHelpers } from '../messaging/MessageHelpers.js';
+import { interpolate, strings } from '../lang/strings.js';
 import { FormatUtils } from '../utils/format-utils.js';
 import { getSeasonTimeouts } from '../utils/seasonConfig.js';
 import { ServerContextService } from '../utils/server-context.js';
@@ -236,27 +235,30 @@ export class TurnOfferingService {
             // Get server context information
             const serverContext = await this.serverContextService.getGameServerContext(gameId);
 
-            // Create enhanced message instruction for turn offer
-            const messageInstruction = MessageHelpers.dmNotification(
-                'messages.turnOffer.newTurnAvailable',
-                player.discordUserId,
-                {
-                    serverName: serverContext.serverName,
-                    gameId: gameId,
-                    seasonId: gameWithSeason.season?.id,
-                    turnNumber: turn.turnNumber,
-                    turnType: turn.type,
-                    claimTimeoutFormatted: FormatUtils.formatTimeout(timeouts.claimTimeoutMinutes)
-                }
-            );
+            // Create the claim button
+            const claimButton = new ButtonBuilder()
+                .setCustomId(`turn_claim_${turn.id}`)
+                .setLabel(strings.messages.turnOffer.claimButton)
+                .setStyle(ButtonStyle.Primary);
 
-            // Send DM using enhanced messaging layer
-            await MessageAdapter.processInstruction(
-                messageInstruction,
-                undefined, // No interaction for DMs
-                'en',
-                this.discordClient
-            );
+            const actionRow = new ActionRowBuilder<ButtonBuilder>().addComponents(claimButton);
+
+            // Create the message content with interpolated variables
+            const messageContent = interpolate(strings.messages.turnOffer.newTurnAvailable, {
+                serverName: serverContext.serverName,
+                gameId: gameId,
+                seasonId: gameWithSeason.season?.id,
+                turnNumber: turn.turnNumber,
+                turnType: turn.type,
+                claimTimeoutFormatted: FormatUtils.formatTimeout(timeouts.claimTimeoutMinutes)
+            });
+
+            // Send DM with button directly using Discord client
+            const user = await this.discordClient.users.fetch(player.discordUserId);
+            await user.send({
+                content: messageContent,
+                components: [actionRow]
+            });
 
             Logger.info(`TurnOfferingService: Successfully sent turn offer DM to player ${player.id} (${player.discordUserId})`);
             return true;

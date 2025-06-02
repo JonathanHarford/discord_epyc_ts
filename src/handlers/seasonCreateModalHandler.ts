@@ -1,7 +1,7 @@
 import { ActionRowBuilder, ButtonBuilder, ButtonStyle, CacheType, ModalSubmitInteraction } from 'discord.js';
 
 import { ModalHandler } from './modalHandler.js';
-import { strings } from '../lang/strings.js';
+import { interpolate, strings } from '../lang/strings.js';
 import prisma from '../lib/prisma.js';
 import { GameService } from '../services/GameService.js';
 import { Logger } from '../services/index.js';
@@ -111,22 +111,32 @@ export class SeasonCreateModalHandler implements ModalHandler {
                 // To send a public message, we need to do it via interaction.channel.send
                 // and acknowledge the modal interaction ephemerally first.
                 await interaction.reply({
-                    content: strings.messages.newSeason.createSuccessEphemeral.replace('{seasonId}', seasonId.toString()) || `Season ${seasonId} created! A public announcement has been made.`,
+                    content: interpolate(strings.messages.newSeason.createSuccessEphemeral, { seasonId }),
                     ephemeral: true
                 });
+
+                // Create the public announcement with proper template variable substitution
+                const publicMessage = interpolate(strings.messages.newSeason.createSuccessChannel, {
+                    seasonId,
+                    gameName: strings.game.name,
+                    openDuration: result.data.openDuration || 'indefinitely',
+                    mentionUser: interaction.user.toString()
+                });
+
                 await interaction.channel.send({
-                    content: strings.messages.newSeason.createSuccessChannel
-                                .replace('{seasonId}', seasonId.toString())
-                                .replace('{mentionUser}', interaction.user.toString()),
+                    content: publicMessage,
                     components: [actionRow]
                 });
 
             } else if (result.type === 'success') { // Missing seasonId in data
                  Logger.warn(`Season creation via modal success for user ${interaction.user.tag} but seasonId missing.`);
                  await interaction.reply({
-                     content: strings.messages.newSeason.createSuccessChannel
-                                .replace('{seasonId}', result.data?.seasonId?.toString() || 'Unknown')
-                                .replace('{mentionUser}', interaction.user.toString()),
+                     content: interpolate(strings.messages.newSeason.createSuccessChannel, {
+                         seasonId: result.data?.seasonId?.toString() || 'Unknown',
+                         gameName: strings.game.name,
+                         openDuration: result.data?.openDuration || 'indefinitely',
+                         mentionUser: interaction.user.toString()
+                     }),
                      ephemeral: true // Keep ephemeral as public announcement might be problematic
                  });
             } else {

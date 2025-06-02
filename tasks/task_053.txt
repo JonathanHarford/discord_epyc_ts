@@ -1,6 +1,6 @@
 # Task ID: 53
 # Title: Implement Game Status Dashboard (B3)
-# Status: pending
+# Status: cancelled
 # Dependencies: 47
 # Priority: medium
 # Description: Create an interactive message or embed that displays the current status of a season/game with action buttons (e.g., Start Game, Refresh Status, Settings).
