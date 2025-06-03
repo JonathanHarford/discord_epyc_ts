@@ -1,6 +1,6 @@
 # Task ID: 58
 # Title: Improve Season Creation Modal with Defaults and Missing Fields
-# Status: pending
+# Status: in-progress
 # Dependencies: 3, 5
 # Priority: high
 # Description: Enhance the season creation modal by prefilling fields with server defaults and adding the missing claim_timeout field.

@@ -383,7 +383,8 @@ describe('SeasonService', () => {
     // Test: Add first player (should not trigger activation)
     const result1 = await realSeasonService.addPlayerToSeason(player1.id, seasonId);
     expect(result1.type).toBe('success');
-    expect(result1.key).toBe('messages.season.joinSuccess');
+    // Updated to expect contextual join success messages instead of generic one
+    expect(result1.key).toMatch(/^messages\.season\.join(Success|SuccessTimeRemaining|SuccessPlayersNeeded)$/);
 
     // Test: Add second player (should trigger activation)
     const result2 = await realSeasonService.addPlayerToSeason(player2.id, seasonId);

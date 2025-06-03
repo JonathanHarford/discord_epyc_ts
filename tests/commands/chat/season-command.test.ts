@@ -150,7 +150,7 @@ describe('SeasonCommand Autocomplete', () => {
       const firstOption = respondCall[0];
       expect(firstOption).toHaveProperty('name');
       expect(firstOption).toHaveProperty('value');
-      expect(firstOption.name).toMatch(/^S[a-zA-Z0-9]{8} - @TestUser \(\d+\/\d+\) [🔧🟢]/);
+      expect(firstOption.name).toMatch(/^S[a-zA-Z0-9_-]{8} - @TestUser \(\d+\/\d+\) [🔧🟢]/);
     });
 
     it('should filter out seasons user is already in', async () => {

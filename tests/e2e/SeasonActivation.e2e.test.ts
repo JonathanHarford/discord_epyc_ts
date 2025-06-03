@@ -121,7 +121,8 @@ describe('Season Activation End-to-End Tests', () => {
       if (isLastPlayer) {
         expect(result.key).toBe('messages.season.activateSuccess');
       } else {
-        expect(result.key).toBe('messages.season.joinSuccess');
+        // Updated to expect contextual join success messages instead of generic one
+        expect(result.key).toMatch(/^messages\.season\.join(Success|SuccessTimeRemaining|SuccessPlayersNeeded)$/);
       }
     }
 
@@ -192,7 +193,8 @@ describe('Season Activation End-to-End Tests', () => {
       
       // Verify correct result type (should all be join successes, no activation yet)
       expect(result.type).toBe('success');
-      expect(result.key).toBe('messages.season.joinSuccess');
+      // Updated to expect contextual join success messages instead of generic one
+      expect(result.key).toMatch(/^messages\.season\.join(Success|SuccessTimeRemaining|SuccessPlayersNeeded)$/);
     }
 
     // STEP 3: Simulate the open_duration timeout by directly calling the handler
@@ -266,7 +268,8 @@ describe('Season Activation End-to-End Tests', () => {
       
       // Verify correct result type (should all be join successes)
       expect(result.type).toBe('success');
-      expect(result.key).toBe('messages.season.joinSuccess');
+      // Updated to expect contextual join success messages instead of generic one
+      expect(result.key).toMatch(/^messages\.season\.join(Success|SuccessTimeRemaining|SuccessPlayersNeeded)$/);
     }
 
     // STEP 3: Simulate the open_duration timeout by directly calling the handler

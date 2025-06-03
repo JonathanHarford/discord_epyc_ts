@@ -40,7 +40,7 @@ export class SeasonCreateModalHandler implements ModalHandler {
             const maxPlayersStr = interaction.fields.getTextInputValue('maxPlayersInput');
             const minPlayersStr = interaction.fields.getTextInputValue('minPlayersInput');
             const openDuration = interaction.fields.getTextInputValue('openDurationInput'); // Optional
-            const turnPattern = interaction.fields.getTextInputValue('turnPatternInput'); // Optional
+            const claimTimeout = interaction.fields.getTextInputValue('claimTimeoutInput'); // Optional
 
             // --- Validation ---
             const maxPlayers = parseInt(maxPlayersStr);
@@ -68,7 +68,10 @@ export class SeasonCreateModalHandler implements ModalHandler {
             currentData.maxPlayers = maxPlayers;
             currentData.minPlayers = minPlayers;
             if (openDuration) currentData.openDuration = openDuration;
-            if (turnPattern) currentData.turnPattern = turnPattern;
+            if (claimTimeout) currentData.claimTimeout = claimTimeout;
+            // Add origin tracking for announcements
+            currentData.guildId = interaction.guildId;
+            currentData.channelId = interaction.channelId;
             // currentData.creatorPlayerId will be set by the service using interaction.user.id
 
             // --- For single-step modal, proceed to create season ---

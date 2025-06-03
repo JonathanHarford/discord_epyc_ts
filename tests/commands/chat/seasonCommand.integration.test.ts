@@ -143,6 +143,7 @@ describe('SeasonCommand - Integration Tests', () => {
         id: 'test-guild-id',
         shardId: 0
       },
+      guildId: 'test-guild-id',
       channel: {
         send: vi.fn().mockResolvedValue(undefined)
       }

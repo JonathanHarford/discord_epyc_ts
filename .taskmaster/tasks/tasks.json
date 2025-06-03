@@ -2580,7 +2580,7 @@
       "description": "Enhance the season creation modal by prefilling fields with server defaults and adding the missing claim_timeout field.",
       "details": "Modify the season creation modal UI to load and display default configuration values (e.g., min_players, max_players, timeouts) from the application's configuration. Add a new input field for `claim_timeout` which is currently missing. Implement logic to automatically generate a meaningful default season name (e.g., based on date or a sequential pattern) instead of requiring manual user input, although allowing the user to override it should be considered. Ensure the modal correctly submits these values to the backend season creation service.",
       "testStrategy": "1. Open the season creation modal. 2. Verify that fields like min_players, max_players, and other timeout fields (excluding claim_timeout initially) are prefilled with expected default values from the configuration. 3. Confirm that the new 'claim_timeout' field is present in the modal. 4. Check that the season name input is prefilled with an auto-generated name following the defined pattern. 5. Attempt to create a season using the prefilled values (and potentially modifying some) to ensure successful submission and creation with the correct parameters, including the new claim_timeout.",
-      "status": "pending",
+      "status": "in-progress",
       "dependencies": [
         3,
         5

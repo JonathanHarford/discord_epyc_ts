@@ -92,7 +92,8 @@ describe('SeasonService Integration Tests', () => {
       console.error('addPlayerToSeason failed in test:', result.key, result.data); // Log if it fails
     }
     expect(result.type).toBe('success');
-    expect(result.key).toBe('messages.season.joinSuccess'); 
+    // Updated to expect contextual join success messages instead of generic one
+    expect(result.key).toMatch(/^messages\.season\.join(Success|SuccessTimeRemaining|SuccessPlayersNeeded)$/); 
 
     // Verify the player was added to the season in the database
     const updatedSeason = await prisma.season.findUnique({

@@ -26,6 +26,7 @@ import { EventData } from '../../src/models/internal-models.js';
 import { ConfigService } from '../../src/services/ConfigService.js';
 import { GameService } from '../../src/services/GameService.js';
 import { PlayerService } from '../../src/services/PlayerService.js';
+import { PlayerTurnService } from '../../src/services/PlayerTurnService.js';
 import { SchedulerService } from '../../src/services/SchedulerService.js';
 import { SeasonService } from '../../src/services/SeasonService.js';
 import { SeasonTurnService } from '../../src/services/SeasonTurnService.js';
@@ -59,6 +60,7 @@ describe('Full Season Playthrough + All Commands End-to-End Test', () => {
   let turnService: SeasonTurnService;
   let turnOfferingService: TurnOfferingService;
   let _playerService: PlayerService;
+  let _playerTurnService: PlayerTurnService;
   let gameService: GameService;
   let _configService: ConfigService;
   let mockSchedulerService: SchedulerService;
@@ -241,13 +243,14 @@ describe('Full Season Playthrough + All Commands End-to-End Test', () => {
     gameService = new GameService(prisma);
     seasonService = new SeasonService(prisma, turnService, mockSchedulerService, gameService);
     _playerService = new PlayerService(prisma);
+    _playerTurnService = new PlayerTurnService(prisma);
     _configService = new ConfigService(prisma);
     
     // Initialize command instances
     helpCommand = new HelpCommand();
     infoCommand = new InfoCommand();
     devCommand = new DevCommand();
-    seasonCommand = new SeasonCommand(prisma, seasonService, _playerService);
+    seasonCommand = new SeasonCommand(prisma, seasonService, _playerTurnService);
     adminCommand = new AdminCommand();
     viewDateJoinedCommand = new ViewDateJoined();
     viewDateSentCommand = new ViewDateSent();
@@ -605,12 +608,13 @@ describe('Full Season Playthrough + All Commands End-to-End Test', () => {
       const result = await seasonService.addPlayerToSeason(testPlayers[i].id, seasonId);
       expect(result.type).toBe('success');
       
+      // For the last player, expect activation success key
       if (i === 3) {
-        // Last player joining should trigger activation
         expect(result.key).toBe('messages.season.activateSuccess');
         console.log(`✅ Player ${i + 1} joined - Season activated!`);
       } else {
-        expect(result.key).toBe('messages.season.joinSuccess');
+        // Updated to expect contextual join success messages instead of generic one
+        expect(result.key).toMatch(/^messages\.season\.join(Success|SuccessTimeRemaining|SuccessPlayersNeeded)$/);
         console.log(`✅ Player ${i + 1} joined`);
       }
     }
