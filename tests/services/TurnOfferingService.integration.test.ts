@@ -159,9 +159,13 @@ describe('TurnOfferingService - Integration Tests', () => {
       ])
     });
 
-    // Check scheduled job
-    expect(mockScheduleJob).toHaveBeenCalledOnce();
-    const [jobId, scheduledDate, _jobFunction, jobData, jobType] = mockScheduleJob.mock.calls[0];
+    // Check scheduled jobs (claim warning + claim timeout)
+    expect(mockScheduleJob).toHaveBeenCalledTimes(2);
+    
+    // Find the claim timeout job (should be the second call)
+    const claimTimeoutCall = mockScheduleJob.mock.calls.find(call => call[4] === 'turn-claim-timeout');
+    expect(claimTimeoutCall).toBeDefined();
+    const [jobId, scheduledDate, _jobFunction, jobData, jobType] = claimTimeoutCall!;
     
     expect(jobId).toBe('turn-claim-timeout-' + availableTurn.id);
     expect(jobType).toBe('turn-claim-timeout');
@@ -216,9 +220,13 @@ describe('TurnOfferingService - Integration Tests', () => {
       ])
     });
     
-    // Check scheduled job
-    expect(mockScheduleJob).toHaveBeenCalledOnce();
-    const [, scheduledDateDefault] = mockScheduleJob.mock.calls[0];
+    // Check scheduled jobs (claim warning + claim timeout)
+    expect(mockScheduleJob).toHaveBeenCalledTimes(2);
+    
+    // Find the claim timeout job
+    const claimTimeoutCallDefault = mockScheduleJob.mock.calls.find(call => call[4] === 'turn-claim-timeout');
+    expect(claimTimeoutCallDefault).toBeDefined();
+    const [, scheduledDateDefault] = claimTimeoutCallDefault!;
     const nowDefault = Date.now();
     const expectedDefaultTimeoutMillis = defaultClaimMinutes * 60 * 1000;
     expect(scheduledDateDefault.getTime()).toBeGreaterThanOrEqual(nowDefault + expectedDefaultTimeoutMillis - 5000);

@@ -8,6 +8,7 @@ import { SchedulerService } from './SchedulerService.js';
 import { SeasonTurnService } from './SeasonTurnService.js';
 import { MessageHelpers, MessageInstruction } from '../messaging/index.js';
 import { formatTimeRemaining, parseDuration } from '../utils/datetime.js';
+import { TurnPatternValidationError, validateTurnPattern } from '../utils/turn-pattern-validation.js';
 
 // Define a more specific return type for findSeasonById, including config and player count
 type SeasonDetails = Prisma.SeasonGetPayload<{
@@ -58,6 +59,26 @@ export class SeasonService {
         'season_create_error_min_max_players',
         { minPlayers: options.minPlayers, maxPlayers: options.maxPlayers }
       );
+    }
+
+    // Validate turn pattern if provided
+    if (options.turnPattern !== undefined && options.turnPattern !== null) {
+      try {
+        validateTurnPattern(options.turnPattern);
+      } catch (error) {
+        if (error instanceof TurnPatternValidationError) {
+          console.warn(`Validation Error: Invalid turn pattern '${options.turnPattern}': ${error.message}`);
+          return MessageHelpers.validationError(
+            'season_create_error_invalid_turn_pattern',
+            { turnPattern: options.turnPattern, error: error.message }
+          );
+        }
+        console.warn(`Validation Error: Unexpected error validating turn pattern '${options.turnPattern}': ${error}`);
+        return MessageHelpers.validationError(
+          'season_create_error_invalid_turn_pattern',
+          { turnPattern: options.turnPattern, error: 'Invalid turn pattern format' }
+        );
+      }
     }
 
     try {

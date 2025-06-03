@@ -139,6 +139,7 @@ describe('seasonConfig utils', () => {
         const result = await getSeasonTimeouts(prisma, 'non-existent-turn');
         expect(result).toEqual({
           claimTimeoutMinutes: DEFAULT_TIMEOUTS.CLAIM_TIMEOUT_MINUTES,
+          claimWarningMinutes: 60,
           writingTimeoutMinutes: DEFAULT_TIMEOUTS.WRITING_TIMEOUT_MINUTES,
           drawingTimeoutMinutes: DEFAULT_TIMEOUTS.DRAWING_TIMEOUT_MINUTES,
         });
@@ -166,6 +167,7 @@ describe('seasonConfig utils', () => {
         const result = await getSeasonTimeouts(prisma, turn.id);
         expect(result).toEqual({
           claimTimeoutMinutes: DEFAULT_TIMEOUTS.CLAIM_TIMEOUT_MINUTES,
+          claimWarningMinutes: 60,
           writingTimeoutMinutes: DEFAULT_TIMEOUTS.WRITING_TIMEOUT_MINUTES,
           drawingTimeoutMinutes: DEFAULT_TIMEOUTS.DRAWING_TIMEOUT_MINUTES,
         });
@@ -204,6 +206,7 @@ describe('seasonConfig utils', () => {
         const result = await getSeasonTimeouts(prisma, testTurnId);
         expect(result).toEqual({
           claimTimeoutMinutes: DEFAULT_TIMEOUTS.CLAIM_TIMEOUT_MINUTES,
+          claimWarningMinutes: 60,
           writingTimeoutMinutes: DEFAULT_TIMEOUTS.WRITING_TIMEOUT_MINUTES,
           drawingTimeoutMinutes: DEFAULT_TIMEOUTS.DRAWING_TIMEOUT_MINUTES,
         });
@@ -242,6 +245,7 @@ describe('seasonConfig utils', () => {
         const result = await getSeasonTimeouts(prisma, testTurnId);
         expect(result).toEqual({
           claimTimeoutMinutes: 240,
+          claimWarningMinutes: 60,
           writingTimeoutMinutes: DEFAULT_TIMEOUTS.WRITING_TIMEOUT_MINUTES,
           drawingTimeoutMinutes: DEFAULT_TIMEOUTS.DRAWING_TIMEOUT_MINUTES,
         });
@@ -259,6 +263,7 @@ describe('seasonConfig utils', () => {
         const result = await getSeasonTimeouts(mockPrismaClientError, 'test-turn-id-db-error');
         expect(result).toEqual({
           claimTimeoutMinutes: DEFAULT_TIMEOUTS.CLAIM_TIMEOUT_MINUTES,
+          claimWarningMinutes: 60,
           writingTimeoutMinutes: DEFAULT_TIMEOUTS.WRITING_TIMEOUT_MINUTES,
           drawingTimeoutMinutes: DEFAULT_TIMEOUTS.DRAWING_TIMEOUT_MINUTES,
         });

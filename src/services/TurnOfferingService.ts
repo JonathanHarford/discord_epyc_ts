@@ -150,16 +150,8 @@ export class TurnOfferingService {
                 // Don't fail the entire process if DM fails
             }
 
-            // 6. Schedule claim timeout timer
-            const timeoutResult = await this.scheduleClaimTimeout(
-                offerResult.turn.id,
-                nextPlayerResult.playerId
-            );
-
-            if (!timeoutResult) {
-                Logger.warn(`TurnOfferingService: Failed to schedule claim timeout for turn ${offerResult.turn.id}, but turn was offered successfully`);
-                // Don't fail the entire process if timeout scheduling fails
-            }
+            // Note: Claim timeout scheduling is handled by SeasonTurnService.offerTurn()
+            // No need to schedule it again here
 
             Logger.info(`TurnOfferingService: Successfully offered turn ${offerResult.turn.id} to player ${nextPlayerResult.playerId} for game ${gameId}`);
             

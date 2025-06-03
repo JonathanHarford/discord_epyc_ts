@@ -86,6 +86,7 @@ describe('Season Timeout Integration Tests', () => {
 
       expect(result).toEqual({
         claimTimeoutMinutes: 120, // 2h = 120 minutes
+        claimWarningMinutes: 60,
         writingTimeoutMinutes: 4320, // 3d = 4320 minutes
         drawingTimeoutMinutes: 7200, // 5d = 7200 minutes
       });
@@ -138,6 +139,7 @@ describe('Season Timeout Integration Tests', () => {
       // which results in 1440 minutes for all timeouts
       expect(result).toEqual({
         claimTimeoutMinutes: 1440, // 1d (schema default)
+        claimWarningMinutes: 60,
         writingTimeoutMinutes: 1440, // 1d (schema default)
         drawingTimeoutMinutes: 1440, // 1d (schema default)
       });
@@ -227,6 +229,7 @@ describe('Season Timeout Integration Tests', () => {
       const shortResult = await getSeasonTimeouts(prisma, shortTimeoutTurn.id);
       expect(shortResult).toEqual({
         claimTimeoutMinutes: 30, // 30m
+        claimWarningMinutes: 60,
         writingTimeoutMinutes: 120, // 2h
         drawingTimeoutMinutes: 240, // 4h
       });
@@ -235,6 +238,7 @@ describe('Season Timeout Integration Tests', () => {
       const longResult = await getSeasonTimeouts(prisma, longTimeoutTurn.id);
       expect(longResult).toEqual({
         claimTimeoutMinutes: 1440, // 1d
+        claimWarningMinutes: 60,
         writingTimeoutMinutes: 10080, // 7d = 10080 minutes
         drawingTimeoutMinutes: 20160, // 14d = 20160 minutes
       });
@@ -287,6 +291,7 @@ describe('Season Timeout Integration Tests', () => {
 
       expect(result).toEqual({
         claimTimeoutMinutes: DEFAULT_TIMEOUTS.CLAIM_TIMEOUT_MINUTES,
+        claimWarningMinutes: 60,
         writingTimeoutMinutes: DEFAULT_TIMEOUTS.WRITING_TIMEOUT_MINUTES,
         drawingTimeoutMinutes: DEFAULT_TIMEOUTS.DRAWING_TIMEOUT_MINUTES,
       });
@@ -298,6 +303,7 @@ describe('Season Timeout Integration Tests', () => {
 
       expect(result).toEqual({
         claimTimeoutMinutes: DEFAULT_TIMEOUTS.CLAIM_TIMEOUT_MINUTES,
+        claimWarningMinutes: 60,
         writingTimeoutMinutes: DEFAULT_TIMEOUTS.WRITING_TIMEOUT_MINUTES,
         drawingTimeoutMinutes: DEFAULT_TIMEOUTS.DRAWING_TIMEOUT_MINUTES,
       });
