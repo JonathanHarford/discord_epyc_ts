@@ -347,20 +347,31 @@ export class SeasonTurnService implements TurnTimeoutService {
           try {
             const { ChannelConfigService } = await import('./ChannelConfigService.js');
             const channelConfigService = new ChannelConfigService(this.prisma);
-            const completedChannelId = await channelConfigService.getCompletedChannelId(existingTurn.game.seasonId);
             
-            if (completedChannelId) {
-              const completedChannel = await this.discordClient.channels.fetch(completedChannelId);
-              if (completedChannel?.isTextBased() && 'send' in completedChannel) {
-                const gameCompletionMessage = interpolate(strings.messages.game.completionAnnouncement, {
-                  gameId: existingTurn.gameId,
-                  seasonId: existingTurn.game.seasonId,
-                  finishedGamesLink: `<#${completedChannelId}>`
-                });
-                
-                await completedChannel.send(gameCompletionMessage);
-                console.log(`Posted game completion announcement for game ${existingTurn.gameId} to completed channel ${completedChannelId}`);
+            // Get the season to retrieve the guildId
+            const season = await this.prisma.season.findUnique({
+              where: { id: existingTurn.game.seasonId },
+              select: { guildId: true }
+            });
+            
+            if (season?.guildId) {
+              const completedChannelId = await channelConfigService.getCompletedChannelId(season.guildId);
+              
+              if (completedChannelId) {
+                const completedChannel = await this.discordClient.channels.fetch(completedChannelId);
+                if (completedChannel?.isTextBased() && 'send' in completedChannel) {
+                  const gameCompletionMessage = interpolate(strings.messages.game.completionAnnouncement, {
+                    gameId: existingTurn.gameId,
+                    seasonId: existingTurn.game.seasonId,
+                    finishedGamesLink: `<#${completedChannelId}>`
+                  });
+                  
+                  await completedChannel.send(gameCompletionMessage);
+                  console.log(`Posted game completion announcement for game ${existingTurn.gameId} to completed channel ${completedChannelId}`);
+                }
               }
+            } else {
+              console.log(`Game ${existingTurn.gameId} has no guild ID, skipping completion announcement`);
             }
           } catch (channelPostError) {
             console.error(`Failed to post game completion to completed channel for game ${existingTurn.gameId}:`, channelPostError);
@@ -400,6 +411,31 @@ export class SeasonTurnService implements TurnTimeoutService {
           } catch (seasonCompletionError) {
             console.error(`Error checking season completion for season ${existingTurn.game.seasonId} after game ${existingTurn.gameId}:`, seasonCompletionError);
             // Don't fail the turn submission if season completion check fails
+          }
+        } else {
+          // Game is not completed, trigger turn offering for the next turn
+          try {
+            const { TurnOfferingService } = await import('./TurnOfferingService.js');
+            const turnOfferingService = new TurnOfferingService(
+              this.prisma,
+              this.discordClient,
+              this,
+              this.schedulerService!
+            );
+            
+            const offerResult = await turnOfferingService.offerNextTurn(
+              existingTurn.gameId,
+              'turn_completed'
+            );
+            
+            if (offerResult.success) {
+              console.log(`Successfully triggered turn offering for game ${existingTurn.gameId} after turn ${turnId} completion`);
+            } else {
+              console.warn(`Failed to trigger turn offering for game ${existingTurn.gameId} after turn ${turnId} completion: ${offerResult.error}`);
+            }
+          } catch (turnOfferingError) {
+            console.error(`Error triggering turn offering for game ${existingTurn.gameId} after turn ${turnId} completion:`, turnOfferingError);
+            // Don't fail the turn submission if turn offering fails
           }
         }
       } catch (gameCompletionError) {
@@ -554,20 +590,31 @@ export class SeasonTurnService implements TurnTimeoutService {
           try {
             const { ChannelConfigService } = await import('./ChannelConfigService.js');
             const channelConfigService = new ChannelConfigService(this.prisma);
-            const completedChannelId = await channelConfigService.getCompletedChannelId(existingTurn.game.seasonId);
             
-            if (completedChannelId) {
-              const completedChannel = await this.discordClient.channels.fetch(completedChannelId);
-              if (completedChannel?.isTextBased() && 'send' in completedChannel) {
-                const gameCompletionMessage = interpolate(strings.messages.game.completionAnnouncement, {
-                  gameId: existingTurn.gameId,
-                  seasonId: existingTurn.game.seasonId,
-                  finishedGamesLink: `<#${completedChannelId}>`
-                });
-                
-                await completedChannel.send(gameCompletionMessage);
-                console.log(`Posted game completion announcement for game ${existingTurn.gameId} to completed channel ${completedChannelId}`);
+            // Get the season to retrieve the guildId
+            const season = await this.prisma.season.findUnique({
+              where: { id: existingTurn.game.seasonId },
+              select: { guildId: true }
+            });
+            
+            if (season?.guildId) {
+              const completedChannelId = await channelConfigService.getCompletedChannelId(season.guildId);
+              
+              if (completedChannelId) {
+                const completedChannel = await this.discordClient.channels.fetch(completedChannelId);
+                if (completedChannel?.isTextBased() && 'send' in completedChannel) {
+                  const gameCompletionMessage = interpolate(strings.messages.game.completionAnnouncement, {
+                    gameId: existingTurn.gameId,
+                    seasonId: existingTurn.game.seasonId,
+                    finishedGamesLink: `<#${completedChannelId}>`
+                  });
+                  
+                  await completedChannel.send(gameCompletionMessage);
+                  console.log(`Posted game completion announcement for game ${existingTurn.gameId} to completed channel ${completedChannelId}`);
+                }
               }
+            } else {
+              console.log(`Game ${existingTurn.gameId} has no guild ID, skipping completion announcement`);
             }
           } catch (channelPostError) {
             console.error(`Failed to post game completion to completed channel for game ${existingTurn.gameId}:`, channelPostError);
@@ -607,6 +654,31 @@ export class SeasonTurnService implements TurnTimeoutService {
           } catch (seasonCompletionError) {
             console.error(`Error checking season completion for season ${existingTurn.game.seasonId} after game ${existingTurn.gameId}:`, seasonCompletionError);
             // Don't fail the turn skip if season completion check fails
+          }
+        } else {
+          // Game is not completed, trigger turn offering for the next turn
+          try {
+            const { TurnOfferingService } = await import('./TurnOfferingService.js');
+            const turnOfferingService = new TurnOfferingService(
+              this.prisma,
+              this.discordClient,
+              this,
+              this.schedulerService!
+            );
+            
+            const offerResult = await turnOfferingService.offerNextTurn(
+              existingTurn.gameId,
+              'turn_skipped'
+            );
+            
+            if (offerResult.success) {
+              console.log(`Successfully triggered turn offering for game ${existingTurn.gameId} after turn ${turnId} skip`);
+            } else {
+              console.warn(`Failed to trigger turn offering for game ${existingTurn.gameId} after turn ${turnId} skip: ${offerResult.error}`);
+            }
+          } catch (turnOfferingError) {
+            console.error(`Error triggering turn offering for game ${existingTurn.gameId} after turn ${turnId} skip:`, turnOfferingError);
+            // Don't fail the turn skip if turn offering fails
           }
         }
       } catch (gameCompletionError) {

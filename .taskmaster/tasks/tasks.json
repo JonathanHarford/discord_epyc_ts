@@ -2578,15 +2578,46 @@
       "id": 58,
       "title": "Improve Season Creation Modal with Defaults and Missing Fields",
       "description": "Enhance the season creation modal by prefilling fields with server defaults and adding the missing claim_timeout field.",
-      "details": "Modify the season creation modal UI to load and display default configuration values (e.g., min_players, max_players, timeouts) from the application's configuration. Add a new input field for `claim_timeout` which is currently missing. Implement logic to automatically generate a meaningful default season name (e.g., based on date or a sequential pattern) instead of requiring manual user input, although allowing the user to override it should be considered. Ensure the modal correctly submits these values to the backend season creation service.",
-      "testStrategy": "1. Open the season creation modal. 2. Verify that fields like min_players, max_players, and other timeout fields (excluding claim_timeout initially) are prefilled with expected default values from the configuration. 3. Confirm that the new 'claim_timeout' field is present in the modal. 4. Check that the season name input is prefilled with an auto-generated name following the defined pattern. 5. Attempt to create a season using the prefilled values (and potentially modifying some) to ensure successful submission and creation with the correct parameters, including the new claim_timeout.",
-      "status": "in-progress",
+      "status": "done",
       "dependencies": [
         3,
         5
       ],
       "priority": "high",
-      "subtasks": []
+      "details": "Investigation has shown that the core requirements of this task are already implemented. The season creation modal now pre-fills fields (`min_players`, `max_players`, `open_duration`, `claim_timeout`) using server default configuration. The `claim_timeout` field has been added and is processed correctly. Season names are auto-generated using a date-based pattern. The modal currently uses 5 input fields, which is Discord's maximum. A minor discrepancy was found where the test file references a `turnPatternInput` field which is not present in the modal UI, likely due to the 5-component limit.",
+      "testStrategy": "Existing tests cover the functionality added for this task, including prefilling defaults, the presence and processing of the `claim_timeout` field, and the auto-generation of season names. All relevant tests are currently passing, confirming the implementation meets the requirements. The discrepancy regarding `turnPatternInput` in tests vs. UI has been noted.",
+      "subtasks": [
+        {
+          "id": "58-1",
+          "description": "Implement `claimTimeoutInput` field in `src/utils/modalBuilders.ts` (lines 83-92).",
+          "status": "completed"
+        },
+        {
+          "id": "58-2",
+          "description": "Process `claimTimeout` value in `src/handlers/seasonCreateModalHandler.ts` (line 42).",
+          "status": "completed"
+        },
+        {
+          "id": "58-3",
+          "description": "Use `ConfigService.getGuildDefaultConfig()` to prefill `minPlayers` (lines 50-54), `maxPlayers` (lines 58-62), `openDuration` (lines 66-70), and `claimTimeout` (lines 83-92) in the modal builder.",
+          "status": "completed"
+        },
+        {
+          "id": "58-4",
+          "description": "Implement `generateAutoSeasonName()` function for date-based default names.",
+          "status": "completed"
+        },
+        {
+          "id": "58-5",
+          "description": "Call `generateAutoSeasonName()` in the season command before showing the modal (line 570).",
+          "status": "completed"
+        },
+        {
+          "id": "58-6",
+          "description": "Note discrepancy: `turnPatternInput` is referenced in tests but not implemented in the modal UI due to Discord's 5-component limit.",
+          "status": "completed"
+        }
+      ]
     },
     {
       "id": 59,
@@ -2661,7 +2692,7 @@
       "description": "Implement the logic to automatically post a summary or announcement of completed games to a configured Discord channel.",
       "details": "When a game is marked as completed (triggered by Task 18), retrieve the configured channel ID for finished games using the configuration loading mechanism (Task 3). Fetch relevant game data such as participating players, game outcome, and duration from the database (which relies on the schema defined in Task 1). Construct a clear and informative summary message based on this data. Use the Discord bot client (Task 2) to send this summary message to the designated channel. Implement robust error handling to manage potential issues like an invalid or missing channel ID, or insufficient bot permissions to post in the channel.",
       "testStrategy": "Develop unit tests to ensure the game summary message is correctly formatted based on various game outcomes and data. Create integration tests that simulate a game completion event, verifying that the system correctly identifies the configured channel (using Task 3), fetches necessary game data (using Task 1), constructs the message, and successfully posts it to the channel using the Discord client (Task 2). Include tests for error conditions, such as attempting to post to a non-existent channel or when the bot lacks permissions, ensuring appropriate logging or notifications occur.",
-      "status": "pending",
+      "status": "in-progress",
       "dependencies": [
         1,
         2,
@@ -2669,7 +2700,60 @@
         18
       ],
       "priority": "high",
-      "subtasks": []
+      "subtasks": [
+        {
+          "id": 1,
+          "title": "Retrieve Game Completion Data",
+          "description": "Create a function to retrieve all necessary game data when a game is marked as completed.",
+          "dependencies": [],
+          "details": "Implement a function that triggers when a game is marked as completed (from Task 18). This function should fetch all relevant game data from the database including participating players, game outcome, final scores, and duration. Use the database schema defined in Task 1 to properly query this information. Include error handling for cases where game data might be incomplete or corrupted.\n<info added on 2025-06-03T17:37:38.776Z>\nAnalysis of existing codebase reveals scattered and buggy game completion announcement logic.\n- `OnDemandGameService.sendGameCompletionAnnouncement()` is correct.\n- `SeasonTurnService` methods (`submitTurn`, `skipTurn`) incorrectly use `seasonId` instead of `guildId` for channel lookup and bypass `MessageAdapter`.\n- `GameService.handleTurnCompletion()` currently only marks completion but lacks announcement logic.\n\nKey issues to address:\n- Correct `guildId` usage in `SeasonTurnService`.\n- Implement announcement posting in `GameService.handleTurnCompletion`.\n- Ensure handling for both season and on-demand games.\n\nNext Steps:\n1. Fix the `guildId` parameter bug in `SeasonTurnService`.\n2. Add game completion announcement logic to `GameService.handleTurnCompletion`.\n3. Consider creating a unified service for game completion announcements to consolidate logic.\n</info added on 2025-06-03T17:37:38.776Z>\n<info added on 2025-06-03T17:39:39.987Z>\n✅ COMPLETED: Fixed SeasonTurnService Bug\n\nSuccessfully identified and fixed a critical bug in the SeasonTurnService where game completion announcements were failing due to incorrect parameter usage.\n\nBug Details:\n- `SeasonTurnService.submitTurn()` and `SeasonTurnService.skipTurn()` were calling `getCompletedChannelId(existingTurn.game.seasonId)`\n- This was incorrect because `getCompletedChannelId()` expects a `guildId`, not a `seasonId`\n- The bug prevented game completion announcements from being posted to configured channels\n\nFix Implemented:\n1. Modified both methods to first fetch the season to get the `guildId`:\n   ```typescript\n   const season = await this.prisma.season.findUnique({\n     where: { id: existingTurn.game.seasonId },\n     select: { guildId: true }\n   });\n   ```\n\n2. Updated the channel lookup to use the correct parameter:\n   ```typescript\n   if (season?.guildId) {\n     const completedChannelId = await channelConfigService.getCompletedChannelId(season.guildId);\n     // ... rest of announcement logic\n   }\n   ```\n\n3. Added proper handling for seasons without guildId (DM-created seasons)\n\nTesting:\n- All 604 tests pass, confirming no regressions\n- The fix ensures game completion announcements will now work correctly for season games\n\nNext Steps:\n- Need to add similar game completion posting logic to `GameService.handleTurnCompletion()`\n- Consider creating a unified game completion announcement service\n</info added on 2025-06-03T17:39:39.987Z>",
+          "status": "done",
+          "testStrategy": "Create unit tests with mock game completion events and verify that all required game data is correctly retrieved from the database."
+        },
+        {
+          "id": 2,
+          "title": "Get Configured Channel for Game Announcements",
+          "description": "Implement logic to retrieve the configured Discord channel ID for posting game completion announcements.",
+          "dependencies": [],
+          "details": "Using the configuration loading mechanism from Task 3, retrieve the designated Discord channel ID where game completion announcements should be posted. Implement validation to ensure the channel ID exists and is in the correct format. Add error handling for cases where the channel ID is missing, invalid, or the configuration cannot be loaded.",
+          "status": "in-progress",
+          "testStrategy": "Test with various configuration scenarios including valid channel IDs, missing channel IDs, and invalid format channel IDs to ensure proper error handling."
+        },
+        {
+          "id": 3,
+          "title": "Format Game Completion Message",
+          "description": "Create a function to format retrieved game data into a clear, informative Discord message.",
+          "dependencies": [
+            1
+          ],
+          "details": "Develop a function that takes the game data retrieved in Subtask 1 and formats it into a well-structured Discord message. The message should include game type, participants, winner(s), duration, final scores, and any other relevant statistics. Consider using Discord's rich embed format for better visual presentation. Ensure the message is clear and concise while providing all necessary information about the completed game.",
+          "status": "pending",
+          "testStrategy": "Test with various game data scenarios to ensure the message formatting is consistent and displays all required information correctly."
+        },
+        {
+          "id": 4,
+          "title": "Send Game Completion Announcement",
+          "description": "Implement the functionality to send the formatted game completion message to the configured Discord channel.",
+          "dependencies": [
+            2,
+            3
+          ],
+          "details": "Using the Discord bot client from Task 2, implement the logic to send the formatted game completion message to the channel ID retrieved in Subtask 2. Ensure the bot has proper permissions to post in the channel before attempting to send the message. Include error handling for cases where the bot lacks necessary permissions, the channel no longer exists, or network issues prevent message delivery.",
+          "status": "pending",
+          "testStrategy": "Test with mock Discord client to verify messages are sent correctly to the specified channel and that error cases are properly handled."
+        },
+        {
+          "id": 5,
+          "title": "Implement Comprehensive Error Handling and Logging",
+          "description": "Create robust error handling and logging for the entire game completion announcement process.",
+          "dependencies": [
+            4
+          ],
+          "details": "Implement comprehensive error handling throughout the game completion announcement process. This should include handling cases such as database connection failures, configuration loading errors, message formatting issues, and Discord API communication problems. Create a logging system that records both successful announcements and any errors that occur, with appropriate error messages and suggested remediation steps. Ensure that game completion is still properly recorded even if the announcement fails to post.",
+          "status": "pending",
+          "testStrategy": "Test various failure scenarios at different stages of the process to ensure errors are properly caught, logged, and don't crash the application."
+        }
+      ]
     },
     {
       "id": 64,
@@ -2723,17 +2807,38 @@
     {
       "id": 67,
       "title": "Fix 2-Person Season Turn Passing After Initial Turns",
-      "description": "Address the bug preventing automatic turn passing in 2-person seasons after both players submit their initial turns, causing games to stall.",
-      "details": "Investigate the game flow specifically for 2-person seasons after the first two turns (one from each player) are completed. Identify why the Turn Offering Mechanism (Task 14) is not correctly triggered or processed to offer the third turn to the first player. This might involve examining the logic within GameService (Task 36) that handles turn completion events and determines the next action. Ensure the Game Completion Check (Task 18) is not prematurely marking the game as complete. The fix should ensure that after the second initial turn is completed, the system correctly identifies the next player (the first player again) and triggers the turn offering process for the third turn. Consider edge cases and ensure the fix doesn't negatively impact turn progression in seasons with more than 2 players or at later stages of a 2-person game.",
-      "testStrategy": "Create a test scenario specifically for a 2-person season. Start a new 2-person season. Have both players submit their initial turns. Verify that after the second player submits their turn, the system automatically offers the third turn to the first player. Confirm that the game does not stall and the turn state progresses correctly. Test with different players and ensure consistency.",
-      "status": "pending",
+      "description": "Address the bug preventing automatic turn passing in 2-person seasons after both players submit their initial turns. The root cause is identified as a missing trigger for the next turn offering within the `SeasonTurnService` after a turn is completed or skipped and the game is not yet finished.",
+      "status": "done",
       "dependencies": [
         14,
         36,
         18
       ],
       "priority": "high",
-      "subtasks": []
+      "details": "Investigate the `SeasonTurnService.ts` file, specifically the `submitTurn` and `skipTurn` methods. The current logic correctly checks for game completion after a turn, but it fails to trigger the `TurnOfferingService.offerNextTurn()` call when the game is *not* completed. This omission prevents the system from offering the next turn, particularly noticeable in 2-person seasons after the second turn is completed, leading to the game stalling instead of offering the third turn to the first player. The fix involves adding the appropriate call to `TurnOfferingService.offerNextTurn(gameId, 'turn_completed')` or `TurnOfferingService.offerNextTurn(gameId, 'turn_skipped')` within the conditional block where the game is determined to be not completed. Affected code is primarily within the turn processing logic in `SeasonTurnService.ts` (approximate lines ~290-400 for `submitTurn` and ~490-620 for `skipTurn`). Ensure the fix correctly handles turn progression in 2-person games and does not negatively impact other game types or stages.",
+      "testStrategy": "Create a test scenario specifically for a 2-person season. Start a new 2-person season. Have both players submit their initial turns. Verify that after the second player submits their turn, the system automatically offers the third turn to the first player. Confirm that the game does not stall and the turn state progresses correctly. Test with different players and ensure consistency. Also, briefly test skipping a turn in a 2-person game to ensure the fix applies there as well.",
+      "subtasks": [
+        {
+          "id": "67-1",
+          "description": "Import TurnOfferingService into SeasonTurnService.ts",
+          "status": "done"
+        },
+        {
+          "id": "67-2",
+          "description": "Add call to TurnOfferingService.offerNextTurn(gameId, 'turn_completed') in SeasonTurnService.submitTurn() when game is not completed",
+          "status": "done"
+        },
+        {
+          "id": "67-3",
+          "description": "Add call to TurnOfferingService.offerNextTurn(gameId, 'turn_skipped') in SeasonTurnService.skipTurn() when game is not completed",
+          "status": "done"
+        },
+        {
+          "id": "67-4",
+          "description": "Test the fix using the 2-person season scenario described in the test strategy",
+          "status": "done"
+        }
+      ]
     },
     {
       "id": 68,

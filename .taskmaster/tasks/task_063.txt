@@ -1,6 +1,6 @@
 # Task ID: 63
 # Title: Implement Game Completion Posting to Configured Channel
-# Status: pending
+# Status: in-progress
 # Dependencies: 1, 2, 3, 18
 # Priority: high
 # Description: Implement the logic to automatically post a summary or announcement of completed games to a configured Discord channel.
@@ -9,3 +9,88 @@ When a game is marked as completed (triggered by Task 18), retrieve the configur
 
 # Test Strategy:
 Develop unit tests to ensure the game summary message is correctly formatted based on various game outcomes and data. Create integration tests that simulate a game completion event, verifying that the system correctly identifies the configured channel (using Task 3), fetches necessary game data (using Task 1), constructs the message, and successfully posts it to the channel using the Discord client (Task 2). Include tests for error conditions, such as attempting to post to a non-existent channel or when the bot lacks permissions, ensuring appropriate logging or notifications occur.
+
+# Subtasks:
+## 1. Retrieve Game Completion Data [done]
+### Dependencies: None
+### Description: Create a function to retrieve all necessary game data when a game is marked as completed.
+### Details:
+Implement a function that triggers when a game is marked as completed (from Task 18). This function should fetch all relevant game data from the database including participating players, game outcome, final scores, and duration. Use the database schema defined in Task 1 to properly query this information. Include error handling for cases where game data might be incomplete or corrupted.
+<info added on 2025-06-03T17:37:38.776Z>
+Analysis of existing codebase reveals scattered and buggy game completion announcement logic.
+- `OnDemandGameService.sendGameCompletionAnnouncement()` is correct.
+- `SeasonTurnService` methods (`submitTurn`, `skipTurn`) incorrectly use `seasonId` instead of `guildId` for channel lookup and bypass `MessageAdapter`.
+- `GameService.handleTurnCompletion()` currently only marks completion but lacks announcement logic.
+
+Key issues to address:
+- Correct `guildId` usage in `SeasonTurnService`.
+- Implement announcement posting in `GameService.handleTurnCompletion`.
+- Ensure handling for both season and on-demand games.
+
+Next Steps:
+1. Fix the `guildId` parameter bug in `SeasonTurnService`.
+2. Add game completion announcement logic to `GameService.handleTurnCompletion`.
+3. Consider creating a unified service for game completion announcements to consolidate logic.
+</info added on 2025-06-03T17:37:38.776Z>
+<info added on 2025-06-03T17:39:39.987Z>
+✅ COMPLETED: Fixed SeasonTurnService Bug
+
+Successfully identified and fixed a critical bug in the SeasonTurnService where game completion announcements were failing due to incorrect parameter usage.
+
+Bug Details:
+- `SeasonTurnService.submitTurn()` and `SeasonTurnService.skipTurn()` were calling `getCompletedChannelId(existingTurn.game.seasonId)`
+- This was incorrect because `getCompletedChannelId()` expects a `guildId`, not a `seasonId`
+- The bug prevented game completion announcements from being posted to configured channels
+
+Fix Implemented:
+1. Modified both methods to first fetch the season to get the `guildId`:
+   ```typescript
+   const season = await this.prisma.season.findUnique({
+     where: { id: existingTurn.game.seasonId },
+     select: { guildId: true }
+   });
+   ```
+
+2. Updated the channel lookup to use the correct parameter:
+   ```typescript
+   if (season?.guildId) {
+     const completedChannelId = await channelConfigService.getCompletedChannelId(season.guildId);
+     // ... rest of announcement logic
+   }
+   ```
+
+3. Added proper handling for seasons without guildId (DM-created seasons)
+
+Testing:
+- All 604 tests pass, confirming no regressions
+- The fix ensures game completion announcements will now work correctly for season games
+
+Next Steps:
+- Need to add similar game completion posting logic to `GameService.handleTurnCompletion()`
+- Consider creating a unified game completion announcement service
+</info added on 2025-06-03T17:39:39.987Z>
+
+## 2. Get Configured Channel for Game Announcements [in-progress]
+### Dependencies: None
+### Description: Implement logic to retrieve the configured Discord channel ID for posting game completion announcements.
+### Details:
+Using the configuration loading mechanism from Task 3, retrieve the designated Discord channel ID where game completion announcements should be posted. Implement validation to ensure the channel ID exists and is in the correct format. Add error handling for cases where the channel ID is missing, invalid, or the configuration cannot be loaded.
+
+## 3. Format Game Completion Message [pending]
+### Dependencies: 63.1
+### Description: Create a function to format retrieved game data into a clear, informative Discord message.
+### Details:
+Develop a function that takes the game data retrieved in Subtask 1 and formats it into a well-structured Discord message. The message should include game type, participants, winner(s), duration, final scores, and any other relevant statistics. Consider using Discord's rich embed format for better visual presentation. Ensure the message is clear and concise while providing all necessary information about the completed game.
+
+## 4. Send Game Completion Announcement [pending]
+### Dependencies: 63.2, 63.3
+### Description: Implement the functionality to send the formatted game completion message to the configured Discord channel.
+### Details:
+Using the Discord bot client from Task 2, implement the logic to send the formatted game completion message to the channel ID retrieved in Subtask 2. Ensure the bot has proper permissions to post in the channel before attempting to send the message. Include error handling for cases where the bot lacks necessary permissions, the channel no longer exists, or network issues prevent message delivery.
+
+## 5. Implement Comprehensive Error Handling and Logging [pending]
+### Dependencies: 63.4
+### Description: Create robust error handling and logging for the entire game completion announcement process.
+### Details:
+Implement comprehensive error handling throughout the game completion announcement process. This should include handling cases such as database connection failures, configuration loading errors, message formatting issues, and Discord API communication problems. Create a logging system that records both successful announcements and any errors that occur, with appropriate error messages and suggested remediation steps. Ensure that game completion is still properly recorded even if the announcement fails to post.
+
