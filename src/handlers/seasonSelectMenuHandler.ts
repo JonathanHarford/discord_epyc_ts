@@ -2,7 +2,7 @@ import { CacheType, EmbedBuilder, StringSelectMenuInteraction } from 'discord.js
 
 import { createDashboardComponents } from './seasonDashboardButtonHandler.js';
 import { SelectMenuHandler } from './selectMenuHandler.js';
-import { strings } from '../lang/strings.js';
+import { interpolate, strings } from '../lang/strings.js';
 import prisma from '../lib/prisma.js';
 import { GameService } from '../services/GameService.js';
 import { Logger } from '../services/index.js';
@@ -24,90 +24,113 @@ export class SeasonSelectMenuHandler implements SelectMenuHandler {
         const turnService = new SeasonTurnService(prisma, interaction.client, schedulerService);
         const seasonService = new SeasonService(prisma, turnService, schedulerService, gameService);
 
-        const selectedSeasonId = interaction.values[0];
+        const parts = interaction.customId.substring(this.customIdPrefix.length).split('_');
+        const action = parts[0]; // e.g., 'join'
+        const seasonId = interaction.values[0]; // Selected season ID
         const discordUserId = interaction.user.id;
         const discordUserName = interaction.user.username;
 
-        Logger.info(`SeasonSelectMenuHandler: User ${discordUserName} (${discordUserId}) selected season ${selectedSeasonId} via ${interaction.customId}`);
+        Logger.info(`SeasonSelectMenuHandler: User ${discordUserName} (${discordUserId}) attempting to ${action} season ${seasonId}`);
 
-        // Update the original message to acknowledge selection and remove the select menu
-        try {
-            await interaction.update({
-                content: strings.messages.selectSeason.selectionProcessing?.replace('{seasonId}', selectedSeasonId) || `Processing your selection for Season ${selectedSeasonId}...`,
-                components: []
-            });
-        } catch (error) {
-            Logger.error(`SeasonSelectMenuHandler: Failed to update original message for ${interaction.customId}:`, error);
-            // Non-fatal, proceed with handling the selection
+        if (action !== 'join') {
+            Logger.warn(`SeasonSelectMenuHandler: Unsupported action '${action}' for user ${discordUserId}`);
+            await interaction.reply({ content: 'This action is not supported.', ephemeral: true });
+            return;
         }
 
-        if (interaction.customId === 'season_select_join') {
-            await this.handleJoinSelection(interaction, selectedSeasonId, discordUserId, discordUserName, seasonService);
-        } else if (interaction.customId === 'season_select_show') {
-            await this.handleShowSelection(interaction, selectedSeasonId, seasonService);
-        } else {
-            Logger.warn(`SeasonSelectMenuHandler: Unknown customId: ${interaction.customId}`);
-            // interaction.update already happened, so we might send a followUp here if needed
-            await interaction.followUp({ content: 'Sorry, I can\'t determine what to do with this selection.', ephemeral: true });
+        if (!seasonId || seasonId.trim().length === 0) {
+            Logger.warn(`SeasonSelectMenuHandler: Invalid seasonId from selection: ${seasonId}`);
+            await interaction.reply({ content: 'Invalid season selection. Please try again.', ephemeral: true });
+            return;
         }
-    }
 
-    private async handleJoinSelection(interaction: StringSelectMenuInteraction<CacheType>, seasonId: string, discordUserId: string, discordUserName: string, seasonService: SeasonService): Promise<void> {
-        Logger.info(`SeasonSelectMenuHandler: Handling JOIN for season ${seasonId} by user ${discordUserId}`);
         try {
+            // 1. Find or create player record
             let player = await prisma.player.findUnique({ where: { discordUserId } });
             if (!player) {
-                player = await prisma.player.create({ data: { discordUserId, name: discordUserName } });
-                Logger.info(`SeasonSelectMenuHandler: Created player record for ${discordUserName} during join selection.`);
+                try {
+                    player = await prisma.player.create({
+                        data: { discordUserId, name: discordUserName },
+                    });
+                    Logger.info(`SeasonSelectMenuHandler: Created new player record for ${discordUserName} (${discordUserId})`);
+                } catch (error) {
+                    Logger.error(`SeasonSelectMenuHandler: Failed to create player record for ${discordUserName} (${discordUserId}):`, error);
+                    await interaction.reply({ content: strings.messages.joinSeason.errorPlayerCreateFailed || 'Could not prepare your player record. Please try again.', ephemeral: true });
+                    return;
+                }
             }
+            const playerId = player.id;
 
+            // 2. Check if season exists and is joinable
             const seasonDetails = await seasonService.findSeasonById(seasonId);
             if (!seasonDetails) {
-                await interaction.followUp({ content: strings.messages.joinSeason.seasonNotFound.replace('{seasonId}', seasonId), ephemeral: true });
+                await interaction.reply({ content: interpolate(strings.messages.joinSeason.seasonNotFound, { seasonId }), ephemeral: true });
                 return;
             }
 
             const validJoinStatuses = ['OPEN', 'SETUP'];
             if (!validJoinStatuses.includes(seasonDetails.status)) {
-                await interaction.followUp({
-                    content: strings.messages.joinSeason.notOpen.replace('{seasonId}', seasonId).replace('{status}', seasonDetails.status),
+                await interaction.reply({
+                    content: interpolate(strings.messages.joinSeason.notOpen, { seasonId, status: seasonDetails.status }),
                     ephemeral: true
                 });
                 return;
             }
 
+            // 3. Check if player is already in the season
             const isPlayerInSeason = await prisma.playersOnSeasons.findUnique({
-                where: { playerId_seasonId: { playerId: player.id, seasonId: seasonId } },
+                where: {
+                    playerId_seasonId: {
+                        playerId: playerId,
+                        seasonId: seasonId,
+                    },
+                },
             });
+
             if (isPlayerInSeason) {
-                await interaction.followUp({ content: strings.messages.joinSeason.alreadyJoined.replace('{seasonId}', seasonId), ephemeral: true });
+                await interaction.reply({ content: interpolate(strings.messages.joinSeason.alreadyJoined, { seasonId }), ephemeral: true });
                 return;
             }
 
-            const isSeasonFull = seasonDetails.config.maxPlayers ? seasonDetails._count.players >= seasonDetails.config.maxPlayers : false;
-            if (isSeasonFull) {
-                await interaction.followUp({ content: strings.messages.joinSeason.seasonFull.replace('{seasonId}', seasonId), ephemeral: true });
-                return;
-            }
+            // 4. Add player to season
+            const result = await seasonService.addPlayerToSeason(playerId, seasonId);
 
-            const result = await seasonService.addPlayerToSeason(player.id, seasonId);
             if (result.type === 'success') {
-                await interaction.followUp({ content: strings.messages.joinSeason.successButton.replace('{seasonId}', seasonId), ephemeral: true });
-            } else {
-                let userMessage = strings.messages.joinSeason.genericError.replace('{seasonId}', seasonId);
-                 if (result.key) {
-                    const keyMap: Record<string, string> = {
-                        'season_full': strings.messages.joinSeason.seasonFull,
-                        'player_already_in_season': strings.messages.joinSeason.alreadyJoined,
-                    };
-                    userMessage = keyMap[result.key]?.replace('{seasonId}', seasonId) || `Failed to join season ${seasonId}: ${result.key}.`;
+                // Use the enhanced messaging system with the specific message key and data returned by the service
+                const messageKey = result.key || 'messages.season.joinSuccess';
+                let messageText: string;
+                
+                // Get the appropriate message template based on the key returned by the service
+                if (messageKey === 'messages.season.joinSuccessPlayersNeeded') {
+                    messageText = strings.messages.season.joinSuccessPlayersNeeded;
+                } else if (messageKey === 'messages.season.joinSuccessTimeRemaining') {
+                    messageText = strings.messages.season.joinSuccessTimeRemaining;
+                } else {
+                    messageText = strings.messages.season.joinSuccess;
                 }
-                await interaction.followUp({ content: userMessage, ephemeral: true });
+                
+                // Interpolate the message with the rich data from the service
+                const enhancedMessage = interpolate(messageText, result.data || {});
+                await interaction.reply({ content: enhancedMessage, ephemeral: true });
+            } else {
+                // Use result.key to provide a more specific error message if available
+                let userMessage = interpolate(strings.messages.joinSeason.genericError, { seasonId });
+                if (result.key) {
+                    if (result.key === 'season_full') {
+                        userMessage = interpolate(strings.messages.joinSeason.seasonFull, { seasonId });
+                    } else if (result.key === 'player_already_in_season') {
+                        userMessage = interpolate(strings.messages.joinSeason.alreadyJoined, { seasonId });
+                    } else {
+                        userMessage = `Failed to join season ${seasonId}: ${result.key}.`;
+                    }
+                }
+                await interaction.reply({ content: userMessage, ephemeral: true });
             }
+
         } catch (error) {
-            Logger.error(`SeasonSelectMenuHandler: Error processing join selection for season ${seasonId} by user ${discordUserId}:`, error);
-            await interaction.followUp({
-                content: strings.messages.joinSeason.genericError.replace('{seasonId}', seasonId).replace('{errorMessage}', (error instanceof Error ? error.message : 'Unknown error')),
+            Logger.error(`SeasonSelectMenuHandler: Error processing ${action} for season ${seasonId} by user ${discordUserId}:`, error);
+            await interaction.reply({
+                content: interpolate(strings.messages.joinSeason.genericError, { seasonId }),
                 ephemeral: true
             });
         }

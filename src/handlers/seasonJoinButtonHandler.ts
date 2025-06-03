@@ -1,14 +1,13 @@
 import { ButtonInteraction, CacheType } from 'discord.js';
 
 import { ButtonHandler } from './buttonHandler.js';
-import { strings } from '../lang/strings.js';
+import { interpolate, strings } from '../lang/strings.js';
 import prisma from '../lib/prisma.js';
 import { GameService } from '../services/GameService.js';
 import { Logger } from '../services/index.js';
 import { SchedulerService } from '../services/SchedulerService.js';
 import { SeasonService } from '../services/SeasonService.js';
 import { SeasonTurnService } from '../services/SeasonTurnService.js';
-
 
 export class SeasonJoinButtonHandler implements ButtonHandler {
     customIdPrefix = 'season_join_';
@@ -32,8 +31,6 @@ export class SeasonJoinButtonHandler implements ButtonHandler {
             return;
         }
 
-
-
         try {
             // 1. Find or create player record (SeasonService might also do this, depends on its design)
             // For robustness, let's ensure player exists.
@@ -55,14 +52,14 @@ export class SeasonJoinButtonHandler implements ButtonHandler {
             // 2. Check if season exists and is joinable (using SeasonService)
             const seasonDetails = await seasonService.findSeasonById(seasonId); // Assuming seasonId is string for this method
             if (!seasonDetails) {
-                await interaction.reply({ content: strings.messages.joinSeason.seasonNotFound.replace('{seasonId}', seasonId), ephemeral: true });
+                await interaction.reply({ content: interpolate(strings.messages.joinSeason.seasonNotFound, { seasonId }), ephemeral: true });
                 return;
             }
 
             const validJoinStatuses = ['OPEN', 'SETUP']; // Or whatever statuses are considered joinable
             if (!validJoinStatuses.includes(seasonDetails.status)) {
                 await interaction.reply({
-                    content: strings.messages.joinSeason.notOpen.replace('{seasonId}', seasonId).replace('{status}', seasonDetails.status),
+                    content: interpolate(strings.messages.joinSeason.notOpen, { seasonId, status: seasonDetails.status }),
                     ephemeral: true
                 });
                 return;
@@ -79,7 +76,7 @@ export class SeasonJoinButtonHandler implements ButtonHandler {
             });
 
             if (isPlayerInSeason) {
-                await interaction.reply({ content: strings.messages.joinSeason.alreadyJoined.replace('{seasonId}', seasonId), ephemeral: true });
+                await interaction.reply({ content: interpolate(strings.messages.joinSeason.alreadyJoined, { seasonId }), ephemeral: true });
                 return;
             }
 
@@ -87,18 +84,39 @@ export class SeasonJoinButtonHandler implements ButtonHandler {
             const result = await seasonService.addPlayerToSeason(playerId, seasonId); // Pass string seasonId as per service expectation
 
             if (result.type === 'success') {
-                await interaction.reply({ content: strings.messages.joinSeason.successButton.replace('{seasonId}', seasonId), ephemeral: true });
+                // Use the enhanced messaging system with the specific message key and data returned by the service
+                const messageKey = result.key || 'messages.season.joinSuccess';
+                let messageText: string;
+                
+                // Get the appropriate message template based on the key returned by the service
+                if (messageKey === 'messages.season.joinSuccessPlayersNeeded') {
+                    messageText = strings.messages.season.joinSuccessPlayersNeeded;
+                } else if (messageKey === 'messages.season.joinSuccessTimeRemaining') {
+                    messageText = strings.messages.season.joinSuccessTimeRemaining;
+                } else {
+                    messageText = strings.messages.season.joinSuccess;
+                }
+                
+                // Interpolate the message with the rich data from the service
+                const enhancedMessage = interpolate(messageText, result.data || {});
+                await interaction.reply({ content: enhancedMessage, ephemeral: true });
             } else {
                 // Use result.key to provide a more specific error message if available
-                let userMessage = strings.messages.joinSeason.genericError.replace('{seasonId}', seasonId);
+                let userMessage: string;
                 if (result.key) {
                     // You might want to map result.key to more user-friendly strings
-                    userMessage = `Failed to join season ${seasonId}: ${result.key}.`;
-                     if (result.key === 'season_full') {
-                        userMessage = strings.messages.joinSeason.seasonFull.replace('{seasonId}', seasonId);
+                    if (result.key === 'season_full') {
+                        userMessage = interpolate(strings.messages.joinSeason.seasonFull, { seasonId });
                     } else if (result.key === 'player_already_in_season') {
-                         userMessage = strings.messages.joinSeason.alreadyJoined.replace('{seasonId}', seasonId);
+                        userMessage = interpolate(strings.messages.joinSeason.alreadyJoined, { seasonId });
+                    } else {
+                        userMessage = `Failed to join season ${seasonId}: ${result.key}.`;
                     }
+                } else {
+                    userMessage = interpolate(strings.messages.joinSeason.genericError, { 
+                        seasonId, 
+                        errorMessage: result.key || 'Unknown error' 
+                    });
                 }
                 await interaction.reply({ content: userMessage, ephemeral: true });
             }
@@ -106,7 +124,10 @@ export class SeasonJoinButtonHandler implements ButtonHandler {
         } catch (error) {
             Logger.error(`SeasonJoinButtonHandler: Error processing join for season ${seasonId} by user ${discordUserId}:`, error);
             await interaction.reply({
-                content: strings.messages.joinSeason.genericError.replace('{seasonId}', seasonId),
+                content: interpolate(strings.messages.joinSeason.genericError, { 
+                    seasonId, 
+                    errorMessage: error instanceof Error ? error.message : 'Unknown error' 
+                }),
                 ephemeral: true
             });
         }

@@ -2,7 +2,7 @@ import { ActionRowBuilder, ApplicationCommandOptionChoiceData, AutocompleteFocus
 import { RateLimiter } from 'discord.js-rate-limiter';
 
 import { createDashboardComponents } from '../../handlers/seasonDashboardButtonHandler.js'; // Import the helper
-import { strings } from '../../lang/strings.js';
+import { interpolate, strings } from '../../lang/strings.js';
 import { SimpleMessage } from '../../messaging/SimpleMessage.js';
 import { EventData } from '../../models/internal-models.js';
 import { Logger } from '../../services/index.js'; // Assuming Logger is exported from services
@@ -356,7 +356,7 @@ export class SeasonCommand implements Command {
             const pendingCheck = await this.playerTurnService.checkPlayerPendingTurns(discordUserId);
             
             if (pendingCheck.error) {
-                await intr.editReply({ content: 'Failed to check your turn status. Please try again.'});
+                await SimpleMessage.sendError(intr, 'Failed to check your turn status. Please try again.', {}, true);
                 return;
             }
 
@@ -419,16 +419,21 @@ export class SeasonCommand implements Command {
                     const result = await this.seasonService.addPlayerToSeason(player.id, seasonId);
                     
                     if (result.type === 'success') {
-                        await intr.editReply({ content: strings.messages.joinSeason.success.replace('{seasonId}', seasonId) });
+                        // Use the enhanced messaging system with the data returned by the service
+                        const messageText = interpolate(strings.messages.joinSeason.success, result.data || {});
+                        await SimpleMessage.sendSuccess(intr, messageText, {}, true);
                     } else {
-                        await intr.editReply({ content: strings.messages.joinSeason.genericError.replace('{seasonId}', seasonId).replace('{errorMessage}', result.key) });
+                        await SimpleMessage.sendError(intr, strings.messages.joinSeason.genericError, { seasonId, errorMessage: result.key }, true);
                     }
                     
                 } catch (error) {
                     Logger.error('Error creating player record:', error);
-                    await intr.editReply({
-                        content: strings.messages.joinSeason.genericError.replace('{seasonId}', seasonId).replace('{errorMessage}', (error instanceof Error ? error.message : 'Unknown error'))
-                    });
+                    await SimpleMessage.sendError(
+                        intr,
+                        strings.messages.joinSeason.genericError,
+                        { seasonId, errorMessage: (error instanceof Error ? error.message : 'Unknown error') },
+                        true
+                    );
                 }
                 return;
             }
@@ -436,16 +441,34 @@ export class SeasonCommand implements Command {
             const result = await this.seasonService.addPlayerToSeason(player.id, seasonId);
             
             if (result.type === 'success') {
-                await intr.editReply({ content: strings.messages.joinSeason.success.replace('{seasonId}', seasonId) });
+                // Use the enhanced messaging system with the specific message key and data returned by the service
+                const messageKey = result.key || 'messages.season.joinSuccess';
+                let messageText: string;
+                
+                // Get the appropriate message template based on the key returned by the service
+                if (messageKey === 'messages.season.joinSuccessPlayersNeeded') {
+                    messageText = strings.messages.season.joinSuccessPlayersNeeded;
+                } else if (messageKey === 'messages.season.joinSuccessTimeRemaining') {
+                    messageText = strings.messages.season.joinSuccessTimeRemaining;
+                } else {
+                    messageText = strings.messages.season.joinSuccess;
+                }
+                
+                // Interpolate the message with the rich data from the service
+                const enhancedMessage = interpolate(messageText, result.data || {});
+                await SimpleMessage.sendSuccess(intr, enhancedMessage, {}, true);
             } else {
-                await intr.editReply({ content: strings.messages.joinSeason.genericError.replace('{seasonId}', seasonId).replace('{errorMessage}', result.key) });
+                await SimpleMessage.sendError(intr, strings.messages.joinSeason.genericError, { seasonId, errorMessage: result.key }, true);
             }
             
         } catch (error) {
             Logger.error(`Error in /season join command for season ${seasonId}:`, error);
-            await intr.editReply({
-                content: strings.messages.joinSeason.genericError.replace('{seasonId}', seasonId).replace('{errorMessage}', (error instanceof Error ? error.message : 'Unknown error'))
-            });
+            await SimpleMessage.sendError(
+                intr,
+                strings.messages.joinSeason.genericError,
+                { seasonId, errorMessage: (error instanceof Error ? error.message : 'Unknown error') },
+                true
+            );
         }
     }
 

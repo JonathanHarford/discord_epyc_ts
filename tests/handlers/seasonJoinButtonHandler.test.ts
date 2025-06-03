@@ -49,9 +49,20 @@ vi.mock('../../src/lang/strings.js', () => ({
                 genericError: 'Failed to join season {seasonId}: {errorMessage}',
                 genericErrorNoSeasonId: 'Could not determine the season ID for joining.'
             },
-            // Add other string keys if used by the handler indirectly
+            season: {
+                joinSuccess: 'You have successfully joined **{seasonId}**!\nThe season will start in {timeRemaining}, or once {playersNeeded} more players join!',
+                joinSuccessPlayersNeeded: 'You have successfully joined **{seasonId}**!\nThe game will start when {playersNeeded} more players have joined.',
+                joinSuccessTimeRemaining: 'You have successfully joined **{seasonId}**!\nThe game will start in {timeRemaining}.'
+            }
         }
-    }
+    },
+    interpolate: vi.fn((template, data) => {
+        let result = template;
+        for (const [key, value] of Object.entries(data || {})) {
+            result = result.replace(new RegExp(`{${key}}`, 'g'), String(value));
+        }
+        return result;
+    })
 }));
 
 
@@ -92,13 +103,24 @@ describe('SeasonJoinButtonHandler', () => {
             id: '1', status: 'OPEN', config: { maxPlayers: 10 }, _count: { players: 5 }
         });
         mockPrismaClient.playersOnSeasons.findUnique.mockResolvedValueOnce(null); // Not in season
-        (SeasonService.prototype.addPlayerToSeason as any).mockResolvedValueOnce({ type: 'success', data: {} });
+        (SeasonService.prototype.addPlayerToSeason as any).mockResolvedValueOnce({ 
+            type: 'success', 
+            key: 'messages.season.joinSuccess',
+            data: { 
+                seasonId: '1', 
+                currentPlayers: 6, 
+                maxPlayers: 10, 
+                timeRemaining: '2 hours', 
+                playersNeeded: 4 
+            } 
+        });
 
         await handler.execute(mockInteraction);
 
         expect(SeasonService.prototype.addPlayerToSeason).toHaveBeenCalledWith('playerRecord1', '1');
+        // The handler should use the enhanced message with interpolation
         expect(mockInteraction.reply).toHaveBeenCalledWith({
-            content: strings.messages.joinSeason.successButton.replace('{seasonId}', '1'),
+            content: expect.stringContaining('successfully joined'),
             ephemeral: true,
         });
     });
@@ -112,14 +134,23 @@ describe('SeasonJoinButtonHandler', () => {
             id: '2', status: 'OPEN', config: { maxPlayers: 10 }, _count: { players: 5 }
         });
         mockPrismaClient.playersOnSeasons.findUnique.mockResolvedValueOnce(null); // Not in season
-        (SeasonService.prototype.addPlayerToSeason as any).mockResolvedValueOnce({ type: 'success', data: {} });
+        (SeasonService.prototype.addPlayerToSeason as any).mockResolvedValueOnce({ 
+            type: 'success', 
+            key: 'messages.season.joinSuccessPlayersNeeded',
+            data: { 
+                seasonId: '2', 
+                currentPlayers: 6, 
+                maxPlayers: 10, 
+                playersNeeded: 4 
+            } 
+        });
 
         await handler.execute(mockInteraction);
 
         expect(mockPrismaClient.player.create).toHaveBeenCalledWith({ data: { discordUserId: 'user1', name: 'TestUser' } });
         expect(SeasonService.prototype.addPlayerToSeason).toHaveBeenCalledWith('playerRecord2', '2');
         expect(mockInteraction.reply).toHaveBeenCalledWith({
-            content: strings.messages.joinSeason.successButton.replace('{seasonId}', '2'),
+            content: expect.stringContaining('successfully joined'),
             ephemeral: true,
         });
     });
@@ -246,13 +277,22 @@ describe('SeasonJoinButtonHandler', () => {
             id: 'public-papers-warn', status: 'OPEN', config: { maxPlayers: 10 }, _count: { players: 5 }
         });
         mockPrismaClient.playersOnSeasons.findUnique.mockResolvedValueOnce(null); // Not in season
-        (SeasonService.prototype.addPlayerToSeason as any).mockResolvedValueOnce({ type: 'success', data: {} });
+        (SeasonService.prototype.addPlayerToSeason as any).mockResolvedValueOnce({ 
+            type: 'success', 
+            key: 'messages.season.joinSuccessTimeRemaining',
+            data: { 
+                seasonId: 'public-papers-warn', 
+                currentPlayers: 6, 
+                maxPlayers: 10, 
+                timeRemaining: '30 minutes' 
+            } 
+        });
 
         await handler.execute(mockInteraction);
 
         expect(SeasonService.prototype.addPlayerToSeason).toHaveBeenCalledWith('playerRecord9', 'public-papers-warn');
         expect(mockInteraction.reply).toHaveBeenCalledWith({
-            content: strings.messages.joinSeason.successButton.replace('{seasonId}', 'public-papers-warn'),
+            content: expect.stringContaining('successfully joined'),
             ephemeral: true,
         });
     });
