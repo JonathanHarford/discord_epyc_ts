@@ -1,0 +1,11 @@
+# Task ID: 67
+# Title: Fix 2-Person Season Turn Passing After Initial Turns
+# Status: pending
+# Dependencies: 14, 36, 18
+# Priority: high
+# Description: Address the bug preventing automatic turn passing in 2-person seasons after both players submit their initial turns, causing games to stall.
+# Details:
+Investigate the game flow specifically for 2-person seasons after the first two turns (one from each player) are completed. Identify why the Turn Offering Mechanism (Task 14) is not correctly triggered or processed to offer the third turn to the first player. This might involve examining the logic within GameService (Task 36) that handles turn completion events and determines the next action. Ensure the Game Completion Check (Task 18) is not prematurely marking the game as complete. The fix should ensure that after the second initial turn is completed, the system correctly identifies the next player (the first player again) and triggers the turn offering process for the third turn. Consider edge cases and ensure the fix doesn't negatively impact turn progression in seasons with more than 2 players or at later stages of a 2-person game.
+
+# Test Strategy:
+Create a test scenario specifically for a 2-person season. Start a new 2-person season. Have both players submit their initial turns. Verify that after the second player submits their turn, the system automatically offers the third turn to the first player. Confirm that the game does not stall and the turn state progresses correctly. Test with different players and ensure consistency.

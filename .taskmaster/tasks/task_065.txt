@@ -1,0 +1,11 @@
+# Task ID: 65
+# Title: Refine Turn Claim Messages and Timeout Display
+# Status: pending
+# Dependencies: 5, 9, 10, 37, 62
+# Priority: medium
+# Description: Remove the redundant 'claimed' message when players claim initiating turns and update timeout messages to display the actual remaining duration.
+# Details:
+Identify the code path responsible for sending the 'claimed' message immediately after a player successfully claims an initiating turn via DM. Modify this logic to prevent the message from being sent. Subsequently, locate where claim timeout messages or status updates are displayed to the user. Update the logic to calculate the time remaining until the claim timeout expires and display this duration accurately (e.g., using the format implemented in Task 62) instead of generic text. Ensure these changes apply specifically to the turn claiming process and do not affect other message types.
+
+# Test Strategy:
+1. Initiate a game and offer a turn to a player. 2. Have the player claim the turn via DM. Verify that no redundant 'claimed' message is received immediately after claiming. 3. Observe the subsequent message or status update related to the claimed turn's timeout. Verify that it displays the actual time remaining until the claim timeout (e.g., '5m 30s remaining') and that the duration counts down correctly. 4. Allow a claimed turn to approach its timeout and verify the displayed duration remains accurate. 5. Ensure other game messages and timeout displays (like submission timeouts) are unaffected.

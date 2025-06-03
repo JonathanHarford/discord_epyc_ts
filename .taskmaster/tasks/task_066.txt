@@ -1,0 +1,21 @@
+# Task ID: 66
+# Title: Improve Sentence Turn Claiming Messages and Display
+# Status: pending
+# Dependencies: 5, 9, 10, 37, 62
+# Priority: medium
+# Description: Refine the user experience during sentence turn claiming by removing unnecessary messages, displaying the actual previous turn image, and showing the correct timeout duration.
+# Details:
+Identify the specific code location(s) responsible for sending the direct message when a player is offered a sentence turn. This is likely within the direct message handling framework (Task 10) and potentially triggered by the turn offering mechanism.
+Locate the part of the message template or logic that generates the message displayed when a turn is offered for claiming.
+Remove any redundant or unnecessary messages that appear specifically during the *claiming* process (e.g., a separate "Turn claimed!" message that is not needed in the context of the offer message updating).
+Modify the message content to fetch and display the image URL associated with the *previous* turn's submission. This requires accessing the game state and the data from the completed turn that precedes the current one. Ensure error handling if there is no previous turn image (e.g., for the very first turn).
+Update the display of the timeout duration. Instead of placeholder text, retrieve the actual `claim_timeout` value configured for the season (Task 37) and format the remaining time using the improved duration display logic (Task 62).
+Ensure the message updates correctly when the turn is claimed or expires.
+
+# Test Strategy:
+Manually test claiming a sentence turn in a game.
+Verify that no unnecessary messages are sent or displayed during the claiming process.
+Confirm that the direct message offering the turn correctly displays the image from the immediately preceding turn's submission. Test this for turns after the first one.
+Verify that the direct message displays the actual remaining time for the claim timeout, formatted according to the standard (Task 62).
+Test claiming the very first turn of a game to ensure it handles the absence of a previous image gracefully (e.g., displays nothing or a default placeholder if necessary, but not incorrect content).
+Test the message display as the timeout approaches.

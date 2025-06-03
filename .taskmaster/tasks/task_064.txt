@@ -1,0 +1,11 @@
+# Task ID: 64
+# Title: Fix /season show Refresh Button Behavior
+# Status: pending
+# Dependencies: 2, 47, 50
+# Priority: low
+# Description: Address the inconsistent behavior of the refresh button on the /season show command message, either by fixing it to refresh data without changing the message template or removing it if it's not necessary.
+# Details:
+Identify the code handling the refresh button interaction for the /season show message. Analyze why clicking the button changes the message template instead of just refreshing the data displayed. Determine if the refresh functionality is genuinely needed for the /season show command. The command already shows current season status; is a manual refresh button adding value? If needed, refactor the button handler to fetch the latest season data and update the existing message embed/content without altering the overall message structure or template. Ensure the data refresh is efficient. If not needed, remove the refresh button entirely from the /season show message template and the corresponding interaction handler code. Ensure the final behavior is consistent and intuitive for users.
+
+# Test Strategy:
+Use the /season show command to display a season's details. If the button is fixed, verify the refresh button is present, click it multiple times, confirm the message template does not change, and verify data updates if the season state changes externally. If the button is removed, use the /season show command and verify the button is no longer present. Test with different season states (SETUP, OPEN, ACTIVE, COMPLETED) to ensure consistent behavior. Check console logs for errors.

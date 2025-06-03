@@ -1,0 +1,11 @@
+# Task ID: 69
+# Title: Implement Turn Pattern Validation
+# Status: pending
+# Dependencies: 5
+# Priority: medium
+# Description: Implement strict validation for turn patterns, ensuring they are comma-separated sequences of 'drawing' and 'writing', and reject invalid formats with clear errors.
+# Details:
+Create a dedicated validation function or module for turn patterns. This function should accept a string input representing the turn pattern. It should parse the input string by splitting it by commas. Validate that each resulting part, after trimming whitespace, is exactly 'drawing' or 'writing'. Handle edge cases like empty strings, strings with extra commas, and non-string inputs, considering them invalid. If the input is valid, return a parsed representation (e.g., an array of strings). If invalid, throw a specific error or return a clear error message string. Integrate this validation into the process where turn patterns are provided, likely the `/new season` command handler or the `SeasonService` method responsible for creating seasons/games. Ensure the error messages are user-friendly and clearly explain why the pattern is invalid.
+
+# Test Strategy:
+Implement unit tests for the validation function/module covering valid inputs ('drawing', 'writing', 'drawing,writing', etc.) and a wide range of invalid inputs (empty string, spaces, invalid types like 'painting', mixed case, extra commas, incorrect separators, non-string types). Verify that valid inputs are parsed correctly and invalid inputs result in the expected error or error message. Implement integration tests for the command or service that uses this validation (e.g., the `/new season` command) to ensure invalid patterns are rejected with clear error messages displayed to the user.

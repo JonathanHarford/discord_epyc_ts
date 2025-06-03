@@ -1,0 +1,11 @@
+# Task ID: 63
+# Title: Implement Game Completion Posting to Configured Channel
+# Status: pending
+# Dependencies: 1, 2, 3, 18
+# Priority: high
+# Description: Implement the logic to automatically post a summary or announcement of completed games to a configured Discord channel.
+# Details:
+When a game is marked as completed (triggered by Task 18), retrieve the configured channel ID for finished games using the configuration loading mechanism (Task 3). Fetch relevant game data such as participating players, game outcome, and duration from the database (which relies on the schema defined in Task 1). Construct a clear and informative summary message based on this data. Use the Discord bot client (Task 2) to send this summary message to the designated channel. Implement robust error handling to manage potential issues like an invalid or missing channel ID, or insufficient bot permissions to post in the channel.
+
+# Test Strategy:
+Develop unit tests to ensure the game summary message is correctly formatted based on various game outcomes and data. Create integration tests that simulate a game completion event, verifying that the system correctly identifies the configured channel (using Task 3), fetches necessary game data (using Task 1), constructs the message, and successfully posts it to the channel using the Discord client (Task 2). Include tests for error conditions, such as attempting to post to a non-existent channel or when the bot lacks permissions, ensuring appropriate logging or notifications occur.

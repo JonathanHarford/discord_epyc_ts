@@ -1,0 +1,22 @@
+# Task ID: 59
+# Title: Enhance Season Join Feedback with Contextual Information
+# Status: pending
+# Dependencies: 5, 7, 8, 40, 42
+# Priority: medium
+# Description: Enhance the season joining success message to provide contextual information about the season's status and expected start time.
+# Details:
+Modify the `/join season` command handler (implemented in Task 7). Within the success path, retrieve the season's current state, including the number of players, `min_players`, `open_duration`, and creation timestamp, utilizing the SeasonService (Task 5). Implement conditional logic to generate the feedback message:
+
+1.  If the season status is OPEN and `current_players` < `min_players`, calculate the remaining players needed (`min_players` - `current_players`) and include this count in the message (e.g., "X more players needed to start").
+2.  If the season status is OPEN and `current_players` >= `min_players` and `open_duration` is configured, calculate the expected start time based on the season's creation timestamp and `open_duration`. Include this date/time in the message (e.g., "Season will start on [date/time]").
+3.  Ensure date/time formatting is user-friendly.
+4.  Utilize the enhanced messaging utility (Task 40) for constructing and sending the feedback message.
+
+This enhancement relies on the correct season status transitions being handled (Task 42) and the season activation logic (Task 8) which determines when the season transitions based on players or duration.
+
+# Test Strategy:
+1.  Test joining a season with status OPEN where `current_players` < `min_players`. Verify the success message includes the text "X more players needed to start" with the correct value for X.
+2.  Test joining a season with status OPEN where `current_players` >= `min_players` and `open_duration` is set. Verify the success message includes the text "Season will start on [date/time]" with the correctly calculated date and time.
+3.  Test joining a season with status OPEN where `current_players` >= `min_players` and `open_duration` is not set (season starts immediately upon reaching min players). Verify the feedback is appropriate (e.g., indicates the season is ready to start or will start shortly).
+4.  Verify date/time formatting is clear and accurate.
+5.  Test joining seasons in other states (if the join command allows) to ensure feedback is handled gracefully.

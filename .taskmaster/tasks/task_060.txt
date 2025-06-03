@@ -1,0 +1,17 @@
+# Task ID: 60
+# Title: Fix Turn Claim Timeout Warnings and Behavior
+# Status: pending
+# Dependencies: 5, 9, 10, 14, 16, 37, 38
+# Priority: high
+# Description: Address issues with turn claim timeout warnings and ensure turns are correctly handled upon timeout.
+# Details:
+Investigate the current implementation of claim timeout handling, focusing on why warning messages are not being sent and why turns are not timing out as expected. Modify the system to send clear warning messages to the user a configurable amount of time before the claim timeout expires. Ensure the claim timeout handler correctly updates the turn state to AVAILABLE and triggers the turn offering mechanism (Task 14) to find the next eligible player. Review and potentially refactor the integration with the task scheduler (Task 38) and the claim timeout handler logic (Task 16). Consider edge cases such as server downtime or scheduler delays.
+
+# Test Strategy:
+1. Set up a test game with a short claim timeout duration.
+2. Observe the user's direct messages to verify that a timeout warning message is received before the claim timeout.
+3. Allow the claim timeout to expire without the user claiming the turn.
+4. Verify that the turn state correctly transitions from OFFERED to AVAILABLE in the database.
+5. Verify that the turn offering mechanism is triggered and the turn is offered to another eligible player.
+6. Test with different claim timeout durations configured via season settings (Task 37).
+7. Test scenarios with multiple players to ensure the turn offering mechanism correctly finds the next player after a timeout.

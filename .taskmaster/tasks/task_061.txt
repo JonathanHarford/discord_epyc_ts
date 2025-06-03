@@ -1,0 +1,17 @@
+# Task ID: 61
+# Title: Replace Season Game DM Reaction Emojis with Buttons
+# Status: pending
+# Dependencies: 2, 10, 40, 47
+# Priority: medium
+# Description: Modernize season game turn claiming in Direct Messages by replacing reaction emojis with interactive Discord buttons.
+# Details:
+Identify the code responsible for sending turn offer Direct Messages to players (likely within `TurnService`). Modify the message content to remove instructions about reacting with emojis and instead include a Discord button component. The button should have a clear label like "Claim Turn" and a custom ID that uniquely identifies the action and the specific turn/game it relates to. Implement or modify an interaction handler to listen for button clicks with this custom ID. This handler should validate that the user clicking the button is the intended recipient of the turn offer and then trigger the existing turn claiming logic, similar to how it was previously handled by reaction collectors. Ensure the old reaction-based claiming logic for turn offers is removed or disabled. Consider updating the message after the button is clicked (e.g., disabling the button, showing a confirmation). Handle cases where the wrong user clicks the button or the button is clicked after the turn has been claimed or timed out.
+
+# Test Strategy:
+1. Start a new season with at least two players.
+2. Advance the game until a turn offer is sent to a player via Direct Message.
+3. Verify that the DM contains a "Claim Turn" button and does not instruct the user to react with emojis.
+4. As the player who received the DM, click the "Claim Turn" button.
+5. Verify that the turn is successfully claimed and the game state updates accordingly.
+6. As a different user (not the recipient of the DM), attempt to click the button in the DM. Verify that the action is rejected or results in an appropriate error message.
+7. Start another game and let a turn offer timeout. Verify that the button becomes inactive or the message is updated to reflect the timeout, and the turn cannot be claimed via the button.
