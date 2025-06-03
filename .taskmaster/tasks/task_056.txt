@@ -1,6 +1,6 @@
 # Task ID: 56
 # Title: Fix Completed Games Channel Link Display
-# Status: pending
+# Status: done
 # Dependencies: 2, 5
 # Priority: high
 # Description: Update the completed games announcement message to use the correct Discord channel mention format (<#channelId>) instead of plain text, making the channel link clickable.
