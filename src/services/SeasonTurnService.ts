@@ -43,12 +43,23 @@ export class SeasonTurnService implements TurnTimeoutService {
     tx?: Prisma.TransactionClient
   ): Promise<{ success: boolean; turn?: Turn; error?: string }> {
     try {
-      // For now, assume 'WRITING' or get from a default/config.
-              // Turn type determination from game/season config tracked in Task 37
-      const initialTurnType: Prisma.TurnCreateInput['type'] = 'WRITING';
-
       // Use the provided transaction client or fall back to the default prisma client
       const prismaClient = tx || this.prisma;
+
+      // Get the season configuration to determine the first turn type
+      const season = await prismaClient.season.findUnique({
+        where: { id: seasonId },
+        include: { config: true }
+      });
+
+      if (!season || !season.config) {
+        console.error(`Season ${seasonId} or its config not found`);
+        return { success: false, error: 'Season configuration not found' };
+      }
+
+      // Determine the first turn type based on turn pattern
+      const turnPattern = season.config.turnPattern.split(',');
+      const firstTurnType = turnPattern[0].trim().toUpperCase() as Prisma.TurnCreateInput['type'];
 
       const newTurn = await prismaClient.turn.create({
         data: {
@@ -57,7 +68,7 @@ export class SeasonTurnService implements TurnTimeoutService {
           playerId: player.id,
           turnNumber: 1, // Initial turn
           status: 'OFFERED',
-          type: initialTurnType,
+          type: firstTurnType,
           offeredAt: new Date(), // Set when turn is offered
           // expiresAt: // Claim timeout scheduling tracked in Task 38
           // content: // No content for an offered turn
@@ -92,7 +103,7 @@ export class SeasonTurnService implements TurnTimeoutService {
         const messageContent = interpolate(strings.messages.turnOffer.initialTurnOffer, {
           gameId: game.id,
           seasonId: seasonId,
-          turnType: initialTurnType,
+          turnType: firstTurnType,
           claimTimeoutFormatted: FormatUtils.formatTimeout(timeouts.claimTimeoutMinutes)
         });
 

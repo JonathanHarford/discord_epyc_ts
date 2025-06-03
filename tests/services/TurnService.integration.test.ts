@@ -108,6 +108,72 @@ describe('SeasonTurnService Integration Tests', () => {
       expect(mockDiscordClient.users.fetch).toHaveBeenCalledWith(testPlayer.discordUserId);
     });
 
+    it('should respect turn pattern configuration for initial turn type', async () => {
+      // Test case 1: drawing,writing pattern should start with DRAWING
+      const drawingFirstConfig = await prisma.seasonConfig.create({
+        data: {
+          maxPlayers: 5,
+          minPlayers: 2,
+          openDuration: '1d',
+          turnPattern: 'drawing,writing',
+        },
+      });
+
+      const drawingFirstSeason = await prisma.season.create({
+        data: {
+          status: 'ACTIVE',
+          creatorId: testPlayer.id,
+          configId: drawingFirstConfig.id,
+        },
+      });
+
+      const drawingFirstGame = await prisma.game.create({
+        data: {
+          status: 'ACTIVE',
+          seasonId: drawingFirstSeason.id,
+        },
+      });
+
+      // Act
+      const drawingResult = await turnService.offerInitialTurn(drawingFirstGame, testPlayer, drawingFirstSeason.id);
+
+      // Assert
+      expect(drawingResult.success).toBe(true);
+      expect(drawingResult.turn?.type).toBe('DRAWING');
+
+      // Test case 2: writing,drawing pattern should start with WRITING
+      const writingFirstConfig = await prisma.seasonConfig.create({
+        data: {
+          maxPlayers: 5,
+          minPlayers: 2,
+          openDuration: '1d',
+          turnPattern: 'writing,drawing',
+        },
+      });
+
+      const writingFirstSeason = await prisma.season.create({
+        data: {
+          status: 'ACTIVE',
+          creatorId: testPlayer.id,
+          configId: writingFirstConfig.id,
+        },
+      });
+
+      const writingFirstGame = await prisma.game.create({
+        data: {
+          status: 'ACTIVE',
+          seasonId: writingFirstSeason.id,
+        },
+      });
+
+      // Act
+      const writingResult = await turnService.offerInitialTurn(writingFirstGame, testPlayer, writingFirstSeason.id);
+
+      // Assert
+      expect(writingResult.success).toBe(true);
+      expect(writingResult.turn?.type).toBe('WRITING');
+    });
+
     it('should handle Discord user fetch failure gracefully', async () => {
       // Arrange
       mockDiscordClient.users.fetch.mockRejectedValue(new Error('User not found'));

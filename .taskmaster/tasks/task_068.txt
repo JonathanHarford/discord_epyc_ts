@@ -1,6 +1,6 @@
 # Task ID: 68
 # Title: Fix Drawing Turn Pattern Start
-# Status: pending
+# Status: done
 # Dependencies: 5, 9
 # Priority: medium
 # Description: Fix a bug where games with the 'drawing,writing' turn pattern incorrectly start with a writing turn instead of a drawing turn.
