@@ -278,7 +278,16 @@ It's your first turn in this game! ⏰ You have **{claimTimeoutFormatted}** to c
 
     // Turn timeout messages
     turnTimeout: {
-      submissionTimeoutSkipped: 'Turn submission timed out and was automatically skipped.'
+      submissionTimeoutSkipped: 'Turn submission timed out and was automatically skipped.',
+      claimWarning: `⚠️ **Turn Claim Reminder** ⚠️
+
+You have approximately **{remainingTime}** remaining to claim your turn before it times out.
+
+**Game:** {gameId}
+**Season:** {seasonId}
+**Turn:** #{turnNumber} ({turnType})
+
+Please claim your turn soon to avoid losing it! Use the button in your previous message or send \`ready\` to claim it.`
     },
 
     // Ready messages

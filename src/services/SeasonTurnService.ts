@@ -109,9 +109,33 @@ export class SeasonTurnService implements TurnTimeoutService {
         // Log error, but proceed as turn is programmatically offered.
       }
       
-      // Schedule claim timeout if SchedulerService is available
+      // Schedule claim warning and timeout if SchedulerService is available
       if (this.schedulerService) {
         try {
+          // Schedule claim warning if configured
+          if (timeouts.claimWarningMinutes) {
+            const claimWarningDate = new Date(Date.now() + timeouts.claimWarningMinutes * 60 * 1000);
+            const claimWarningJobId = `turn-warning-${newTurn.id}`;
+            
+            const warningJobScheduled = await this.schedulerService.scheduleJob(
+              claimWarningJobId,
+              claimWarningDate,
+              async (_jobData) => {
+                console.log(`Claim warning triggered for initial turn ${newTurn.id}`);
+                await this.sendClaimWarning(newTurn.id);
+              },
+              { turnId: newTurn.id },
+              'turn-warning'
+            );
+
+            if (warningJobScheduled) {
+              console.log(`Scheduled claim warning for initial turn ${newTurn.id} at ${claimWarningDate.toISOString()}`);
+            } else {
+              console.warn(`Failed to schedule claim warning for initial turn ${newTurn.id}`);
+            }
+          }
+
+          // Schedule claim timeout
           const claimTimeoutDate = new Date(Date.now() + timeouts.claimTimeoutMinutes * 60 * 1000);
           
           const claimTimeoutJobId = `turn-claim-timeout-${newTurn.id}`;
@@ -160,11 +184,11 @@ export class SeasonTurnService implements TurnTimeoutService {
             console.warn(`Failed to schedule claim timeout for initial turn ${newTurn.id}`);
           }
         } catch (schedulingError) {
-          console.error(`Error scheduling claim timeout for initial turn ${newTurn.id}:`, schedulingError);
+          console.error(`Error scheduling claim timeout/warning for initial turn ${newTurn.id}:`, schedulingError);
           // Don't fail the turn creation if timeout scheduling fails
         }
       } else {
-        console.warn(`SchedulerService not available, claim timeout not scheduled for initial turn ${newTurn.id}`);
+        console.warn(`SchedulerService not available, claim timeout/warning not scheduled for initial turn ${newTurn.id}`);
       }
 
       return { success: true, turn: newTurn };
@@ -743,6 +767,102 @@ export class SeasonTurnService implements TurnTimeoutService {
         include: { player: true, game: true }
       });
 
+      // Get season-specific timeout values for scheduling
+      let timeouts;
+      try {
+        timeouts = await getSeasonTimeouts(this.prisma, turnId);
+      } catch (timeoutError) {
+        console.error(`Failed to get season timeouts for turn ${turnId}:`, timeoutError);
+        // Use default values if timeout retrieval fails
+        timeouts = {
+          claimTimeoutMinutes: 1440, // 24 hours default
+          writingTimeoutMinutes: 1440,
+          drawingTimeoutMinutes: 4320
+        };
+      }
+
+      // Schedule claim warning and timeout if SchedulerService is available
+      if (this.schedulerService) {
+        try {
+          // Schedule claim warning if configured
+          if (timeouts.claimWarningMinutes) {
+            const claimWarningDate = new Date(Date.now() + timeouts.claimWarningMinutes * 60 * 1000);
+            const claimWarningJobId = `turn-warning-${turnId}`;
+            
+            const warningJobScheduled = await this.schedulerService.scheduleJob(
+              claimWarningJobId,
+              claimWarningDate,
+              async (_jobData) => {
+                console.log(`Claim warning triggered for turn ${turnId}`);
+                await this.sendClaimWarning(turnId);
+              },
+              { turnId },
+              'turn-warning'
+            );
+
+            if (warningJobScheduled) {
+              console.log(`Scheduled claim warning for turn ${turnId} at ${claimWarningDate.toISOString()}`);
+            } else {
+              console.warn(`Failed to schedule claim warning for turn ${turnId}`);
+            }
+          }
+
+          // Schedule claim timeout
+          const claimTimeoutDate = new Date(Date.now() + timeouts.claimTimeoutMinutes * 60 * 1000);
+          
+          const claimTimeoutJobId = `turn-claim-timeout-${turnId}`;
+          
+          const jobScheduled = await this.schedulerService.scheduleJob(
+            claimTimeoutJobId,
+            claimTimeoutDate,
+            async (_jobData) => {
+              console.log(`Claim timeout triggered for turn ${turnId}, player ${playerId}`);
+              
+              // Import and create the ClaimTimeoutHandler
+              const { ClaimTimeoutHandler } = await import('../handlers/ClaimTimeoutHandler.js');
+              const { TurnOfferingService } = await import('./TurnOfferingService.js');
+              
+              // Create TurnOfferingService instance for the handler
+              const turnOfferingService = new TurnOfferingService(
+                this.prisma,
+                this.discordClient,
+                this,
+                this.schedulerService!
+              );
+              
+              const claimTimeoutHandler = new ClaimTimeoutHandler(
+                this.prisma,
+                this.discordClient,
+                this,
+                turnOfferingService
+              );
+
+              // Execute the claim timeout handling
+              const result = await claimTimeoutHandler.handleClaimTimeout(turnId, playerId);
+
+              if (!result.success) {
+                throw new Error(`Claim timeout handling failed: ${result.error}`);
+              }
+
+              console.log(`Claim timeout handling completed successfully for turn ${turnId}`);
+            },
+            { turnId, playerId },
+            'turn-claim-timeout'
+          );
+
+          if (jobScheduled) {
+            console.log(`Scheduled claim timeout for turn ${turnId} at ${claimTimeoutDate.toISOString()}`);
+          } else {
+            console.warn(`Failed to schedule claim timeout for turn ${turnId}`);
+          }
+        } catch (schedulingError) {
+          console.error(`Error scheduling claim timeout/warning for turn ${turnId}:`, schedulingError);
+          // Don't fail the turn offering if timeout scheduling fails
+        }
+      } else {
+        console.warn(`SchedulerService not available, claim timeout/warning not scheduled for turn ${turnId}`);
+      }
+
       console.log(`Turn ${turnId} offered to player ${playerId}, status updated to OFFERED`);
       return { success: true, turn: updatedTurn };
     } catch (error) {
@@ -903,6 +1023,61 @@ export class SeasonTurnService implements TurnTimeoutService {
     } catch (error) {
       console.error(`Error in SeasonTurnService.getTurnsForPlayer for player ${playerId}:`, error);
       return [];
+    }
+  }
+
+  /**
+   * Sends a claim warning to a player for a turn that is about to timeout.
+   * @param turnId The ID of the turn to send warning for.
+   */
+  async sendClaimWarning(turnId: string): Promise<void> {
+    try {
+      const turn = await this.prisma.turn.findUnique({
+        where: { id: turnId },
+        include: { 
+          player: true, 
+          game: {
+            include: {
+              season: true
+            }
+          }
+        }
+      });
+
+      if (!turn || !turn.player) {
+        console.error(`Turn ${turnId} or player not found for claim warning`);
+        return;
+      }
+
+      if (turn.status !== 'OFFERED') {
+        console.log(`Turn ${turnId} is not in OFFERED state, skipping claim warning`);
+        return;
+      }
+
+      // Get season-specific timeout values
+      const timeouts = await getSeasonTimeouts(this.prisma, turnId);
+      
+      // Calculate remaining time until claim timeout
+      const claimTimeoutMinutes = timeouts.claimTimeoutMinutes;
+      const claimWarningMinutes = timeouts.claimWarningMinutes || 60; // Default to 1 hour if not set
+      const remainingMinutes = claimTimeoutMinutes - claimWarningMinutes;
+      
+      const user = await this.discordClient.users.fetch(turn.player.discordUserId);
+      
+      // Create the warning message
+      const message = interpolate(strings.messages.turnTimeout.claimWarning, {
+        remainingTime: FormatUtils.formatTimeout(remainingMinutes),
+        gameId: turn.game.id,
+        seasonId: turn.game.season?.id || 'Unknown',
+        turnNumber: turn.turnNumber,
+        turnType: turn.type.toLowerCase()
+      });
+      
+      await user.send(message);
+      console.log(`Claim warning sent to player ${turn.player.id} for turn ${turnId}`);
+
+    } catch (error) {
+      console.error(`Error sending claim warning for turn ${turnId}:`, error);
     }
   }
 } 

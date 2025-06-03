@@ -421,6 +421,7 @@ export class AdminCommand implements Command {
             // Extract all configuration options
             const turnPattern = intr.options.getString('turn_pattern');
             const claimTimeout = intr.options.getString('claim_timeout');
+            const claimWarning = intr.options.getString('claim_warning');
             const writingTimeout = intr.options.getString('writing_timeout');
             const writingWarning = intr.options.getString('writing_warning');
             const drawingTimeout = intr.options.getString('drawing_timeout');
@@ -430,7 +431,7 @@ export class AdminCommand implements Command {
             const maxPlayers = intr.options.getInteger('max_players');
             
             // Check if any parameters are provided for updating
-            const hasUpdates = turnPattern || claimTimeout || writingTimeout || writingWarning || 
+            const hasUpdates = turnPattern || claimTimeout || claimWarning || writingTimeout || writingWarning || 
                               drawingTimeout || drawingWarning || openDuration || 
                               minPlayers !== null || maxPlayers !== null;
             
@@ -439,6 +440,7 @@ export class AdminCommand implements Command {
                 const updateData: any = {};
                 if (turnPattern !== null) updateData.turnPattern = turnPattern;
                 if (claimTimeout !== null) updateData.claimTimeout = claimTimeout;
+                if (claimWarning !== null) updateData.claimWarning = claimWarning;
                 if (writingTimeout !== null) updateData.writingTimeout = writingTimeout;
                 if (writingWarning !== null) updateData.writingWarning = writingWarning;
                 if (drawingTimeout !== null) updateData.drawingTimeout = drawingTimeout;
@@ -470,6 +472,7 @@ export class AdminCommand implements Command {
                `**Timeouts:**\n` +
                `• Open Duration: ${config.openDuration}\n` +
                `• Claim Timeout: ${config.claimTimeout}\n` +
+               `• Claim Warning: ${config.claimWarning}\n` +
                `• Writing Timeout: ${config.writingTimeout}\n` +
                `• Writing Warning: ${config.writingWarning}\n` +
                `• Drawing Timeout: ${config.drawingTimeout}\n` +

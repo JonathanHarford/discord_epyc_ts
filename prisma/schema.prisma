@@ -124,6 +124,7 @@ model SeasonConfig {
   id                 String    @id @default(nanoid())
   turnPattern        String    @default("writing,drawing")
   claimTimeout       String    @default("1d")
+  claimWarning       String    @default("1h")
   writingTimeout     String    @default("1d")
   writingWarning     String    @default("1m")
   drawingTimeout     String    @default("1d")

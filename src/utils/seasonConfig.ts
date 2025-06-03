@@ -12,6 +12,7 @@ export const DEFAULT_TIMEOUTS = {
 
 export interface SeasonTimeouts {
   claimTimeoutMinutes: number;
+  claimWarningMinutes?: number;
   writingTimeoutMinutes: number;
   drawingTimeoutMinutes: number;
 }
@@ -74,6 +75,11 @@ export async function getSeasonTimeouts(
       DEFAULT_TIMEOUTS.CLAIM_TIMEOUT_MINUTES
     );
 
+    // Parse claim warning if it exists
+    const claimWarningMinutes = config.claimWarning 
+      ? parseTimeoutToMinutes(config.claimWarning, 'claimWarning', 60) // Default to 1 hour if invalid
+      : undefined;
+
     const writingTimeoutMinutes = parseTimeoutToMinutes(
       config.writingTimeout,
       'writingTimeout', 
@@ -86,10 +92,11 @@ export async function getSeasonTimeouts(
       DEFAULT_TIMEOUTS.DRAWING_TIMEOUT_MINUTES
     );
 
-    Logger.info(`Retrieved season timeouts for turn ${turnId}: claim=${claimTimeoutMinutes}m, writing=${writingTimeoutMinutes}m, drawing=${drawingTimeoutMinutes}m`);
+    Logger.info(`Retrieved season timeouts for turn ${turnId}: claim=${claimTimeoutMinutes}m, claimWarning=${claimWarningMinutes || 'none'}m, writing=${writingTimeoutMinutes}m, drawing=${drawingTimeoutMinutes}m`);
 
     return {
       claimTimeoutMinutes,
+      claimWarningMinutes,
       writingTimeoutMinutes,
       drawingTimeoutMinutes
     };
@@ -144,6 +151,7 @@ function parseTimeoutToMinutes(
 function getDefaultTimeouts(): SeasonTimeouts {
   return {
     claimTimeoutMinutes: DEFAULT_TIMEOUTS.CLAIM_TIMEOUT_MINUTES,
+    claimWarningMinutes: 60, // Default to 1 hour
     writingTimeoutMinutes: DEFAULT_TIMEOUTS.WRITING_TIMEOUT_MINUTES,
     drawingTimeoutMinutes: DEFAULT_TIMEOUTS.DRAWING_TIMEOUT_MINUTES
   };

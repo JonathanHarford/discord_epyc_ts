@@ -104,6 +104,7 @@ describe('seasonConfig utils', () => {
         const result = await getSeasonTimeouts(prisma, testTurnId);
         expect(result).toEqual({
           claimTimeoutMinutes: 120,
+          claimWarningMinutes: 60,
           writingTimeoutMinutes: 4320,
           drawingTimeoutMinutes: 7200,
         });
@@ -126,6 +127,7 @@ describe('seasonConfig utils', () => {
         const result = await getSeasonTimeouts(prisma, testTurnId);
         expect(result).toEqual({
           claimTimeoutMinutes: 30,
+          claimWarningMinutes: 60,
           writingTimeoutMinutes: 2160,
           drawingTimeoutMinutes: 90,
         });

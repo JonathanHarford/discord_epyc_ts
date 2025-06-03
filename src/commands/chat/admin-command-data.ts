@@ -105,6 +105,11 @@ export const adminCommandData = new SlashCommandBuilder()
                             .setRequired(false)
                     )
                     .addStringOption(option =>
+                        option.setName('claim_warning')
+                            .setDescription('Warning time before claim timeout (e.g., "1h", "30m")')
+                            .setRequired(false)
+                    )
+                    .addStringOption(option =>
                         option.setName('writing_timeout')
                             .setDescription('Time limit for writing turns (e.g., "1d", "2h")')
                             .setRequired(false)

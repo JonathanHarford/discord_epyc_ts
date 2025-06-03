@@ -6,6 +6,7 @@ import { MessageInstruction } from '../types/MessageInstruction.js';
 export interface ConfigUpdateOptions {
   turnPattern?: string;
   claimTimeout?: string;
+  claimWarning?: string;
   writingTimeout?: string;
   writingWarning?: string;
   drawingTimeout?: string;
@@ -153,7 +154,7 @@ export class ConfigService {
     }
 
     // Validate timeout formats (basic validation - should be duration strings like "1d", "2h", etc.)
-    const timeoutFields = ['claimTimeout', 'writingTimeout', 'writingWarning', 'drawingTimeout', 'drawingWarning', 'openDuration'];
+    const timeoutFields = ['claimTimeout', 'claimWarning', 'writingTimeout', 'writingWarning', 'drawingTimeout', 'drawingWarning', 'openDuration'];
     for (const field of timeoutFields) {
       const value = updates[field as keyof ConfigUpdateOptions] as string;
       if (value !== undefined && !this.isValidDurationString(value)) {
@@ -192,6 +193,7 @@ export class ConfigService {
     return {
       turnPattern: config.turnPattern,
       claimTimeout: config.claimTimeout,
+      claimWarning: config.claimWarning,
       writingTimeout: config.writingTimeout,
       writingWarning: config.writingWarning,
       drawingTimeout: config.drawingTimeout,

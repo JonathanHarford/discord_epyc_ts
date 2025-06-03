@@ -2639,10 +2639,8 @@
     {
       "id": 60,
       "title": "Fix Turn Claim Timeout Warnings and Behavior",
-      "description": "Address issues with turn claim timeout warnings and ensure turns are correctly handled upon timeout.",
-      "details": "Investigate the current implementation of claim timeout handling, focusing on why warning messages are not being sent and why turns are not timing out as expected. Modify the system to send clear warning messages to the user a configurable amount of time before the claim timeout expires. Ensure the claim timeout handler correctly updates the turn state to AVAILABLE and triggers the turn offering mechanism (Task 14) to find the next eligible player. Review and potentially refactor the integration with the task scheduler (Task 38) and the claim timeout handler logic (Task 16). Consider edge cases such as server downtime or scheduler delays.",
-      "testStrategy": "1. Set up a test game with a short claim timeout duration.\n2. Observe the user's direct messages to verify that a timeout warning message is received before the claim timeout.\n3. Allow the claim timeout to expire without the user claiming the turn.\n4. Verify that the turn state correctly transitions from OFFERED to AVAILABLE in the database.\n5. Verify that the turn offering mechanism is triggered and the turn is offered to another eligible player.\n6. Test with different claim timeout durations configured via season settings (Task 37).\n7. Test scenarios with multiple players to ensure the turn offering mechanism correctly finds the next player after a timeout.",
-      "status": "pending",
+      "description": "Address issues with turn claim timeout warnings and ensure turns are correctly handled upon timeout. The root cause has been identified as missing database configuration, incomplete warning scheduling implementation in SeasonTurnService, and insufficient handling in the SchedulerService.",
+      "status": "done",
       "dependencies": [
         5,
         9,
@@ -2653,7 +2651,50 @@
         38
       ],
       "priority": "high",
-      "subtasks": []
+      "details": "Investigate the current implementation of claim timeout handling, focusing on the identified root causes:\n1. Missing `claimWarning` field in the `SeasonConfig` database model.\n2. Absence of claim warning scheduling logic in `SeasonTurnService`, unlike the submission warning logic in `OnDemandTurnService`.\n3. The `SchedulerService.handleTurnWarningJob` only calls `OnDemandTurnService.sendTurnWarning`, not a season-specific method.\n\nImplement the following solution plan:\n1. Add the `claimWarning` field to the `SeasonConfig` model.\n2. Create a database migration to add the new field.\n3. Implement claim warning scheduling logic within `SeasonTurnService`, similar to how submission warnings are handled or how the claim timeout itself is scheduled.\n4. Create a dedicated `sendClaimWarning` method in `SeasonTurnService` to handle sending the warning message.\n5. Update `SchedulerService` to correctly handle scheduled season claim warning jobs and call the new `SeasonTurnService.sendClaimWarning` method.\n6. Add necessary language strings for the claim warning messages.\n\nEnsure the claim timeout handler correctly updates the turn state to AVAILABLE and triggers the turn offering mechanism (Task 14) to find the next eligible player upon timeout expiration. Review and potentially refactor the integration with the task scheduler (Task 38) and the claim timeout handler logic (Task 16). Consider edge cases such as server downtime or scheduler delays.",
+      "testStrategy": "1. Set up a test game with a short claim timeout duration and a configured `claimWarning` duration.\n2. Observe the user's direct messages to verify that a timeout warning message is received at the configured time before the claim timeout.\n3. Allow the claim timeout to expire without the user claiming the turn.\n4. Verify that the turn state correctly transitions from OFFERED to AVAILABLE in the database.\n5. Verify that the turn offering mechanism is triggered and the turn is offered to another eligible player.\n6. Test with different `claimTimeout` and `claimWarning` durations configured via season settings (Task 37).\n7. Test scenarios with multiple players to ensure the turn offering mechanism correctly finds the next player after a timeout.\n8. Verify the content and language of the claim warning message.",
+      "subtasks": [
+        {
+          "id": "60-1",
+          "description": "Add 'claimWarning' field (integer, nullable) to the SeasonConfig database model.",
+          "status": "done"
+        },
+        {
+          "id": "60-2",
+          "description": "Create and run a database migration script to add the 'claimWarning' column to the season_configs table.",
+          "status": "done"
+        },
+        {
+          "id": "60-3",
+          "description": "Implement logic in SeasonTurnService to schedule a claim warning job when a turn is offered, based on the 'claimWarning' config value.",
+          "status": "done"
+        },
+        {
+          "id": "60-4",
+          "description": "Create a new method SeasonTurnService.sendClaimWarning(turnId) to fetch turn details and send the appropriate warning message to the user.",
+          "status": "done"
+        },
+        {
+          "id": "60-5",
+          "description": "Update SchedulerService.handleTurnWarningJob to differentiate between OnDemand and Season turn warnings and call the correct service method (SeasonTurnService.sendClaimWarning).",
+          "status": "done"
+        },
+        {
+          "id": "60-6",
+          "description": "Add new language strings for the claim timeout warning message.",
+          "status": "done"
+        },
+        {
+          "id": "60-7",
+          "description": "Verify that the existing claim timeout handler correctly transitions turn state to AVAILABLE and triggers the offering mechanism (Task 14) upon timeout.",
+          "status": "done"
+        },
+        {
+          "id": "60-8",
+          "description": "Write and execute tests covering claim warning scheduling, sending, and timeout behavior with various configurations.",
+          "status": "done"
+        }
+      ]
     },
     {
       "id": 61,
@@ -2860,12 +2901,68 @@
       "description": "Implement strict validation for turn patterns, ensuring they are comma-separated sequences of 'drawing' and 'writing', and reject invalid formats with clear errors.",
       "details": "Create a dedicated validation function or module for turn patterns. This function should accept a string input representing the turn pattern. It should parse the input string by splitting it by commas. Validate that each resulting part, after trimming whitespace, is exactly 'drawing' or 'writing'. Handle edge cases like empty strings, strings with extra commas, and non-string inputs, considering them invalid. If the input is valid, return a parsed representation (e.g., an array of strings). If invalid, throw a specific error or return a clear error message string. Integrate this validation into the process where turn patterns are provided, likely the `/new season` command handler or the `SeasonService` method responsible for creating seasons/games. Ensure the error messages are user-friendly and clearly explain why the pattern is invalid.",
       "testStrategy": "Implement unit tests for the validation function/module covering valid inputs ('drawing', 'writing', 'drawing,writing', etc.) and a wide range of invalid inputs (empty string, spaces, invalid types like 'painting', mixed case, extra commas, incorrect separators, non-string types). Verify that valid inputs are parsed correctly and invalid inputs result in the expected error or error message. Implement integration tests for the command or service that uses this validation (e.g., the `/new season` command) to ensure invalid patterns are rejected with clear error messages displayed to the user.",
-      "status": "pending",
+      "status": "in-progress",
       "dependencies": [
         5
       ],
       "priority": "medium",
-      "subtasks": []
+      "subtasks": [
+        {
+          "id": 1,
+          "title": "Create Turn Pattern Validation Function",
+          "description": "Develop a core validation function that checks if a turn pattern string follows the required format",
+          "dependencies": [],
+          "details": "Create a function named validateTurnPattern that accepts a string input. The function should verify that the input is a non-empty string, split it by commas, and check that each element (after trimming whitespace) is exactly 'drawing' or 'writing'. Return a parsed array if valid, or throw a descriptive error if invalid.",
+          "status": "pending",
+          "testStrategy": "Test with valid patterns ('drawing,writing'), invalid values ('running,jumping'), empty strings, non-string inputs, and patterns with extra commas or whitespace."
+        },
+        {
+          "id": 2,
+          "title": "Implement Edge Case Handling",
+          "description": "Enhance the validation function to handle all specified edge cases",
+          "dependencies": [
+            1
+          ],
+          "details": "Extend the validation function to properly handle edge cases including empty strings, strings with extra commas (e.g., 'drawing,,writing'), strings with only commas, and non-string inputs. Each case should produce an appropriate error message that clearly identifies the specific validation issue.",
+          "status": "pending",
+          "testStrategy": "Test with edge cases: empty string, 'drawing,,writing', ',', null, undefined, numbers, and objects."
+        },
+        {
+          "id": 3,
+          "title": "Design Error Handling Strategy",
+          "description": "Create a consistent approach for error handling and messaging",
+          "dependencies": [
+            1
+          ],
+          "details": "Define a strategy for error handling, either by throwing custom error objects or returning structured error messages. Create clear, user-friendly error messages for each validation failure case. Messages should explain exactly what was wrong with the input and how to correct it (e.g., 'Turn pattern must be a comma-separated list containing only 'drawing' and 'writing' values').",
+          "status": "pending",
+          "testStrategy": "Verify that each error case produces the expected error type and message content."
+        },
+        {
+          "id": 4,
+          "title": "Integrate Validation with Command Handler",
+          "description": "Incorporate the validation function into the /new season command flow",
+          "dependencies": [
+            1,
+            2,
+            3
+          ],
+          "details": "Integrate the validation function into the /new season command handler or wherever turn patterns are initially processed. Ensure that validation occurs before any attempt to create or modify season/game data. Add appropriate error handling to present validation errors to users in a friendly manner.",
+          "status": "pending",
+          "testStrategy": "Test the command flow with both valid and invalid patterns to ensure proper validation and error presentation."
+        },
+        {
+          "id": 5,
+          "title": "Update SeasonService Implementation",
+          "description": "Modify the SeasonService to use the validation function",
+          "dependencies": [
+            4
+          ],
+          "details": "Update the SeasonService class or module to use the turn pattern validation function when creating or updating seasons/games. Ensure that invalid patterns are rejected at the service level before any database operations occur. Add appropriate documentation for the validation requirements in relevant service methods.",
+          "status": "pending",
+          "testStrategy": "Create unit tests for the SeasonService that verify validation is properly applied during season/game creation and update operations."
+        }
+      ]
     }
   ]
 }

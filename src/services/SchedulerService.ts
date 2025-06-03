@@ -615,15 +615,24 @@ export class SchedulerService {
 
         Logger.info(`Handling turn warning job for turn ${turnId}`);
 
-        // Check if we have the required dependencies
-        if (!this.dependencies.onDemandTurnService) {
-            throw new Error(`Missing OnDemandTurnService dependency for turn warning handler`);
+        // Determine which turn service to use based on the game type
+        const turnService = await this.getTurnServiceForTurn(turnId);
+        if (!turnService) {
+            throw new Error(`Could not determine appropriate turn service for turn ${turnId}`);
         }
 
-        // Call the OnDemandTurnService method directly
-        await this.dependencies.onDemandTurnService.sendTurnWarning(turnId);
-
-        Logger.info(`Successfully handled turn warning for turn ${turnId}`);
+        // Call the appropriate warning method based on service type
+        if (turnService === this.dependencies.seasonTurnService) {
+            // This is a season turn - send claim warning
+            await this.dependencies.seasonTurnService.sendClaimWarning(turnId);
+            Logger.info(`Successfully handled season claim warning for turn ${turnId}`);
+        } else if (turnService === this.dependencies.onDemandTurnService) {
+            // This is an on-demand turn - send submission warning
+            await this.dependencies.onDemandTurnService.sendTurnWarning(turnId);
+            Logger.info(`Successfully handled on-demand submission warning for turn ${turnId}`);
+        } else {
+            throw new Error(`Unknown turn service type for turn ${turnId}`);
+        }
     }
 
     /**
