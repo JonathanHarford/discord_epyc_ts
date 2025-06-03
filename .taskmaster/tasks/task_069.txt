@@ -11,19 +11,51 @@ Create a dedicated validation function or module for turn patterns. This functio
 Implement unit tests for the validation function/module covering valid inputs ('drawing', 'writing', 'drawing,writing', etc.) and a wide range of invalid inputs (empty string, spaces, invalid types like 'painting', mixed case, extra commas, incorrect separators, non-string types). Verify that valid inputs are parsed correctly and invalid inputs result in the expected error or error message. Implement integration tests for the command or service that uses this validation (e.g., the `/new season` command) to ensure invalid patterns are rejected with clear error messages displayed to the user.
 
 # Subtasks:
-## 1. Create Turn Pattern Validation Function [pending]
+## 1. Create Turn Pattern Validation Function [done]
 ### Dependencies: None
 ### Description: Develop a core validation function that checks if a turn pattern string follows the required format
 ### Details:
 Create a function named validateTurnPattern that accepts a string input. The function should verify that the input is a non-empty string, split it by commas, and check that each element (after trimming whitespace) is exactly 'drawing' or 'writing'. Return a parsed array if valid, or throw a descriptive error if invalid.
+<info added on 2025-06-03T18:39:04.889Z>
+Found existing basic validation in ConfigService.ts (line 167) using regex: /^(writing|drawing)(,(writing|drawing))*$/. This existing validation is basic and does not adequately handle edge cases such as empty strings, extra commas (e.g., 'drawing,,writing'), complex whitespace scenarios, non-string inputs, or provide clear, specific error messages for different failure types. The new `validateTurnPattern` function must be more robust, reusable across the codebase, and provide detailed error handling for these specific cases.
+</info added on 2025-06-03T18:39:04.889Z>
+<info added on 2025-06-03T18:41:21.284Z>
+✅ COMPLETED: Turn pattern validation function successfully implemented and tested
 
-## 2. Implement Edge Case Handling [pending]
+**Implementation Summary:**
+- Created `src/utils/turn-pattern-validation.ts` with robust validation functions
+- Implemented `validateTurnPattern()` - main validation function that throws descriptive errors
+- Implemented `validateTurnPatternSafe()` - returns result object instead of throwing
+- Implemented `isValidTurnPattern()` - simple boolean check
+- Implemented `formatTurnPattern()` - utility to format arrays back to strings
+- Created custom `TurnPatternValidationError` class for specific error handling
+- Added comprehensive TypeScript types and interfaces
+
+**Edge Cases Handled:**
+✅ Empty strings and whitespace-only strings
+✅ Extra commas (e.g., 'drawing,,writing')
+✅ Leading/trailing commas
+✅ Non-string inputs (null, undefined, numbers, objects)
+✅ Invalid turn types with position-specific error messages
+✅ Case sensitivity (rejects 'Writing', 'DRAWING', etc.)
+✅ Whitespace trimming around values
+
+**Testing:**
+✅ 35 comprehensive unit tests covering all valid and invalid scenarios
+✅ All tests pass successfully
+✅ Tests cover edge cases, error messages, and all function variants
+
+**Next Steps:**
+Ready for integration into command handlers and services (subtasks 69.2-69.5)
+</info added on 2025-06-03T18:41:21.284Z>
+
+## 2. Implement Edge Case Handling [done]
 ### Dependencies: 69.1
 ### Description: Enhance the validation function to handle all specified edge cases
 ### Details:
 Extend the validation function to properly handle edge cases including empty strings, strings with extra commas (e.g., 'drawing,,writing'), strings with only commas, and non-string inputs. Each case should produce an appropriate error message that clearly identifies the specific validation issue.
 
-## 3. Design Error Handling Strategy [pending]
+## 3. Design Error Handling Strategy [done]
 ### Dependencies: 69.1
 ### Description: Create a consistent approach for error handling and messaging
 ### Details:

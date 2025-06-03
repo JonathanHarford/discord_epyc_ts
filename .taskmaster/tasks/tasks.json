@@ -2912,8 +2912,8 @@
           "title": "Create Turn Pattern Validation Function",
           "description": "Develop a core validation function that checks if a turn pattern string follows the required format",
           "dependencies": [],
-          "details": "Create a function named validateTurnPattern that accepts a string input. The function should verify that the input is a non-empty string, split it by commas, and check that each element (after trimming whitespace) is exactly 'drawing' or 'writing'. Return a parsed array if valid, or throw a descriptive error if invalid.",
-          "status": "pending",
+          "details": "Create a function named validateTurnPattern that accepts a string input. The function should verify that the input is a non-empty string, split it by commas, and check that each element (after trimming whitespace) is exactly 'drawing' or 'writing'. Return a parsed array if valid, or throw a descriptive error if invalid.\n<info added on 2025-06-03T18:39:04.889Z>\nFound existing basic validation in ConfigService.ts (line 167) using regex: /^(writing|drawing)(,(writing|drawing))*$/. This existing validation is basic and does not adequately handle edge cases such as empty strings, extra commas (e.g., 'drawing,,writing'), complex whitespace scenarios, non-string inputs, or provide clear, specific error messages for different failure types. The new `validateTurnPattern` function must be more robust, reusable across the codebase, and provide detailed error handling for these specific cases.\n</info added on 2025-06-03T18:39:04.889Z>\n<info added on 2025-06-03T18:41:21.284Z>\n✅ COMPLETED: Turn pattern validation function successfully implemented and tested\n\n**Implementation Summary:**\n- Created `src/utils/turn-pattern-validation.ts` with robust validation functions\n- Implemented `validateTurnPattern()` - main validation function that throws descriptive errors\n- Implemented `validateTurnPatternSafe()` - returns result object instead of throwing\n- Implemented `isValidTurnPattern()` - simple boolean check\n- Implemented `formatTurnPattern()` - utility to format arrays back to strings\n- Created custom `TurnPatternValidationError` class for specific error handling\n- Added comprehensive TypeScript types and interfaces\n\n**Edge Cases Handled:**\n✅ Empty strings and whitespace-only strings\n✅ Extra commas (e.g., 'drawing,,writing')\n✅ Leading/trailing commas\n✅ Non-string inputs (null, undefined, numbers, objects)\n✅ Invalid turn types with position-specific error messages\n✅ Case sensitivity (rejects 'Writing', 'DRAWING', etc.)\n✅ Whitespace trimming around values\n\n**Testing:**\n✅ 35 comprehensive unit tests covering all valid and invalid scenarios\n✅ All tests pass successfully\n✅ Tests cover edge cases, error messages, and all function variants\n\n**Next Steps:**\nReady for integration into command handlers and services (subtasks 69.2-69.5)\n</info added on 2025-06-03T18:41:21.284Z>",
+          "status": "done",
           "testStrategy": "Test with valid patterns ('drawing,writing'), invalid values ('running,jumping'), empty strings, non-string inputs, and patterns with extra commas or whitespace."
         },
         {
@@ -2924,7 +2924,7 @@
             1
           ],
           "details": "Extend the validation function to properly handle edge cases including empty strings, strings with extra commas (e.g., 'drawing,,writing'), strings with only commas, and non-string inputs. Each case should produce an appropriate error message that clearly identifies the specific validation issue.",
-          "status": "pending",
+          "status": "done",
           "testStrategy": "Test with edge cases: empty string, 'drawing,,writing', ',', null, undefined, numbers, and objects."
         },
         {
@@ -2935,7 +2935,7 @@
             1
           ],
           "details": "Define a strategy for error handling, either by throwing custom error objects or returning structured error messages. Create clear, user-friendly error messages for each validation failure case. Messages should explain exactly what was wrong with the input and how to correct it (e.g., 'Turn pattern must be a comma-separated list containing only 'drawing' and 'writing' values').",
-          "status": "pending",
+          "status": "done",
           "testStrategy": "Verify that each error case produces the expected error type and message content."
         },
         {
