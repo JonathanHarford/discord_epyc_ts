@@ -793,14 +793,15 @@ export class OnDemandGameService {
 
       // Create completion message
       const completionMessage = MessageHelpers.info(
-        'messages.ondemand.gameCompleted',
+        'messages.game.onDemandGameCompleted',
         {
           gameId: game.id,
-          creatorName: game.creator.displayName || game.creator.discordUserId,
+          creatorName: game.creator.name || game.creator.discordUserId,
           completedTurns: completedTurns.length,
           totalTurns: totalTurns,
           playerCount: playerCount,
-          completionReason: game.status === 'COMPLETED' ? 'Natural completion' : 'Admin terminated'
+          completionReason: game.status === 'COMPLETED' ? 'Natural completion' : 'Admin terminated',
+          finishedGamesLink: `<#${completedChannelId}>`
         }
       );
 

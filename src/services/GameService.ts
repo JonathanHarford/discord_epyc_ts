@@ -1,8 +1,15 @@
 import type { CheckGameCompletionInput } from '../game/types.js';
 import { Game, Player, Prisma, PrismaClient, Season, Turn } from '@prisma/client';
+import { Client as DiscordClient } from 'discord.js';
 import { nanoid } from 'nanoid';
 
+import { ChannelConfigService } from './ChannelConfigService.js';
+import { Logger } from './logger.js';
+import { ErrorEventBus, ErrorEventType } from '../events/error-event-bus.js';
 import { checkGameCompletionPure } from '../game/pureGameLogic.js';
+import { MessageAdapter } from '../messaging/MessageAdapter.js';
+import { MessageHelpers } from '../messaging/MessageHelpers.js';
+import { ErrorHandler, ErrorType } from '../utils/error-handler.js';
 
 // Extended Game type that includes related data
 export interface GameWithDetails extends Game {
@@ -36,9 +43,13 @@ export interface GameStatusResult {
 
 export class GameService {
   private prisma: PrismaClient;
+  private discordClient: DiscordClient;
+  private channelConfigService: ChannelConfigService;
 
-  constructor(prisma: PrismaClient) {
+  constructor(prisma: PrismaClient, discordClient: DiscordClient) {
     this.prisma = prisma;
+    this.discordClient = discordClient;
+    this.channelConfigService = new ChannelConfigService(prisma);
   }
 
   /**
@@ -351,7 +362,31 @@ export class GameService {
           return { success: false, error: 'Failed to mark game as completed' };
         }
 
-        console.log(`Game ${gameId} marked as completed after turn ${turnId} completion`);
+        // Send game completion announcement - don't let announcement failures prevent game completion
+        try {
+          await this.sendGameCompletionAnnouncement(completedGame);
+        } catch (announcementError) {
+          // Log the announcement failure but don't fail the entire operation
+          Logger.error(`Game completion announcement failed for game ${gameId}, but game completion was successful`, {
+            gameId,
+            turnId,
+            announcementError: announcementError instanceof Error ? announcementError.message : String(announcementError),
+            source: 'GameService.handleTurnCompletion'
+          });
+          
+          // Publish error event for monitoring
+          const errorInfo = ErrorHandler.createCustomError(
+            ErrorType.BUSINESS_LOGIC,
+            'ANNOUNCEMENT_FAILED_AFTER_COMPLETION',
+            `Game ${gameId} completed successfully but announcement failed: ${announcementError instanceof Error ? announcementError.message : String(announcementError)}`,
+            'Game was completed but announcement could not be sent',
+            { gameId, turnId, originalError: announcementError }
+          );
+          
+          this.publishErrorEvent(errorInfo, { gameId, turnId });
+        }
+
+        Logger.info(`Game ${gameId} marked as completed after turn ${turnId} completion`, { gameId, turnId });
         return { success: true, gameCompleted: true };
       }
 
@@ -454,6 +489,269 @@ export class GameService {
     } catch (error) {
       console.error(`Error getting game statistics for ${gameId}:`, error);
       return null;
+    }
+  }
+
+  /**
+   * Sends a game completion announcement to the configured channel
+   * @param game The completed game
+   */
+  private async sendGameCompletionAnnouncement(game: Game): Promise<void> {
+    const context = {
+      gameId: game.id,
+      seasonId: game.seasonId,
+      gameStatus: game.status,
+      source: 'GameService.sendGameCompletionAnnouncement'
+    };
+
+    try {
+      Logger.info(`Starting game completion announcement process for game ${game.id}`, context);
+
+      let guildId: string | null = null;
+
+      // Get guildId - handle both season games and on-demand games
+      try {
+        if (game.seasonId) {
+          // Season game - get guildId from season
+          const season = await this.prisma.season.findUnique({
+            where: { id: game.seasonId }
+          });
+          guildId = season?.guildId || null;
+          
+          if (!season) {
+            const errorInfo = ErrorHandler.createCustomError(
+              ErrorType.DATABASE,
+              'SEASON_NOT_FOUND',
+              `Season ${game.seasonId} not found for game ${game.id}`,
+              'Game completion announcement failed due to missing season data',
+              { ...context, seasonId: game.seasonId }
+            );
+            this.publishErrorEvent(errorInfo, context);
+            return;
+          }
+        } else {
+          // On-demand game - use game.guildId directly
+          guildId = game.guildId;
+        }
+      } catch (error) {
+        const errorInfo = ErrorHandler.createCustomError(
+          ErrorType.DATABASE,
+          'GUILD_ID_RESOLUTION_FAILED',
+          `Failed to resolve guild ID for game ${game.id}: ${error instanceof Error ? error.message : String(error)}`,
+          'Game completion announcement failed due to database error',
+          { ...context, originalError: error }
+        );
+        this.publishErrorEvent(errorInfo, context);
+        throw error;
+      }
+
+      if (!guildId) {
+        Logger.info(`Game ${game.id} has no guild ID, skipping completion announcement`, context);
+        return;
+      }
+
+      // Get the completed channel from config
+      let completedChannelId: string | null = null;
+      try {
+        completedChannelId = await this.channelConfigService.getCompletedChannelId(guildId);
+        if (!completedChannelId) {
+          Logger.info(`No completed channel configured for guild ${guildId}, skipping announcement`, { ...context, guildId });
+          return;
+        }
+      } catch (error) {
+        const errorInfo = ErrorHandler.createCustomError(
+          ErrorType.DATABASE,
+          'CHANNEL_CONFIG_FETCH_FAILED',
+          `Failed to get completed channel config for guild ${guildId}: ${error instanceof Error ? error.message : String(error)}`,
+          'Game completion announcement failed due to configuration error',
+          { ...context, guildId, originalError: error }
+        );
+        this.publishErrorEvent(errorInfo, context);
+        throw error;
+      }
+
+      // Get the Discord channel
+      let channel;
+      try {
+        channel = await this.discordClient.channels.fetch(completedChannelId);
+        if (!channel || !channel.isTextBased()) {
+          const errorInfo = ErrorHandler.createCustomError(
+            ErrorType.DISCORD_API,
+            'INVALID_CHANNEL',
+            `Completed channel ${completedChannelId} not found or not text-based`,
+            'Game completion announcement failed due to invalid channel configuration',
+            { ...context, guildId, completedChannelId }
+          );
+          this.publishErrorEvent(errorInfo, context);
+          return;
+        }
+      } catch (error) {
+        const errorInfo = ErrorHandler.createCustomError(
+          ErrorType.DISCORD_API,
+          'CHANNEL_FETCH_FAILED',
+          `Failed to fetch Discord channel ${completedChannelId}: ${error instanceof Error ? error.message : String(error)}`,
+          'Game completion announcement failed due to Discord API error',
+          { ...context, guildId, completedChannelId, originalError: error }
+        );
+        this.publishErrorEvent(errorInfo, context);
+        throw error;
+      }
+
+      // Get game statistics for the announcement
+      let stats;
+      try {
+        stats = await this.getGameStatistics(game.id);
+        if (!stats) {
+          const errorInfo = ErrorHandler.createCustomError(
+            ErrorType.DATABASE,
+            'GAME_STATS_FETCH_FAILED',
+            `Failed to get statistics for game ${game.id}`,
+            'Game completion announcement failed due to missing game statistics',
+            context
+          );
+          this.publishErrorEvent(errorInfo, context);
+          return;
+        }
+      } catch (error) {
+        const errorInfo = ErrorHandler.createCustomError(
+          ErrorType.DATABASE,
+          'GAME_STATS_ERROR',
+          `Error getting game statistics for ${game.id}: ${error instanceof Error ? error.message : String(error)}`,
+          'Game completion announcement failed due to database error',
+          { ...context, originalError: error }
+        );
+        this.publishErrorEvent(errorInfo, context);
+        throw error;
+      }
+
+      // Create completion message based on game type
+      let completionMessage;
+      try {
+        if (game.seasonId) {
+          // Season game
+          completionMessage = MessageHelpers.info(
+            'messages.game.seasonGameCompleted',
+            {
+              gameId: game.id,
+              seasonId: game.seasonId,
+              completedTurns: stats.completedTurns,
+              totalTurns: stats.totalTurns,
+              skippedTurns: stats.skippedTurns,
+              completionPercentage: stats.completionPercentage,
+              finishedGamesLink: `<#${completedChannelId}>`
+            }
+          );
+        } else {
+          // On-demand game - get creator info
+          const gameWithCreator = await this.prisma.game.findUnique({
+            where: { id: game.id },
+            include: { creator: true }
+          });
+          
+          const playerCount = new Set(
+            await this.prisma.turn.findMany({
+              where: { gameId: game.id },
+              select: { playerId: true }
+            }).then(turns => turns.map(t => t.playerId))
+          ).size;
+          
+          completionMessage = MessageHelpers.info(
+            'messages.game.onDemandGameCompleted',
+            {
+              gameId: game.id,
+              creatorName: gameWithCreator?.creator?.name || gameWithCreator?.creator?.discordUserId || 'Unknown',
+              completedTurns: stats.completedTurns,
+              totalTurns: stats.totalTurns,
+              playerCount: playerCount,
+              completionReason: game.status === 'COMPLETED' ? 'Natural completion' : 'Admin terminated',
+              finishedGamesLink: `<#${completedChannelId}>`
+            }
+          );
+        }
+      } catch (error) {
+        const errorInfo = ErrorHandler.createCustomError(
+          ErrorType.BUSINESS_LOGIC,
+          'MESSAGE_FORMATTING_FAILED',
+          `Failed to format completion message for game ${game.id}: ${error instanceof Error ? error.message : String(error)}`,
+          'Game completion announcement failed due to message formatting error',
+          { ...context, originalError: error }
+        );
+        this.publishErrorEvent(errorInfo, context);
+        throw error;
+      }
+
+      // Send the message
+      try {
+        await MessageAdapter.processInstruction(
+          completionMessage,
+          undefined, // No interaction for channel messages
+          'en',
+          this.discordClient
+        );
+
+        Logger.info(`Game completion announcement sent successfully to channel ${completedChannelId} for game ${game.id}`, {
+          ...context,
+          guildId,
+          completedChannelId,
+          gameStats: stats
+        });
+
+      } catch (error) {
+        const errorInfo = ErrorHandler.createCustomError(
+          ErrorType.DISCORD_API,
+          'MESSAGE_SEND_FAILED',
+          `Failed to send completion message for game ${game.id}: ${error instanceof Error ? error.message : String(error)}`,
+          'Game completion announcement failed to send',
+          { ...context, guildId, completedChannelId, originalError: error }
+        );
+        this.publishErrorEvent(errorInfo, context);
+        throw error;
+      }
+
+    } catch (error) {
+      // Final catch-all error handler
+      const errorInfo = ErrorHandler.createCustomError(
+        ErrorType.UNKNOWN,
+        'ANNOUNCEMENT_PROCESS_FAILED',
+        `Unexpected error in game completion announcement process for game ${game.id}: ${error instanceof Error ? error.message : String(error)}`,
+        'Game completion announcement failed due to an unexpected error',
+        { ...context, originalError: error }
+      );
+      
+      Logger.error(`Critical error in game completion announcement for game ${game.id}`, {
+        ...context,
+        error: error instanceof Error ? error.message : String(error),
+        stack: error instanceof Error ? error.stack : undefined
+      });
+      
+      this.publishErrorEvent(errorInfo, context);
+      
+      // Re-throw to ensure the calling method knows the announcement failed
+      // but the game completion itself should still be recorded
+      throw error;
+    }
+  }
+
+  /**
+   * Publishes error events to the error event bus for monitoring and alerting
+   * @param errorInfo The error information
+   * @param context Additional context
+   */
+  private publishErrorEvent(errorInfo: any, context: Record<string, any>): void {
+    try {
+      const eventBus = ErrorEventBus.getInstance();
+      eventBus.publishError(
+        ErrorEventType.SERVICE_ERROR,
+        errorInfo,
+        { service: 'GameService', method: 'sendGameCompletionAnnouncement', ...context }
+      );
+    } catch (eventError) {
+      // If we can't publish the error event, at least log it
+      Logger.error('Failed to publish error event for game completion announcement', {
+        originalError: errorInfo,
+        eventError: eventError instanceof Error ? eventError.message : String(eventError),
+        context
+      });
     }
   }
 } 

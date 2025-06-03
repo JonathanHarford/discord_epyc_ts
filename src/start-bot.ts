@@ -63,7 +63,7 @@ async function start(): Promise<void> {
     
     // Service instances with proper dependency injection
     const schedulerService = new SchedulerService(prisma);
-    const gameService = new GameService(prisma);
+    const gameService = new GameService(prisma, client);
     const turnService = new SeasonTurnService(prisma, client, schedulerService);
     const seasonService = new SeasonService(prisma, turnService, schedulerService, gameService);
     const turnOfferingService = new TurnOfferingService(prisma, client, turnService, schedulerService);

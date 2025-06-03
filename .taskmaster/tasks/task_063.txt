@@ -70,25 +70,139 @@ Next Steps:
 - Consider creating a unified game completion announcement service
 </info added on 2025-06-03T17:39:39.987Z>
 
-## 2. Get Configured Channel for Game Announcements [in-progress]
+## 2. Get Configured Channel for Game Announcements [done]
 ### Dependencies: None
 ### Description: Implement logic to retrieve the configured Discord channel ID for posting game completion announcements.
 ### Details:
 Using the configuration loading mechanism from Task 3, retrieve the designated Discord channel ID where game completion announcements should be posted. Implement validation to ensure the channel ID exists and is in the correct format. Add error handling for cases where the channel ID is missing, invalid, or the configuration cannot be loaded.
+<info added on 2025-06-03T17:42:58.340Z>
+Starting implementation in GameService.handleTurnCompletion(). This involves adding DiscordClient and ChannelConfigService dependencies to GameService, adding a private method for sending announcements, and integrating the call after game completion detection. The channel ID will be retrieved using ChannelConfigService.getCompletedChannelId(guildId). Need to handle both season and on-demand games to get the correct guildId.
+</info added on 2025-06-03T17:42:58.340Z>
 
-## 3. Format Game Completion Message [pending]
+## 3. Format Game Completion Message [done]
 ### Dependencies: 63.1
 ### Description: Create a function to format retrieved game data into a clear, informative Discord message.
 ### Details:
 Develop a function that takes the game data retrieved in Subtask 1 and formats it into a well-structured Discord message. The message should include game type, participants, winner(s), duration, final scores, and any other relevant statistics. Consider using Discord's rich embed format for better visual presentation. Ensure the message is clear and concise while providing all necessary information about the completed game.
+<info added on 2025-06-03T17:48:21.919Z>
+Analysis Complete: Found Message Formatting Inconsistencies
 
-## 4. Send Game Completion Announcement [pending]
+Discovered significant inconsistencies in game completion message formatting across services:
+
+Current Issues:
+1. GameService uses non-existent key 'messages.game.completed'
+2. OnDemandGameService uses non-existent key 'messages.ondemand.gameCompleted'
+3. SeasonTurnService correctly uses strings.messages.game.completionAnnouncement
+
+Existing Message Template:
+```typescript
+// From strings.ts line 273
+game: {
+  completionAnnouncement: '🎉 Game **{gameId}** in season **{seasonId}** has been completed! Check out all finished games in {finishedGamesLink}! 🎉'
+}
+```
+
+Current Parameter Mismatches:
+- GameService passes: gameId, completedTurns, totalTurns, skippedTurns, completionPercentage, gameType
+- OnDemandGameService passes: gameId, creatorName, completedTurns, totalTurns, playerCount, completionReason
+- SeasonTurnService passes: gameId, seasonId, finishedGamesLink (correct format)
+
+Standardization Plan:
+1. Create unified message templates for both season and on-demand games
+2. Standardize parameter names across all services
+3. Update GameService and OnDemandGameService to use correct message keys
+4. Ensure consistent information display (game stats, completion reason, etc.)
+
+Next Steps:
+1. Add proper message templates to strings.ts
+2. Update GameService.sendGameCompletionAnnouncement()
+3. Update OnDemandGameService.sendGameCompletionAnnouncement()
+4. Test all three completion flows
+</info added on 2025-06-03T17:48:21.919Z>
+<info added on 2025-06-03T17:51:09.092Z>
+✅ IMPLEMENTATION COMPLETE: Standardized Game Completion Message Formatting
+
+Successfully implemented standardized message formatting across all game completion services.
+
+Changes Made:
+
+1. Added New Message Templates to strings.ts:
+   game: {
+     completionAnnouncement: '🎉 Game **{gameId}** in season **{seasonId}** has been completed! Check out all finished games in {finishedGamesLink}! 🎉',
+     seasonGameCompleted: '🎉 **Season Game Completed!** 🎉\n\n**Game ID:** {gameId}\n**Season:** {seasonId}\n**Completion:** {completionPercentage}% ({completedTurns}/{totalTurns} turns)\n**Skipped:** {skippedTurns} turns\n\nCheck out all finished games in {finishedGamesLink}!',
+     onDemandGameCompleted: '🎉 **On-Demand Game Completed!** 🎉\n\n**Game ID:** {gameId}\n**Creator:** {creatorName}\n**Completion:** {completedTurns}/{totalTurns} turns\n**Players:** {playerCount}\n**Reason:** {completionReason}\n\nCheck out all finished games in {finishedGamesLink}!'
+   }
+
+2. Updated GameService.sendGameCompletionAnnouncement():
+   - Fixed non-existent message key 'messages.game.completed' -> 'messages.game.seasonGameCompleted' or 'messages.game.onDemandGameCompleted'
+   - Added logic to differentiate between season and on-demand games
+   - Standardized parameters: gameId, seasonId, completedTurns, totalTurns, skippedTurns, completionPercentage, finishedGamesLink
+   - For on-demand games: includes creatorName, playerCount, completionReason
+
+3. Updated OnDemandGameService.sendGameCompletionAnnouncement():
+   - Fixed non-existent message key 'messages.ondemand.gameCompleted' -> 'messages.game.onDemandGameCompleted'
+   - Fixed field name displayName -> name (correct Player model field)
+   - Added missing finishedGamesLink parameter
+
+4. Maintained Backward Compatibility:
+   - Kept existing completionAnnouncement template for SeasonTurnService (already working correctly)
+   - All three services now use consistent, well-defined message templates
+
+Testing Results:
+- All 604 tests pass ✅
+- No regressions introduced
+- Message formatting is now consistent across all game completion flows
+
+Benefits Achieved:
+- ✅ Eliminated non-existent message key errors
+- ✅ Standardized parameter names and data structure
+- ✅ Consistent visual formatting across all game types
+- ✅ Proper error handling and field name corrections
+- ✅ Enhanced information display (completion percentages, player counts, etc.)
+
+The game completion message formatting is now fully standardized and working correctly across all services.
+</info added on 2025-06-03T17:51:09.092Z>
+
+## 4. Send Game Completion Announcement [done]
 ### Dependencies: 63.2, 63.3
 ### Description: Implement the functionality to send the formatted game completion message to the configured Discord channel.
 ### Details:
 Using the Discord bot client from Task 2, implement the logic to send the formatted game completion message to the channel ID retrieved in Subtask 2. Ensure the bot has proper permissions to post in the channel before attempting to send the message. Include error handling for cases where the bot lacks necessary permissions, the channel no longer exists, or network issues prevent message delivery.
+<info added on 2025-06-03T17:55:53.905Z>
+✅ IMPLEMENTATION COMPLETE: Game Completion Announcement Functionality
 
-## 5. Implement Comprehensive Error Handling and Logging [pending]
+The game completion announcement functionality has been successfully implemented and is working correctly.
+
+**Implementation Analysis:**
+- The `GameService.sendGameCompletionAnnouncement()` method is fully implemented (lines 475-575)
+- The `handleTurnCompletion()` method correctly calls the announcement method when games are completed (line 351)
+- All necessary dependencies are properly injected (DiscordClient, ChannelConfigService)
+- Constructor updates have been made across all instantiation points
+
+**Key Features Implemented:**
+1. **Guild ID Resolution**: Handles both season games (gets guildId from season) and on-demand games (uses game.guildId directly)
+2. **Channel Configuration**: Uses `ChannelConfigService.getCompletedChannelId(guildId)` to get configured channel
+3. **Discord Channel Validation**: Fetches and validates the Discord channel before sending messages
+4. **Game Statistics**: Retrieves comprehensive game statistics for the announcement
+5. **Message Formatting**: Uses standardized message templates for both season and on-demand games
+6. **Message Sending**: Uses `MessageAdapter.processInstruction()` for consistent message delivery
+7. **Error Handling**: Comprehensive error handling with console logging for debugging
+
+**Testing Results:**
+- All 604 tests pass ✅
+- No regressions introduced
+- The implementation follows existing patterns and conventions
+
+**Technical Implementation:**
+- Proper async/await error handling
+- Graceful handling of missing configurations (skips announcement if no channel configured)
+- Consistent logging for debugging and monitoring
+- Follows the same pattern as `OnDemandGameService.sendGameCompletionAnnouncement()`
+
+The game completion announcement functionality is now fully operational and integrated into the game completion flow.
+</info added on 2025-06-03T17:55:53.905Z>
+
+## 5. Implement Comprehensive Error Handling and Logging [in-progress]
 ### Dependencies: 63.4
 ### Description: Create robust error handling and logging for the entire game completion announcement process.
 ### Details:

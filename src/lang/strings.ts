@@ -271,7 +271,9 @@ It's your first turn in this game! ⏰ You have **{claimTimeoutFormatted}** to c
 
     // Game messages (removed redundant seasonId message)
     game: {
-      completionAnnouncement: '🎉 Game **{gameId}** in season **{seasonId}** has been completed! Check out all finished games in {finishedGamesLink}! 🎉'
+      completionAnnouncement: '🎉 Game **{gameId}** in season **{seasonId}** has been completed! Check out all finished games in {finishedGamesLink}! 🎉',
+      seasonGameCompleted: '🎉 **Season Game Completed!** 🎉\n\n**Game ID:** {gameId}\n**Season:** {seasonId}\n**Completion:** {completionPercentage}% ({completedTurns}/{totalTurns} turns)\n**Skipped:** {skippedTurns} turns\n\nCheck out all finished games in {finishedGamesLink}!',
+      onDemandGameCompleted: '🎉 **On-Demand Game Completed!** 🎉\n\n**Game ID:** {gameId}\n**Creator:** {creatorName}\n**Completion:** {completedTurns}/{totalTurns} turns\n**Players:** {playerCount}\n**Reason:** {completionReason}\n\nCheck out all finished games in {finishedGamesLink}!'
     },
 
     // Turn timeout messages

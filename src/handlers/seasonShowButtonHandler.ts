@@ -26,7 +26,7 @@ export class SeasonShowButtonHandler implements ButtonHandler {
         try {
             // Create service instances
             const schedulerService = new SchedulerService(prisma);
-            const gameService = new GameService(prisma);
+            const gameService = new GameService(prisma, interaction.client);
             const turnService = new SeasonTurnService(prisma, interaction.client, schedulerService);
             const seasonService = new SeasonService(prisma, turnService, schedulerService, gameService);
 

@@ -16,7 +16,7 @@ export class SeasonJoinButtonHandler implements ButtonHandler {
     public async execute(interaction: ButtonInteraction<CacheType>): Promise<void> {
         // Create service instances
         const schedulerService = new SchedulerService(prisma);
-        const gameService = new GameService(prisma);
+        const gameService = new GameService(prisma, interaction.client);
         const turnService = new SeasonTurnService(prisma, interaction.client, schedulerService);
         const seasonService = new SeasonService(prisma, turnService, schedulerService, gameService);
 

@@ -54,7 +54,7 @@ export class AdminCommand implements Command {
         if (!this.seasonService) {
             const turnService = new SeasonTurnService(prisma, intr.client);
             const schedulerService = new SchedulerService(prisma);
-            const gameService = new GameService(prisma);
+            const gameService = new GameService(prisma, intr.client);
             this.seasonService = new SeasonService(prisma, turnService, schedulerService, gameService);
             this.onDemandGameService = new OnDemandGameService(prisma, intr.client, schedulerService);
         }
