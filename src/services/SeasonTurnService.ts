@@ -1068,16 +1068,17 @@ export class SeasonTurnService implements TurnTimeoutService {
       // Get season-specific timeout values
       const timeouts = await getSeasonTimeouts(this.prisma, turnId);
       
-      // Calculate remaining time until claim timeout
+      // Calculate the actual timeout expiration time
+      // The turn became OFFERED at turn.updatedAt, and will timeout after claimTimeoutMinutes
       const claimTimeoutMinutes = timeouts.claimTimeoutMinutes;
-      const claimWarningMinutes = timeouts.claimWarningMinutes || 60; // Default to 1 hour if not set
-      const remainingMinutes = claimTimeoutMinutes - claimWarningMinutes;
+      const turnOfferedAt = turn.updatedAt;
+      const timeoutExpiresAt = new Date(turnOfferedAt.getTime() + claimTimeoutMinutes * 60 * 1000);
       
       const user = await this.discordClient.users.fetch(turn.player.discordUserId);
       
-      // Create the warning message
+      // Create the warning message with precise remaining time
       const message = interpolate(strings.messages.turnTimeout.claimWarning, {
-        remainingTime: FormatUtils.formatTimeout(remainingMinutes),
+        remainingTime: FormatUtils.formatRemainingTime(timeoutExpiresAt),
         gameId: turn.game.id,
         seasonId: turn.game.season?.id || 'Unknown',
         turnNumber: turn.turnNumber,

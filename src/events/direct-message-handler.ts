@@ -173,17 +173,20 @@ export class DirectMessageHandler implements EventHandler {
                         }
                     });
                     
+                    // Calculate submission timeout expiration time
+                    const submissionTimeoutDate = new Date(pendingTurn.updatedAt.getTime() + submissionTimeoutMinutes * 60 * 1000);
+                    
                     // Send appropriate claim success message based on turn type
                     if (pendingTurn.type === 'WRITING') {
                         const message = interpolate(strings.messages.ready.claimSuccessWriting, {
                             previousTurnImage: previousTurn?.imageUrl || '[Previous image not found]',
-                            submissionTimeoutFormatted: FormatUtils.formatTimeout(submissionTimeoutMinutes)
+                            submissionTimeoutFormatted: FormatUtils.formatRemainingTime(submissionTimeoutDate)
                         });
                         await msg.author.send(message);
                     } else {
                         const message = interpolate(strings.messages.ready.claimSuccessDrawing, {
                             previousTurnWriting: previousTurn?.textContent || '[Previous text not found]',
-                            submissionTimeoutFormatted: FormatUtils.formatTimeout(submissionTimeoutMinutes)
+                            submissionTimeoutFormatted: FormatUtils.formatRemainingTime(submissionTimeoutDate)
                         });
                         await msg.author.send(message);
                     }
@@ -268,13 +271,13 @@ export class DirectMessageHandler implements EventHandler {
                 if (turnToClaim.type === 'WRITING') {
                     const message = interpolate(strings.messages.ready.claimSuccessWriting, {
                         previousTurnImage: previousTurn?.imageUrl || '[Previous image not found]',
-                        submissionTimeoutFormatted: FormatUtils.formatTimeout(submissionTimeoutMinutes)
+                        submissionTimeoutFormatted: FormatUtils.formatRemainingTime(submissionTimeoutDate)
                     });
                     await msg.author.send(message);
                 } else {
                     const message = interpolate(strings.messages.ready.claimSuccessDrawing, {
                         previousTurnWriting: previousTurn?.textContent || '[Previous text not found]',
-                        submissionTimeoutFormatted: FormatUtils.formatTimeout(submissionTimeoutMinutes)
+                        submissionTimeoutFormatted: FormatUtils.formatRemainingTime(submissionTimeoutDate)
                     });
                     await msg.author.send(message);
                 }

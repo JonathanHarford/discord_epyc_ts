@@ -1,11 +1,32 @@
 # Task ID: 62
 # Title: Improve Timeout Duration Display Format
-# Status: pending
+# Status: in-progress
 # Dependencies: 5, 9, 10
 # Priority: medium
-# Description: Update the display format for remaining time in timeout messages (claim and submission) to show precise durations like "3m44s", "1h23m", or "2d5h" instead of imprecise formats like "0 minutes remaining".
+# Description: Update the display format for remaining time in timeout messages (claim and submission) to show precise durations like "3m44s", "1h23m", or "2d5h" instead of imprecise formats. The root cause has been identified in specific message flows, and the correct formatting utility `FormatUtils.formatRemainingTime` is available.
 # Details:
-Identify all locations where timeout remaining time is displayed to the user (primarily in Direct Messages related to offered and pending turns). For each location, retrieve the relevant timeout duration (claim_timeout or submission_timeout) and the timestamp when the current turn state (OFFERED or PENDING) began. Calculate the time remaining by subtracting the current time from the state start time plus the timeout duration. Implement a utility function or method to format a duration (in seconds) into a human-readable, precise string format (e.g., "XdYhZmWs"). The format should adapt based on the duration (days, hours, minutes, seconds). Replace the existing imprecise time display logic with the new calculation and formatting logic. Ensure the formatting handles durations correctly, including cases where the time is very short or very long. Consider edge cases like negative time remaining (should ideally not happen if warnings are sent before timeout, but robust formatting should handle it gracefully, perhaps showing "Expired" or "0s"). The implementation should be consistent across all affected messages.
+Based on analysis, the issues with timeout duration display are located in:
+
+1.  **Claim Warning Messages** (`SeasonTurnService.sendClaimWarning`):
+    *   Currently calculates a static difference (`claimTimeoutMinutes - claimWarningMinutes`) instead of actual remaining time from the turn's state start.
+    *   Uses `FormatUtils.formatTimeout()` which provides a verbose, imprecise format.
+    *   Needs to calculate actual remaining time from the turn's `updatedAt` timestamp (when the turn became OFFERED) plus the `claim_timeout` duration.
+
+2.  **Submission Timeout Messages** (`direct-message-handler.ts`):
+    *   Currently displays the total `submissionTimeoutMinutes` duration instead of the time remaining from when the turn was claimed.
+    *   Needs to calculate actual remaining time from the timestamp when the turn was claimed plus the `submission_timeout` duration.
+
+The solution involves:
+*   Calculating the precise time remaining by determining the future timestamp when the timeout expires (turn state start timestamp + timeout duration) and comparing it to the current time.
+*   Utilizing the existing `FormatUtils.formatRemainingTime(futureDate)` utility function, which correctly formats the time until a future date into the desired precise formats (e.g., "3m44s", "1h23m", "2d5h") and handles expired cases.
+*   Replacing the current logic and calls to `FormatUtils.formatTimeout()` with the new calculation and calls to `FormatUtils.formatRemainingTime()` in the identified locations.
+*   Ensure the necessary timestamps (turn `updatedAt`, turn claimed timestamp) are correctly used for the calculation.
+
+Implement these changes to ensure consistent, accurate, and precisely formatted timeout displays in all affected messages.
 
 # Test Strategy:
-**Unit Tests:** Write unit tests for the duration formatting utility function, covering various inputs (0 seconds, less than a minute, less than an hour, less than a day, multiple days) to ensure correct output formats (e.g., "0s", "30s", "5m10s", "1h30m", "2d4h"). Test edge cases like very large durations or potentially negative inputs (if applicable). **Integration Tests:** Set up test scenarios for both claim and submission timeouts. Manually or programmatically advance time to trigger timeout warning messages at different remaining durations (e.g., just under a minute, just under an hour, just under a day). Verify that the displayed remaining time in the warning messages uses the new precise format and accurately reflects the actual time left. Test with different configured timeout durations (short and long) to ensure the formatting adapts correctly. Verify that the format is consistent across all messages where timeout duration is displayed.
+**Unit Tests:** The `FormatUtils.formatRemainingTime(futureDate)` function is assumed to be well-tested. Focus unit tests on the logic that calculates the *future timestamp* of the timeout based on the turn's state start timestamp and the timeout duration. Test this calculation logic with various turn start times and timeout durations. **Integration Tests:** Set up test scenarios for both claim and submission timeouts. Manually or programmatically advance time to trigger timeout warning/message flows in `SeasonTurnService.sendClaimWarning` and `direct-message-handler.ts`. Verify that the displayed remaining time in the messages:
+1.  Is calculated correctly based on the turn's actual state start timestamp and the relevant timeout duration.
+2.  Uses the precise format provided by `FormatUtils.formatRemainingTime` (e.g., "5m", "1h15m", "3d").
+3.  Accurately reflects the actual time left at the moment the message is sent.
+Test with different configured timeout durations (short and long) and different time elapsed since the turn state started. Verify consistency across all affected messages.
