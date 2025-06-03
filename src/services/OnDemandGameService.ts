@@ -62,6 +62,21 @@ export class OnDemandGameService {
   }
 
   /**
+   * Fetches the Discord username for a user ID, with fallback to a default name
+   * @param discordUserId The Discord user ID
+   * @returns The username or a fallback name
+   */
+  private async getDiscordUsername(discordUserId: string): Promise<string> {
+    try {
+      const user = await this.discordClient.users.fetch(discordUserId);
+      return user.username || user.displayName || `User_${discordUserId.slice(-8)}`;
+    } catch (error) {
+      console.warn(`Failed to fetch Discord user ${discordUserId}, using fallback name:`, error);
+      return `User_${discordUserId.slice(-8)}`;
+    }
+  }
+
+  /**
    * Creates a new on-demand game
    * @param creatorDiscordUserId The Discord user ID of the player creating the game
    * @param guildId The Discord guild ID where the game was created
@@ -78,17 +93,16 @@ export class OnDemandGameService {
       });
 
       if (!creator) {
-        // Player doesn't exist, we need more info to create them
-        // For now, we'll create with a default name (Discord user ID)
-        // In a real implementation, you might want to fetch the Discord user info
+        // Player doesn't exist, fetch their Discord username and create them
         try {
+          const username = await this.getDiscordUsername(creatorDiscordUserId);
           creator = await this.prisma.player.create({
             data: {
               discordUserId: creatorDiscordUserId,
-              name: `User_${creatorDiscordUserId.slice(-8)}`, // Use last 8 chars as fallback name
+              name: username,
             }
           });
-          console.log(`Created new player ${creator.id} for Discord user ${creatorDiscordUserId}`);
+          console.log(`Created new player ${creator.id} for Discord user ${creatorDiscordUserId} with name ${username}`);
         } catch (error) {
           console.error(`Failed to create player for Discord user ${creatorDiscordUserId}:`, error);
           return { success: false, error: 'Failed to create player record' };
@@ -168,12 +182,13 @@ export class OnDemandGameService {
       });
 
       if (!player) {
-        // Player doesn't exist, create them with a default name
+        // Player doesn't exist, create them with their Discord username
         try {
+          const username = await this.getDiscordUsername(playerDiscordUserId);
           player = await this.prisma.player.create({
             data: {
               discordUserId: playerDiscordUserId,
-              name: `User_${playerDiscordUserId.slice(-8)}`, // Use last 8 chars as fallback name
+              name: username,
             }
           });
           console.log(`Created new player ${player.id} for Discord user ${playerDiscordUserId}`);
@@ -427,12 +442,13 @@ export class OnDemandGameService {
       });
 
       if (!player) {
-        // Player doesn't exist, create them with a default name
+        // Player doesn't exist, create them with their Discord username
         try {
+          const username = await this.getDiscordUsername(playerDiscordUserId);
           player = await this.prisma.player.create({
             data: {
               discordUserId: playerDiscordUserId,
-              name: `User_${playerDiscordUserId.slice(-8)}`, // Use last 8 chars as fallback name
+              name: username,
             }
           });
           console.log(`Created new player ${player.id} for Discord user ${playerDiscordUserId}`);
@@ -844,12 +860,13 @@ export class OnDemandGameService {
       });
 
       if (!player) {
-        // Player doesn't exist, create them with a default name
+        // Player doesn't exist, create them with their Discord username
         try {
+          const username = await this.getDiscordUsername(playerDiscordUserId);
           player = await this.prisma.player.create({
             data: {
               discordUserId: playerDiscordUserId,
-              name: `User_${playerDiscordUserId.slice(-8)}`, // Use last 8 chars as fallback name
+              name: username,
             }
           });
           console.log(`Created new player ${player.id} for Discord user ${playerDiscordUserId}`);

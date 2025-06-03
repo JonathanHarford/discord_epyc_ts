@@ -2566,7 +2566,7 @@
       "description": "Update the admin game list display to show proper usernames instead of user IDs and use the correct preposition \"on a server\" for server references.",
       "details": "Locate the code responsible for generating the admin game list display, likely associated with an admin command or interaction handler. Identify where user IDs are being retrieved and displayed. Implement logic to fetch the user's display name or username using the Discord API (e.g., `guild.members.cache.get(userId)` or fetching the user object). Handle cases where the user might not be in the cache or guild, potentially displaying a fallback like \"[Unknown User]\". Identify where the server reference \"in a server\" is being generated and change the string formatting to use \"on a server\". Ensure the changes are applied consistently across all relevant parts of the admin game list display. Consider performance implications if fetching many usernames; caching might be necessary depending on the implementation.",
       "testStrategy": "Access the admin game list interface/command. Verify that user IDs are no longer displayed and are replaced by readable usernames or display names. Check multiple entries in the list, including games with different users. Confirm that the text referring to the server now uses \"on a server\" instead of \"in a server\". Test with a game where a user might have left the server to see how the fallback (if implemented) is displayed.",
-      "status": "pending",
+      "status": "done",
       "dependencies": [
         5,
         47

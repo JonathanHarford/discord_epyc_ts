@@ -1,6 +1,6 @@
 # Task ID: 57
 # Title: Fix Admin Game List User and Server Display
-# Status: pending
+# Status: done
 # Dependencies: 5, 47
 # Priority: medium
 # Description: Update the admin game list display to show proper usernames instead of user IDs and use the correct preposition "on a server" for server references.

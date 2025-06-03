@@ -718,7 +718,7 @@ export class AdminCommand implements Command {
             const filterText = statusFilter ? ` (Status: ${statusFilter})` : '';
             const showingText = games.length > limit ? `\n\nShowing ${limit} of ${games.length} games.` : '';
             
-            await SimpleMessage.sendInfo(intr, `**Games in this server${filterText}:**\n\n${message.trim()}${showingText}`, {}, true);
+            await SimpleMessage.sendInfo(intr, `**Games on this server${filterText}:**\n\n${message.trim()}${showingText}`, {}, true);
 
         } catch (error) {
             console.error('Error in admin game list command:', error);
