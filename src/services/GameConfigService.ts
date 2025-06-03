@@ -1,23 +1,23 @@
-import { PrismaClient, SeasonConfig } from '@prisma/client';
+import { GameConfig, PrismaClient } from '@prisma/client';
 import { Prisma } from '@prisma/client';
 
 import { MessageHelpers, MessageInstruction } from '../messaging/index.js';
 import { TurnPatternValidationError, validateTurnPattern } from '../utils/turn-pattern-validation.js';
 
-export interface ConfigUpdateOptions {
+export interface GameConfigUpdateOptions {
   turnPattern?: string;
-  claimTimeout?: string;
-  claimWarning?: string;
   writingTimeout?: string;
   writingWarning?: string;
   drawingTimeout?: string;
   drawingWarning?: string;
-  openDuration?: string;
-  minPlayers?: number;
-  maxPlayers?: number;
+  staleTimeout?: string;
+  minTurns?: number;
+  maxTurns?: number;
+  returnCount?: number;
+  returnCooldown?: number;
 }
 
-export class ConfigService {
+export class GameConfigService {
   private prisma: PrismaClient;
 
   constructor(prisma: PrismaClient) {
@@ -25,28 +25,28 @@ export class ConfigService {
   }
 
   /**
-   * Gets the default season configuration for a guild.
+   * Gets the default game configuration for a guild.
    * If no guild-specific default exists, returns the system defaults.
    * @param guildId The Discord guild ID
-   * @returns The default SeasonConfig for the guild
+   * @returns The default GameConfig for the guild
    */
-  async getGuildDefaultConfig(guildId: string): Promise<SeasonConfig> {
-    console.log(`ConfigService.getGuildDefaultConfig: Getting default config for guild ${guildId}`);
+  async getGuildDefaultConfig(guildId: string): Promise<GameConfig> {
+    console.log(`GameConfigService.getGuildDefaultConfig: Getting default config for guild ${guildId}`);
     
     try {
       // First, try to find a guild-specific default
-      const guildDefault = await this.prisma.seasonConfig.findUnique({
+      const guildDefault = await this.prisma.gameConfig.findUnique({
         where: { isGuildDefaultFor: guildId }
       });
 
       if (guildDefault) {
-        console.log(`ConfigService.getGuildDefaultConfig: Found guild-specific default for guild ${guildId}`);
+        console.log(`GameConfigService.getGuildDefaultConfig: Found guild-specific default for guild ${guildId}`);
         return guildDefault;
       }
 
       // If no guild-specific default, create one with system defaults
-      console.log(`ConfigService.getGuildDefaultConfig: No guild-specific default found, creating one for guild ${guildId}`);
-      const newGuildDefault = await this.prisma.seasonConfig.create({
+      console.log(`GameConfigService.getGuildDefaultConfig: No guild-specific default found, creating one for guild ${guildId}`);
+      const newGuildDefault = await this.prisma.gameConfig.create({
         data: {
           isGuildDefaultFor: guildId,
           // All other fields will use their schema defaults
@@ -55,19 +55,19 @@ export class ConfigService {
 
       return newGuildDefault;
     } catch (error) {
-      console.error(`ConfigService.getGuildDefaultConfig: Error getting config for guild ${guildId}:`, error);
+      console.error(`GameConfigService.getGuildDefaultConfig: Error getting config for guild ${guildId}:`, error);
       throw error;
     }
   }
 
   /**
-   * Updates the default season configuration for a guild.
+   * Updates the default game configuration for a guild.
    * @param guildId The Discord guild ID
    * @param updates The configuration updates to apply
    * @returns MessageInstruction indicating success or failure
    */
-  async updateGuildDefaultConfig(guildId: string, updates: ConfigUpdateOptions): Promise<MessageInstruction> {
-    console.log(`ConfigService.updateGuildDefaultConfig: Updating config for guild ${guildId}`, updates);
+  async updateGuildDefaultConfig(guildId: string, updates: GameConfigUpdateOptions): Promise<MessageInstruction> {
+    console.log(`GameConfigService.updateGuildDefaultConfig: Updating config for guild ${guildId}`, updates);
 
     try {
       // Validate the updates
@@ -80,13 +80,13 @@ export class ConfigService {
       }
 
       // Get or create the guild default config
-      let guildConfig = await this.prisma.seasonConfig.findUnique({
+      let guildConfig = await this.prisma.gameConfig.findUnique({
         where: { isGuildDefaultFor: guildId }
       });
 
       if (!guildConfig) {
         // Create a new guild default config
-        guildConfig = await this.prisma.seasonConfig.create({
+        guildConfig = await this.prisma.gameConfig.create({
           data: {
             isGuildDefaultFor: guildId,
             ...updates
@@ -94,20 +94,20 @@ export class ConfigService {
         });
       } else {
         // Update the existing guild default config
-        guildConfig = await this.prisma.seasonConfig.update({
+        guildConfig = await this.prisma.gameConfig.update({
           where: { id: guildConfig.id },
           data: updates
         });
       }
 
-      console.log(`ConfigService.updateGuildDefaultConfig: Successfully updated config for guild ${guildId}`);
+      console.log(`GameConfigService.updateGuildDefaultConfig: Successfully updated config for guild ${guildId}`);
       return MessageHelpers.embedMessage('success', 'messages.config.updateSuccess', {
         guildId,
         updatedFields: Object.keys(updates).join(', ')
       }, true);
 
     } catch (error) {
-      console.error(`ConfigService.updateGuildDefaultConfig: Error updating config for guild ${guildId}:`, error);
+      console.error(`GameConfigService.updateGuildDefaultConfig: Error updating config for guild ${guildId}:`, error);
       
       if (error instanceof Prisma.PrismaClientKnownRequestError) {
         return MessageHelpers.embedMessage('error', 'messages.config.databaseError', {
@@ -123,41 +123,60 @@ export class ConfigService {
   }
 
   /**
-   * Validates configuration update options.
+   * Validates game configuration update options.
    * @param updates The configuration updates to validate
    * @returns Validation result with isValid flag and error details if invalid
    */
-  private validateConfigUpdates(updates: ConfigUpdateOptions): { isValid: boolean; field?: string; error?: string } {
-    // Validate minPlayers and maxPlayers
-    if (updates.minPlayers !== undefined) {
-      if (updates.minPlayers < 1) {
-        return { isValid: false, field: 'minPlayers', error: 'Must be at least 1' };
+  private validateConfigUpdates(updates: GameConfigUpdateOptions): { isValid: boolean; field?: string; error?: string } {
+    // Validate minTurns and maxTurns
+    if (updates.minTurns !== undefined) {
+      if (updates.minTurns < 1) {
+        return { isValid: false, field: 'minTurns', error: 'Must be at least 1' };
       }
-      if (updates.minPlayers > 100) {
-        return { isValid: false, field: 'minPlayers', error: 'Must be 100 or less' };
-      }
-    }
-
-    if (updates.maxPlayers !== undefined) {
-      if (updates.maxPlayers < 1) {
-        return { isValid: false, field: 'maxPlayers', error: 'Must be at least 1' };
-      }
-      if (updates.maxPlayers > 100) {
-        return { isValid: false, field: 'maxPlayers', error: 'Must be 100 or less' };
+      if (updates.minTurns > 100) {
+        return { isValid: false, field: 'minTurns', error: 'Must be 100 or less' };
       }
     }
 
-    // Validate that minPlayers <= maxPlayers if both are provided
-    if (updates.minPlayers !== undefined && updates.maxPlayers !== undefined) {
-      if (updates.minPlayers > updates.maxPlayers) {
-        return { isValid: false, field: 'minPlayers', error: 'Must be less than or equal to maxPlayers' };
+    if (updates.maxTurns !== undefined) {
+      if (updates.maxTurns !== null && updates.maxTurns < 1) {
+        return { isValid: false, field: 'maxTurns', error: 'Must be at least 1 or null for unlimited' };
+      }
+      if (updates.maxTurns !== null && updates.maxTurns > 1000) {
+        return { isValid: false, field: 'maxTurns', error: 'Must be 1000 or less' };
+      }
+    }
+
+    // Validate that minTurns <= maxTurns if both are provided
+    if (updates.minTurns !== undefined && updates.maxTurns !== undefined && updates.maxTurns !== null) {
+      if (updates.minTurns > updates.maxTurns) {
+        return { isValid: false, field: 'minTurns', error: 'Must be less than or equal to maxTurns' };
+      }
+    }
+
+    // Validate return settings
+    if (updates.returnCount !== undefined) {
+      if (updates.returnCount !== null && updates.returnCount < 0) {
+        return { isValid: false, field: 'returnCount', error: 'Must be 0 or greater, or null to disable returns' };
+      }
+      if (updates.returnCount !== null && updates.returnCount > 50) {
+        return { isValid: false, field: 'returnCount', error: 'Must be 50 or less' };
+      }
+    }
+
+    if (updates.returnCooldown !== undefined) {
+      if (updates.returnCooldown !== null && updates.returnCooldown < 0) {
+        return { isValid: false, field: 'returnCooldown', error: 'Must be 0 or greater, or null for no cooldown' };
+      }
+      if (updates.returnCooldown !== null && updates.returnCooldown > 100) {
+        return { isValid: false, field: 'returnCooldown', error: 'Must be 100 or less' };
       }
     }
 
     // Validate timeout formats (basic validation - should be duration strings like "1d", "2h", etc.)
-    const timeoutFields = ['claimTimeout', 'claimWarning', 'writingTimeout', 'writingWarning', 'drawingTimeout', 'drawingWarning', 'openDuration'];
+    const timeoutFields = ['writingTimeout', 'writingWarning', 'drawingTimeout', 'drawingWarning', 'staleTimeout'];
     for (const field of timeoutFields) {
-      const value = updates[field as keyof ConfigUpdateOptions] as string;
+      const value = updates[field as keyof GameConfigUpdateOptions] as string;
       if (value !== undefined && !this.isValidDurationString(value)) {
         return { isValid: false, field, error: 'Invalid duration format (use format like "1d", "2h", "30m")' };
       }
@@ -190,22 +209,22 @@ export class ConfigService {
   }
 
   /**
-   * Formats a SeasonConfig object for display.
-   * @param config The SeasonConfig to format
+   * Formats a GameConfig object for display.
+   * @param config The GameConfig to format
    * @returns Formatted configuration data for display
    */
-  formatConfigForDisplay(config: SeasonConfig): Record<string, any> {
+  formatConfigForDisplay(config: GameConfig): Record<string, any> {
     return {
       turnPattern: config.turnPattern,
-      claimTimeout: config.claimTimeout,
-      claimWarning: config.claimWarning,
       writingTimeout: config.writingTimeout,
       writingWarning: config.writingWarning,
       drawingTimeout: config.drawingTimeout,
       drawingWarning: config.drawingWarning,
-      openDuration: config.openDuration,
-      minPlayers: config.minPlayers,
-      maxPlayers: config.maxPlayers,
+      staleTimeout: config.staleTimeout,
+      minTurns: config.minTurns,
+      maxTurns: config.maxTurns || 'unlimited',
+      returnCount: config.returnCount || 'disabled',
+      returnCooldown: config.returnCooldown || 'none',
       isGuildDefault: config.isGuildDefaultFor ? 'Yes' : 'No',
       lastUpdated: config.updatedAt.toISOString()
     };

@@ -136,7 +136,7 @@ describe('ConfigService Unit Tests', () => {
       expect(result.type).toBe('error');
       expect(result.key).toBe('messages.config.validationError');
       expect(result.data).toBeDefined();
-      expect(result.data!.error).toContain('Must be comma-separated list of "writing" and "drawing"');
+      expect(result.data!.error).toContain('Invalid turn type \'INVALID\' at position 1');
     });
 
     it('should return validation error for invalid min/max players', async () => {

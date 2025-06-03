@@ -8,6 +8,7 @@ import { SimpleMessage } from '../../messaging/SimpleMessage.js';
 import { EventData } from '../../models/internal-models.js';
 import { ChannelConfigService } from '../../services/ChannelConfigService.js';
 import { ConfigService } from '../../services/ConfigService.js';
+import { GameConfigService } from '../../services/GameConfigService.js';
 import { GameService } from '../../services/GameService.js';
 import { OnDemandGameService } from '../../services/OnDemandGameService.js';
 import { PlayerService } from '../../services/PlayerService.js';
@@ -28,6 +29,7 @@ export class AdminCommand implements Command {
     private seasonService: SeasonService;
     private playerService: PlayerService;
     private configService: ConfigService;
+    private gameConfigService: GameConfigService;
     private channelConfigService: ChannelConfigService;
     private onDemandGameService: OnDemandGameService;
     private prisma: PrismaClient;
@@ -39,6 +41,7 @@ export class AdminCommand implements Command {
         this.seasonService = null as any; // Temporary, will be initialized in execute
         this.playerService = new PlayerService(prisma);
         this.configService = new ConfigService(prisma);
+        this.gameConfigService = new GameConfigService(prisma);
         this.channelConfigService = new ChannelConfigService(prisma);
         this.onDemandGameService = null as any; // Temporary, will be initialized in execute
     }
@@ -585,15 +588,14 @@ export class AdminCommand implements Command {
 
     // Game admin command handlers
     private async handleGameConfigCommand(intr: ChatInputCommandInteraction): Promise<void> {
+        const guildId = intr.guildId;
+        if (!guildId) {
+            await SimpleMessage.sendError(intr, 'This command can only be used in a server.', {}, true);
+            return;
+        }
+        
         try {
-            const guildId = intr.guildId;
-            if (!guildId) {
-                await SimpleMessage.sendError(intr, 'This command can only be used in a server.', {}, true);
-                return;
-            }
-
-            // Get all the config options from the interaction
-            const updates: any = {};
+            // Extract all configuration options
             const turnPattern = intr.options.getString('turn_pattern');
             const writingTimeout = intr.options.getString('writing_timeout');
             const writingWarning = intr.options.getString('writing_warning');
@@ -602,59 +604,42 @@ export class AdminCommand implements Command {
             const staleTimeout = intr.options.getString('stale_timeout');
             const minTurns = intr.options.getInteger('min_turns');
             const maxTurns = intr.options.getInteger('max_turns');
-            const returns = intr.options.getString('returns');
-            if (turnPattern) updates.turnPattern = turnPattern;
-            if (writingTimeout) updates.writingTimeout = writingTimeout;
-            if (writingWarning) updates.writingWarning = writingWarning;
-            if (drawingTimeout) updates.drawingTimeout = drawingTimeout;
-            if (drawingWarning) updates.drawingWarning = drawingWarning;
-            if (staleTimeout) updates.staleTimeout = staleTimeout;
-            if (minTurns !== null) updates.minTurns = minTurns;
-            if (maxTurns !== null) updates.maxTurns = maxTurns;
-            if (returns) updates.returns = returns;
-
-            const hasUpdates = Object.keys(updates).length > 0;
-
+            const returnCount = intr.options.getInteger('return_count');
+            const returnCooldown = intr.options.getInteger('return_cooldown');
+            
+            // Check if any parameters are provided for updating
+            const hasUpdates = turnPattern || writingTimeout || writingWarning || 
+                              drawingTimeout || drawingWarning || staleTimeout ||
+                              minTurns !== null || maxTurns !== null || 
+                              returnCount !== null || returnCooldown !== null;
+            
             if (hasUpdates) {
-                // Update the config
-                let guildConfig = await this.prisma.gameConfig.findUnique({
-                    where: { isGuildDefaultFor: guildId }
-                });
-
-                if (!guildConfig) {
-                    // Create new guild default config
-                    guildConfig = await this.prisma.gameConfig.create({
-                        data: {
-                            isGuildDefaultFor: guildId,
-                            ...updates
-                        }
-                    });
-                } else {
-                    // Update existing config
-                    guildConfig = await this.prisma.gameConfig.update({
-                        where: { id: guildConfig.id },
-                        data: updates
-                    });
-                }
+                // Update the server's default game configuration
+                const updateData: any = {};
+                if (turnPattern !== null) updateData.turnPattern = turnPattern;
+                if (writingTimeout !== null) updateData.writingTimeout = writingTimeout;
+                if (writingWarning !== null) updateData.writingWarning = writingWarning;
+                if (drawingTimeout !== null) updateData.drawingTimeout = drawingTimeout;
+                if (drawingWarning !== null) updateData.drawingWarning = drawingWarning;
+                if (staleTimeout !== null) updateData.staleTimeout = staleTimeout;
+                if (minTurns !== null) updateData.minTurns = minTurns;
+                if (maxTurns !== null) updateData.maxTurns = maxTurns;
+                if (returnCount !== null) updateData.returnCount = returnCount;
+                if (returnCooldown !== null) updateData.returnCooldown = returnCooldown;
+                
+                const result = await this.gameConfigService.updateGuildDefaultConfig(guildId, updateData);
+                await this.handleMessageInstruction(result, intr);
             }
-
+            
             // Always show the current configuration (whether updated or just viewing)
-            const config = await this.prisma.gameConfig.findUnique({
-                where: { isGuildDefaultFor: guildId }
-            });
-
-            if (!config) {
-                await SimpleMessage.sendInfo(intr, 'No game configuration found for this server. Default values will be used.', {}, true);
-                return;
-            }
-
-            const configDisplay = this.formatGameConfigForDisplay(config);
-            const title = hasUpdates ? '**Updated Game Configuration:**' : '**Game Configuration:**';
-            await SimpleMessage.sendInfo(intr, `${title}\n\n${configDisplay}`, {}, true);
-
+            const config = await this.gameConfigService.getGuildDefaultConfig(guildId);
+            const configText = this.formatGameConfigForDisplay(config);
+            const title = hasUpdates ? '**Updated Server Default Game Configuration**' : '**Server Default Game Configuration**';
+            await SimpleMessage.sendInfo(intr, `${title}\n\n${configText}`, {}, true);
+            
         } catch (error) {
             console.error('Error in admin game config command:', error);
-            await SimpleMessage.sendError(intr, 'An error occurred while updating the game configuration.', {}, true);
+            await SimpleMessage.sendError(intr, 'An error occurred while managing the game configuration.', {}, true);
         }
     }
 
@@ -839,18 +824,20 @@ export class AdminCommand implements Command {
     }
 
     private formatGameConfigForDisplay(config: any): string {
+        const formatted = this.gameConfigService.formatConfigForDisplay(config);
         return `**Turn Settings:**\n` +
-               `• Turn Pattern: ${config.turnPattern}\n` +
-               `• Min Turns: ${config.minTurns}\n` +
-               `• Max Turns: ${config.maxTurns || 'unlimited'}\n\n` +
+               `• Turn Pattern: ${formatted.turnPattern}\n` +
+               `• Min Turns: ${formatted.minTurns}\n` +
+               `• Max Turns: ${formatted.maxTurns}\n\n` +
                `**Timeouts:**\n` +
-               `• Writing Timeout: ${config.writingTimeout}\n` +
-               `• Writing Warning: ${config.writingWarning}\n` +
-               `• Drawing Timeout: ${config.drawingTimeout}\n` +
-               `• Drawing Warning: ${config.drawingWarning}\n` +
-               `• Stale Timeout: ${config.staleTimeout}\n\n` +
-               `**Game Settings:**\n` +
-               `• Returns Policy: ${config.returns}`;
+               `• Writing Timeout: ${formatted.writingTimeout}\n` +
+               `• Writing Warning: ${formatted.writingWarning}\n` +
+               `• Drawing Timeout: ${formatted.drawingTimeout}\n` +
+               `• Drawing Warning: ${formatted.drawingWarning}\n` +
+               `• Stale Timeout: ${formatted.staleTimeout}\n\n` +
+               `**Return Settings:**\n` +
+               `• Return Count: ${formatted.returnCount}\n` +
+               `• Return Cooldown: ${formatted.returnCooldown}`;
     }
 
     private async handleChannelCommand(intr: ChatInputCommandInteraction, _data: EventData): Promise<void> {

@@ -2947,8 +2947,8 @@
             2,
             3
           ],
-          "details": "Integrate the validation function into the /new season command handler or wherever turn patterns are initially processed. Ensure that validation occurs before any attempt to create or modify season/game data. Add appropriate error handling to present validation errors to users in a friendly manner.",
-          "status": "pending",
+          "details": "Integrate the validation function into the /new season command handler or wherever turn patterns are initially processed. Ensure that validation occurs before any attempt to create or modify season/game data. Add appropriate error handling to present validation errors to users in a friendly manner.\n<info added on 2025-06-03T19:07:12.235Z>\n✅ **Integration Complete!**\n\n**ConfigService Integration:**\n- ✅ Replaced basic regex validation with robust `validateTurnPattern()` function\n- ✅ Added proper error handling with `TurnPatternValidationError`\n- ✅ Updated test expectations to match new error messages\n- ✅ All ConfigService tests passing\n\n**GameConfigService Integration:**\n- ✅ Created new `GameConfigService` with same validation approach as ConfigService\n- ✅ Integrated turn pattern validation using the same robust validation function\n- ✅ Updated admin command to use GameConfigService instead of direct database operations\n- ✅ Maintains consistency across both season and game configurations\n\n**Admin Command Integration:**\n- ✅ Updated imports to include GameConfigService\n- ✅ Modified game config command to use service-based validation\n- ✅ Both season and game config commands now use robust validation\n- ✅ Error handling is consistent across both command types\n\n**Integration Testing:**\n- ✅ Created comprehensive integration tests covering both services\n- ✅ Tests verify valid patterns are accepted consistently\n- ✅ Tests verify invalid patterns are rejected with proper error messages\n- ✅ Cross-service consistency tests ensure both services behave identically\n- ✅ All 8 integration tests passing\n\n**Key Integration Points Verified:**\n1. **Season Config via `/admin season config`** → ConfigService → validateTurnPattern()\n2. **Game Config via `/admin game config`** → GameConfigService → validateTurnPattern()\n3. **Error Messages**: Consistent, specific error messages across both paths\n4. **Validation Rules**: Identical validation logic applied in both contexts\n\nThe validation is now fully integrated into the command handler flow. Users will receive clear, specific error messages when they provide invalid turn patterns through either the season config or game config commands.\n</info added on 2025-06-03T19:07:12.235Z>",
+          "status": "done",
           "testStrategy": "Test the command flow with both valid and invalid patterns to ensure proper validation and error presentation."
         },
         {
@@ -2959,7 +2959,7 @@
             4
           ],
           "details": "Update the SeasonService class or module to use the turn pattern validation function when creating or updating seasons/games. Ensure that invalid patterns are rejected at the service level before any database operations occur. Add appropriate documentation for the validation requirements in relevant service methods.",
-          "status": "pending",
+          "status": "in-progress",
           "testStrategy": "Create unit tests for the SeasonService that verify validation is properly applied during season/game creation and update operations."
         }
       ]
