@@ -6,6 +6,8 @@ import prisma from '../lib/prisma.js';
 import { Logger } from '../services/index.js';
 import { SchedulerService } from '../services/SchedulerService.js';
 import { SeasonTurnService } from '../services/SeasonTurnService.js';
+import { FormatUtils } from '../utils/format-utils.js';
+import { getSeasonTimeouts } from '../utils/seasonConfig.js';
 
 export class TurnClaimButtonHandler implements ButtonHandler {
     customIdPrefix = 'turn_claim_';
@@ -48,22 +50,39 @@ export class TurnClaimButtonHandler implements ButtonHandler {
             const result = await turnService.claimTurn(turnId, player.id);
 
             if (result.success && result.turn) {
+                // Get season-specific timeout values for submission timeout calculation
+                const timeouts = await getSeasonTimeouts(prisma, turnId);
+                const submissionTimeoutMinutes = result.turn.type === 'WRITING' 
+                    ? timeouts.writingTimeoutMinutes 
+                    : timeouts.drawingTimeoutMinutes;
+                const submissionTimeoutDate = new Date(Date.now() + submissionTimeoutMinutes * 60 * 1000);
+
+                // Get the previous turn content for context
+                const previousTurn = await prisma.turn.findFirst({
+                    where: {
+                        gameId: result.turn.gameId,
+                        turnNumber: result.turn.turnNumber - 1,
+                        status: 'COMPLETED'
+                    }
+                });
+
                 // Determine the success message based on turn type
                 let successMessage: string;
                 if (result.turn.type === 'WRITING') {
                     successMessage = interpolate(strings.messages.ready.claimSuccessWriting, {
-                        previousTurnImage: '[Previous turn image]', // This would need to be fetched from the previous turn
-                        submissionTimeoutFormatted: 'your submission timeout' // This would need to be calculated
+                        previousTurnImage: previousTurn?.imageUrl || '[Previous image not found]',
+                        submissionTimeoutFormatted: FormatUtils.formatRemainingTime(submissionTimeoutDate)
                     });
                 } else {
                     successMessage = interpolate(strings.messages.ready.claimSuccessDrawing, {
-                        previousTurnWriting: '[Previous turn text]', // This would need to be fetched from the previous turn
-                        submissionTimeoutFormatted: 'your submission timeout' // This would need to be calculated
+                        previousTurnWriting: previousTurn?.textContent || '[Previous text not found]',
+                        submissionTimeoutFormatted: FormatUtils.formatRemainingTime(submissionTimeoutDate)
                     });
                 }
 
+                // Send only the success message without redundant "claimed successfully" prefix
                 await interaction.reply({ 
-                    content: `✅ Turn claimed successfully! ${successMessage}`, 
+                    content: successMessage, 
                     ephemeral: true 
                 });
 

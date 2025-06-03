@@ -1,6 +1,6 @@
 # Task ID: 66
 # Title: Improve Sentence Turn Claiming Messages and Display
-# Status: pending
+# Status: in-progress
 # Dependencies: 5, 9, 10, 37, 62
 # Priority: medium
 # Description: Refine the user experience during sentence turn claiming by removing unnecessary messages, displaying the actual previous turn image, and showing the correct timeout duration.

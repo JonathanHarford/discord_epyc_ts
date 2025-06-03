@@ -1,6 +1,6 @@
 # Task ID: 65
 # Title: Refine Turn Claim Messages and Timeout Display
-# Status: pending
+# Status: in-progress
 # Dependencies: 5, 9, 10, 37, 62
 # Priority: medium
 # Description: Remove the redundant 'claimed' message when players claim initiating turns and update timeout messages to display the actual remaining duration.
