@@ -135,13 +135,19 @@ describe('TurnOfferingService - Integration Tests', () => {
 
     // Check DM content - enhanced messaging layer sends an object with content and components
     expect(mockDiscordClient.users.fetch).toHaveBeenCalledWith(testPlayer.discordUserId);
+    
+    // Calculate expected timeout expiration time for the test
+    const turnAfterOffer = await prisma.turn.findUnique({ where: { id: availableTurn.id } });
+    const turnOfferedAt = turnAfterOffer!.updatedAt;
+    const timeoutExpiresAt = new Date(turnOfferedAt.getTime() + expectedClaimTimeoutMinutes * 60 * 1000);
+    
     const expectedDMContent = interpolate(strings.messages.turnOffer.newTurnAvailable, {
       serverName: 'Direct Message', // Add server context for test scenarios
       gameId: testGame.id,
       seasonId: testSeason.id,
       turnNumber: availableTurn.turnNumber,
       turnType: availableTurn.type,
-      claimTimeoutFormatted: FormatUtils.formatTimeout(expectedClaimTimeoutMinutes),
+      claimTimeoutFormatted: FormatUtils.formatRemainingTime(timeoutExpiresAt),
     });
     expect(mockDiscordUser.send).toHaveBeenCalledWith({ 
       content: expectedDMContent,
@@ -196,13 +202,18 @@ describe('TurnOfferingService - Integration Tests', () => {
     await turnOfferingService.offerNextTurn(testGame.id, 'turn_completed');
 
     // Check DM - enhanced messaging layer sends an object with content and components
+    // Calculate expected timeout expiration time for the default test
+    const turnAfterDefaultOffer = await prisma.turn.findUnique({ where: { id: availableTurn.id } });
+    const turnOfferedAtDefault = turnAfterDefaultOffer!.updatedAt;
+    const timeoutExpiresAtDefault = new Date(turnOfferedAtDefault.getTime() + defaultClaimMinutes * 60 * 1000);
+    
     const expectedDMContentWithDefault = interpolate(strings.messages.turnOffer.newTurnAvailable, {
         serverName: 'Direct Message', // Add server context for test scenarios
         gameId: testGame.id,
         seasonId: testSeason.id,
         turnNumber: availableTurn.turnNumber,
         turnType: availableTurn.type,
-        claimTimeoutFormatted: FormatUtils.formatTimeout(defaultClaimMinutes),
+        claimTimeoutFormatted: FormatUtils.formatRemainingTime(timeoutExpiresAtDefault),
       });
     expect(mockDiscordUser.send).toHaveBeenCalledWith({ 
       content: expectedDMContentWithDefault,

@@ -90,6 +90,12 @@ export class SeasonTurnService implements TurnTimeoutService {
         };
       }
 
+      // Calculate the actual timeout expiration time
+      // The turn became OFFERED at newTurn.updatedAt, and will timeout after claimTimeoutMinutes
+      const claimTimeoutMinutes = timeouts.claimTimeoutMinutes;
+      const turnOfferedAt = newTurn.updatedAt;
+      const timeoutExpiresAt = new Date(turnOfferedAt.getTime() + claimTimeoutMinutes * 60 * 1000);
+
       try {
         // Create the claim button
         const claimButton = new ButtonBuilder()
@@ -104,7 +110,7 @@ export class SeasonTurnService implements TurnTimeoutService {
           gameId: game.id,
           seasonId: seasonId,
           turnType: firstTurnType,
-          claimTimeoutFormatted: FormatUtils.formatTimeout(timeouts.claimTimeoutMinutes)
+          claimTimeoutFormatted: FormatUtils.formatRemainingTime(timeoutExpiresAt)
         });
 
         // Send DM with button directly using Discord client

@@ -224,6 +224,12 @@ export class TurnOfferingService {
             // Get season-specific timeout values
             const timeouts = await getSeasonTimeouts(this.prisma, turn.id);
 
+            // Calculate the actual timeout expiration time
+            // The turn became OFFERED at turn.updatedAt, and will timeout after claimTimeoutMinutes
+            const claimTimeoutMinutes = timeouts.claimTimeoutMinutes;
+            const turnOfferedAt = turn.updatedAt;
+            const timeoutExpiresAt = new Date(turnOfferedAt.getTime() + claimTimeoutMinutes * 60 * 1000);
+
             // Get server context information
             const serverContext = await this.serverContextService.getGameServerContext(gameId);
 
@@ -242,7 +248,7 @@ export class TurnOfferingService {
                 seasonId: gameWithSeason.season?.id,
                 turnNumber: turn.turnNumber,
                 turnType: turn.type,
-                claimTimeoutFormatted: FormatUtils.formatTimeout(timeouts.claimTimeoutMinutes)
+                claimTimeoutFormatted: FormatUtils.formatRemainingTime(timeoutExpiresAt)
             });
 
             // Send DM with button directly using Discord client

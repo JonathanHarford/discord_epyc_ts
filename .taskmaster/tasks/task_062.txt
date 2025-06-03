@@ -1,6 +1,6 @@
 # Task ID: 62
 # Title: Improve Timeout Duration Display Format
-# Status: in-progress
+# Status: done
 # Dependencies: 5, 9, 10
 # Priority: medium
 # Description: Update the display format for remaining time in timeout messages (claim and submission) to show precise durations like "3m44s", "1h23m", or "2d5h" instead of imprecise formats. The root cause has been identified in specific message flows, and the correct formatting utility `FormatUtils.formatRemainingTime` is available.
