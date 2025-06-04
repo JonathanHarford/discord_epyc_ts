@@ -3020,6 +3020,71 @@
       "details": "Currently, the `/admin config` subcommands (`season`, `game`, `channel`) accept configuration options directly as command parameters. This task involves refactoring these commands to instead respond with a Discord modal form when executed. Each subcommand should have its own dedicated modal:\n\n- `/admin season config`: Modal should include fields for `turn_pattern`, `claim_timeout`, `writing_timeout`, `drawing_timeout`, etc.\n- `/admin game config`: Modal should include fields for `turn_pattern`, `writing_timeout`, `drawing_timeout`, `stale_timeout`, etc.\n- `/admin channel config`: Modal should include fields for `announce`, `completed`, and `admin` channel IDs or mentions.\n\n**New Requirement:** When a modal is opened, all form fields must be pre-populated with the existing configuration values from the database. All fields should also be marked as required.\n\nThe implementation should follow a pattern similar to the `/season new` command's use of modals, involving:\n1.  Modifying the existing command handlers to trigger modal display.\n2.  **Fetching the current configuration values for the specific type (season, game, channel) from the database/config store.**\n3.  Creating new Discord.js `ModalBuilder` instances for each configuration type.\n4.  **Populating the modal input fields with the fetched current configuration values.**\n5.  **Marking all modal input fields as required.**\n6.  Implementing new interaction handlers (likely within the core interaction handling framework) to process the data submitted via these modals.\n7.  Updating the application's configuration settings based on the submitted modal data, interacting with the configuration loading/saving logic.\n8.  Providing clear user feedback upon successful configuration updates or validation errors.\n9.  Implementing necessary validation for modal inputs (e.g., ensuring timeouts are valid numbers, channel inputs are valid channels).",
       "testStrategy": "1. Execute each `/admin config` subcommand (`season`, `game`, `channel`) in Discord.\n2. Verify that the correct modal appears for each subcommand.\n3. **Verify that all fields in the modal are pre-filled with the current configuration values.**\n4. **Verify that all fields are marked as required.**\n5. Fill out each modal with valid configuration values (potentially changing some from the pre-filled values) and submit.\n6. Verify that the bot confirms the configuration update.\n7. Check the application's configuration (e.g., by viewing the config file or using a view command if available) to ensure the values were updated correctly.\n8. Execute each `/admin config` subcommand again and fill out the modal with invalid values (e.g., non-numeric timeouts, invalid channel IDs).\n9. Verify that the bot provides appropriate error messages and that the configuration is not updated with invalid data.\n10. **Attempt to submit a modal with one or more required fields left blank (if possible via client-side manipulation or if Discord allows). Verify that the modal cannot be submitted or an error is shown.**\n11. Check application logs for any errors during the modal submission and configuration update process.",
       "subtasks": []
+    },
+    {
+      "id": 71,
+      "title": "Migrate from Direct Messages to Ephemeral Messages and Modals",
+      "description": "Replace the current DM-based game interaction system with ephemeral messages and modals for improved user experience and reliability.",
+      "status": "pending",
+      "dependencies": [
+        2,
+        10,
+        14,
+        47
+      ],
+      "priority": "high",
+      "details": "Update the MessageAdapter to prioritize ephemeral messages for game interactions. Refactor DirectMessageHandler logic to use the interaction handling framework (Task 47) for processing button clicks and modal submissions. Implement interaction handlers for turn notifications (ephemeral with buttons), ready command (ephemeral response), turn submissions (modal forms triggered by ephemeral prompts), and game communication (ephemeral error/status messages). Update TurnOfferingService to send ephemeral notifications. Ensure backward compatibility during the transition. Address benefits like eliminating 'Cannot send messages' errors, improving server context integration, enhancing UI/UX, and using a more reliable delivery mechanism.\n\n**Current DM Usage Analysis**:\n- Turn offering notifications (TurnOfferingService.sendTurnOfferDM)\n- Turn request notifications (OnDemandTurnService.sendTurnRequestDM)\n- Ready command processing (DirectMessageHandler.handleReadyCommand)\n- Turn submission handling (DirectMessageHandler.handleTurnSubmission)\n- Season completion announcements (when no channel configured)\n- Error notifications and user feedback\n- Game state updates and confirmations\n\n**Specific Implementation Plan**:\n\n**Phase 1: Simple Interactions**\n- Convert ready commands → Ephemeral responses with action buttons\n- Convert status checks → Ephemeral responses  \n- Convert error messages → Ephemeral responses\n- Update MessageAdapter.processInstruction to prefer ephemeral over DM\n\n**Phase 2: Complex Interactions**\n- Turn submissions → Modal-based forms for text, ephemeral prompts for images\n- Game configuration → Already using modals (leverage existing patterns)\n- Convert DirectMessageHandler logic to interaction handlers\n\n**Phase 3: Hybrid Notification System**\n- Keep minimal \"ping\" DMs like \"Your turn is ready in #game-channel\"\n- All actual interaction happens via ephemeral/modals\n- Update TurnOfferingService to use ephemeral notifications\n\n**Technical Implementation Details**:\n- Leverage existing ephemeral message infrastructure (already extensive)\n- Utilize existing modal system for admin/season creation (good foundation)\n- Adapt existing button/interaction handlers\n- Update MessageInstruction system for ephemeral preference\n- Handle image submission complexity with ephemeral prompts directing to slash commands with file attachments\n- Address modal character limits (encourages better UX)\n- Implement notification system to guide users to correct server/channel",
+      "testStrategy": "Unit tests for individual interaction handlers and MessageAdapter logic. Integration tests to verify end-to-end flows for turn offering (ephemeral + buttons), ready command (ephemeral), and turn submissions (ephemeral prompt + modal). Test that error and status messages are sent ephemerally in the correct channel context. Manual testing by playing through games using the new flow, testing all interaction types and edge cases. Verify backward compatibility if applicable.\n\n**Specific Test Cases**:\n1. Test MessageAdapter's preference for ephemeral messages over DMs\n2. Verify ready command interaction handlers produce correct ephemeral responses with action buttons\n3. Test turn submission flow with modal forms and ephemeral prompts for images\n4. Validate hybrid notification system (minimal DM pings + ephemeral interactions)\n5. Test error handling and status updates via ephemeral messages\n6. Verify image submission flow with ephemeral prompts → slash commands\n7. Test character limit handling in modals\n8. Verify notification system guides users to correct server/channel\n\n**Files to Test**:\n- src/messaging/MessageAdapter.ts\n- src/events/direct-message-handler.ts (and new interaction handlers)\n- src/services/TurnOfferingService.ts\n- src/services/OnDemandTurnService.ts\n- src/utils/modalBuilders.ts",
+      "subtasks": [
+        {
+          "id": 71.1,
+          "title": "Update MessageAdapter for Ephemeral Preference",
+          "description": "Modify MessageAdapter.processInstruction to prefer ephemeral messages over DMs when interaction context is available.",
+          "status": "pending"
+        },
+        {
+          "id": 71.2,
+          "title": "Implement Phase 1: Simple Interactions",
+          "description": "Convert ready commands, status checks, and error messages to use ephemeral responses.",
+          "status": "pending"
+        },
+        {
+          "id": 71.3,
+          "title": "Implement Phase 2: Complex Interactions",
+          "description": "Create modal-based forms for turn submissions and convert DirectMessageHandler logic to interaction handlers.",
+          "status": "pending"
+        },
+        {
+          "id": 71.4,
+          "title": "Implement Phase 3: Hybrid Notification System",
+          "description": "Develop a hybrid approach with minimal DM pings and ephemeral/modal interactions. Update TurnOfferingService and OnDemandTurnService.",
+          "status": "pending"
+        },
+        {
+          "id": 71.5,
+          "title": "Create Image Submission Flow",
+          "description": "Implement ephemeral prompts that direct users to slash commands with file attachments for image submissions.",
+          "status": "pending"
+        },
+        {
+          "id": 71.6,
+          "title": "Implement Notification Guidance System",
+          "description": "Create a system to guide users to the correct server/channel for interactions.",
+          "status": "pending"
+        },
+        {
+          "id": 71.7,
+          "title": "Update Turn Submission Modal Builders",
+          "description": "Create or update modal builders to handle turn submissions with appropriate character limits and UX considerations.",
+          "status": "pending"
+        },
+        {
+          "id": 71.8,
+          "title": "Comprehensive Testing",
+          "description": "Perform unit, integration, and manual testing of all interaction flows and edge cases.",
+          "status": "pending"
+        }
+      ]
     }
   ]
 }
