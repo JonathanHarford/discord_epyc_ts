@@ -103,4 +103,178 @@ export function createSeasonCreationStep1Modal(defaults?: SeasonConfig, autoGene
     modal.addComponents(firstRow, secondRow, thirdRow, fourthRow, fifthRow);
 
     return modal;
-} 
+}
+
+/**
+ * Creates a modal for admin season configuration with prefilled current values
+ * @param currentConfig Current season configuration values to prefill the modal
+ */
+export function createAdminSeasonConfigModal(currentConfig?: any): ModalBuilder {
+    const modal = new ModalBuilder()
+        .setCustomId('admin_season_config')
+        .setTitle('Season Configuration');
+
+    // Turn Pattern input
+    const turnPatternInput = new TextInputBuilder()
+        .setCustomId('turnPatternInput')
+        .setLabel('Turn Pattern')
+        .setStyle(TextInputStyle.Short)
+        .setPlaceholder('e.g., writing,drawing')
+        .setRequired(true)
+        .setMaxLength(50);
+    
+    if (currentConfig?.turnPattern) {
+        turnPatternInput.setValue(currentConfig.turnPattern);
+    }
+
+    // Claim Timeout input
+    const claimTimeoutInput = new TextInputBuilder()
+        .setCustomId('claimTimeoutInput')
+        .setLabel('Claim Timeout')
+        .setStyle(TextInputStyle.Short)
+        .setPlaceholder('e.g., 1d, 12h')
+        .setRequired(true)
+        .setMaxLength(10);
+    
+    if (currentConfig?.claimTimeout) {
+        claimTimeoutInput.setValue(currentConfig.claimTimeout);
+    }
+
+    // Writing Timeout input
+    const writingTimeoutInput = new TextInputBuilder()
+        .setCustomId('writingTimeoutInput')
+        .setLabel('Writing Timeout')
+        .setStyle(TextInputStyle.Short)
+        .setPlaceholder('e.g., 1d, 8h')
+        .setRequired(true)
+        .setMaxLength(10);
+    
+    if (currentConfig?.writingTimeout) {
+        writingTimeoutInput.setValue(currentConfig.writingTimeout);
+    }
+
+    // Drawing Timeout input
+    const drawingTimeoutInput = new TextInputBuilder()
+        .setCustomId('drawingTimeoutInput')
+        .setLabel('Drawing Timeout')
+        .setStyle(TextInputStyle.Short)
+        .setPlaceholder('e.g., 1d, 1h')
+        .setRequired(true)
+        .setMaxLength(10);
+    
+    if (currentConfig?.drawingTimeout) {
+        drawingTimeoutInput.setValue(currentConfig.drawingTimeout);
+    }
+
+    // Open Duration input
+    const openDurationInput = new TextInputBuilder()
+        .setCustomId('openDurationInput')
+        .setLabel('Open Duration')
+        .setStyle(TextInputStyle.Short)
+        .setPlaceholder('e.g., 7d, 3d')
+        .setRequired(true)
+        .setMaxLength(10);
+    
+    if (currentConfig?.openDuration) {
+        openDurationInput.setValue(currentConfig.openDuration);
+    }
+
+    // Create action rows (Discord allows max 5 components per modal)
+    const firstRow = new ActionRowBuilder<TextInputBuilder>().addComponents(turnPatternInput);
+    const secondRow = new ActionRowBuilder<TextInputBuilder>().addComponents(claimTimeoutInput);
+    const thirdRow = new ActionRowBuilder<TextInputBuilder>().addComponents(writingTimeoutInput);
+    const fourthRow = new ActionRowBuilder<TextInputBuilder>().addComponents(drawingTimeoutInput);
+    const fifthRow = new ActionRowBuilder<TextInputBuilder>().addComponents(openDurationInput);
+
+    modal.addComponents(firstRow, secondRow, thirdRow, fourthRow, fifthRow);
+
+    return modal;
+}
+
+/**
+ * Creates a modal for admin game configuration with prefilled current values
+ * @param currentConfig Current game configuration values to prefill the modal
+ */
+export function createAdminGameConfigModal(currentConfig?: any): ModalBuilder {
+    const modal = new ModalBuilder()
+        .setCustomId('admin_game_config')
+        .setTitle('Game Configuration');
+
+    // Turn Pattern input
+    const turnPatternInput = new TextInputBuilder()
+        .setCustomId('turnPatternInput')
+        .setLabel('Turn Pattern')
+        .setStyle(TextInputStyle.Short)
+        .setPlaceholder('e.g., writing,drawing')
+        .setRequired(true)
+        .setMaxLength(50);
+    
+    if (currentConfig?.turnPattern) {
+        turnPatternInput.setValue(currentConfig.turnPattern);
+    }
+
+    // Writing Timeout input
+    const writingTimeoutInput = new TextInputBuilder()
+        .setCustomId('writingTimeoutInput')
+        .setLabel('Writing Timeout')
+        .setStyle(TextInputStyle.Short)
+        .setPlaceholder('e.g., 5m, 1h')
+        .setRequired(true)
+        .setMaxLength(10);
+    
+    if (currentConfig?.writingTimeout) {
+        writingTimeoutInput.setValue(currentConfig.writingTimeout);
+    }
+
+    // Drawing Timeout input
+    const drawingTimeoutInput = new TextInputBuilder()
+        .setCustomId('drawingTimeoutInput')
+        .setLabel('Drawing Timeout')
+        .setStyle(TextInputStyle.Short)
+        .setPlaceholder('e.g., 20m, 1h')
+        .setRequired(true)
+        .setMaxLength(10);
+    
+    if (currentConfig?.drawingTimeout) {
+        drawingTimeoutInput.setValue(currentConfig.drawingTimeout);
+    }
+
+    // Stale Timeout input
+    const staleTimeoutInput = new TextInputBuilder()
+        .setCustomId('staleTimeoutInput')
+        .setLabel('Stale Timeout')
+        .setStyle(TextInputStyle.Short)
+        .setPlaceholder('e.g., 3d, 1w')
+        .setRequired(true)
+        .setMaxLength(10);
+    
+    if (currentConfig?.staleTimeout) {
+        staleTimeoutInput.setValue(currentConfig.staleTimeout);
+    }
+
+    // Min Turns input
+    const minTurnsInput = new TextInputBuilder()
+        .setCustomId('minTurnsInput')
+        .setLabel('Min Turns')
+        .setStyle(TextInputStyle.Short)
+        .setPlaceholder('e.g., 3')
+        .setRequired(true)
+        .setMaxLength(3);
+    
+    if (currentConfig?.minTurns) {
+        minTurnsInput.setValue(currentConfig.minTurns.toString());
+    }
+
+    // Create action rows (Discord allows max 5 components per modal)
+    const firstRow = new ActionRowBuilder<TextInputBuilder>().addComponents(turnPatternInput);
+    const secondRow = new ActionRowBuilder<TextInputBuilder>().addComponents(writingTimeoutInput);
+    const thirdRow = new ActionRowBuilder<TextInputBuilder>().addComponents(drawingTimeoutInput);
+    const fourthRow = new ActionRowBuilder<TextInputBuilder>().addComponents(staleTimeoutInput);
+    const fifthRow = new ActionRowBuilder<TextInputBuilder>().addComponents(minTurnsInput);
+
+    modal.addComponents(firstRow, secondRow, thirdRow, fourthRow, fifthRow);
+
+    return modal;
+}
+
+ 

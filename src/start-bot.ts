@@ -19,6 +19,8 @@ import {
     TriggerHandler,
 } from './events/index.js';
 import { CustomClient } from './extensions/index.js';
+import { AdminGameConfigModalHandler } from './handlers/adminGameConfigModalHandler.js';
+import { AdminSeasonConfigModalHandler } from './handlers/adminSeasonConfigModalHandler.js';
 import { AdminButtonHandler, ExampleButtonHandler, SeasonCreateModalHandler, SeasonDashboardButtonHandler, SeasonJoinButtonHandler, SeasonListPaginationButtonHandler, SeasonSelectMenuHandler, SeasonShowButtonHandler, TurnClaimButtonHandler } from './handlers/index.js';
 import { Job, StaleGameCleanupJob } from './jobs/index.js';
 import prisma from './lib/prisma.js';
@@ -161,6 +163,9 @@ async function start(): Promise<void> {
     bot.addSelectMenuHandler(new SeasonSelectMenuHandler());
     // Register season create modal handler
     bot.addModalHandler(new SeasonCreateModalHandler());
+    // Register admin config modal handlers
+    bot.addModalHandler(new AdminSeasonConfigModalHandler());
+    bot.addModalHandler(new AdminGameConfigModalHandler());
     // Register season dashboard button handler
     bot.addButtonHandler(new SeasonDashboardButtonHandler());
     // Register admin button handler

@@ -3005,6 +3005,21 @@
           "testStrategy": "Create unit tests for the SeasonService that verify validation is properly applied during season/game creation and update operations."
         }
       ]
+    },
+    {
+      "id": 70,
+      "title": "Convert /admin config subcommands to use modals",
+      "description": "Convert the /admin season config, /admin game config, and /admin channel config subcommands to use modal interfaces for configuration. Modals should autofill fields with current values and mark them as required.",
+      "status": "done",
+      "dependencies": [
+        2,
+        3,
+        47
+      ],
+      "priority": "medium",
+      "details": "Currently, the `/admin config` subcommands (`season`, `game`, `channel`) accept configuration options directly as command parameters. This task involves refactoring these commands to instead respond with a Discord modal form when executed. Each subcommand should have its own dedicated modal:\n\n- `/admin season config`: Modal should include fields for `turn_pattern`, `claim_timeout`, `writing_timeout`, `drawing_timeout`, etc.\n- `/admin game config`: Modal should include fields for `turn_pattern`, `writing_timeout`, `drawing_timeout`, `stale_timeout`, etc.\n- `/admin channel config`: Modal should include fields for `announce`, `completed`, and `admin` channel IDs or mentions.\n\n**New Requirement:** When a modal is opened, all form fields must be pre-populated with the existing configuration values from the database. All fields should also be marked as required.\n\nThe implementation should follow a pattern similar to the `/season new` command's use of modals, involving:\n1.  Modifying the existing command handlers to trigger modal display.\n2.  **Fetching the current configuration values for the specific type (season, game, channel) from the database/config store.**\n3.  Creating new Discord.js `ModalBuilder` instances for each configuration type.\n4.  **Populating the modal input fields with the fetched current configuration values.**\n5.  **Marking all modal input fields as required.**\n6.  Implementing new interaction handlers (likely within the core interaction handling framework) to process the data submitted via these modals.\n7.  Updating the application's configuration settings based on the submitted modal data, interacting with the configuration loading/saving logic.\n8.  Providing clear user feedback upon successful configuration updates or validation errors.\n9.  Implementing necessary validation for modal inputs (e.g., ensuring timeouts are valid numbers, channel inputs are valid channels).",
+      "testStrategy": "1. Execute each `/admin config` subcommand (`season`, `game`, `channel`) in Discord.\n2. Verify that the correct modal appears for each subcommand.\n3. **Verify that all fields in the modal are pre-filled with the current configuration values.**\n4. **Verify that all fields are marked as required.**\n5. Fill out each modal with valid configuration values (potentially changing some from the pre-filled values) and submit.\n6. Verify that the bot confirms the configuration update.\n7. Check the application's configuration (e.g., by viewing the config file or using a view command if available) to ensure the values were updated correctly.\n8. Execute each `/admin config` subcommand again and fill out the modal with invalid values (e.g., non-numeric timeouts, invalid channel IDs).\n9. Verify that the bot provides appropriate error messages and that the configuration is not updated with invalid data.\n10. **Attempt to submit a modal with one or more required fields left blank (if possible via client-side manipulation or if Discord allows). Verify that the modal cannot be submitted or an error is shown.**\n11. Check application logs for any errors during the modal submission and configuration update process.",
+      "subtasks": []
     }
   ]
 }

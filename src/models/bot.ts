@@ -1,4 +1,5 @@
 import {
+    ChannelSelectMenuInteraction,
     Client,
     Events,
     Guild,
@@ -262,6 +263,16 @@ export class Bot {
                     await intr.reply({ content: 'There was an error processing this selection.', ephemeral: true }).catch(err => Logger.error('Failed to send error reply for select menu interaction:', err));
                 }
             }
+        } else if (intr.isChannelSelectMenu()) {
+            try {
+                // Handle channel select menus directly for now
+                await this.handleChannelSelectMenu(intr);
+            } catch (error) {
+                Logger.error(`Error executing channel select menu handler for customId ${intr.customId}:`, error);
+                if (intr.isRepliable()) {
+                    await intr.reply({ content: 'There was an error processing this channel selection.', ephemeral: true }).catch(err => Logger.error('Failed to send error reply for channel select menu interaction:', err));
+                }
+            }
         } else if (intr.isModalSubmit()) {
             try {
                 const handled = await this.interactionFactory.handleModalInteraction(intr);
@@ -326,6 +337,24 @@ export class Bot {
     private async onRateLimit(rateLimitData: RateLimitData): Promise<void> {
         if (rateLimitData.timeToReset >= Config.logging.rateLimit.minTimeout * 1000) {
             Logger.error(Logs.error.apiRateLimit, rateLimitData);
+        }
+    }
+
+    private async handleChannelSelectMenu(intr: ChannelSelectMenuInteraction): Promise<void> {
+        const customId = intr.customId;
+        
+        // Handle admin channel config select menus
+        if (customId.startsWith('admin_channel_config')) {
+            const { AdminChannelConfigSelectHandler } = await import('../handlers/adminChannelConfigSelectHandler.js');
+            const handler = new AdminChannelConfigSelectHandler();
+            await handler.execute(intr);
+            return;
+        }
+
+        // Add other channel select menu handlers here as needed
+        Logger.warn(`No channel select menu handler found for customId: ${customId}`);
+        if (intr.isRepliable()) {
+            await intr.reply({ content: 'This channel selection is not currently handled.', ephemeral: true }).catch(err => Logger.error('Failed to send error reply for unhandled channel select menu:', err));
         }
     }
 }

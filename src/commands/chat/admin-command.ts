@@ -1,5 +1,5 @@
 import { PrismaClient } from '@prisma/client';
-import { ActionRowBuilder, ButtonBuilder, ButtonStyle, ChatInputCommandInteraction, EmbedBuilder, PermissionsString } from 'discord.js';
+import { ActionRowBuilder, ButtonBuilder, ButtonStyle, ChannelSelectMenuBuilder, ChannelType, ChatInputCommandInteraction, EmbedBuilder, PermissionsString } from 'discord.js';
 import { createRequire } from 'node:module';
 
 import { interpolate, strings } from '../../lang/strings.js';
@@ -16,6 +16,7 @@ import { SchedulerService } from '../../services/SchedulerService.js';
 import { SeasonService } from '../../services/SeasonService.js';
 import { SeasonTurnService } from '../../services/SeasonTurnService.js';
 import { MessageInstruction } from '../../types/MessageInstruction.js';
+import { createAdminGameConfigModal, createAdminSeasonConfigModal } from '../../utils/modalBuilders.js';
 import { Command, CommandDeferType } from '../index.js';
 
 const require = createRequire(import.meta.url);
@@ -23,7 +24,7 @@ let Config = require('../../../config/config.json');
 
 export class AdminCommand implements Command {
     public names = [strings.chatCommands.admin];
-    public deferType = CommandDeferType.HIDDEN;
+    public deferType = CommandDeferType.NONE; // Changed from HIDDEN to NONE to allow modals
     public requireClientPerms: PermissionsString[] = [];
 
     private seasonService: SeasonService;
@@ -93,18 +94,22 @@ export class AdminCommand implements Command {
         
         switch (subcommand) {
             case 'list': {
+                await intr.deferReply({ ephemeral: true });
                 await this.handleSeasonListCommand(intr, data);
                 break;
             }
             case 'show': {
+                await intr.deferReply({ ephemeral: true });
                 await this.handleSeasonShowCommand(intr, data);
                 break;
             }
             case 'config': {
+                // Don't defer for config - we need to show a modal
                 await this.handleSeasonConfigCommand(intr, data);
                 break;
             }
             case 'kill': {
+                await intr.deferReply({ ephemeral: true });
                 await this.handleSeasonKillCommand(intr, data);
                 break;
             }
@@ -120,18 +125,22 @@ export class AdminCommand implements Command {
         
         switch (subcommand) {
             case 'config': {
+                // Don't defer for config - we need to show a modal
                 await this.handleGameConfigCommand(intr);
                 break;
             }
             case 'list': {
+                await intr.deferReply({ ephemeral: true });
                 await this.handleGameListCommand(intr);
                 break;
             }
             case 'show': {
+                await intr.deferReply({ ephemeral: true });
                 await this.handleGameShowCommand(intr);
                 break;
             }
             case 'kill': {
+                await intr.deferReply({ ephemeral: true });
                 await this.handleGameKillCommand(intr);
                 break;
             }
@@ -147,18 +156,22 @@ export class AdminCommand implements Command {
         
         switch (subcommand) {
             case 'list': {
+                await intr.deferReply({ ephemeral: true });
                 await this.handlePlayerListCommand(intr, _data);
                 break;
             }
             case 'show': {
+                await intr.deferReply({ ephemeral: true });
                 await this.handlePlayerShowCommand(intr, _data);
                 break;
             }
             case 'ban': {
+                await intr.deferReply({ ephemeral: true });
                 await this.handleBanCommand(intr, _data);
                 break;
             }
             case 'unban': {
+                await intr.deferReply({ ephemeral: true });
                 await this.handleUnbanCommand(intr, _data);
                 break;
             }
@@ -421,50 +434,16 @@ export class AdminCommand implements Command {
         }
         
         try {
-            // Extract all configuration options
-            const turnPattern = intr.options.getString('turn_pattern');
-            const claimTimeout = intr.options.getString('claim_timeout');
-            const claimWarning = intr.options.getString('claim_warning');
-            const writingTimeout = intr.options.getString('writing_timeout');
-            const writingWarning = intr.options.getString('writing_warning');
-            const drawingTimeout = intr.options.getString('drawing_timeout');
-            const drawingWarning = intr.options.getString('drawing_warning');
-            const openDuration = intr.options.getString('open_duration');
-            const minPlayers = intr.options.getInteger('min_players');
-            const maxPlayers = intr.options.getInteger('max_players');
-            
-            // Check if any parameters are provided for updating
-            const hasUpdates = turnPattern || claimTimeout || claimWarning || writingTimeout || writingWarning || 
-                              drawingTimeout || drawingWarning || openDuration || 
-                              minPlayers !== null || maxPlayers !== null;
-            
-            if (hasUpdates) {
-                // Update the server's default configuration
-                const updateData: any = {};
-                if (turnPattern !== null) updateData.turnPattern = turnPattern;
-                if (claimTimeout !== null) updateData.claimTimeout = claimTimeout;
-                if (claimWarning !== null) updateData.claimWarning = claimWarning;
-                if (writingTimeout !== null) updateData.writingTimeout = writingTimeout;
-                if (writingWarning !== null) updateData.writingWarning = writingWarning;
-                if (drawingTimeout !== null) updateData.drawingTimeout = drawingTimeout;
-                if (drawingWarning !== null) updateData.drawingWarning = drawingWarning;
-                if (openDuration !== null) updateData.openDuration = openDuration;
-                if (minPlayers !== null) updateData.minPlayers = minPlayers;
-                if (maxPlayers !== null) updateData.maxPlayers = maxPlayers;
-                
-                const result = await this.configService.updateGuildDefaultConfig(guildId, updateData);
-                await this.handleMessageInstruction(result, intr);
-            }
-            
-            // Always show the current configuration (whether updated or just viewing)
+            // Get current configuration to pre-populate modal
             const config = await this.configService.getGuildDefaultConfig(guildId);
-            const configText = this.formatConfigForDisplay(config);
-            const title = hasUpdates ? '**Updated Server Default Season Configuration**' : '**Server Default Season Configuration**';
-            await SimpleMessage.sendInfo(intr, `${title}\n\n${configText}`, {}, true);
+            
+            // Create and show modal
+            const modal = await createAdminSeasonConfigModal(config);
+            await intr.showModal(modal);
             
         } catch (error) {
             console.error('Error in admin season config command:', error);
-            await SimpleMessage.sendError(intr, 'An error occurred while managing the season configuration.', {}, true);
+            await SimpleMessage.sendError(intr, 'An error occurred while opening the season configuration modal.', {}, true);
         }
     }
     
@@ -595,51 +574,16 @@ export class AdminCommand implements Command {
         }
         
         try {
-            // Extract all configuration options
-            const turnPattern = intr.options.getString('turn_pattern');
-            const writingTimeout = intr.options.getString('writing_timeout');
-            const writingWarning = intr.options.getString('writing_warning');
-            const drawingTimeout = intr.options.getString('drawing_timeout');
-            const drawingWarning = intr.options.getString('drawing_warning');
-            const staleTimeout = intr.options.getString('stale_timeout');
-            const minTurns = intr.options.getInteger('min_turns');
-            const maxTurns = intr.options.getInteger('max_turns');
-            const returnCount = intr.options.getInteger('return_count');
-            const returnCooldown = intr.options.getInteger('return_cooldown');
-            
-            // Check if any parameters are provided for updating
-            const hasUpdates = turnPattern || writingTimeout || writingWarning || 
-                              drawingTimeout || drawingWarning || staleTimeout ||
-                              minTurns !== null || maxTurns !== null || 
-                              returnCount !== null || returnCooldown !== null;
-            
-            if (hasUpdates) {
-                // Update the server's default game configuration
-                const updateData: any = {};
-                if (turnPattern !== null) updateData.turnPattern = turnPattern;
-                if (writingTimeout !== null) updateData.writingTimeout = writingTimeout;
-                if (writingWarning !== null) updateData.writingWarning = writingWarning;
-                if (drawingTimeout !== null) updateData.drawingTimeout = drawingTimeout;
-                if (drawingWarning !== null) updateData.drawingWarning = drawingWarning;
-                if (staleTimeout !== null) updateData.staleTimeout = staleTimeout;
-                if (minTurns !== null) updateData.minTurns = minTurns;
-                if (maxTurns !== null) updateData.maxTurns = maxTurns;
-                if (returnCount !== null) updateData.returnCount = returnCount;
-                if (returnCooldown !== null) updateData.returnCooldown = returnCooldown;
-                
-                const result = await this.gameConfigService.updateGuildDefaultConfig(guildId, updateData);
-                await this.handleMessageInstruction(result, intr);
-            }
-            
-            // Always show the current configuration (whether updated or just viewing)
+            // Get current configuration to pre-populate modal
             const config = await this.gameConfigService.getGuildDefaultConfig(guildId);
-            const configText = this.formatGameConfigForDisplay(config);
-            const title = hasUpdates ? '**Updated Server Default Game Configuration**' : '**Server Default Game Configuration**';
-            await SimpleMessage.sendInfo(intr, `${title}\n\n${configText}`, {}, true);
+            
+            // Create and show modal
+            const modal = await createAdminGameConfigModal(config);
+            await intr.showModal(modal);
             
         } catch (error) {
             console.error('Error in admin game config command:', error);
-            await SimpleMessage.sendError(intr, 'An error occurred while managing the game configuration.', {}, true);
+            await SimpleMessage.sendError(intr, 'An error occurred while opening the game configuration modal.', {}, true);
         }
     }
 
@@ -845,6 +789,7 @@ export class AdminCommand implements Command {
         
         switch (subcommand) {
             case 'config': {
+                // Don't defer for config - we need to show a modal
                 await this.handleChannelConfigCommand(intr);
                 break;
             }
@@ -863,47 +808,72 @@ export class AdminCommand implements Command {
                 return;
             }
 
-            const announceChannel = intr.options.getChannel('announce');
-            const completedChannel = intr.options.getChannel('completed');
-            const adminChannel = intr.options.getChannel('admin');
+            // Get current configuration to display current values
+            const config = await this.channelConfigService.getGuildChannelConfig(guildId);
+            
+            // Create channel select components
+            const announceChannelSelect = new ChannelSelectMenuBuilder()
+                .setCustomId('admin_channel_config_announce')
+                .setPlaceholder('Select announce channel')
+                .setChannelTypes(ChannelType.GuildText, ChannelType.GuildAnnouncement)
+                .setMaxValues(1);
 
-            // If no options provided, show current configuration
-            if (!announceChannel && !completedChannel && !adminChannel) {
-                const config = await this.channelConfigService.getGuildChannelConfig(guildId);
-                
-                if (!config) {
-                    await SimpleMessage.sendInfo(intr, 'No channel configuration found for this server. Use the options to set up channels.', {}, true);
-                    return;
-                }
+            const completedChannelSelect = new ChannelSelectMenuBuilder()
+                .setCustomId('admin_channel_config_completed')
+                .setPlaceholder('Select completed channel')
+                .setChannelTypes(ChannelType.GuildText, ChannelType.GuildAnnouncement)
+                .setMaxValues(1);
 
-                const configDisplay = this.formatChannelConfigForDisplay(config);
-                await SimpleMessage.sendInfo(intr, `**Channel Configuration for this server:**\n\n${configDisplay}`, {}, true);
-                return;
+            const adminChannelSelect = new ChannelSelectMenuBuilder()
+                .setCustomId('admin_channel_config_admin')
+                .setPlaceholder('Select admin channel')
+                .setChannelTypes(ChannelType.GuildText, ChannelType.GuildAnnouncement)
+                .setMaxValues(1);
+
+            // Set default channels if they exist
+            if (config?.announceChannelId) {
+                announceChannelSelect.setDefaultChannels(config.announceChannelId);
+            }
+            if (config?.completedChannelId) {
+                completedChannelSelect.setDefaultChannels(config.completedChannelId);
+            }
+            if (config?.adminChannelId) {
+                adminChannelSelect.setDefaultChannels(config.adminChannelId);
             }
 
-            // Update the configuration
-            const updates: any = {};
-            if (announceChannel) updates.announceChannelId = announceChannel.id;
-            if (completedChannel) updates.completedChannelId = completedChannel.id;
-            if (adminChannel) updates.adminChannelId = adminChannel.id;
+            // Create action rows
+            const announceRow = new ActionRowBuilder<ChannelSelectMenuBuilder>().addComponents(announceChannelSelect);
+            const completedRow = new ActionRowBuilder<ChannelSelectMenuBuilder>().addComponents(completedChannelSelect);
+            const adminRow = new ActionRowBuilder<ChannelSelectMenuBuilder>().addComponents(adminChannelSelect);
 
-            await this.channelConfigService.updateGuildChannelConfig(guildId, updates);
-            
-            // Get the updated configuration to display
-            const updatedConfig = await this.channelConfigService.getGuildChannelConfig(guildId);
-            const configDisplay = this.formatChannelConfigForDisplay(updatedConfig);
-            
-            await SimpleMessage.sendSuccess(intr, `**Channel configuration:**\n${configDisplay}`, {}, true);
+            // Create embed showing current configuration
+            const embed = new EmbedBuilder()
+                .setTitle('Channel Configuration')
+                .setDescription('Select channels for bot notifications and announcements.')
+                .addFields(
+                    {
+                        name: 'Current Configuration',
+                        value: this.formatChannelConfigForDisplay(config),
+                        inline: false
+                    }
+                )
+                .setColor(0x5865F2);
+
+            await intr.reply({
+                embeds: [embed],
+                components: [announceRow, completedRow, adminRow],
+                ephemeral: true
+            });
 
         } catch (error) {
             console.error('Error in admin channel config command:', error);
-            await SimpleMessage.sendError(intr, 'An error occurred while updating the channel configuration.', {}, true);
+            await SimpleMessage.sendError(intr, 'An error occurred while opening the channel configuration.', {}, true);
         }
     }
 
     private formatChannelConfigForDisplay(config: any): string {
-        return `**announce:** ${config.announceChannelId ? `<#${config.announceChannelId}>` : 'Not set'}\n` +
-               `**completed:** ${config.completedChannelId ? `<#${config.completedChannelId}>` : 'Not set'}\n` +
-               `**admin:** ${config.adminChannelId ? `<#${config.adminChannelId}>` : 'Not set'}`;
+        return `**announce:** ${config?.announceChannelId ? `<#${config.announceChannelId}>` : 'Not set'}\n` +
+               `**completed:** ${config?.completedChannelId ? `<#${config.completedChannelId}>` : 'Not set'}\n` +
+               `**admin:** ${config?.adminChannelId ? `<#${config.adminChannelId}>` : 'Not set'}`;
     }
 } 

@@ -93,57 +93,7 @@ export const adminCommandData = new SlashCommandBuilder()
             .addSubcommand(subcommand =>
                 subcommand
                     .setName('config')
-                    .setDescription('View or update the server\'s default season configuration')
-                    .addStringOption(option =>
-                        option.setName('turn_pattern')
-                            .setDescription('Turn pattern (e.g., "writing,drawing")')
-                            .setRequired(false)
-                    )
-                    .addStringOption(option =>
-                        option.setName('claim_timeout')
-                            .setDescription('Time limit for claiming turns (e.g., "1d", "2h")')
-                            .setRequired(false)
-                    )
-                    .addStringOption(option =>
-                        option.setName('claim_warning')
-                            .setDescription('Warning time before claim timeout (e.g., "1h", "30m")')
-                            .setRequired(false)
-                    )
-                    .addStringOption(option =>
-                        option.setName('writing_timeout')
-                            .setDescription('Time limit for writing turns (e.g., "1d", "2h")')
-                            .setRequired(false)
-                    )
-                    .addStringOption(option =>
-                        option.setName('writing_warning')
-                            .setDescription('Warning time before writing timeout (e.g., "1h", "30m")')
-                            .setRequired(false)
-                    )
-                    .addStringOption(option =>
-                        option.setName('drawing_timeout')
-                            .setDescription('Time limit for drawing turns (e.g., "1d", "2h")')
-                            .setRequired(false)
-                    )
-                    .addStringOption(option =>
-                        option.setName('drawing_warning')
-                            .setDescription('Warning time before drawing timeout (e.g., "10m", "5m")')
-                            .setRequired(false)
-                    )
-                    .addStringOption(option =>
-                        option.setName('open_duration')
-                            .setDescription('How long seasons stay open for joining (e.g., "7d", "3d")')
-                            .setRequired(false)
-                    )
-                    .addIntegerOption(option =>
-                        option.setName('min_players')
-                            .setDescription('Minimum number of players required')
-                            .setRequired(false)
-                    )
-                    .addIntegerOption(option =>
-                        option.setName('max_players')
-                            .setDescription('Maximum number of players allowed')
-                            .setRequired(false)
-                    )
+                    .setDescription('Configure the server\'s default season settings using a modal form')
             )
             .addSubcommand(subcommand =>
                 subcommand
@@ -163,53 +113,7 @@ export const adminCommandData = new SlashCommandBuilder()
             .addSubcommand(subcommand =>
                 subcommand
                     .setName('config')
-                    .setDescription('View or update the server\'s default game configuration')
-                    .addStringOption(option =>
-                        option.setName('turn_pattern')
-                            .setDescription('Turn pattern (e.g., "writing,drawing")')
-                            .setRequired(false)
-                    )
-                    .addStringOption(option =>
-                        option.setName('writing_timeout')
-                            .setDescription('Time limit for writing turns (e.g., "5m", "1h")')
-                            .setRequired(false)
-                    )
-                    .addStringOption(option =>
-                        option.setName('writing_warning')
-                            .setDescription('Warning time before writing timeout (e.g., "1m", "30s")')
-                            .setRequired(false)
-                    )
-                    .addStringOption(option =>
-                        option.setName('drawing_timeout')
-                            .setDescription('Time limit for drawing turns (e.g., "20m", "1h")')
-                            .setRequired(false)
-                    )
-                    .addStringOption(option =>
-                        option.setName('drawing_warning')
-                            .setDescription('Warning time before drawing timeout (e.g., "2m", "5m")')
-                            .setRequired(false)
-                    )
-                    .addStringOption(option =>
-                        option.setName('stale_timeout')
-                            .setDescription('Time before inactive games are completed (e.g., "3d", "1w")')
-                            .setRequired(false)
-                    )
-                    .addIntegerOption(option =>
-                        option.setName('min_turns')
-                            .setDescription('Minimum number of turns before game can complete')
-                            .setRequired(false)
-                    )
-                    .addIntegerOption(option =>
-                        option.setName('max_turns')
-                            .setDescription('Maximum number of turns (0 for unlimited)')
-                            .setRequired(false)
-                    )
-                    .addStringOption(option =>
-                        option.setName('returns')
-                            .setDescription('Return policy (e.g., "none", "2/3" for 2 times with 3 turn gap)')
-                            .setRequired(false)
-                    )
-
+                    .setDescription('Configure the server\'s default game settings using a modal form')
             )
             .addSubcommand(subcommand =>
                 subcommand
@@ -264,21 +168,6 @@ export const adminCommandData = new SlashCommandBuilder()
             .addSubcommand(subcommand =>
                 subcommand
                     .setName('config')
-                    .setDescription('Configure bot channels for announcements and notifications')
-                    .addChannelOption(option =>
-                        option.setName('announce')
-                            .setDescription('Channel for game announcements')
-                            .setRequired(false)
-                    )
-                    .addChannelOption(option =>
-                        option.setName('completed')
-                            .setDescription('Channel for completed games')
-                            .setRequired(false)
-                    )
-                    .addChannelOption(option =>
-                        option.setName('admin')
-                            .setDescription('Channel for admin notifications')
-                            .setRequired(false)
-                    )
+                    .setDescription('Configure bot channels for announcements and notifications using a modal form')
             )
     ); 
