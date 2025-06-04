@@ -138,6 +138,7 @@ describe('AdminCommand - Integration Tests', () => {
       editReply: vi.fn().mockResolvedValue(undefined),
       reply: vi.fn().mockResolvedValue(undefined),
       followUp: vi.fn().mockResolvedValue(undefined),
+      showModal: vi.fn().mockResolvedValue(undefined),
       replied: false,
       deferred: true,
       options: {
@@ -848,91 +849,22 @@ describe('AdminCommand - Integration Tests', () => {
   });
 
   describe('Season Config Command', () => {
-    it('should show default server configuration when no parameters provided', async () => {
+    it('should show modal for season configuration', async () => {
       interaction.options.getSubcommandGroup.mockReturnValue('season');
       interaction.options.getSubcommand.mockReturnValue('config');
-      interaction.options.getString.mockReturnValue(null);
-      interaction.options.getInteger.mockReturnValue(null);
 
       await commandInstance.execute(interaction, mockEventData);
 
-      expect(interaction.editReply).toHaveBeenCalled();
-      const replyCall = interaction.editReply.mock.calls[0][0];
-      expect(replyCall.embeds).toBeDefined();
-      expect(replyCall.embeds[0].data.description).toContain('Server Default Season Configuration');
-      expect(replyCall.embeds[0].data.description).toContain('Min Players:');
-      expect(replyCall.embeds[0].data.description).toContain('Max Players:');
-      expect(replyCall.embeds[0].data.description).toContain('Turn Pattern:');
-    });
-
-    it('should update server default configuration when parameters provided', async () => {
-      interaction.options.getSubcommandGroup.mockReturnValue('season');
-      interaction.options.getSubcommand.mockReturnValue('config');
-      interaction.options.getString.mockImplementation((name: string) => {
-        if (name === 'turn_pattern') return 'writing,drawing,writing';
-        if (name === 'claim_timeout') return '2h';
-        return null;
-      });
-      interaction.options.getInteger.mockImplementation((name: string) => {
-        if (name === 'min_players') return 3;
-        if (name === 'max_players') return 8;
-        return null;
-      });
-
-      await commandInstance.execute(interaction, mockEventData);
-
-      // Should call editReply twice - once for the update result, once for showing the config
-      expect(interaction.editReply).toHaveBeenCalledTimes(2);
+      // Should call showModal instead of editReply
+      expect(interaction.showModal).toHaveBeenCalled();
+      expect(interaction.editReply).not.toHaveBeenCalled();
       
-      // Verify the configuration was actually updated in the database
-      const config = await prisma.seasonConfig.findUnique({
-        where: { isGuildDefaultFor: testGuildId }
-      });
-      
-      expect(config).toBeTruthy();
-      expect(config?.minPlayers).toBe(3);
-      expect(config?.maxPlayers).toBe(8);
-      expect(config?.turnPattern).toBe('writing,drawing,writing');
-      expect(config?.claimTimeout).toBe('2h');
-    });
-
-    it('should handle validation errors for invalid parameters', async () => {
-      interaction.options.getSubcommandGroup.mockReturnValue('season');
-      interaction.options.getSubcommand.mockReturnValue('config');
-      interaction.options.getString.mockImplementation((name: string) => {
-        if (name === 'turn_pattern') return 'invalid-pattern';
-        return null;
-      });
-      interaction.options.getInteger.mockReturnValue(null);
-
-      await commandInstance.execute(interaction, mockEventData);
-
-      expect(interaction.editReply).toHaveBeenCalled();
-      // Should show validation error
-      const replyCall = interaction.editReply.mock.calls[0][0];
-      expect(replyCall.embeds).toBeDefined();
-      // Check for error color (red) - the actual color may vary based on the embed type
-      expect(replyCall.embeds[0].data.color).toBeGreaterThan(0); // Just verify a color is set
-    });
-
-    it('should handle min/max player validation', async () => {
-      interaction.options.getSubcommandGroup.mockReturnValue('season');
-      interaction.options.getSubcommand.mockReturnValue('config');
-      interaction.options.getString.mockReturnValue(null);
-      interaction.options.getInteger.mockImplementation((name: string) => {
-        if (name === 'min_players') return 10;
-        if (name === 'max_players') return 5; // Invalid: min > max
-        return null;
-      });
-
-      await commandInstance.execute(interaction, mockEventData);
-
-      expect(interaction.editReply).toHaveBeenCalled();
-      // Should show validation error
-      const replyCall = interaction.editReply.mock.calls[0][0];
-      expect(replyCall.embeds).toBeDefined();
-      // Check for error color (red) - the actual color may vary based on the embed type
-      expect(replyCall.embeds[0].data.color).toBeGreaterThan(0); // Just verify a color is set
+      // Verify modal properties
+      const modalCall = interaction.showModal.mock.calls[0][0];
+      expect(modalCall.data.custom_id).toBe('admin_season_config_step1');
+      expect(modalCall.data.title).toBe('Season Configuration - Basic Settings');
+      expect(modalCall.components).toBeDefined();
+      expect(modalCall.components).toHaveLength(5); // 5 input fields
     });
 
     it('should reject non-admin users', async () => {
@@ -944,6 +876,7 @@ describe('AdminCommand - Integration Tests', () => {
       await commandInstance.execute(interaction, mockEventData);
 
       expect(interaction.editReply).toHaveBeenCalled();
+      expect(interaction.showModal).not.toHaveBeenCalled();
       const replyCall = interaction.editReply.mock.calls[0][0];
       expect(replyCall.embeds).toBeDefined();
       expect(replyCall.embeds[0].data.description).toContain('admin'); // Should contain admin warning
@@ -958,9 +891,83 @@ describe('AdminCommand - Integration Tests', () => {
       await commandInstance.execute(interaction, mockEventData);
 
       expect(interaction.editReply).toHaveBeenCalled();
+      expect(interaction.showModal).not.toHaveBeenCalled();
       const replyCall = interaction.editReply.mock.calls[0][0];
       expect(replyCall.embeds).toBeDefined();
       expect(replyCall.embeds[0].data.description).toContain('server'); // Should mention server requirement
+    });
+
+    it('should handle errors when opening modal', async () => {
+      interaction.options.getSubcommandGroup.mockReturnValue('season');
+      interaction.options.getSubcommand.mockReturnValue('config');
+      
+      // Mock ConfigService to throw an error
+      const configServiceSpy = vi.spyOn(commandInstance['configService'], 'getGuildDefaultConfig');
+      configServiceSpy.mockRejectedValue(new Error('Database error'));
+
+      await commandInstance.execute(interaction, mockEventData);
+
+      expect(interaction.editReply).toHaveBeenCalled();
+      expect(interaction.showModal).not.toHaveBeenCalled();
+      const replyCall = interaction.editReply.mock.calls[0][0];
+      expect(replyCall.embeds).toBeDefined();
+      expect(replyCall.embeds[0].data.description).toContain('error occurred');
+      
+      configServiceSpy.mockRestore();
+    });
+
+    it('should pre-populate modal with current configuration', async () => {
+      interaction.options.getSubcommandGroup.mockReturnValue('season');
+      interaction.options.getSubcommand.mockReturnValue('config');
+
+      // Create or update a test configuration
+      const _testConfig = await prisma.seasonConfig.upsert({
+        where: { isGuildDefaultFor: testGuildId },
+        create: {
+          isGuildDefaultFor: testGuildId,
+          minPlayers: 4,
+          maxPlayers: 12,
+          claimTimeout: '2h',
+          writingTimeout: '1d',
+          drawingTimeout: '2h',
+          turnPattern: 'writing,drawing,writing',
+          openDuration: '5d',
+          claimWarning: '30m',
+          writingWarning: '2h',
+          drawingWarning: '15m'
+        },
+        update: {
+          minPlayers: 4,
+          maxPlayers: 12,
+          claimTimeout: '2h',
+          writingTimeout: '1d',
+          drawingTimeout: '2h',
+          turnPattern: 'writing,drawing,writing',
+          openDuration: '5d',
+          claimWarning: '30m',
+          writingWarning: '2h',
+          drawingWarning: '15m'
+        }
+      });
+
+      await commandInstance.execute(interaction, mockEventData);
+
+      expect(interaction.showModal).toHaveBeenCalled();
+      const modalCall = interaction.showModal.mock.calls[0][0];
+      
+      // Check that modal components have the expected values
+      const components = modalCall.components;
+      expect(components).toHaveLength(5);
+      
+      // Verify some of the pre-populated values (accessing the data property of ActionRowBuilder)
+      const claimTimeoutComponent = components[0].components[0];
+      expect(claimTimeoutComponent.data.value).toBe('2h');
+      
+      const minPlayersComponent = components[3].components[0];
+      expect(minPlayersComponent.data.value).toBe('4');
+      
+      const maxPlayersComponent = components[4].components[0];
+      expect(maxPlayersComponent.data.value).toBe('12');
     });
   });
 }); 

@@ -1,5 +1,6 @@
 export * from './adminButtonHandler.js';
 export * from './adminChannelConfigSelectHandler.js';
+export * from './adminSeasonConfigButtonHandler.js';
 export * from './buttonHandler.js';
 export * from './selectMenuHandler.js';
 export * from './modalHandler.js';

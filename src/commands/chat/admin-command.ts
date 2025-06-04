@@ -16,7 +16,7 @@ import { SchedulerService } from '../../services/SchedulerService.js';
 import { SeasonService } from '../../services/SeasonService.js';
 import { SeasonTurnService } from '../../services/SeasonTurnService.js';
 import { MessageInstruction } from '../../types/MessageInstruction.js';
-import { createAdminGameConfigModal, createAdminSeasonConfigModal } from '../../utils/modalBuilders.js';
+import { createAdminGameConfigModal, createAdminSeasonConfigModal, createAdminSeasonConfigStep2Modal } from '../../utils/modalBuilders.js';
 import { Command, CommandDeferType } from '../index.js';
 
 const require = createRequire(import.meta.url);

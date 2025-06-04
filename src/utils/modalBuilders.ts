@@ -106,26 +106,13 @@ export function createSeasonCreationStep1Modal(defaults?: SeasonConfig, autoGene
 }
 
 /**
- * Creates a modal for admin season configuration with prefilled current values
+ * Creates the first step modal for admin season configuration with basic settings
  * @param currentConfig Current season configuration values to prefill the modal
  */
 export function createAdminSeasonConfigModal(currentConfig?: any): ModalBuilder {
     const modal = new ModalBuilder()
-        .setCustomId('admin_season_config')
-        .setTitle('Season Configuration');
-
-    // Turn Pattern input
-    const turnPatternInput = new TextInputBuilder()
-        .setCustomId('turnPatternInput')
-        .setLabel('Turn Pattern')
-        .setStyle(TextInputStyle.Short)
-        .setPlaceholder('e.g., writing,drawing')
-        .setRequired(true)
-        .setMaxLength(50);
-    
-    if (currentConfig?.turnPattern) {
-        turnPatternInput.setValue(currentConfig.turnPattern);
-    }
+        .setCustomId('admin_season_config_step1')
+        .setTitle('Season Configuration - Basic Settings');
 
     // Claim Timeout input
     const claimTimeoutInput = new TextInputBuilder()
@@ -166,6 +153,66 @@ export function createAdminSeasonConfigModal(currentConfig?: any): ModalBuilder 
         drawingTimeoutInput.setValue(currentConfig.drawingTimeout);
     }
 
+    // Min Players input
+    const minPlayersInput = new TextInputBuilder()
+        .setCustomId('minPlayersInput')
+        .setLabel('Min Players')
+        .setStyle(TextInputStyle.Short)
+        .setPlaceholder('e.g., 6')
+        .setRequired(true)
+        .setMaxLength(3);
+    
+    if (currentConfig?.minPlayers) {
+        minPlayersInput.setValue(currentConfig.minPlayers.toString());
+    }
+
+    // Max Players input
+    const maxPlayersInput = new TextInputBuilder()
+        .setCustomId('maxPlayersInput')
+        .setLabel('Max Players')
+        .setStyle(TextInputStyle.Short)
+        .setPlaceholder('e.g., 20')
+        .setRequired(true)
+        .setMaxLength(3);
+    
+    if (currentConfig?.maxPlayers) {
+        maxPlayersInput.setValue(currentConfig.maxPlayers.toString());
+    }
+
+    // Create action rows (Discord allows max 5 components per modal)
+    const firstRow = new ActionRowBuilder<TextInputBuilder>().addComponents(claimTimeoutInput);
+    const secondRow = new ActionRowBuilder<TextInputBuilder>().addComponents(writingTimeoutInput);
+    const thirdRow = new ActionRowBuilder<TextInputBuilder>().addComponents(drawingTimeoutInput);
+    const fourthRow = new ActionRowBuilder<TextInputBuilder>().addComponents(minPlayersInput);
+    const fifthRow = new ActionRowBuilder<TextInputBuilder>().addComponents(maxPlayersInput);
+
+    modal.addComponents(firstRow, secondRow, thirdRow, fourthRow, fifthRow);
+
+    return modal;
+}
+
+/**
+ * Creates the second step modal for admin season configuration with advanced settings
+ * @param currentConfig Current season configuration values to prefill the modal
+ */
+export function createAdminSeasonConfigStep2Modal(currentConfig?: any): ModalBuilder {
+    const modal = new ModalBuilder()
+        .setCustomId('admin_season_config_step2')
+        .setTitle('Season Configuration - Advanced Settings');
+
+    // Turn Pattern input
+    const turnPatternInput = new TextInputBuilder()
+        .setCustomId('turnPatternInput')
+        .setLabel('Turn Pattern')
+        .setStyle(TextInputStyle.Short)
+        .setPlaceholder('e.g., writing,drawing')
+        .setRequired(true)
+        .setMaxLength(50);
+    
+    if (currentConfig?.turnPattern) {
+        turnPatternInput.setValue(currentConfig.turnPattern);
+    }
+
     // Open Duration input
     const openDurationInput = new TextInputBuilder()
         .setCustomId('openDurationInput')
@@ -179,12 +226,51 @@ export function createAdminSeasonConfigModal(currentConfig?: any): ModalBuilder 
         openDurationInput.setValue(currentConfig.openDuration);
     }
 
+    // Claim Warning input
+    const claimWarningInput = new TextInputBuilder()
+        .setCustomId('claimWarningInput')
+        .setLabel('Claim Warning')
+        .setStyle(TextInputStyle.Short)
+        .setPlaceholder('e.g., 1h, 30m')
+        .setRequired(true)
+        .setMaxLength(10);
+    
+    if (currentConfig?.claimWarning) {
+        claimWarningInput.setValue(currentConfig.claimWarning);
+    }
+
+    // Writing Warning input
+    const writingWarningInput = new TextInputBuilder()
+        .setCustomId('writingWarningInput')
+        .setLabel('Writing Warning')
+        .setStyle(TextInputStyle.Short)
+        .setPlaceholder('e.g., 1m, 30s')
+        .setRequired(true)
+        .setMaxLength(10);
+    
+    if (currentConfig?.writingWarning) {
+        writingWarningInput.setValue(currentConfig.writingWarning);
+    }
+
+    // Drawing Warning input
+    const drawingWarningInput = new TextInputBuilder()
+        .setCustomId('drawingWarningInput')
+        .setLabel('Drawing Warning')
+        .setStyle(TextInputStyle.Short)
+        .setPlaceholder('e.g., 10m, 5m')
+        .setRequired(true)
+        .setMaxLength(10);
+    
+    if (currentConfig?.drawingWarning) {
+        drawingWarningInput.setValue(currentConfig.drawingWarning);
+    }
+
     // Create action rows (Discord allows max 5 components per modal)
     const firstRow = new ActionRowBuilder<TextInputBuilder>().addComponents(turnPatternInput);
-    const secondRow = new ActionRowBuilder<TextInputBuilder>().addComponents(claimTimeoutInput);
-    const thirdRow = new ActionRowBuilder<TextInputBuilder>().addComponents(writingTimeoutInput);
-    const fourthRow = new ActionRowBuilder<TextInputBuilder>().addComponents(drawingTimeoutInput);
-    const fifthRow = new ActionRowBuilder<TextInputBuilder>().addComponents(openDurationInput);
+    const secondRow = new ActionRowBuilder<TextInputBuilder>().addComponents(openDurationInput);
+    const thirdRow = new ActionRowBuilder<TextInputBuilder>().addComponents(claimWarningInput);
+    const fourthRow = new ActionRowBuilder<TextInputBuilder>().addComponents(writingWarningInput);
+    const fifthRow = new ActionRowBuilder<TextInputBuilder>().addComponents(drawingWarningInput);
 
     modal.addComponents(firstRow, secondRow, thirdRow, fourthRow, fifthRow);
 
