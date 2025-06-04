@@ -433,12 +433,18 @@ export class DirectMessageHandler implements EventHandler {
                 try {
                     const { ChannelConfigService } = await import('../services/ChannelConfigService.js');
                     const channelConfigService = new ChannelConfigService(this.prisma);
-                    const completedChannelId = await channelConfigService.getCompletedChannelId(seasonId);
-                    if (completedChannelId) {
-                        finishedGamesLink = `<#${completedChannelId}>`;
+                    
+                    // Get the guild ID - for season games use season.guildId, for on-demand games use game.guildId
+                    const guildId = gameWithSeason?.season?.guildId || gameWithSeason?.guildId;
+                    
+                    if (guildId) {
+                        const completedChannelId = await channelConfigService.getCompletedChannelId(guildId);
+                        if (completedChannelId) {
+                            finishedGamesLink = `<#${completedChannelId}>`;
+                        }
                     }
                 } catch (channelError) {
-                    Logger.warn(`Failed to get completed channel ID for season ${seasonId}:`, channelError);
+                    Logger.warn(`Failed to get completed channel ID for game ${turnToSubmit.gameId}:`, channelError);
                     // Use generic fallback if channel lookup fails
                 }
                 
