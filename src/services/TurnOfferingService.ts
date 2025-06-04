@@ -233,6 +233,42 @@ export class TurnOfferingService {
             // Get server context information
             const serverContext = await this.serverContextService.getGameServerContext(gameId);
 
+            // Get the previous turn content for context
+            const previousTurn = await this.prisma.turn.findFirst({
+                where: {
+                    gameId: gameId,
+                    turnNumber: turn.turnNumber - 1,
+                    status: 'COMPLETED'
+                }
+            });
+
+            // Determine the previous turn context based on current turn type
+            let messageTemplate: string = strings.messages.turnOffer.newTurnAvailable;
+            let messageVariables: Record<string, unknown> = {
+                serverName: serverContext.serverName,
+                gameId: gameId,
+                seasonId: gameWithSeason.season?.id,
+                turnNumber: turn.turnNumber,
+                turnType: turn.type,
+                claimTimeoutFormatted: FormatUtils.formatRemainingTime(timeoutExpiresAt)
+            };
+
+            // Add previous turn context only if this is not the first turn and we have previous content
+            if (turn.turnNumber > 1 && previousTurn) {
+                let previousTurnContext = '';
+                if (turn.type === 'WRITING') {
+                    // Writing turn needs previous image
+                    previousTurnContext = `**Previous image to caption:**\n${previousTurn.imageUrl || '[Previous image not found]'}`;
+                } else {
+                    // Drawing turn needs previous text
+                    previousTurnContext = `**Previous text to draw:**\n"${previousTurn.textContent || '[Previous text not found]'}"`;
+                }
+                messageVariables.previousTurnContext = previousTurnContext;
+            } else {
+                // For first turn, use the initial turn offer template instead
+                messageTemplate = strings.messages.turnOffer.initialTurnOffer;
+            }
+
             // Create the claim button
             const claimButton = new ButtonBuilder()
                 .setCustomId(`turn_claim_${turn.id}`)
@@ -242,14 +278,7 @@ export class TurnOfferingService {
             const actionRow = new ActionRowBuilder<ButtonBuilder>().addComponents(claimButton);
 
             // Create the message content with interpolated variables
-            const messageContent = interpolate(strings.messages.turnOffer.newTurnAvailable, {
-                serverName: serverContext.serverName,
-                gameId: gameId,
-                seasonId: gameWithSeason.season?.id,
-                turnNumber: turn.turnNumber,
-                turnType: turn.type,
-                claimTimeoutFormatted: FormatUtils.formatRemainingTime(timeoutExpiresAt)
-            });
+            const messageContent = interpolate(messageTemplate, messageVariables);
 
             // Send DM with button directly using Discord client
             const user = await this.discordClient.users.fetch(player.discordUserId);

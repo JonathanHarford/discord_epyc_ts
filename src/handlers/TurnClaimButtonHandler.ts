@@ -66,34 +66,36 @@ export class TurnClaimButtonHandler implements ButtonHandler {
                     }
                 });
 
-                // Determine the success message based on turn type
-                let successMessage: string;
+                // Determine the DM message based on turn type
+                let dmMessage: string;
                 if (result.turn.type === 'WRITING') {
-                    successMessage = interpolate(strings.messages.ready.claimSuccessWriting, {
+                    dmMessage = interpolate(strings.messages.ready.claimSuccessWriting, {
                         previousTurnImage: previousTurn?.imageUrl || '[Previous image not found]',
                         submissionTimeoutFormatted: FormatUtils.formatRemainingTime(submissionTimeoutDate)
                     });
                 } else {
-                    successMessage = interpolate(strings.messages.ready.claimSuccessDrawing, {
+                    dmMessage = interpolate(strings.messages.ready.claimSuccessDrawing, {
                         previousTurnWriting: previousTurn?.textContent || '[Previous text not found]',
                         submissionTimeoutFormatted: FormatUtils.formatRemainingTime(submissionTimeoutDate)
                     });
                 }
 
-                // Send only the success message without redundant "claimed successfully" prefix
+                // Send DM with turn instructions
+                await interaction.user.send({
+                    content: dmMessage
+                });
+
+                // Acknowledge the claim with a simple ephemeral reply
                 await interaction.reply({ 
-                    content: successMessage, 
+                    content: '✅ Turn claimed! Check your DMs for instructions.', 
                     ephemeral: true 
                 });
 
-                // Update the original message to show the turn has been claimed
+                // Remove the original turn offer message to eliminate redundancy
                 try {
-                    await interaction.message.edit({
-                        content: `🎨 This turn has been claimed by ${interaction.user.username}! 🎨`,
-                        components: [] // Remove the button
-                    });
-                } catch (editError) {
-                    Logger.warn(`TurnClaimButtonHandler: Could not edit original message for turn ${turnId}:`, editError);
+                    await interaction.message.delete();
+                } catch (deleteError) {
+                    Logger.warn(`TurnClaimButtonHandler: Could not delete original message for turn ${turnId}:`, deleteError);
                 }
 
             } else {

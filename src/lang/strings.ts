@@ -262,7 +262,9 @@ Please review this content and take appropriate action. React with ✅ to approv
 
     // Turn messages
     turnOffer: {
-      newTurnAvailable: `🎨 You have **{claimTimeoutFormatted}** to claim turn {turnNumber} in season {seasonId}. Click the button below to claim it! 🎨`,
+      newTurnAvailable: `🎨 You have **{claimTimeoutFormatted}** to claim turn {turnNumber} in season {seasonId}. Click the button below to claim it! 🎨
+
+{previousTurnContext}`,
       initialTurnOffer: `🎉 **{seasonId} has begun!** 🎉
 It's your first turn in this game! ⏰ You have **{claimTimeoutFormatted}** to claim it before it's offered to another player. Click the button below to claim it!`,
       claimButton: 'Claim Turn',

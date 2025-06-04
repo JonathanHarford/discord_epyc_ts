@@ -141,7 +141,7 @@ describe('TurnOfferingService - Integration Tests', () => {
     const turnOfferedAt = turnAfterOffer!.updatedAt;
     const timeoutExpiresAt = new Date(turnOfferedAt.getTime() + expectedClaimTimeoutMinutes * 60 * 1000);
     
-    const expectedDMContent = interpolate(strings.messages.turnOffer.newTurnAvailable, {
+    const expectedDMContent = interpolate(strings.messages.turnOffer.initialTurnOffer, {
       serverName: 'Direct Message', // Add server context for test scenarios
       gameId: testGame.id,
       seasonId: testSeason.id,
@@ -207,7 +207,7 @@ describe('TurnOfferingService - Integration Tests', () => {
     const turnOfferedAtDefault = turnAfterDefaultOffer!.updatedAt;
     const timeoutExpiresAtDefault = new Date(turnOfferedAtDefault.getTime() + defaultClaimMinutes * 60 * 1000);
     
-    const expectedDMContentWithDefault = interpolate(strings.messages.turnOffer.newTurnAvailable, {
+    const expectedDMContentWithDefault = interpolate(strings.messages.turnOffer.initialTurnOffer, {
         serverName: 'Direct Message', // Add server context for test scenarios
         gameId: testGame.id,
         seasonId: testSeason.id,
@@ -242,5 +242,85 @@ describe('TurnOfferingService - Integration Tests', () => {
     const expectedDefaultTimeoutMillis = defaultClaimMinutes * 60 * 1000;
     expect(scheduledDateDefault.getTime()).toBeGreaterThanOrEqual(nowDefault + expectedDefaultTimeoutMillis - 5000);
     expect(scheduledDateDefault.getTime()).toBeLessThanOrEqual(nowDefault + expectedDefaultTimeoutMillis + 5000);
+  });
+
+  it('should include previous turn context for subsequent turns', async () => {
+    // First, delete the existing available turn to avoid conflicts
+    await prisma.turn.delete({ where: { id: availableTurn.id } });
+
+    // Create a second player for the test (MUST Rule 1 prevents same player from playing twice in one game)
+    const secondPlayer = await prisma.player.create({
+      data: { discordUserId: 'user-' + nanoid(), name: 'TestOfferPlayer2' },
+    });
+
+    // Add second player to season
+    await prisma.playersOnSeasons.create({
+      data: {
+        playerId: secondPlayer.id,
+        seasonId: testSeason.id,
+      },
+    });
+
+    // Create a completed turn (turn 1) with content
+    const completedTurn = await prisma.turn.create({
+      data: {
+        gameId: testGame.id,
+        turnNumber: 1,
+        type: 'WRITING',
+        status: 'COMPLETED',
+        textContent: 'A funny cat drawing',
+        playerId: testPlayer.id,
+      },
+    });
+
+    // Create an available turn 2 (drawing turn that should reference the previous writing)
+    const secondTurn = await prisma.turn.create({
+      data: {
+        gameId: testGame.id,
+        turnNumber: 2,
+        type: 'DRAWING',
+        status: 'AVAILABLE',
+      },
+    });
+
+    const result = await turnOfferingService.offerNextTurn(testGame.id, 'turn_completed');
+
+    expect(result.success).toBe(true);
+    expect(result.turn?.id).toBe(secondTurn.id);
+    expect(result.player?.id).toBe(secondPlayer.id); // Should be the second player
+
+    // Check that the DM includes previous turn context
+    const turnAfterOffer = await prisma.turn.findUnique({ where: { id: secondTurn.id } });
+    const turnOfferedAt = turnAfterOffer!.updatedAt;
+    const timeoutExpiresAt = new Date(turnOfferedAt.getTime() + 3 * 60 * 60 * 1000); // 3h from config
+
+    const expectedDMContent = interpolate(strings.messages.turnOffer.newTurnAvailable, {
+      serverName: 'Direct Message',
+      gameId: testGame.id,
+      seasonId: testSeason.id,
+      turnNumber: secondTurn.turnNumber,
+      turnType: secondTurn.type,
+      claimTimeoutFormatted: FormatUtils.formatRemainingTime(timeoutExpiresAt),
+      previousTurnContext: `**Previous text to draw:**\n"${completedTurn.textContent}"`
+    });
+
+    // Check that the Discord client fetched the second player's user
+    expect(mockDiscordClient.users.fetch).toHaveBeenCalledWith(secondPlayer.discordUserId);
+
+    expect(mockDiscordUser.send).toHaveBeenCalledWith({ 
+      content: expectedDMContent,
+      components: expect.arrayContaining([
+        expect.objectContaining({
+          components: expect.arrayContaining([
+            expect.objectContaining({
+              data: expect.objectContaining({
+                custom_id: `turn_claim_${secondTurn.id}`,
+                style: 1
+              })
+            })
+          ])
+        })
+      ])
+    });
   });
 }); 
