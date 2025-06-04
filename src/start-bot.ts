@@ -23,7 +23,19 @@ import { AdminGameConfigButtonHandler } from './handlers/adminGameConfigButtonHa
 import { AdminGameConfigModalHandler } from './handlers/adminGameConfigModalHandler.js';
 import { AdminSeasonConfigButtonHandler } from './handlers/adminSeasonConfigButtonHandler.js';
 import { AdminSeasonConfigModalHandler } from './handlers/adminSeasonConfigModalHandler.js';
-import { AdminButtonHandler, ExampleButtonHandler, SeasonCreateModalHandler, SeasonDashboardButtonHandler, SeasonJoinButtonHandler, SeasonListPaginationButtonHandler, SeasonSelectMenuHandler, SeasonShowButtonHandler, TurnClaimButtonHandler } from './handlers/index.js';
+import {
+    AdminButtonHandler,
+    ExampleButtonHandler,
+    SeasonCreateModalHandler,
+    SeasonDashboardButtonHandler,
+    SeasonJoinButtonHandler,
+    SeasonListPaginationButtonHandler,
+    SeasonSelectMenuHandler,
+    SeasonShowButtonHandler,
+    TurnClaimButtonHandler,
+    TextSubmitPromptButtonHandler, // Added import
+    TextSubmitModalHandler         // Added import
+} from './handlers/index.js';
 import { Job, StaleGameCleanupJob } from './jobs/index.js';
 import prisma from './lib/prisma.js';
 import { Bot } from './models/bot.js';
@@ -95,7 +107,7 @@ async function start(): Promise<void> {
         new InfoCommand(),
         new SeasonCommand(prisma, seasonService, playerTurnService),
         new AdminCommand(),
-        new GameCommand(prisma, onDemandGameService, onDemandTurnService, playerTurnService),
+        new GameCommand(playerService, turnService, onDemandTurnService), // Corrected instantiation
 
         // Message Context Commands
         new ViewDateSent(),
@@ -181,6 +193,15 @@ async function start(): Promise<void> {
     bot.addButtonHandler(new AdminSeasonConfigButtonHandler());
     // To test other handlers, you would add them here:
     // bot.addAutocompleteHandler(new ExampleAutocompleteHandler());
+
+    // Register new text submission handlers
+    const textSubmitPromptButtonHandler = new TextSubmitPromptButtonHandler();
+    bot.addButtonHandler(textSubmitPromptButtonHandler);
+    Logger.info(`Registered Button Handler: ${textSubmitPromptButtonHandler.constructor.name} with prefix ${textSubmitPromptButtonHandler.customIdPrefix}`);
+
+    const textSubmitModalHandler = new TextSubmitModalHandler(); // Assumes constructor needs no args
+    bot.addModalHandler(textSubmitModalHandler);
+    Logger.info(`Registered Modal Handler: ${textSubmitModalHandler.constructor.name} with prefix ${textSubmitModalHandler.customIdPrefix}`);
 }
 
 process.on('unhandledRejection', (reason, _promise) => {

@@ -449,4 +449,28 @@ export function createAdminGameConfigStep2Modal(currentConfig?: any): ModalBuild
     return modal;
 }
 
- 
+/**
+ * Creates a modal for submitting text for a turn.
+ * @param turnId The ID of the turn for which text is being submitted.
+ * @returns A ModalBuilder instance configured for text submission.
+ */
+export function createTextSubmissionModal(turnId: string): ModalBuilder {
+    const modal = new ModalBuilder()
+        .setCustomId(`text_submit_modal_${turnId}`) // Dynamic customId based on turnId
+        .setTitle('Submit Your Story Part');
+
+    const storyTextInput = new TextInputBuilder()
+        .setCustomId('storyTextInput') // Static customId for the field
+        .setLabel("Your part of the story")
+        .setStyle(TextInputStyle.Paragraph) // Use Paragraph for multi-line text
+        .setPlaceholder("Continue the story here...")
+        .setRequired(true)
+        .setMinLength(10) // Example: require at least 10 characters
+        .setMaxLength(1000); // Example: limit to 1000 characters
+
+    const actionRow = new ActionRowBuilder<TextInputBuilder>().addComponents(storyTextInput);
+
+    modal.addComponents(actionRow);
+
+    return modal;
+}

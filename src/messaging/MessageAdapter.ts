@@ -29,21 +29,25 @@ export class MessageAdapter {
    */
   public static async processInstruction(
     instruction: MessageInstruction,
-    interaction?: CommandInteraction,
+    interaction?: CommandInteraction, // Changed order for clarity, though not strictly necessary
     langCode: string = 'en',
-    discordClient?: Client // Discord Client instance for DM sending
+    discordClient?: Client
   ): Promise<void> {
     const messageContent = this.generateMessageContent(instruction, langCode);
     
-    if (instruction.formatting?.dm && instruction.context?.userId) {
+    if (interaction) { // Prioritize interaction if available
+      await this.sendInteractionResponse(interaction, messageContent, instruction);
+    } else if (instruction.formatting?.dm && instruction.context?.userId) { // Fallback to DM
       if (!discordClient) {
+        // It's good practice to log this error or handle it more gracefully
+        console.error('[MessageAdapter] Discord client required for DM sending but not provided.');
         throw new Error('Discord client required for DM sending');
       }
       await this.sendDirectMessage(instruction.context.userId, messageContent, instruction, discordClient);
-    } else if (interaction) {
-      await this.sendInteractionResponse(interaction, messageContent, instruction);
     } else {
-      throw new Error('No valid delivery method specified for message instruction');
+      // Log this case as it might indicate a misconfigured MessageInstruction
+      console.error('[MessageAdapter] No valid delivery method. Instruction:', instruction);
+      throw new Error('No valid delivery method specified for message instruction. Must provide an interaction or specify DM formatting with a userId.');
     }
   }
 
@@ -196,12 +200,17 @@ export class MessageAdapter {
     content: BaseMessageOptions,
     instruction: MessageInstruction
   ): Promise<void> {
+    // Default to ephemeral true if interaction is present,
+    // unless instruction.formatting.ephemeral is explicitly false.
+    const isEphemeral = instruction.formatting?.ephemeral === false ? false : true;
+
     const options: InteractionReplyOptions = {
       ...content,
-      ephemeral: instruction.formatting?.ephemeral ?? false
+      ephemeral: isEphemeral
     };
 
     try {
+      // Keep existing logic for replied/deferred/followUp
       if (instruction.formatting?.followUp) {
         await interaction.followUp(options);
       } else if (interaction.replied || interaction.deferred) {
@@ -213,18 +222,19 @@ export class MessageAdapter {
       console.error('[MessageAdapter] Failed to send interaction response:', error);
       
       // Try a fallback approach for critical errors
+      // Ensure this fallback is also ephemeral by default if it's an interaction reply
       if (instruction.type === 'error' && !interaction.replied && !interaction.deferred) {
         try {
           await interaction.reply({
             content: 'An error occurred while processing your request.',
-            ephemeral: true
+            ephemeral: true // Explicitly ephemeral for error fallback
           });
         } catch (fallbackError) {
           console.error('[MessageAdapter] Fallback response also failed:', fallbackError);
         }
       }
       
-      throw error;
+      throw error; // Re-throw original error after attempting fallback
     }
   }
 

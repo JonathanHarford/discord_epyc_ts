@@ -1,6 +1,7 @@
 import { Game, GameConfig, Player, PrismaClient, Turn } from '@prisma/client';
 import { Client as DiscordClient } from 'discord.js';
 import { DateTime } from 'luxon';
+import { Logger } from '../services/index.js'; // Added Logger
 import { nanoid } from 'nanoid';
 
 import { ChannelConfigService } from './ChannelConfigService.js';
@@ -210,7 +211,7 @@ export class OnDemandTurnService implements TurnTimeoutService {
     playerId: string,
     content: string,
     contentType: 'text' | 'image'
-  ): Promise<{ success: boolean; turn?: Turn; error?: string }> {
+  ): Promise<{ success: boolean; turn?: Turn; error?: string; gameCompleted?: boolean }> { // Updated return type
     try {
       const turn = await this.prisma.turn.findUnique({
         where: { id: turnId },
@@ -259,14 +260,54 @@ export class OnDemandTurnService implements TurnTimeoutService {
         await this.schedulerService.cancelJob(timeoutJobId);
       }
 
-      // Send confirmation to player
-      await this.sendTurnCompletionConfirmation(updatedTurn, turn.player!);
+      // Send confirmation to player (this might be removed later if modal handler's reply is sufficient)
+      // await this.sendTurnCompletionConfirmation(updatedTurn, turn.player!);
+      // For now, let's comment this out to avoid double messaging. The modal handler will give feedback.
 
-      console.log(`Turn ${turnId} submitted by player ${playerId}`);
-      return { success: true, turn: updatedTurn };
+      Logger.info(`[OnDemandTurnService] Turn ${turnId} submitted by player ${playerId}`);
+
+      // Logic to progress the game for On-Demand games:
+      const game = await this.prisma.game.findUnique({
+          where: { id: updatedTurn.gameId },
+          include: { config: true, _count: { select: { turns: { where: { status: 'COMPLETED' } } } } }
+      });
+
+      if (!game || !game.config) {
+          Logger.error(`[OnDemandTurnService] Game or game config not found after submitting turn ${updatedTurn.id}`);
+          // Return success for the turn submission itself, but log error for game progression
+          return { success: true, turn: updatedTurn, error: "Turn submitted, but failed to progress game state." };
+      }
+
+      const completedTurnsCount = game._count.turns;
+
+      // Check for game completion (max_turns or if it's the only way to complete an on-demand game)
+      let gameCompleted = false;
+      if (game.config.maxTurns && completedTurnsCount >= game.config.maxTurns) {
+          gameCompleted = true;
+          Logger.info(`[OnDemandTurnService] On-demand game ${game.id} reached max turns (${game.config.maxTurns}). Marking as completed.`);
+          await this.prisma.game.update({
+              where: { id: game.id },
+              data: { status: 'COMPLETED', completedAt: new Date(), updatedAt: new Date() }
+          });
+          // Potentially call OnDemandGameService.sendGameCompletionAnnouncement here if it's not handled elsewhere
+      }
+
+      if (gameCompleted) {
+          return { success: true, turn: updatedTurn, gameCompleted: true };
+      } else {
+          // If game is not completed, create the next turn
+          const nextTurnResult = await this.createNextTurn(game, updatedTurn);
+          if (!nextTurnResult.success || !nextTurnResult.turn) {
+              Logger.error(`[OnDemandTurnService] Failed to create next turn for game ${game.id} after turn ${updatedTurn.id}: ${nextTurnResult.error}`);
+              // Return success for the turn submission, but log error for next turn creation
+              return { success: true, turn: updatedTurn, error: "Turn submitted, but failed to create next turn." };
+          }
+          Logger.info(`[OnDemandTurnService] Next turn ${nextTurnResult.turn.id} created for on-demand game ${game.id}. Status: AVAILABLE.`);
+          return { success: true, turn: updatedTurn, gameCompleted: false };
+      }
 
     } catch (error) {
-      console.error(`Error submitting turn ${turnId}:`, error);
+      Logger.error(`[OnDemandTurnService] Error submitting turn ${turnId}:`, error);
       return { 
         success: false, 
         error: error instanceof Error ? error.message : 'Unknown error occurred' 
@@ -702,5 +743,22 @@ export class OnDemandTurnService implements TurnTimeoutService {
     } catch (error) {
       console.error(`Error sending flag notification for turn ${turn.id}:`, error);
     }
+  }
+
+  async getTurnsForPlayer(playerId: string, status?: string): Promise<Turn[]> {
+      try {
+          const whereClause: Prisma.TurnWhereInput = { playerId };
+          if (status) {
+              whereClause.status = status;
+          }
+          return await this.prisma.turn.findMany({
+              where: whereClause,
+              include: { player: true, game: { include: { config: true } } }, // Include game config for on-demand
+              orderBy: { createdAt: 'desc' }
+          });
+      } catch (error) {
+          Logger.error(`[OnDemandTurnService] Error in getTurnsForPlayer for player ${playerId}:`, error);
+          return [];
+      }
   }
 }

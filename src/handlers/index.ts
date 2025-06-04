@@ -14,3 +14,5 @@ export * from './seasonSelectMenuHandler.js';
 export * from './seasonCreateModalHandler.js';
 export * from './seasonDashboardButtonHandler.js';
 export * from './TurnClaimButtonHandler.js';
+export * from './TextSubmitPromptButtonHandler.js';
+export * from './TextSubmitModalHandler.js';

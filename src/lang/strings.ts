@@ -315,7 +315,10 @@ Please claim your turn soon to avoid losing it! Use the button in your previous 
       noContentFound: 'No content found in the submission. Please provide text or attach a file.',
       wrongContentType: 'Incorrect content type for this turn. Please check the turn requirements.',
       submitFailed: 'Failed to submit your turn. Please try again.',
-      submitSuccess: `🎉 Turn submitted! Completed games will be posted in {finishedGamesLink} 🎉`
+      submitSuccess: `🎉 Turn submitted! Completed games will be posted in {finishedGamesLink} 🎉`,
+      submitSuccessModal: "Your story part has been submitted successfully! You can see the completed game in {finishedGamesLink} once it's finished.",
+      drawingPromptEphemeral: "✅ Turn claimed! To submit your drawing for turn **{turnId}**, please use the command `/game submit_drawing [your_image_file]` in the game channel.",
+      noPendingDrawingTurn: "You don't seem to have an active drawing turn pending. Please claim a drawing turn first."
     }
   },
 

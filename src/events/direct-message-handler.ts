@@ -132,6 +132,8 @@ export class DirectMessageHandler implements EventHandler {
      * @param msg The direct message to handle
      */
     private async handleReadyCommand(msg: Message): Promise<void> {
+        // DEPRECATED: Functionality moved to TurnClaimButtonHandler.ts and SeasonTurnService.claimTurn()
+        /*
         const wrappedHandler = ErrorHandler.wrapDMHandler(
             async () => {
                 Logger.info(`Processing /ready command from ${msg.author.tag} (${msg.author.id})`);
@@ -289,6 +291,9 @@ export class DirectMessageHandler implements EventHandler {
         );
         
         await wrappedHandler();
+        */
+       Logger.warn(`[DirectMessageHandler] Received deprecated /ready command from ${msg.author.tag}. This command is no longer processed.`);
+       await msg.author.send("The `/ready` command in DMs is no longer used. Please use the 'Claim Turn' button in the turn offer message instead.");
     }
 
     /**

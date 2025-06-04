@@ -3,6 +3,7 @@ import { Game, Player, Prisma, PrismaClient, Turn } from '@prisma/client';
 import { ActionRowBuilder, ButtonBuilder, ButtonStyle, Client as DiscordClient } from 'discord.js';
 import { nanoid } from 'nanoid';
 
+import { Logger } from '../services/index.js'; // Added Logger import
 import { checkGameCompletionPure, checkSeasonCompletionPure } from '../game/pureGameLogic.js';
 import { interpolate, strings } from '../lang/strings.js';
 import { SchedulerService } from '../services/SchedulerService.js';
@@ -260,10 +261,56 @@ export class SeasonTurnService implements TurnTimeoutService {
         include: { player: true, game: true }
       });
 
-      console.log(`Turn ${turnId} claimed by player ${playerId}, status updated to PENDING`);
+      Logger.info(`Turn ${turnId} claimed by player ${playerId}, status updated to PENDING`);
+
+      // Cancel the original claim timeout job
+      if (this.schedulerService) {
+        const claimTimeoutJobId = `turn-claim-timeout-${updatedTurn.id}`;
+        const timeoutCancelled = await this.schedulerService.cancelJob(claimTimeoutJobId);
+        if (timeoutCancelled) {
+          Logger.info(`[SeasonTurnService] Cancelled claim timeout job ${claimTimeoutJobId} for turn ${updatedTurn.id}`);
+        } else {
+          Logger.warn(`[SeasonTurnService] No claim timeout job found to cancel for turn ${updatedTurn.id}`);
+        }
+      } else {
+        Logger.warn(`[SeasonTurnService] SchedulerService not available, cannot cancel claim timeout for turn ${updatedTurn.id}`);
+      }
+
+      // Schedule the submission timeout job
+      if (this.schedulerService) {
+        const timeouts = await getSeasonTimeouts(this.prisma, updatedTurn.id);
+        const submissionTimeoutMinutes = updatedTurn.type === 'WRITING'
+            ? timeouts.writingTimeoutMinutes
+            : timeouts.drawingTimeoutMinutes;
+        const submissionTimeoutDate = new Date(Date.now() + submissionTimeoutMinutes * 60 * 1000);
+
+        const submissionTimeoutJobId = `turn-submission-timeout-${updatedTurn.id}`;
+        const jobScheduled = await this.schedulerService.scheduleJob(
+            submissionTimeoutJobId,
+            submissionTimeoutDate,
+            async (_jobData) => {
+                Logger.info(`[SeasonTurnService] Submission timeout triggered for turn ${updatedTurn.id}`);
+                // const { SubmissionTimeoutHandler } = await import('../handlers/SubmissionTimeoutHandler.js');
+                // const submissionTimeoutHandler = new SubmissionTimeoutHandler(...); // Requires TurnOfferingService
+                // await submissionTimeoutHandler.handleSubmissionTimeout(updatedTurn.id, playerId);
+                Logger.info(`[SeasonTurnService] SubmissionTimeoutHandler should be invoked for turn ${updatedTurn.id} by player ${playerId}`);
+            },
+            { turnId: updatedTurn.id, playerId: playerId }, // Use playerId from claimTurn arguments
+            'turn-submission-timeout'
+        );
+
+        if (jobScheduled) {
+            Logger.info(`[SeasonTurnService] Scheduled submission timeout for turn ${updatedTurn.id} at ${submissionTimeoutDate.toISOString()}`);
+        } else {
+            Logger.warn(`[SeasonTurnService] Failed to schedule submission timeout for turn ${updatedTurn.id}`);
+        }
+      } else {
+        Logger.warn(`[SeasonTurnService] SchedulerService not available, cannot schedule submission timeout for turn ${updatedTurn.id}`);
+      }
+
       return { success: true, turn: updatedTurn };
     } catch (error) {
-      console.error(`Error in SeasonTurnService.claimTurn for turn ${turnId}, player ${playerId}:`, error);
+      Logger.error(`Error in SeasonTurnService.claimTurn for turn ${turnId}, player ${playerId}:`, error);
       let errorMessage = 'Unknown error occurred while claiming the turn.';
       if (error instanceof Error) {
         errorMessage = error.message;
@@ -285,7 +332,7 @@ export class SeasonTurnService implements TurnTimeoutService {
     playerId: string,
     content: string,
     contentType: 'text' | 'image'
-  ): Promise<{ success: boolean; turn?: Turn; error?: string }> {
+  ): Promise<{ success: boolean; turn?: Turn; error?: string; gameCompleted?: boolean; seasonCompleted?: boolean }> { // Updated return type
     try {
       // Validate content is not empty
       if (!content || content.trim() === '') {
@@ -335,7 +382,23 @@ export class SeasonTurnService implements TurnTimeoutService {
         include: { player: true, game: true }
       });
 
-      console.log(`Turn ${turnId} submitted by player ${playerId}, status updated to COMPLETED`);
+      Logger.info(`Turn ${turnId} submitted by player ${playerId}, status updated to COMPLETED`); // Changed to Logger
+
+      // Cancel submission timeout job
+      if (this.schedulerService) {
+        const submissionTimeoutJobId = `turn-submission-timeout-${turnId}`;
+        const jobCancelled = await this.schedulerService.cancelJob(submissionTimeoutJobId);
+        if (jobCancelled) {
+          Logger.info(`[SeasonTurnService] Cancelled submission timeout job ${submissionTimeoutJobId} for turn ${turnId}`);
+        } else {
+          Logger.warn(`[SeasonTurnService] No submission timeout job found to cancel for turn ${turnId}`);
+        }
+      } else {
+        Logger.warn(`[SeasonTurnService] SchedulerService not available, cannot cancel submission timeout for turn ${turnId}`);
+      }
+
+      let isGameCompleted = false;
+      let isSeasonCompleted = false;
 
       // Check if the game is now completed after this turn submission
       try {
@@ -369,7 +432,7 @@ export class SeasonTurnService implements TurnTimeoutService {
         };
 
         const completionResult = checkGameCompletionPure(gameCompletionInput);
-        const isGameCompleted = completionResult.isCompleted;
+        isGameCompleted = completionResult.isCompleted; // Assign to outer scope variable
         
         if (isGameCompleted) {
           // Update the game status to COMPLETED
@@ -382,7 +445,7 @@ export class SeasonTurnService implements TurnTimeoutService {
             }
           });
           
-          console.log(`Game ${existingTurn.gameId} marked as COMPLETED after turn ${turnId} submission`);
+          Logger.info(`Game ${existingTurn.gameId} marked as COMPLETED after turn ${turnId} submission`); // Changed to Logger
           
           // Post to completed games channel
           try {
@@ -408,14 +471,14 @@ export class SeasonTurnService implements TurnTimeoutService {
                   });
                   
                   await completedChannel.send(gameCompletionMessage);
-                  console.log(`Posted game completion announcement for game ${existingTurn.gameId} to completed channel ${completedChannelId}`);
+                  Logger.info(`Posted game completion announcement for game ${existingTurn.gameId} to completed channel ${completedChannelId}`); // Changed to Logger
                 }
               }
             } else {
-              console.log(`Game ${existingTurn.gameId} has no guild ID, skipping completion announcement`);
+              Logger.warn(`Game ${existingTurn.gameId} has no guild ID, skipping completion announcement`); // Changed to Logger
             }
           } catch (channelPostError) {
-            console.error(`Failed to post game completion to completed channel for game ${existingTurn.gameId}:`, channelPostError);
+            Logger.error(`Failed to post game completion to completed channel for game ${existingTurn.gameId}:`, channelPostError); // Changed to Logger
             // Don't fail the turn submission if channel posting fails
           }
           
@@ -437,7 +500,8 @@ export class SeasonTurnService implements TurnTimeoutService {
               };
 
               const seasonCompletionResult = checkSeasonCompletionPure(seasonCompletionInput);
-              if (seasonCompletionResult.isCompleted) {
+              isSeasonCompleted = seasonCompletionResult.isCompleted; // Assign to outer scope variable
+              if (isSeasonCompleted) {
                 // Update the season status to COMPLETED
                 await this.prisma.season.update({
                   where: { id: existingTurn.game.seasonId },
@@ -446,11 +510,11 @@ export class SeasonTurnService implements TurnTimeoutService {
                     updatedAt: new Date()
                   }
                 });
-                console.log(`Season ${existingTurn.game.seasonId} marked as COMPLETED after game ${existingTurn.gameId} completion`);
+                Logger.info(`Season ${existingTurn.game.seasonId} marked as COMPLETED after game ${existingTurn.gameId} completion`); // Changed to Logger
               }
             }
           } catch (seasonCompletionError) {
-            console.error(`Error checking season completion for season ${existingTurn.game.seasonId} after game ${existingTurn.gameId}:`, seasonCompletionError);
+            Logger.error(`Error checking season completion for season ${existingTurn.game.seasonId} after game ${existingTurn.gameId}:`, seasonCompletionError); // Changed to Logger
             // Don't fail the turn submission if season completion check fails
           }
         } else {
@@ -470,23 +534,23 @@ export class SeasonTurnService implements TurnTimeoutService {
             );
             
             if (offerResult.success) {
-              console.log(`Successfully triggered turn offering for game ${existingTurn.gameId} after turn ${turnId} completion`);
+              Logger.info(`Successfully triggered turn offering for game ${existingTurn.gameId} after turn ${turnId} completion`); // Changed to Logger
             } else {
-              console.warn(`Failed to trigger turn offering for game ${existingTurn.gameId} after turn ${turnId} completion: ${offerResult.error}`);
+              Logger.warn(`Failed to trigger turn offering for game ${existingTurn.gameId} after turn ${turnId} completion: ${offerResult.error}`); // Changed to Logger
             }
           } catch (turnOfferingError) {
-            console.error(`Error triggering turn offering for game ${existingTurn.gameId} after turn ${turnId} completion:`, turnOfferingError);
+            Logger.error(`Error triggering turn offering for game ${existingTurn.gameId} after turn ${turnId} completion:`, turnOfferingError); // Changed to Logger
             // Don't fail the turn submission if turn offering fails
           }
         }
       } catch (gameCompletionError) {
-        console.error(`Error checking game completion for game ${existingTurn.gameId} after turn ${turnId}:`, gameCompletionError);
+        Logger.error(`Error checking game completion for game ${existingTurn.gameId} after turn ${turnId}:`, gameCompletionError); // Changed to Logger
         // Don't fail the turn submission if game completion check fails
       }
 
-      return { success: true, turn: updatedTurn };
+      return { success: true, turn: updatedTurn, gameCompleted: isGameCompleted, seasonCompleted: isSeasonCompleted };
     } catch (error) {
-      console.error(`Error in SeasonTurnService.submitTurn for turn ${turnId}, player ${playerId}:`, error);
+      Logger.error(`Error in SeasonTurnService.submitTurn for turn ${turnId}, player ${playerId}:`, error); // Changed to Logger
       let errorMessage = 'Unknown error occurred while submitting the turn.';
       if (error instanceof Error) {
         errorMessage = error.message;

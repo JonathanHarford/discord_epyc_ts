@@ -1,6 +1,6 @@
-import { ModalSubmitInteraction } from 'discord.js';
+import { ModalSubmitInteraction, CacheType } from 'discord.js';
 
 export interface ModalHandler {
   customIdPrefix: string;
-  execute(interaction: ModalSubmitInteraction): Promise<void>;
+  execute(interaction: ModalSubmitInteraction<CacheType>): Promise<void>;
 }
