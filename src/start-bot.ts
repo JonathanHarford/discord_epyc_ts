@@ -19,6 +19,7 @@ import {
     TriggerHandler,
 } from './events/index.js';
 import { CustomClient } from './extensions/index.js';
+import { AdminGameConfigButtonHandler } from './handlers/adminGameConfigButtonHandler.js';
 import { AdminGameConfigModalHandler } from './handlers/adminGameConfigModalHandler.js';
 import { AdminSeasonConfigModalHandler } from './handlers/adminSeasonConfigModalHandler.js';
 import { AdminButtonHandler, ExampleButtonHandler, SeasonCreateModalHandler, SeasonDashboardButtonHandler, SeasonJoinButtonHandler, SeasonListPaginationButtonHandler, SeasonSelectMenuHandler, SeasonShowButtonHandler, TurnClaimButtonHandler } from './handlers/index.js';
@@ -174,6 +175,8 @@ async function start(): Promise<void> {
     bot.addButtonHandler(new SeasonListPaginationButtonHandler());
     // Register turn claim button handler
     bot.addButtonHandler(new TurnClaimButtonHandler());
+    // Register admin config button handlers
+    bot.addButtonHandler(new AdminGameConfigButtonHandler());
     // To test other handlers, you would add them here:
     // bot.addAutocompleteHandler(new ExampleAutocompleteHandler());
 }
