@@ -135,7 +135,7 @@ export class OnDemandGameService {
       });
 
       // Create the initial turn for the creator
-      const turnResult = await this.turnService.createInitialTurn(game, creator);
+      const turnResult = await this.turnService.createInitialTurn(game, creator, true);
       if (!turnResult.success) {
         // Rollback game creation
         await this.prisma.game.delete({ where: { id: game.id } });
@@ -228,7 +228,7 @@ export class OnDemandGameService {
       }
 
       // Assign the turn to the player
-      const turnResult = await this.turnService.assignTurn(availableTurn.id, player.id);
+      const turnResult = await this.turnService.assignTurn(availableTurn.id, player.id, true);
       if (!turnResult.success) {
         return { success: false, error: turnResult.error };
       }

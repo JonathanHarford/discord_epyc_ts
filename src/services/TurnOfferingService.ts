@@ -3,6 +3,7 @@ import { Player, PrismaClient, Turn } from '@prisma/client';
 import { ActionRowBuilder, ButtonBuilder, ButtonStyle, Client as DiscordClient } from 'discord.js';
 
 import { Logger } from './logger.js';
+import { NotificationGuidanceService } from './NotificationGuidanceService.js';
 import { SchedulerService } from './SchedulerService.js';
 import { SeasonTurnService } from './SeasonTurnService.js';
 import { selectNextPlayerPure } from '../game/pureGameLogic.js';
@@ -28,6 +29,7 @@ export class TurnOfferingService {
     private turnService: SeasonTurnService;
     private schedulerService: SchedulerService;
     private serverContextService: ServerContextService;
+    private notificationGuidanceService: NotificationGuidanceService;
 
     constructor(
         prisma: PrismaClient,
@@ -40,6 +42,7 @@ export class TurnOfferingService {
         this.turnService = turnService;
         this.schedulerService = schedulerService;
         this.serverContextService = new ServerContextService(prisma, discordClient);
+        this.notificationGuidanceService = new NotificationGuidanceService(prisma, discordClient);
     }
 
     /**
@@ -336,10 +339,7 @@ export class TurnOfferingService {
         gameId: string
     ): Promise<boolean> {
         try {
-            // Get server context information to direct user to the correct channel
-            const serverContext = await this.serverContextService.getGameServerContext(gameId);
-
-            // Get game and season information
+            // Get game and season information for seasonal context
             const gameWithSeason = await this.prisma.game.findUnique({
                 where: { id: gameId },
                 include: { season: true }
@@ -350,51 +350,26 @@ export class TurnOfferingService {
                 return false;
             }
 
-            // Create the ping message content
-            let pingMessage: string;
-            
-            if (serverContext.channelId && serverContext.guildId) {
-                // We have channel information - direct them to the specific channel
-                pingMessage = `🎨 **Your turn is ready!** 🎨
+            // Use the centralized notification guidance service to generate the base ping message
+            const guidanceResult = await this.notificationGuidanceService.generateTurnGuidance(
+                turn.id,
+                { actionType: 'ready', includeEmoji: true, includeExplanation: false }
+            );
 
-**Game:** ${gameId}
-**Season:** ${gameWithSeason.season?.id || 'Unknown'}
-**Turn:** #${turn.turnNumber} (${turn.type})
-
-👉 **Go to <#${serverContext.channelId}> in ${serverContext.serverName} and use \`/ready\` to claim your turn!**
-
-_This is a quick ping - all interactions happen in the game channel._`;
-            } else if (serverContext.guildId) {
-                // We have server but no specific channel - direct them to the server
-                pingMessage = `🎨 **Your turn is ready!** 🎨
-
-**Game:** ${gameId}
-**Season:** ${gameWithSeason.season?.id || 'Unknown'}
-**Turn:** #${turn.turnNumber} (${turn.type})
-
-👉 **Go to ${serverContext.serverName} and use \`/ready\` to claim your turn!**
-
-_This is a quick ping - all interactions happen in the game server._`;
-            } else {
-                // Fallback for DM-created games or when server info is unavailable
-                pingMessage = `🎨 **Your turn is ready!** 🎨
-
-**Game:** ${gameId}
-**Season:** ${gameWithSeason.season?.id || 'Unknown'}
-**Turn:** #${turn.turnNumber} (${turn.type})
-
-👉 **Use \`/ready\` in the game server to claim your turn!**
-
-_This is a quick ping - all interactions happen in the game server._`;
-            }
+            // Customize the message for seasonal games by adding season information
+            const seasonInfo = gameWithSeason.season?.id ? `**Season:** ${gameWithSeason.season.id}\n` : '';
+            const customizedMessage = guidanceResult.message.replace(
+                /(\*\*Turn:\*\* #\d+ \(\w+\))/,
+                `${seasonInfo}$1`
+            );
 
             // Send the ping DM
             const user = await this.discordClient.users.fetch(player.discordUserId);
             await user.send({
-                content: pingMessage
+                content: customizedMessage
             });
 
-            Logger.info(`TurnOfferingService: Successfully sent turn offer ping to player ${player.id} (${player.discordUserId})`);
+            Logger.info(`TurnOfferingService: Successfully sent turn offer ping to player ${player.id} (${player.discordUserId}) with ${guidanceResult.contextLevel} context`);
             return true;
 
         } catch (error) {
