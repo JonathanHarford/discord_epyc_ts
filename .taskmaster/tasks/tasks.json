@@ -82,13 +82,39 @@
     {
       "id": 3,
       "title": "Implement Configuration Loading",
-      "description": "Implement the logic to load configuration settings from `config/config.json` (specifically for the guild ID) and potentially a separate file like `.taskmasterconfig` for default season parameters as mentioned in the PRD. Ensure configuration is accessible throughout the application.",
-      "details": "",
-      "testStrategy": "Create sample config files. Run the application and verify that the configuration values are loaded correctly and are accessible in relevant parts of the code.",
-      "priority": "medium",
+      "description": "Update the application to load critical configuration settings (client ID, client token, guild ID, database URL) from environment variables instead of configuration files. Ensure these environment variables are loaded correctly, potentially using an `.env` file or similar mechanism, and are accessible throughout the application.",
+      "status": "in-progress",
       "dependencies": [],
-      "status": "done",
-      "subtasks": []
+      "priority": "medium",
+      "details": "The following configuration values should be loaded from environment variables:\n- `CLIENT_ID`\n- `CLIENT_TOKEN`\n- `GUILD_ID`\n- `DATABASE_URL`\n\nConsider using a library like `dotenv` to facilitate loading from an `.env` file during development, while ensuring it works correctly when variables are set directly in the environment (e.g., in production or via `.cursor/mcp.json`).",
+      "testStrategy": "Create an `.env` file or set environment variables directly with sample values for `CLIENT_ID`, `CLIENT_TOKEN`, `GUILD_ID`, and `DATABASE_URL`. Run the application and verify that these values are loaded correctly and used in the appropriate parts of the code (e.g., connecting to the database, initializing the Discord client).",
+      "subtasks": [
+        {
+          "id": "3.1",
+          "description": "Add necessary dependencies for loading environment variables (e.g., `dotenv`).",
+          "status": "todo"
+        },
+        {
+          "id": "3.2",
+          "description": "Implement logic to read `CLIENT_ID`, `CLIENT_TOKEN`, `GUILD_ID`, and `DATABASE_URL` from environment variables.",
+          "status": "todo"
+        },
+        {
+          "id": "3.3",
+          "description": "Update application initialization code to use environment variables for Discord client and database connection.",
+          "status": "todo"
+        },
+        {
+          "id": "3.4",
+          "description": "Remove or update code that previously loaded these specific values from `config.json` or other files.",
+          "status": "todo"
+        },
+        {
+          "id": "3.5",
+          "description": "Document the required environment variables and how to set them (e.g., using an `.env` file).",
+          "status": "todo"
+        }
+      ]
     },
     {
       "id": 4,

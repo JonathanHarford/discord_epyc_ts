@@ -1,6 +1,9 @@
 import { REST } from '@discordjs/rest';
 import { createRequire } from 'node:module';
 
+// Load environment variables from .env file
+import 'dotenv/config';
+
 import {
     ChatCommandMetadata,
     MessageCommandMetadata,
@@ -9,12 +12,12 @@ import {
 import { CommandRegistrationService, Logger } from './services/index.js';
 
 const require = createRequire(import.meta.url);
-let Config = require('../config/config.json');
 let Logs = require('../lang/logs.json');
 
 async function processCommands(): Promise<void> {
     try {
-        let rest = new REST({ version: '10' }).setToken(Config.client.token);
+        // Use environment variable for client token
+        let rest = new REST({ version: '10' }).setToken(process.env.CLIENT_TOKEN || ''); // Provide a default empty string or handle missing token appropriately
         let commandRegistrationService = new CommandRegistrationService(rest);
         let localCmds = [
             ...Object.values(ChatCommandMetadata).sort((a, b) => (a.name > b.name ? 1 : -1)),
