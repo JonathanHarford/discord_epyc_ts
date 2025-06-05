@@ -3,18 +3,20 @@
 # Status: in-progress
 # Dependencies: 2, 10, 14, 47
 # Priority: high
-# Description: Replace the current DM-based game interaction system with ephemeral messages and modals for improved user experience and reliability. Phase 1 (Simple Interactions), including converting ready commands, status checks, and error messages to use ephemeral responses and integrating status check buttons, is now fully complete. Significant progress has been made on Phase 2 (Complex Interactions), with modal-based turn submission, turn claim buttons, ephemeral turn offering notifications, and **DM turn submission redirection** already implemented. This task now focuses on completing Phase 2 by implementing the image submission flow and converting remaining DirectMessageHandler logic, before proceeding to Phase 3.
+# Description: Replace the current DM-based game interaction system with ephemeral messages and modals for improved user experience and reliability. Phase 1 (Simple Interactions) is fully complete. Phase 2 (Complex Interactions) is now fully complete with the successful implementation of all required components, including modal-based turn submission, turn claim buttons, ephemeral turn offering notifications, DM turn submission redirection, conversion of remaining DirectMessageHandler logic to redirection systems, and the image submission flow. This task now focuses on completing Phase 3.
 # Details:
-Update the MessageAdapter to prioritize ephemeral messages for game interactions. Refactor DirectMessageHandler logic to use the interaction handling framework (Task 47) for processing button clicks and modal submissions. Implement interaction handlers for turn notifications (ephemeral with buttons), ready command (ephemeral response), turn submissions (modal forms triggered by ephemeral prompts), and game communication (ephemeral error/status messages). Update TurnOfferingService to send ephemeral notifications. Ensure backward compatibility during the transition. Address benefits like eliminating 'Cannot send messages' errors, improving server context integration, enhancing UI/UX, and using a more reliable delivery mechanism.
+Update the MessageAdapter to prioritize ephemeral messages for game interactions. Refactor DirectMessageHandler logic to use the interaction handling framework (Task 47) for processing button clicks and modal submissions, or to act as a redirection system guiding users to the correct in-channel interactions. Implement interaction handlers for turn notifications (ephemeral with buttons), ready command (ephemeral response), turn submissions (modal forms triggered by ephemeral prompts, or slash commands for images), and game communication (ephemeral error/status messages). Update TurnOfferingService and OnDemandTurnService to send ephemeral notifications. Ensure backward compatibility during the transition. Address benefits like eliminating 'Cannot send messages' errors, improving server context integration, enhancing UI/UX, and using a more reliable delivery mechanism.
 
 **Current DM Usage Analysis**:
 - Turn offering notifications (TurnOfferingService.sendTurnOfferDM) - **Migrated to ephemeral ping**
 - Turn request notifications (OnDemandTurnService.sendTurnRequestDM)
-- Ready command processing (DirectMessageHandler.handleReadyCommand) - **Migrated to ephemeral/buttons**
-- Turn submission handling (DirectMessageHandler.handleTurnSubmission) - **Migrated to modal/buttons (DM redirection implemented)**
+- Ready command processing (DirectMessageHandler.handleReadyCommand) - **Converted to redirection system**
+- Turn submission handling (DirectMessageHandler.handleTurnSubmission) - **Converted to redirection system**
 - Season completion announcements (when no channel configured)
 - Error notifications and user feedback - **Migrated to ephemeral**
 - Game state updates and confirmations
+- Slash command DMs (DirectMessageHandler.handleSlashCommandDM) - **Converted to redirection system**
+- Other DMs (DirectMessageHandler.handleOtherDM) - **Converted to redirection system**
 
 **Specific Implementation Plan**:
 
@@ -24,13 +26,12 @@ Update the MessageAdapter to prioritize ephemeral messages for game interactions
 - Convert error messages → Ephemeral responses (Completed)
 - Update MessageAdapter.processInstruction to prefer ephemeral over DM (Completed in 71.1)
 
-**Phase 2: Complex Interactions** (In Progress - Parts Completed)
-- **Completed:** Modal-based turn submissions (writing/drawing), Turn claim buttons, Integration of submit/claim buttons in ready command, Convert TurnOfferingService.sendTurnOfferDM() to ephemeral notifications, **Update DirectMessageHandler for DM turn submission redirection**.
-- **Remaining:** Add ephemeral prompts for image submissions guiding to slash commands, Convert remaining DirectMessageHandler logic to interaction handlers.
+**Phase 2: Complex Interactions** (Completed)
+- **Completed:** Modal-based turn submissions (writing/drawing), Turn claim buttons, Integration of submit/claim buttons in ready command, Convert TurnOfferingService.sendTurnOfferDM() to ephemeral notifications, Update DirectMessageHandler for DM turn submission redirection, Convert remaining DirectMessageHandler logic to redirection systems, **Image submission flow with ephemeral prompts directing to slash commands with file attachments**.
 
 **Phase 3: Hybrid Notification System**
 - Keep minimal "ping" DMs like "Your turn is ready in #game-channel"
-- All actual interaction happens via ephemeral/modals
+- All actual interaction happens via ephemeral/modals/slash commands
 - Update TurnOfferingService to use ephemeral notifications (Part of Phase 2/3 transition) - **Completed**
 - Update OnDemandTurnService to use ephemeral notifications
 
@@ -56,22 +57,37 @@ Update the MessageAdapter to prioritize ephemeral messages for game interactions
 - **Comprehensive User Guidance**: Includes step-by-step instructions directing users to use `/ready` and the 'Submit Turn' button, explaining the benefits of the new system (privacy, UX).
 - **Technical Implementation**: Preserves player validation and pending turn checks. Maintains existing error handling wrapper. Updated logging reflects redirection.
 
+**Completed Work Details (Phase 2 - DirectMessageHandler Conversion)**:
+- **DM Ready Command Redirection**: Converted `DirectMessageHandler.handleReadyCommand()` from processing DM-based ready commands to redirecting users to the slash command and button-based system.
+- **Smart Context-Aware Guidance**: Implemented logic to provide different guidance based on player's current turn status (pending, offered, no turns), directing them to the appropriate interaction method (Submit Turn button, `/ready` slash command).
+- **Server Context Integration**: Utilized ServerContextService to provide specific channel directions when available in redirection messages.
+- **Consistent User Experience**: Ensured the redirection pattern is consistent with the turn submission redirection, providing clear explanations of the benefits of using in-channel interactions.
+- **Overall DM Handler State**: `DirectMessageHandler` now acts as a comprehensive redirection system for `handleReadyCommand()`, `handleTurnSubmission()`, `handleSlashCommandDM()`, and `handleOtherDM()`, guiding users away from DM-based interactions toward the new ephemeral/modal system with context-aware, helpful guidance.
+
+**Completed Work Details (Phase 2 - Image Submission)**:
+- **Enhanced TurnSubmitButtonHandler**: Modified drawing turn handling to show ephemeral prompts with submission options instead of immediately showing URL modal.
+- **New `/submit-turn` Slash Command**: Created complete slash command with file attachment support for image submissions.
+- **TurnSubmitUrlButtonHandler**: New button handler for users who prefer URL submission (fallback option).
+- **TurnSubmitHelpButtonHandler**: New button handler providing detailed guidance on using the file upload slash command.
+- **Ephemeral User Guidance**: Smart prompts that recommend file uploads while still offering URL option as fallback.
+- **Complete Integration**: All new handlers registered and integrated into the bot system.
+
 **Technical Implementation Details (Remaining Phases)**:
 - Leverage existing ephemeral message infrastructure (already extensive)
 - Utilize existing modal system for admin/season creation (good foundation)
-- Adapt existing button/interaction handlers (e.g., StatusButton, TurnStatusButtonHandler, TurnClaimButtonHandler, TurnSubmitButtonHandler, TurnSubmitModalHandler)
+- Adapt existing button/interaction handlers (e.g., StatusButton, TurnStatusButtonHandler, TurnClaimButtonHandler, TurnSubmitButtonHandler, TurnSubmitModalHandler, TurnSubmitUrlButtonHandler, TurnSubmitHelpButtonHandler)
 - Update MessageInstruction system for ephemeral preference (Completed in 71.1)
-- Handle image submission complexity with ephemeral prompts directing to slash commands with file attachments
 - Address modal character limits (encourages better UX) - Handled in existing modal builders.
-- Implement notification system to guide users to correct server/channel
+- Implement notification system to guide users to correct server/channel (Phase 3)
 - Use direct `interaction.reply()` and `interaction.followUp()` with `ephemeral: true` for simple ephemeral responses where appropriate (e.g., button interactions like the ready button, status checks, error messages).
 - Implementations include fallbacks for reliability.
 - The ephemeral ping system provides fallback reliability while moving toward the hybrid Phase 2/3 approach.
 - Server context integration ensures users get specific channel directions when possible.
 - Maintains backward compatibility with existing DM approach when ephemeral fails.
+- **Focus on Phase 3**: Update OnDemandTurnService to use ephemeral notifications and refine the hybrid notification strategy.
 
 # Test Strategy:
-Unit tests for individual interaction handlers and MessageAdapter logic. Integration tests to verify end-to-end flows for turn offering (ephemeral + buttons), ready command (ephemeral), and turn submissions (ephemeral prompt + modal). Test that error and status messages are sent ephemerally in the correct channel context and include the appropriate buttons. Manual testing by playing through games using the new flow, testing all interaction types and edge cases. Verify backward compatibility if applicable.
+Unit tests for individual interaction handlers and MessageAdapter logic. Integration tests to verify end-to-end flows for turn offering (ephemeral + buttons), ready command (ephemeral), and turn submissions (ephemeral prompt + modal/slash command). Test that error and status messages are sent ephemerally in the correct channel context and include the appropriate buttons. Manual testing by playing through games using the new flow, testing all interaction types and edge cases. Verify backward compatibility if applicable.
 
 **Specific Test Cases**:
 1. Test MessageAdapter's preference for ephemeral messages over DMs (Completed in 71.1)
@@ -80,23 +96,24 @@ Unit tests for individual interaction handlers and MessageAdapter logic. Integra
 4. Verify status check buttons are included in ephemeral responses for ready command scenarios (no turns, single turn, multiple turns). (Completed)
 5. Verify status check buttons are included in ephemeral responses for pending turn errors from `/game new` and `/game play`. (Completed)
 6. Test that clicking the status check button triggers the correct handler and provides the user's status ephemerally. (Completed)
-7. Test turn submission flow: Verify 'Submit Turn' button triggers the correct modal. Verify modal submission handler processes input correctly. (Modal part completed, image part pending)
-8. Validate hybrid notification system (minimal DM pings + ephemeral interactions)
+7. Test text turn submission flow: Verify 'Submit Turn' button triggers the correct modal. Verify modal submission handler processes input correctly. (Completed)
+8. Validate hybrid notification system (minimal DM pings + ephemeral interactions) (Phase 3)
 9. Test error handling and status updates via ephemeral messages (beyond the basic migration covered in 71.2)
-10. Verify image submission flow with ephemeral prompts → slash commands
-11. Test character limit handling in modals (Covered by completed modal builders)
-12. Verify notification system guides users to correct server/channel
+10. Verify image submission flow with ephemeral prompts → slash commands (Completed)
+11. Test character limit handling in modals (Covered by completed modal builders) (Completed)
+12. Verify notification system guides users to correct server/channel (Phase 3)
 13. Test UI components correctly trigger the Ready Button interaction instead of sending a DM command. (Completed)
 14. Verify Turn Claim buttons in ready command output trigger the correct handler. (Completed)
 15. Test conversion of TurnOfferingService.sendTurnOfferDM() to ephemeral notifications. (Completed)
 16. Test DirectMessageHandler's redirection/guidance for DM-based turn submissions. (Completed)
-17. Test conversion of remaining DirectMessageHandler logic to interaction handlers.
+17. Test conversion of remaining DirectMessageHandler logic to redirection systems (Ready command redirection, Slash command DM redirection, Other DM guidance). (Completed)
+18. Test OnDemandTurnService ephemeral notifications (Phase 3)
 
 **Files to Test**:
 - src/messaging/MessageAdapter.ts (Core logic tested in 71.1)
 - src/events/direct-message-handler.ts (and new interaction handlers)
 - src/services/TurnOfferingService.ts (Testing for ephemeral ping completed)
-- src/services/OnDemandTurnService.ts
+- src/services/OnDemandTurnService.ts (Phase 3)
 - src/utils/modalBuilders.ts (Completed)
 - src/buttons/ready-button.ts (Completed)
 - src/commands/chat/ready-command.ts (Completed integration)
@@ -106,7 +123,10 @@ Unit tests for individual interaction handlers and MessageAdapter logic. Integra
 - src/buttons/turn-claim-button.ts (Completed)
 - src/interactions/turn-submit-modal-handler.ts (Completed)
 - src/interactions/turn-claim-button-handler.ts (Completed)
-- UI components that previously sent ready commands via DM
+- src/commands/chat/submit-turn-command.ts (Completed)
+- src/buttons/turn-submit-url-button.ts (Completed)
+- src/buttons/turn-submit-help-button.ts (Completed)
+- UI components that previously sent ready commands via DM (Pending - Subtask 71.9)
 
 # Subtasks:
 ## 71.1. Update MessageAdapter for Ephemeral Preference [completed]
@@ -127,9 +147,9 @@ Unit tests for individual interaction handlers and MessageAdapter logic. Integra
 ### Details:
 
 
-## 71.5. Create Image Submission Flow [pending]
+## 71.5. Create Image Submission Flow [completed]
 ### Dependencies: None
-### Description: Implement ephemeral prompts that direct users to slash commands with file attachments for image submissions.
+### Description: Implement ephemeral prompts that direct users to slash commands with file attachments for image submissions. This includes enhancing TurnSubmitButtonHandler, creating the /submit-turn slash command, and adding helper buttons (URL fallback, help).
 ### Details:
 
 
@@ -163,15 +183,15 @@ Unit tests for individual interaction handlers and MessageAdapter logic. Integra
 ### Details:
 
 
-## 71.12. Convert Remaining DirectMessageHandler Logic [pending]
-### Dependencies: None
-### Description: Analyze remaining logic in `DirectMessageHandler` (e.g., season completion announcements, other game state updates) and convert relevant parts to use ephemeral messages or interaction handlers where appropriate, or confirm they should remain as DMs.
-### Details:
-
-
 ## 71.13. Implement TurnOfferingService Ephemeral Notifications [completed]
 ### Dependencies: None
 ### Description: Implemented `sendTurnOfferPing()` method in `TurnOfferingService.ts` to send minimal ping DMs directing users to game channels. Updated `offerNextTurn()` to support `preferEphemeral` parameter with fallback. Integrated ServerContextService for specific channel directions and added clear user guidance.
+### Details:
+
+
+## 71.12. Convert Remaining DirectMessageHandler Logic [completed]
+### Dependencies: None
+### Description: Analyzed remaining logic in `DirectMessageHandler` (e.g., ready command, slash command DMs, other DMs) and converted relevant parts to act as redirection systems guiding users to the appropriate in-channel interactions. Specifically, implemented DM ready command redirection with context-aware guidance based on turn status (pending, offered, no turns). Updated `handleSlashCommandDM()` and `handleOtherDM()` to provide general guidance to server interactions. The DirectMessageHandler now serves as a comprehensive redirection system.
 ### Details:
 
 

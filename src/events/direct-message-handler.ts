@@ -6,9 +6,7 @@ import { interpolate, strings } from '../lang/strings.js';
 import { Logger, SeasonTurnService, TurnOfferingService } from '../services/index.js';
 import { PlayerService } from '../services/PlayerService.js';
 import { SchedulerService } from '../services/SchedulerService.js';
-import { FormatUtils } from '../utils/format-utils.js';
 import { ErrorHandler } from '../utils/index.js';
-import { getSeasonTimeouts } from '../utils/seasonConfig.js';
 import { ServerContextService } from '../utils/server-context.js';
 
 /**
@@ -164,161 +162,106 @@ export class DirectMessageHandler implements EventHandler {
 
     /**
      * Handle a direct message that appears to be a /ready command.
+     * Now redirects users to the in-channel slash command and button-based system (Task 71 Phase 2).
      * @param msg The direct message to handle
      * @param interaction Optional interaction context for ephemeral responses (Task 71.2)
      */
     private async handleReadyCommand(msg: Message, interaction?: CommandInteraction | ButtonInteraction): Promise<void> {
         const wrappedHandler = ErrorHandler.wrapDMHandler(
             async () => {
-                Logger.info(`Processing /ready command from ${msg.author.tag} (${msg.author.id})`);
+                Logger.info(`Received DM /ready command from ${msg.author.tag} (${msg.author.id}) - redirecting to slash command system`);
                 
-                // 1. Find the player by Discord user ID
+                // 1. Find the player by Discord user ID to provide context
                 const player = await this.playerService.getPlayerByDiscordId(msg.author.id);
                 if (!player) {
                     await this.sendResponse(strings.messages.ready.playerNotFound, msg, interaction);
                     return;
                 }
 
-                // 2. Find turns currently OFFERED to this player
-                const offeredTurns = await this.turnService.getTurnsForPlayer(player.id, 'OFFERED');
+                // 2. Check if player has any offered or pending turns to provide specific guidance
+                const [offeredTurns, pendingTurns] = await Promise.all([
+                    this.turnService.getTurnsForPlayer(player.id, 'OFFERED'),
+                    this.turnService.getTurnsForPlayer(player.id, 'PENDING')
+                ]);
                 
-                if (offeredTurns.length === 0) {
-                    await this.sendResponse(strings.messages.ready.noOfferedTurns, msg, interaction);
-                    return;
-                }
-
-                // 3. Check if player already has a PENDING turn (can't claim multiple)
-                const pendingTurns = await this.turnService.getTurnsForPlayer(player.id, 'PENDING');
+                // 3. Create appropriate guidance message based on player's turn status
+                let readyGuidance: string;
+                
                 if (pendingTurns.length > 0) {
-                    // Send the standard message
-                    await this.sendResponse(strings.messages.ready.alreadyHasPendingTurn, msg, interaction);
-                    
-                    // Re-send the pending turn prompt
+                    // Player has a pending turn - guide them to submit it
                     const pendingTurn = pendingTurns[0];
-                    const timeouts = await getSeasonTimeouts(this.prisma, pendingTurn.id);
-                    const submissionTimeoutMinutes = pendingTurn.type === 'WRITING' 
-                        ? timeouts.writingTimeoutMinutes 
-                        : timeouts.drawingTimeoutMinutes;
+                    const serverContext = await this.serverContextService.getTurnServerContext(pendingTurn.id);
                     
-                    // Get the previous turn content for context
-                    const previousTurn = await this.prisma.turn.findFirst({
-                        where: {
-                            gameId: pendingTurn.gameId,
-                            turnNumber: pendingTurn.turnNumber - 1,
-                            status: 'COMPLETED'
-                        }
-                    });
-                    
-                    // Calculate submission timeout expiration time
-                    const submissionTimeoutDate = new Date(pendingTurn.updatedAt.getTime() + submissionTimeoutMinutes * 60 * 1000);
-                    
-                    // Send appropriate claim success message based on turn type
-                    if (pendingTurn.type === 'WRITING') {
-                        const message = interpolate(strings.messages.ready.claimSuccessWriting, {
-                            previousTurnImage: previousTurn?.imageUrl || '[Previous image not found]',
-                            submissionTimeoutFormatted: FormatUtils.formatRemainingTime(submissionTimeoutDate)
-                        });
-                        await this.sendResponse(message, msg, interaction);
+                    if (serverContext.channelId && serverContext.guildId) {
+                        readyGuidance = `🎨 **You already have a turn to complete!**
+
+👉 **Go to <#${serverContext.channelId}> in ${serverContext.serverName}** and click the **"Submit Turn"** button to complete your turn.
+
+**Your Turn:** #${pendingTurn.turnNumber} (${pendingTurn.type})
+
+_DM-based commands have moved to slash commands and buttons for better privacy and user experience._`;
+                    } else if (serverContext.guildId) {
+                        readyGuidance = `🎨 **You already have a turn to complete!**
+
+👉 **Go to ${serverContext.serverName}** and click the **"Submit Turn"** button to complete your turn.
+
+**Your Turn:** #${pendingTurn.turnNumber} (${pendingTurn.type})
+
+_DM-based commands have moved to slash commands and buttons for better privacy and user experience._`;
                     } else {
-                        const message = interpolate(strings.messages.ready.claimSuccessDrawing, {
-                            previousTurnWriting: previousTurn?.textContent || '[Previous text not found]',
-                            submissionTimeoutFormatted: FormatUtils.formatRemainingTime(submissionTimeoutDate)
-                        });
-                        await this.sendResponse(message, msg, interaction);
+                        readyGuidance = `🎨 **You already have a turn to complete!**
+
+👉 **Go to the game server** and click the **"Submit Turn"** button to complete your turn.
+
+**Your Turn:** #${pendingTurn.turnNumber} (${pendingTurn.type})
+
+_DM-based commands have moved to slash commands and buttons for better privacy and user experience._`;
                     }
+                } else if (offeredTurns.length > 0) {
+                    // Player has offered turns - guide them to claim via slash command
+                    const offeredTurn = offeredTurns[0];
+                    const serverContext = await this.serverContextService.getTurnServerContext(offeredTurn.id);
                     
-                    return;
-                }
+                    if (serverContext.channelId && serverContext.guildId) {
+                        readyGuidance = `🎨 **Ready commands have moved to a better system!**
 
-                // 4. If multiple turns are offered, claim the first one (oldest)
-                const turnToClaim = offeredTurns[0];
-                
-                // 5. Claim the turn using SeasonTurnService
-                const claimResult = await this.turnService.claimTurn(turnToClaim.id, player.id);
-                
-                if (!claimResult.success) {
-                    await this.sendResponse(strings.messages.ready.claimFailed, msg, interaction);
-                    return;
-                }
+👉 **Go to <#${serverContext.channelId}> in ${serverContext.serverName}** and use \`/ready\` to claim your turn.
 
-                // 6. Cancel the claim timeout timer for this turn
-                const claimTimeoutJobId = `turn-claim-timeout-${turnToClaim.id}`;
-                const timeoutCancelled = await this.schedulerService.cancelJob(claimTimeoutJobId);
-                if (timeoutCancelled) {
-                    Logger.info(`Cancelled claim timeout job ${claimTimeoutJobId} for turn ${turnToClaim.id}`);
-                } else {
-                    Logger.warn(`No claim timeout job found to cancel for turn ${turnToClaim.id}`);
-                }
+**Available Turn:** #${offeredTurn.turnNumber} (${offeredTurn.type})
 
-                // 7. Schedule submission timeout timer based on turn type
-                // Get season-specific timeout values
-                const timeouts = await getSeasonTimeouts(this.prisma, turnToClaim.id);
-                const submissionTimeoutMinutes = turnToClaim.type === 'WRITING' 
-                    ? timeouts.writingTimeoutMinutes 
-                    : timeouts.drawingTimeoutMinutes;
-                const submissionTimeoutDate = new Date(Date.now() + submissionTimeoutMinutes * 60 * 1000);
-                
-                const submissionTimeoutJobId = `turn-submission-timeout-${turnToClaim.id}`;
-                const submissionJobScheduled = await this.schedulerService.scheduleJob(
-                    submissionTimeoutJobId,
-                    submissionTimeoutDate,
-                    async (_jobData) => {
-                        Logger.info(`Submission timeout triggered for turn ${turnToClaim.id}`);
-                        
-                        // Import and create the SubmissionTimeoutHandler
-                        const { SubmissionTimeoutHandler } = await import('../handlers/SubmissionTimeoutHandler.js');
-                        const submissionTimeoutHandler = new SubmissionTimeoutHandler(
-                            this.prisma,
-                            this.discordClient,
-                            this.turnService,
-                            this.turnOfferingService
-                        );
+_DM-based commands have moved to slash commands and buttons for better privacy and user experience._`;
+                    } else if (serverContext.guildId) {
+                        readyGuidance = `🎨 **Ready commands have moved to a better system!**
 
-                        // Execute the submission timeout handling
-                        const result = await submissionTimeoutHandler.handleSubmissionTimeout(turnToClaim.id, player.id);
+👉 **Go to ${serverContext.serverName}** and use \`/ready\` to claim your turn.
 
-                        if (!result.success) {
-                            throw new Error(`Submission timeout handling failed: ${result.error}`);
-                        }
+**Available Turn:** #${offeredTurn.turnNumber} (${offeredTurn.type})
 
-                        Logger.info(`Submission timeout handling completed successfully for turn ${turnToClaim.id}`);
-                    },
-                    { turnId: turnToClaim.id, playerId: player.id },
-                    'turn-submission-timeout'
-                );
+_DM-based commands have moved to slash commands and buttons for better privacy and user experience._`;
+                    } else {
+                        readyGuidance = `🎨 **Ready commands have moved to a better system!**
 
-                if (submissionJobScheduled) {
-                    Logger.info(`Scheduled submission timeout for turn ${turnToClaim.id} at ${submissionTimeoutDate.toISOString()}`);
-                } else {
-                    Logger.warn(`Failed to schedule submission timeout for turn ${turnToClaim.id}`);
-                }
+👉 **Go to the game server** and use \`/ready\` to claim your turn.
 
-                // 8. Send confirmation message to the player
-                // Get the previous turn content for context
-                const previousTurn = await this.prisma.turn.findFirst({
-                    where: {
-                        gameId: turnToClaim.gameId,
-                        turnNumber: turnToClaim.turnNumber - 1,
-                        status: 'COMPLETED'
+**Available Turn:** #${offeredTurn.turnNumber} (${offeredTurn.type})
+
+_DM-based commands have moved to slash commands and buttons for better privacy and user experience._`;
                     }
-                });
-                
-                // Send appropriate claim success message based on turn type
-                if (turnToClaim.type === 'WRITING') {
-                    const message = interpolate(strings.messages.ready.claimSuccessWriting, {
-                        previousTurnImage: previousTurn?.imageUrl || '[Previous image not found]',
-                        submissionTimeoutFormatted: FormatUtils.formatRemainingTime(submissionTimeoutDate)
-                    });
-                    await this.sendResponse(message, msg, interaction);
                 } else {
-                    const message = interpolate(strings.messages.ready.claimSuccessDrawing, {
-                        previousTurnWriting: previousTurn?.textContent || '[Previous text not found]',
-                        submissionTimeoutFormatted: FormatUtils.formatRemainingTime(submissionTimeoutDate)
-                    });
-                    await this.sendResponse(message, msg, interaction);
-                }
+                    // No turns available - general guidance
+                    readyGuidance = `🎨 **Ready commands have moved to a better system!**
 
-                Logger.info(`Successfully processed /ready command for player ${player.id} (${msg.author.tag}), claimed turn ${turnToClaim.id}`);
+👉 **Use \`/ready\` in a server channel** where the bot is available to check for and claim available turns.
+
+**Current Status:** No turns waiting for you right now.
+
+_DM-based commands have moved to slash commands and buttons for better privacy and user experience._`;
+                }
+                
+                // 4. Send the guidance message
+                await this.sendResponse(readyGuidance, msg, interaction);
+
+                Logger.info(`Redirected DM /ready command from player ${player.id} (${msg.author.tag}) to slash command system`);
             },
             msg,
             { dmContextType: DMContextType.READY_COMMAND }

@@ -1,4 +1,4 @@
-import { ActionRowBuilder, ButtonInteraction, CacheType, ModalBuilder, TextInputBuilder, TextInputStyle } from 'discord.js';
+import { ActionRowBuilder, ButtonBuilder, ButtonInteraction, ButtonStyle, CacheType, ModalBuilder, TextInputBuilder, TextInputStyle } from 'discord.js';
 
 import { ButtonHandler } from './buttonHandler.js';
 import { strings } from '../lang/strings.js';
@@ -71,13 +71,12 @@ export class TurnSubmitButtonHandler implements ButtonHandler {
                 return;
             }
 
-            // Create modal based on turn type
-            const modal = new ModalBuilder()
-                .setCustomId(`turn_submit_modal_${turnId}`)
-                .setTitle(`Submit ${turn.type === 'WRITING' ? 'Writing' : 'Drawing'} Turn`);
-
             if (turn.type === 'WRITING') {
-                // Text input for writing turns
+                // For writing turns, show the modal directly
+                const modal = new ModalBuilder()
+                    .setCustomId(`turn_submit_modal_${turnId}`)
+                    .setTitle('Submit Writing Turn');
+
                 const textInput = new TextInputBuilder()
                     .setCustomId('turn_content')
                     .setLabel('Your writing content')
@@ -88,22 +87,40 @@ export class TurnSubmitButtonHandler implements ButtonHandler {
 
                 const actionRow = new ActionRowBuilder<TextInputBuilder>().addComponents(textInput);
                 modal.addComponents(actionRow);
+
+                await interaction.showModal(modal);
             } else {
-                // URL input for drawing turns
-                const urlInput = new TextInputBuilder()
-                    .setCustomId('turn_content')
-                    .setLabel('Image URL')
-                    .setStyle(TextInputStyle.Short)
-                    .setPlaceholder('https://example.com/your-image.png')
-                    .setRequired(true)
-                    .setMaxLength(500);
+                // For drawing turns, show ephemeral prompt with submission options (Task 71.5)
+                const submissionOptionsMessage = `🎨 **Choose how to submit your drawing:**
 
-                const actionRow = new ActionRowBuilder<TextInputBuilder>().addComponents(urlInput);
-                modal.addComponents(actionRow);
+**Option 1: Upload Image File** ⭐ *Recommended*
+Use \`/submit-turn\` with an image attachment for the best experience.
+
+**Option 2: Provide Image URL**
+Click "Enter URL" below to provide a link to your image.
+
+💡 **Tip:** File uploads are more reliable and don't require hosting your image elsewhere!`;
+
+                const actionRow = new ActionRowBuilder<ButtonBuilder>()
+                    .addComponents(
+                        new ButtonBuilder()
+                            .setCustomId(`turn_submit_url_${turnId}`)
+                            .setLabel('Enter URL')
+                            .setStyle(ButtonStyle.Secondary)
+                            .setEmoji('🔗'),
+                        new ButtonBuilder()
+                            .setCustomId(`turn_submit_help_${turnId}`)
+                            .setLabel('How to Upload?')
+                            .setStyle(ButtonStyle.Secondary)
+                            .setEmoji('❓')
+                    );
+
+                await interaction.reply({
+                    content: submissionOptionsMessage,
+                    components: [actionRow],
+                    ephemeral: true
+                });
             }
-
-            // Show the modal
-            await interaction.showModal(modal);
 
             Logger.info(`TurnSubmitButtonHandler: Showed submission modal for turn ${turnId} (${turn.type}) to player ${player.id}`);
 

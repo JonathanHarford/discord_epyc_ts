@@ -5,3 +5,4 @@ export { AdminCommand } from './admin-command.js';
 export { SeasonCommand } from './season-command.js';
 export { GameCommand } from './game-command.js';
 export { ReadyCommand } from './ready-command.js';
+export { SubmitTurnCommand } from './submit-turn-command.js';

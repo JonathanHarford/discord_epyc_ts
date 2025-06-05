@@ -5,7 +5,7 @@ import { createRequire } from 'node:module';
 import { Button } from './buttons/index.js';
 import { ReadyButton } from './buttons/ready-button.js';
 import { StatusButton } from './buttons/status-button.js';
-import { AdminCommand, DevCommand, GameCommand, HelpCommand, InfoCommand, ReadyCommand } from './commands/chat/index.js';
+import { AdminCommand, DevCommand, GameCommand, HelpCommand, InfoCommand, ReadyCommand, SubmitTurnCommand } from './commands/chat/index.js';
 import { SeasonCommand } from './commands/chat/season-command.js';
 import { Command } from './commands/index.js';
 import { ViewDateSent } from './commands/message/index.js';
@@ -25,7 +25,7 @@ import { AdminGameConfigButtonHandler } from './handlers/adminGameConfigButtonHa
 import { AdminGameConfigModalHandler } from './handlers/adminGameConfigModalHandler.js';
 import { AdminSeasonConfigButtonHandler } from './handlers/adminSeasonConfigButtonHandler.js';
 import { AdminSeasonConfigModalHandler } from './handlers/adminSeasonConfigModalHandler.js';
-import { AdminButtonHandler, ExampleButtonHandler, SeasonCreateModalHandler, SeasonDashboardButtonHandler, SeasonJoinButtonHandler, SeasonListPaginationButtonHandler, SeasonSelectMenuHandler, SeasonShowButtonHandler, TurnClaimButtonHandler, TurnDismissButtonHandler, TurnStatusButtonHandler, TurnSubmitButtonHandler } from './handlers/index.js';
+import { AdminButtonHandler, ExampleButtonHandler, SeasonCreateModalHandler, SeasonDashboardButtonHandler, SeasonJoinButtonHandler, SeasonListPaginationButtonHandler, SeasonSelectMenuHandler, SeasonShowButtonHandler, TurnClaimButtonHandler, TurnDismissButtonHandler, TurnStatusButtonHandler, TurnSubmitButtonHandler, TurnSubmitHelpButtonHandler, TurnSubmitUrlButtonHandler } from './handlers/index.js';
 import { Job, StaleGameCleanupJob } from './jobs/index.js';
 import prisma from './lib/prisma.js';
 import { Bot } from './models/bot.js';
@@ -99,6 +99,7 @@ async function start(): Promise<void> {
         new AdminCommand(),
         new GameCommand(prisma, onDemandGameService, onDemandTurnService, playerTurnService),
         new ReadyCommand(),
+        new SubmitTurnCommand(),
 
         // Message Context Commands
         new ViewDateSent(),
@@ -187,6 +188,9 @@ async function start(): Promise<void> {
     bot.addButtonHandler(new TurnDismissButtonHandler());
     bot.addButtonHandler(new TurnSubmitButtonHandler());
     bot.addButtonHandler(new TurnStatusButtonHandler());
+    // Register new image submission flow button handlers (Task 71.5)
+    bot.addButtonHandler(new TurnSubmitUrlButtonHandler());
+    bot.addButtonHandler(new TurnSubmitHelpButtonHandler());
     // Register admin config button handlers
     bot.addButtonHandler(new AdminGameConfigButtonHandler());
     bot.addButtonHandler(new AdminSeasonConfigButtonHandler());

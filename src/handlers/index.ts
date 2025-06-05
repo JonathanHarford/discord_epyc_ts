@@ -16,4 +16,6 @@ export * from './seasonDashboardButtonHandler.js';
 export * from './TurnClaimButtonHandler.js';
 export * from './TurnDismissButtonHandler.js';
 export * from './TurnSubmitButtonHandler.js';
+export * from './TurnSubmitHelpButtonHandler.js';
+export * from './TurnSubmitUrlButtonHandler.js';
 export * from './TurnStatusButtonHandler.js';
