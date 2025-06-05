@@ -1,5 +1,5 @@
 import { PrismaClient } from '@prisma/client';
-import { ButtonInteraction, Client as DiscordClient, CommandInteraction, Message } from 'discord.js';
+import { ButtonInteraction, CommandInteraction, Client as DiscordClient, Message } from 'discord.js';
 
 import { EventHandler } from './index.js';
 import { interpolate, strings } from '../lang/strings.js';  
@@ -347,13 +347,14 @@ export class DirectMessageHandler implements EventHandler {
 
     /**
      * Handle a direct message that appears to be a turn submission.
+     * Now redirects users to the in-channel modal-based system (Task 71 Phase 2).
      * @param msg The direct message to handle
      * @param interaction Optional interaction context for ephemeral responses (Task 71.2)
      */
     private async handleTurnSubmission(msg: Message, interaction?: CommandInteraction | ButtonInteraction): Promise<void> {
         const wrappedHandler = ErrorHandler.wrapDMHandler(
             async () => {
-                Logger.info(`Processing turn submission from ${msg.author.tag} (${msg.author.id})`);
+                Logger.info(`Received DM turn submission from ${msg.author.tag} (${msg.author.id}) - redirecting to modal system`);
                 
                 // 1. Find the player by Discord user ID
                 const player = await this.playerService.getPlayerByDiscordId(msg.author.id);
@@ -373,125 +374,112 @@ export class DirectMessageHandler implements EventHandler {
                 // 3. Get the first pending turn (should only be one)
                 const turnToSubmit = pendingTurns[0];
                 
-                // 4. Determine content type and extract content
-                let content: string;
-                let contentType: 'text' | 'image';
+                // 4. Get server context to direct user to the correct channel
+                const serverContext = await this.serverContextService.getTurnServerContext(turnToSubmit.id);
+                
+                // 5. Determine submission type and create appropriate guidance message
+                let submissionGuidance: string;
                 
                 if (msg.attachments.size > 0) {
-                    // Handle image submission
-                    const attachment = msg.attachments.first();
-                    if (!attachment) {
-                        await this.sendResponse(strings.messages.submission.noAttachmentFound, msg, interaction);
-                        return;
-                    }
-                    
-                    // Validate that it's an image
-                    if (!attachment.contentType?.startsWith('image/')) {
-                        await this.sendResponse(interpolate(strings.messages.submission.invalidFileType, { fileType: attachment.contentType || 'unknown' }), msg, interaction);
-                        return;
-                    }
-                    
-                    content = attachment.url;
-                    contentType = 'image';
-                } else if (msg.content.trim().length > 0) {
-                    // Handle text submission
-                    content = msg.content.trim();
-                    contentType = 'text';
-                } else {
-                    // No valid content found
-                    await this.sendResponse(strings.messages.submission.noContentFound, msg, interaction);
-                    return;
-                }
+                    // Image submission attempt - guide to slash command with file attachment
+                    if (serverContext.channelId && serverContext.guildId) {
+                        submissionGuidance = `🖼️ **Image submissions have moved to a better system!**
 
-                // 5. Validate content type matches turn type
-                if ((turnToSubmit.type === 'WRITING' && contentType !== 'text') ||
-                    (turnToSubmit.type === 'DRAWING' && contentType !== 'image')) {
-                    await this.sendResponse(interpolate(strings.messages.submission.wrongContentType, { 
-                        expectedType: turnToSubmit.type === 'WRITING' ? 'text' : 'image',
-                        receivedType: contentType,
-                        turnType: turnToSubmit.type
-                    }), msg, interaction);
-                    return;
-                }
+👉 **Go to <#${serverContext.channelId}> in ${serverContext.serverName}** and:
+1. Use \`/ready\` to claim your turn (if not already claimed)
+2. Click the **"Submit Turn"** button
+3. Use the modal form for your submission
 
-                // 6. Submit the turn using SeasonTurnService
-                const submitResult = await this.turnService.submitTurn(
-                    turnToSubmit.id,
-                    player.id,
-                    content,
-                    contentType
-                );
-                
-                if (!submitResult.success) {
-                    await this.sendResponse(interpolate(strings.messages.submission.submitFailed, { 
-                        error: submitResult.error,
-                        turnId: turnToSubmit.id
-                    }), msg, interaction);
-                    return;
-                }
+For **image submissions**, you can also use slash commands with file attachments in the channel for a smoother experience.
 
-                // 7. Cancel the submission timeout timer for this turn
-                const submissionTimeoutJobId = `turn-submission-timeout-${turnToSubmit.id}`;
-                const timeoutCancelled = await this.schedulerService.cancelJob(submissionTimeoutJobId);
-                if (timeoutCancelled) {
-                    Logger.info(`Cancelled submission timeout job ${submissionTimeoutJobId} for turn ${turnToSubmit.id}`);
-                } else {
-                    Logger.warn(`No submission timeout job found to cancel for turn ${turnToSubmit.id}`);
-                }
+_DM-based submissions are being phased out for better privacy and user experience._`;
+                    } else if (serverContext.guildId) {
+                        submissionGuidance = `🖼️ **Image submissions have moved to a better system!**
 
-                // 8. Trigger the turn offering mechanism to find and offer the next turn
-                try {
-                    const offeringResult = await this.turnOfferingService.offerNextTurn(
-                        turnToSubmit.gameId,
-                        'turn_completed'
-                    );
-                    
-                    if (offeringResult.success) {
-                        Logger.info(`Successfully offered next turn ${offeringResult.turn?.id} to player ${offeringResult.player?.id} after turn ${turnToSubmit.id} completion`);
+👉 **Go to ${serverContext.serverName}** and:
+1. Use \`/ready\` to claim your turn (if not already claimed)
+2. Click the **"Submit Turn"** button
+3. Use the modal form for your submission
+
+For **image submissions**, you can also use slash commands with file attachments in the channel for a smoother experience.
+
+_DM-based submissions are being phased out for better privacy and user experience._`;
                     } else {
-                        Logger.warn(`Failed to offer next turn after turn ${turnToSubmit.id} completion: ${offeringResult.error}`);
-                        // Don't fail the entire submission process if turn offering fails
-                    }
-                } catch (offeringError) {
-                    Logger.error(`Error in turn offering after turn ${turnToSubmit.id} completion:`, offeringError);
-                    // Don't fail the entire submission process if turn offering fails
-                }
+                        submissionGuidance = `🖼️ **Image submissions have moved to a better system!**
 
-                // 9. Send confirmation message to the player
-                // Get the game with season information
-                const gameWithSeason = await this.prisma.game.findUnique({
-                    where: { id: turnToSubmit.gameId },
-                    include: { season: true }
-                });
-                
-                const seasonId = gameWithSeason?.season?.id || 'Unknown';
-                
-                // Get the completed games channel ID for the link
-                let finishedGamesLink = 'the completed games channel';
-                try {
-                    const { ChannelConfigService } = await import('../services/ChannelConfigService.js');
-                    const channelConfigService = new ChannelConfigService(this.prisma);
-                    
-                    // Get the guild ID - for season games use season.guildId, for on-demand games use game.guildId
-                    const guildId = gameWithSeason?.season?.guildId || gameWithSeason?.guildId;
-                    
-                    if (guildId) {
-                        const completedChannelId = await channelConfigService.getCompletedChannelId(guildId);
-                        if (completedChannelId) {
-                            finishedGamesLink = `<#${completedChannelId}>`;
-                        }
+👉 **Go to the game server** and:
+1. Use \`/ready\` to claim your turn (if not already claimed)
+2. Click the **"Submit Turn"** button
+3. Use the modal form for your submission
+
+For **image submissions**, you can also use slash commands with file attachments in the channel for a smoother experience.
+
+_DM-based submissions are being phased out for better privacy and user experience._`;
                     }
-                } catch (channelError) {
-                    Logger.warn(`Failed to get completed channel ID for game ${turnToSubmit.gameId}:`, channelError);
-                    // Use generic fallback if channel lookup fails
+                } else if (msg.content.trim().length > 0) {
+                    // Text submission attempt - guide to modal system
+                    if (serverContext.channelId && serverContext.guildId) {
+                        submissionGuidance = `✍️ **Text submissions have moved to a better system!**
+
+👉 **Go to <#${serverContext.channelId}> in ${serverContext.serverName}** and:
+1. Use \`/ready\` to claim your turn (if not already claimed)
+2. Click the **"Submit Turn"** button
+3. Use the modal form to enter your text
+
+**Your Turn:** #${turnToSubmit.turnNumber} (${turnToSubmit.type})
+
+_DM-based submissions are being phased out for better privacy and user experience._`;
+                    } else if (serverContext.guildId) {
+                        submissionGuidance = `✍️ **Text submissions have moved to a better system!**
+
+👉 **Go to ${serverContext.serverName}** and:
+1. Use \`/ready\` to claim your turn (if not already claimed)
+2. Click the **"Submit Turn"** button
+3. Use the modal form to enter your text
+
+**Your Turn:** #${turnToSubmit.turnNumber} (${turnToSubmit.type})
+
+_DM-based submissions are being phased out for better privacy and user experience._`;
+                    } else {
+                        submissionGuidance = `✍️ **Text submissions have moved to a better system!**
+
+👉 **Go to the game server** and:
+1. Use \`/ready\` to claim your turn (if not already claimed)
+2. Click the **"Submit Turn"** button
+3. Use the modal form to enter your text
+
+**Your Turn:** #${turnToSubmit.turnNumber} (${turnToSubmit.type})
+
+_DM-based submissions are being phased out for better privacy and user experience._`;
+                    }
+                } else {
+                    // No valid content found - general guidance
+                    if (serverContext.channelId && serverContext.guildId) {
+                        submissionGuidance = `🎨 **Turn submissions have moved to a better system!**
+
+👉 **Go to <#${serverContext.channelId}> in ${serverContext.serverName}** and:
+1. Use \`/ready\` to claim your turn (if not already claimed)
+2. Click the **"Submit Turn"** button
+3. Use the modal form for your submission
+
+**Your Turn:** #${turnToSubmit.turnNumber} (${turnToSubmit.type})
+
+_DM-based submissions are being phased out for better privacy and user experience._`;
+                    } else {
+                        submissionGuidance = `🎨 **Turn submissions have moved to a better system!**
+
+👉 **Go to the game server** and use \`/ready\` to claim your turn, then click the **"Submit Turn"** button.
+
+**Your Turn:** #${turnToSubmit.turnNumber} (${turnToSubmit.type})
+
+_DM-based submissions are being phased out for better privacy and user experience._`;
+                    }
                 }
                 
-                await this.sendResponse(interpolate(strings.messages.submission.submitSuccess, {
-                    seasonId: seasonId,
-                    finishedGamesLink: finishedGamesLink
-                }), msg, interaction);
+                // 6. Send the guidance message
+                await this.sendResponse(submissionGuidance, msg, interaction);
 
-                Logger.info(`Successfully processed turn submission for player ${player.id} (${msg.author.tag}), completed turn ${turnToSubmit.id}`);
+                Logger.info(`Redirected DM turn submission from player ${player.id} (${msg.author.tag}) to modal system for turn ${turnToSubmit.id}`);
             },
             msg,
             { dmContextType: DMContextType.TURN_SUBMISSION }
