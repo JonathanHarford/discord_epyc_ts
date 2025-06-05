@@ -3025,7 +3025,7 @@
       "id": 71,
       "title": "Migrate from Direct Messages to Ephemeral Messages and Modals",
       "description": "Replace the current DM-based game interaction system with ephemeral messages and modals for improved user experience and reliability. Phase 1 (Simple Interactions) is fully complete. Phase 2 (Complex Interactions) is now fully complete with the successful implementation of all required components, including modal-based turn submission, turn claim buttons, ephemeral turn offering notifications, DM turn submission redirection, conversion of remaining DirectMessageHandler logic to redirection systems, and the image submission flow. This task now focuses on completing Phase 3.",
-      "status": "in-progress",
+      "status": "done",
       "dependencies": [
         2,
         10,
@@ -3085,7 +3085,7 @@
           "id": 9,
           "title": "Update UI components for Ready Button",
           "description": "Modify existing UI components that previously triggered the ready command via DM to now trigger the new Ready Button interaction.",
-          "status": "in-progress"
+          "status": "done"
         },
         {
           "id": 11,

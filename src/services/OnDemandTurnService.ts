@@ -686,14 +686,13 @@ export class OnDemandTurnService implements TurnTimeoutService {
       let message = '';
       if (turn.type === 'WRITING') {
         if (previousTurn?.imageUrl) {
-          message = `It's your turn! Write a sentence or phrase describing this image:\n\n[Type your response directly in this DM]\n[To flag this turn as inappropriate, type "flag"]\n\n⏰ You have **${timeoutMinutes} minutes** to submit before your turn is automatically skipped.`;
-          // TODO: Send the image from previousTurn.imageUrl
+          message = `It\'s your turn! Write a sentence or phrase describing this image:\n\nGo to the game channel and use the \`/ready\` command to see your turn details and submission options.\n[To flag this turn as inappropriate, type \"flag\"]\n\n⏰ You have **${timeoutMinutes} minutes** to submit before your turn is automatically skipped.`;
         } else {
-          message = `You've started a new game! Please write a starting sentence or phrase.\n\n⏰ You have **${timeoutMinutes} minutes** to submit before your turn is automatically skipped.`;
+          message = `You've started a new game! Please write a starting sentence or phrase.\n\nGo to the game channel and use the \`/ready\` command to see your turn details and submission options.\n⏰ You have **${timeoutMinutes} minutes** to submit before your turn is automatically skipped.`;
         }
       } else if (turn.type === 'DRAWING') {
         if (previousTurn?.textContent) {
-          message = `It's your turn! Draw an illustration based on this sentence:\n"${previousTurn.textContent}"\n\n[Attach your drawing as an image file in this DM]\n[To flag this turn as inappropriate, type "flag"]\n\n⏰ You have **${timeoutMinutes} minutes** to submit before your turn is automatically skipped.`;
+          message = `It\'s your turn! Draw an illustration based on this sentence:\n\"${previousTurn.textContent}\"\n\nGo to the game channel and use the \`/ready\` command to see your turn details and submission options.\n[To flag this turn as inappropriate, type \"flag\"]\n\n⏰ You have **${timeoutMinutes} minutes** to submit before your turn is automatically skipped.`;
         }
       }
 

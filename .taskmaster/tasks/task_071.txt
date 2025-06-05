@@ -1,6 +1,6 @@
 # Task ID: 71
 # Title: Migrate from Direct Messages to Ephemeral Messages and Modals
-# Status: in-progress
+# Status: done
 # Dependencies: 2, 10, 14, 47
 # Priority: high
 # Description: Replace the current DM-based game interaction system with ephemeral messages and modals for improved user experience and reliability. Phase 1 (Simple Interactions) is fully complete. Phase 2 (Complex Interactions) is now fully complete with the successful implementation of all required components, including modal-based turn submission, turn claim buttons, ephemeral turn offering notifications, DM turn submission redirection, conversion of remaining DirectMessageHandler logic to redirection systems, and the image submission flow. This task now focuses on completing Phase 3.
@@ -315,7 +315,7 @@ The notification guidance system appears to be largely complete and well-integra
 The comprehensive testing validates that the migration from Direct Messages to Ephemeral Messages and Modals is working correctly with proper fallback mechanisms and user guidance.
 </info added on 2025-06-05T14:58:24.223Z>
 
-## 9. Update UI components for Ready Button [in-progress]
+## 9. Update UI components for Ready Button [done]
 ### Dependencies: None
 ### Description: Modify existing UI components that previously triggered the ready command via DM to now trigger the new Ready Button interaction.
 ### Details:
