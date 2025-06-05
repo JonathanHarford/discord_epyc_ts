@@ -1,6 +1,9 @@
-import { Options, Partials } from 'discord.js';
+import { GatewayIntentBits, Options, Partials } from 'discord.js';
 import schedule from 'node-schedule';
 import { createRequire } from 'node:module';
+
+// Load environment variables from .env file
+import 'dotenv/config';
 
 import { Button } from './buttons/index.js';
 import { ReadyButton } from './buttons/ready-button.js';
@@ -48,7 +51,6 @@ import { OnDemandTurnService } from './services/OnDemandTurnService.js';
 import { Trigger } from './triggers/index.js';
 
 const require = createRequire(import.meta.url);
-let Config = require('../config/config.json');
 let Logs = require('../lang/logs.json');
 
 async function start(): Promise<void> {
@@ -57,16 +59,20 @@ async function start(): Promise<void> {
     
     // Client
     let client = new CustomClient({
-        intents: Config.client.intents,
-        partials: (Config.client.partials as string[]).map(partial => Partials[partial]),
+        // Use environment variables for client configuration
+        intents: process.env.CLIENT_INTENTS?.split(',').map(intent => intent.trim() as keyof typeof GatewayIntentBits) || [], // Assuming intents are comma-separated in env and are valid GatewayIntentBits keys
+        partials: process.env.CLIENT_PARTIALS?.split(',').map(partial => partial.trim() as keyof typeof Partials).map(partial => Partials[partial]) || [], // Assuming partials are comma-separated and are valid Partials keys
         makeCache: Options.cacheWithLimits({
             // Keep default caching behavior
             ...Options.DefaultMakeCacheSettings,
-            // Override specific options from config
-            ...Config.client.caches,
+            // You might need to configure caching based on env vars if necessary
+            // ...Config.client.caches,
         }),
     });
     
+    // Database connection (Prisma uses DATABASE_URL env var by default)
+    // No explicit code change needed here as Prisma automatically uses DATABASE_URL
+
     // Service instances with proper dependency injection
     const schedulerService = new SchedulerService(prisma);
     const gameService = new GameService(prisma, client);
@@ -146,7 +152,8 @@ async function start(): Promise<void> {
 
     // Bot
     let bot = new Bot(
-        Config.client.token,
+        // Use environment variable for client token
+        process.env.CLIENT_TOKEN || '', // Provide a default empty string or handle missing token appropriately
         client,
         guildJoinHandler,
         guildLeaveHandler,
