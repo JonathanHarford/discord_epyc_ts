@@ -10,6 +10,7 @@ import {
 import { strings } from '../lang/strings.js';
 import { adminCommandData } from './chat/admin-command-data.js';
 import { gameCommandData } from './chat/game-command-data.js';
+import { readyCommandData } from './chat/ready-command-data.js';
 import { seasonCommandData } from './chat/season-command-data.js';
 
 export const ChatCommandMetadata: {
@@ -90,6 +91,7 @@ export const ChatCommandMetadata: {
     SEASON: seasonCommandData.toJSON(),
     ADMIN: adminCommandData.toJSON(),
     GAME: gameCommandData.toJSON(),
+    READY: readyCommandData.toJSON(),
 };
 
 export const MessageCommandMetadata: {

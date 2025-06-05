@@ -3,7 +3,7 @@ import schedule from 'node-schedule';
 import { createRequire } from 'node:module';
 
 import { Button } from './buttons/index.js';
-import { AdminCommand, DevCommand, GameCommand, HelpCommand, InfoCommand } from './commands/chat/index.js';
+import { AdminCommand, DevCommand, GameCommand, HelpCommand, InfoCommand, ReadyCommand } from './commands/chat/index.js';
 import { SeasonCommand } from './commands/chat/season-command.js';
 import { Command } from './commands/index.js';
 import { ViewDateSent } from './commands/message/index.js';
@@ -23,7 +23,7 @@ import { AdminGameConfigButtonHandler } from './handlers/adminGameConfigButtonHa
 import { AdminGameConfigModalHandler } from './handlers/adminGameConfigModalHandler.js';
 import { AdminSeasonConfigButtonHandler } from './handlers/adminSeasonConfigButtonHandler.js';
 import { AdminSeasonConfigModalHandler } from './handlers/adminSeasonConfigModalHandler.js';
-import { AdminButtonHandler, ExampleButtonHandler, SeasonCreateModalHandler, SeasonDashboardButtonHandler, SeasonJoinButtonHandler, SeasonListPaginationButtonHandler, SeasonSelectMenuHandler, SeasonShowButtonHandler, TurnClaimButtonHandler } from './handlers/index.js';
+import { AdminButtonHandler, ExampleButtonHandler, SeasonCreateModalHandler, SeasonDashboardButtonHandler, SeasonJoinButtonHandler, SeasonListPaginationButtonHandler, SeasonSelectMenuHandler, SeasonShowButtonHandler, TurnClaimButtonHandler, TurnDismissButtonHandler, TurnStatusButtonHandler, TurnSubmitButtonHandler } from './handlers/index.js';
 import { Job, StaleGameCleanupJob } from './jobs/index.js';
 import prisma from './lib/prisma.js';
 import { Bot } from './models/bot.js';
@@ -96,6 +96,7 @@ async function start(): Promise<void> {
         new SeasonCommand(prisma, seasonService, playerTurnService),
         new AdminCommand(),
         new GameCommand(prisma, onDemandGameService, onDemandTurnService, playerTurnService),
+        new ReadyCommand(),
 
         // Message Context Commands
         new ViewDateSent(),
@@ -176,6 +177,10 @@ async function start(): Promise<void> {
     bot.addButtonHandler(new SeasonListPaginationButtonHandler());
     // Register turn claim button handler
     bot.addButtonHandler(new TurnClaimButtonHandler());
+    // Register additional turn button handlers
+    bot.addButtonHandler(new TurnDismissButtonHandler());
+    bot.addButtonHandler(new TurnSubmitButtonHandler());
+    bot.addButtonHandler(new TurnStatusButtonHandler());
     // Register admin config button handlers
     bot.addButtonHandler(new AdminGameConfigButtonHandler());
     bot.addButtonHandler(new AdminSeasonConfigButtonHandler());

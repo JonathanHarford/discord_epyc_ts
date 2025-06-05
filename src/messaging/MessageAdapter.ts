@@ -21,6 +21,7 @@ export class MessageAdapter {
   
   /**
    * Process a MessageInstruction and send the appropriate Discord message
+   * Prefers ephemeral messages over DMs when interaction context is available (Task 71.1)
    * @param instruction The message instruction to process
    * @param interaction Optional Discord interaction for replies
    * @param langCode Language code for localization (deprecated, always uses 'en')
@@ -36,15 +37,56 @@ export class MessageAdapter {
     const messageContent = this.generateMessageContent(instruction, langCode);
     
     if (instruction.formatting?.dm && instruction.context?.userId) {
-      if (!discordClient) {
-        throw new Error('Discord client required for DM sending');
+      if (interaction && this.shouldPreferEphemeral(instruction, interaction)) {
+        const ephemeralInstruction = {
+          ...instruction,
+          formatting: {
+            ...instruction.formatting,
+            dm: false,
+            ephemeral: true
+          }
+        };
+        await this.sendInteractionResponse(interaction, messageContent, ephemeralInstruction);
+      } else {
+        if (!discordClient) {
+          throw new Error('Discord client required for DM sending');
+        }
+        await this.sendDirectMessage(instruction.context.userId, messageContent, instruction, discordClient);
       }
-      await this.sendDirectMessage(instruction.context.userId, messageContent, instruction, discordClient);
     } else if (interaction) {
       await this.sendInteractionResponse(interaction, messageContent, instruction);
     } else {
       throw new Error('No valid delivery method specified for message instruction');
     }
+  }
+
+  /**
+   * Determine if ephemeral messages should be preferred over DMs
+   * @param instruction The message instruction
+   * @param interaction The Discord interaction
+   * @returns True if ephemeral should be preferred
+   */
+  private static shouldPreferEphemeral(
+    instruction: MessageInstruction,
+    interaction: CommandInteraction
+  ): boolean {
+    if (interaction.guild) {
+      if (instruction.type === 'error' || instruction.type === 'info' || instruction.type === 'warning') {
+        return true;
+      }
+      
+      const gameRelatedCommands = ['ready', 'status', 'turn', 'game', 'season'];
+      if (instruction.context?.commandName && 
+          gameRelatedCommands.some(cmd => instruction.context!.commandName!.includes(cmd))) {
+        return true;
+      }
+      
+      if (instruction.type === 'success') {
+        return true;
+      }
+    }
+    
+    return false;
   }
 
   /**
