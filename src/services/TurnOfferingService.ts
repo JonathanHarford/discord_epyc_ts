@@ -3,7 +3,6 @@ import { Player, PrismaClient, Turn } from '@prisma/client';
 import { ActionRowBuilder, ButtonBuilder, ButtonStyle, Client as DiscordClient } from 'discord.js';
 
 import { Logger } from './logger.js';
-import { NotificationGuidanceService } from './NotificationGuidanceService.js';
 import { SchedulerService } from './SchedulerService.js';
 import { SeasonTurnService } from './SeasonTurnService.js';
 import { selectNextPlayerPure } from '../game/pureGameLogic.js';
@@ -29,7 +28,6 @@ export class TurnOfferingService {
     private turnService: SeasonTurnService;
     private schedulerService: SchedulerService;
     private serverContextService: ServerContextService;
-    private notificationGuidanceService: NotificationGuidanceService;
 
     constructor(
         prisma: PrismaClient,
@@ -42,7 +40,6 @@ export class TurnOfferingService {
         this.turnService = turnService;
         this.schedulerService = schedulerService;
         this.serverContextService = new ServerContextService(prisma, discordClient);
-        this.notificationGuidanceService = new NotificationGuidanceService(prisma, discordClient);
     }
 
     /**
@@ -51,16 +48,14 @@ export class TurnOfferingService {
      * 
      * @param gameId - The ID of the game to offer a turn for
      * @param triggerReason - The reason this offering was triggered (for logging)
-     * @param preferEphemeral - Whether to prefer ephemeral notifications over DMs (Phase 2 migration)
      * @returns Promise<TurnOfferingResult> - The result of the offering process
      */
     async offerNextTurn(
         gameId: string,
-        triggerReason: 'turn_completed' | 'turn_skipped' | 'season_activated' | 'claim_timeout' = 'turn_completed',
-        preferEphemeral: boolean = false
+        triggerReason: 'turn_completed' | 'turn_skipped' | 'season_activated' | 'claim_timeout' = 'turn_completed'
     ): Promise<TurnOfferingResult> {
         try {
-            Logger.info(`TurnOfferingService: Starting turn offering process for game ${gameId}, trigger: ${triggerReason}, preferEphemeral: ${preferEphemeral}`);
+            Logger.info(`TurnOfferingService: Starting turn offering process for game ${gameId}, trigger: ${triggerReason}`);
 
             // 1. Find the next available turn in the game
             const nextAvailableTurn = await this.findNextAvailableTurn(gameId);
@@ -143,38 +138,16 @@ export class TurnOfferingService {
                 };
             }
 
-            // 5. Send notification to the selected player
-            let notificationResult = false;
-            
-            if (preferEphemeral) {
-                // Try ephemeral notification first (Phase 2/3 approach)
-                notificationResult = await this.sendTurnOfferPing(
-                    nextPlayerResult.player,
-                    offerResult.turn,
-                    gameId
-                );
-                
-                if (!notificationResult) {
-                    Logger.warn(`TurnOfferingService: Failed to send ephemeral ping, falling back to DM for player ${nextPlayerResult.playerId}`);
-                    // Fallback to DM if ephemeral fails
-                    notificationResult = await this.sendTurnOfferDM(
-                        nextPlayerResult.player,
-                        offerResult.turn,
-                        gameId
-                    );
-                }
-            } else {
-                // Use traditional DM approach (Phase 1 compatibility)
-                notificationResult = await this.sendTurnOfferDM(
-                    nextPlayerResult.player,
-                    offerResult.turn,
-                    gameId
-                );
-            }
+            // 5. Send DM notification to the selected player
+            const dmResult = await this.sendTurnOfferDM(
+                nextPlayerResult.player,
+                offerResult.turn,
+                gameId
+            );
 
-            if (!notificationResult) {
-                Logger.warn(`TurnOfferingService: Failed to send notification to player ${nextPlayerResult.playerId}, but turn was offered successfully`);
-                // Don't fail the entire process if notification fails
+            if (!dmResult) {
+                Logger.warn(`TurnOfferingService: Failed to send DM to player ${nextPlayerResult.playerId}, but turn was offered successfully`);
+                // Don't fail the entire process if DM fails
             }
 
             // Note: Claim timeout scheduling is handled by SeasonTurnService.offerTurn()
@@ -319,61 +292,6 @@ export class TurnOfferingService {
 
         } catch (error) {
             Logger.error(`TurnOfferingService: Error sending turn offer DM to player ${player.id}:`, error);
-            return false;
-        }
-    }
-
-    /**
-     * Sends a minimal ping DM directing the user to the game channel for ephemeral interactions.
-     * This is part of the Phase 2/3 hybrid approach where DMs are minimal pings and actual
-     * interactions happen via ephemeral messages and modals in the game channel.
-     * 
-     * @param player - The player to send the ping to
-     * @param turn - The turn being offered
-     * @param gameId - The ID of the game
-     * @returns Promise<boolean> - True if ping was sent successfully
-     */
-    private async sendTurnOfferPing(
-        player: Player,
-        turn: Turn,
-        gameId: string
-    ): Promise<boolean> {
-        try {
-            // Get game and season information for seasonal context
-            const gameWithSeason = await this.prisma.game.findUnique({
-                where: { id: gameId },
-                include: { season: true }
-            });
-
-            if (!gameWithSeason) {
-                Logger.error(`TurnOfferingService: Game ${gameId} not found when sending ping`);
-                return false;
-            }
-
-            // Use the centralized notification guidance service to generate the base ping message
-            const guidanceResult = await this.notificationGuidanceService.generateTurnGuidance(
-                turn.id,
-                { actionType: 'ready', includeEmoji: true, includeExplanation: false }
-            );
-
-            // Customize the message for seasonal games by adding season information
-            const seasonInfo = gameWithSeason.season?.id ? `**Season:** ${gameWithSeason.season.id}\n` : '';
-            const customizedMessage = guidanceResult.message.replace(
-                /(\*\*Turn:\*\* #\d+ \(\w+\))/,
-                `${seasonInfo}$1`
-            );
-
-            // Send the ping DM
-            const user = await this.discordClient.users.fetch(player.discordUserId);
-            await user.send({
-                content: customizedMessage
-            });
-
-            Logger.info(`TurnOfferingService: Successfully sent turn offer ping to player ${player.id} (${player.discordUserId}) with ${guidanceResult.contextLevel} context`);
-            return true;
-
-        } catch (error) {
-            Logger.error(`TurnOfferingService: Error sending turn offer ping to player ${player.id}:`, error);
             return false;
         }
     }

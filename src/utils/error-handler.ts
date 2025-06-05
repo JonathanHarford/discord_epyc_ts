@@ -1,4 +1,4 @@
-import { ButtonInteraction, CommandInteraction, Locale, Message } from 'discord.js';
+import { CommandInteraction, Locale, Message } from 'discord.js';
 
 import { ErrorEventBus, ErrorEventType } from '../events/error-event-bus.js';
 import { MessageAdapter } from '../messaging/MessageAdapter.js';
@@ -87,67 +87,13 @@ export class ErrorHandler {
             interaction.channel?.id
         );
 
-        // Send user-friendly error message (prefer ephemeral over DM for task 71.2)
+        // Send user-friendly error message
         const instruction = this.createErrorInstruction(errorInfo, true);
         
         // Use safe processing to handle any messaging errors
         const success = await MessageAdapter.safeProcessInstruction(instruction, interaction, data.lang);
         if (!success) {
             Logger.error('Failed to send error message to user via MessageAdapter');
-        }
-    }
-
-    /**
-     * Handle errors in button interactions with ephemeral responses (Task 71.2)
-     * @param error The error that occurred
-     * @param interaction The Discord button interaction
-     * @param context Additional context information
-     */
-    public static async handleButtonError(
-        error: Error | ErrorInfo,
-        interaction: ButtonInteraction,
-        context?: Record<string, any>
-    ): Promise<void> {
-        const errorInfo = this.normalizeError(error, context);
-        
-        // Log the error with full context
-        const errorContext = {
-            interactionId: interaction.id,
-            customId: interaction.customId,
-            userId: interaction.user.id,
-            guildId: interaction.guild?.id,
-            channelId: interaction.channel?.id,
-            ...context
-        };
-        
-        this.logError(errorInfo, errorContext);
-        
-        // Publish error event to the event bus
-        const eventBus = ErrorEventBus.getInstance();
-        eventBus.publishError(
-            ErrorEventType.COMMAND_ERROR, // Reuse command error type for buttons
-            errorInfo,
-            errorContext,
-            interaction.user.id,
-            interaction.guild?.id,
-            interaction.channel?.id
-        );
-
-        // Send ephemeral error message directly
-        try {
-            if (interaction.replied || interaction.deferred) {
-                await interaction.followUp({
-                    content: errorInfo.userMessage,
-                    ephemeral: true
-                });
-            } else {
-                await interaction.reply({
-                    content: errorInfo.userMessage,
-                    ephemeral: true
-                });
-            }
-        } catch (responseError) {
-            Logger.error('Failed to send ephemeral error response to button interaction:', responseError);
         }
     }
 

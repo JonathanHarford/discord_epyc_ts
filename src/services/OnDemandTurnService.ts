@@ -5,18 +5,14 @@ import { nanoid } from 'nanoid';
 
 import { ChannelConfigService } from './ChannelConfigService.js';
 import { TurnTimeoutService } from './interfaces/TurnTimeoutService.js';
-import { NotificationGuidanceService } from './NotificationGuidanceService.js';
 import { SchedulerService } from './SchedulerService.js';
 import { parseDuration } from '../utils/datetime.js';
-import { ServerContextService } from '../utils/server-context.js';
 
 export class OnDemandTurnService implements TurnTimeoutService {
   private prisma: PrismaClient;
   private discordClient: DiscordClient;
   private schedulerService?: SchedulerService;
   private channelConfigService: ChannelConfigService;
-  private serverContextService: ServerContextService;
-  private notificationGuidanceService: NotificationGuidanceService;
 
   constructor(
     prisma: PrismaClient,
@@ -27,21 +23,17 @@ export class OnDemandTurnService implements TurnTimeoutService {
     this.discordClient = discordClient;
     this.schedulerService = schedulerService;
     this.channelConfigService = new ChannelConfigService(prisma);
-    this.serverContextService = new ServerContextService(prisma, discordClient);
-    this.notificationGuidanceService = new NotificationGuidanceService(prisma, discordClient);
   }
 
   /**
    * Creates the initial turn for a new on-demand game
    * @param game The game to create the initial turn for
    * @param creator The player who created the game
-   * @param preferEphemeral Whether to prefer ephemeral notifications over DMs (Phase 3 hybrid approach)
    * @returns Success status and turn details
    */
   async createInitialTurn(
     game: Game & { config: GameConfig },
-    creator: Player,
-    preferEphemeral: boolean = false
+    creator: Player
   ): Promise<{ success: boolean; turn?: Turn; error?: string }> {
     try {
       // Determine the first turn type based on turn pattern
@@ -60,27 +52,8 @@ export class OnDemandTurnService implements TurnTimeoutService {
         },
       });
 
-      // Send notification to creator asking for their turn
-      let notificationResult = false;
-      
-      if (preferEphemeral) {
-        // Try ephemeral notification first (Phase 3 hybrid approach)
-        notificationResult = await this.sendTurnRequestPing(turn, creator, null, game.id);
-        
-        if (!notificationResult) {
-          console.warn(`OnDemandTurnService: Failed to send ephemeral ping, falling back to DM for player ${creator.id}`);
-          // Fallback to DM if ephemeral fails
-          notificationResult = await this.sendTurnRequestDM(turn, creator, null);
-        }
-      } else {
-        // Use traditional DM approach (Phase 1 compatibility)
-        notificationResult = await this.sendTurnRequestDM(turn, creator, null);
-      }
-
-      if (!notificationResult) {
-        console.warn(`OnDemandTurnService: Failed to send notification to player ${creator.id}, but turn was created successfully`);
-        // Don't fail the entire process if notification fails
-      }
+      // Send DM to creator asking for their turn
+      await this.sendTurnRequestDM(turn, creator, null);
 
       // Schedule timeout for this turn
       if (this.schedulerService) {
@@ -151,13 +124,11 @@ export class OnDemandTurnService implements TurnTimeoutService {
    * Assigns an available turn to a player who used /game play
    * @param turnId The ID of the turn to assign
    * @param playerId The ID of the player to assign it to
-   * @param preferEphemeral Whether to prefer ephemeral notifications over DMs (Phase 3 hybrid approach)
    * @returns Success status and turn details
    */
   async assignTurn(
     turnId: string,
-    playerId: string,
-    preferEphemeral: boolean = false
+    playerId: string
   ): Promise<{ success: boolean; turn?: Turn; error?: string }> {
     try {
       const turn = await this.prisma.turn.findUnique({
@@ -206,27 +177,8 @@ export class OnDemandTurnService implements TurnTimeoutService {
         data: { lastActivityAt: new Date() }
       });
 
-      // Send notification to player with turn request
-      let notificationResult = false;
-      
-      if (preferEphemeral) {
-        // Try ephemeral notification first (Phase 3 hybrid approach)
-        notificationResult = await this.sendTurnRequestPing(updatedTurn, player, turn.previousTurn, turn.gameId);
-        
-        if (!notificationResult) {
-          console.warn(`OnDemandTurnService: Failed to send ephemeral ping, falling back to DM for player ${playerId}`);
-          // Fallback to DM if ephemeral fails
-          notificationResult = await this.sendTurnRequestDM(updatedTurn, player, turn.previousTurn);
-        }
-      } else {
-        // Use traditional DM approach (Phase 1 compatibility)
-        notificationResult = await this.sendTurnRequestDM(updatedTurn, player, turn.previousTurn);
-      }
-
-      if (!notificationResult) {
-        console.warn(`OnDemandTurnService: Failed to send notification to player ${playerId}, but turn was assigned successfully`);
-        // Don't fail the entire process if notification fails
-      }
+      // Send DM to player with turn request
+      await this.sendTurnRequestDM(updatedTurn, player, turn.previousTurn);
 
       // Schedule timeout for this turn
       if (this.schedulerService && turn.game?.config) {
@@ -308,10 +260,7 @@ export class OnDemandTurnService implements TurnTimeoutService {
       }
 
       // Send confirmation to player
-      const confirmationResult = await this.sendTurnCompletionConfirmation(updatedTurn, turn.player!);
-      if (!confirmationResult) {
-        console.warn(`OnDemandTurnService: Failed to send completion confirmation to player ${playerId}, but turn was submitted successfully`);
-      }
+      await this.sendTurnCompletionConfirmation(updatedTurn, turn.player!);
 
       console.log(`Turn ${turnId} submitted by player ${playerId}`);
       return { success: true, turn: updatedTurn };
@@ -621,46 +570,13 @@ export class OnDemandTurnService implements TurnTimeoutService {
   }
 
   /**
-   * Sends a minimal ping DM directing player to the game channel (Phase 3 hybrid approach)
-   */
-  private async sendTurnRequestPing(
-    turn: Turn,
-    player: Player,
-    previousTurn: Turn | null,
-    gameId: string
-  ): Promise<boolean> {
-    try {
-      // Use the centralized notification guidance service to generate the ping message
-      const guidanceResult = await this.notificationGuidanceService.generatePingMessage(
-        gameId,
-        turn.turnNumber,
-        turn.type,
-        { includeGameId: true }
-      );
-
-      // Send the ping DM
-      const user = await this.discordClient.users.fetch(player.discordUserId);
-      await user.send({
-        content: guidanceResult.message
-      });
-
-      console.log(`OnDemandTurnService: Successfully sent turn request ping to player ${player.id} (${player.discordUserId}) with ${guidanceResult.contextLevel} context`);
-      return true;
-
-    } catch (error) {
-      console.error(`OnDemandTurnService: Error sending turn request ping to player ${player.id}:`, error);
-      return false;
-    }
-  }
-
-  /**
    * Sends a DM to a player requesting their turn
    */
   private async sendTurnRequestDM(
     turn: Turn,
     player: Player,
     previousTurn: Turn | null
-  ): Promise<boolean> {
+  ): Promise<void> {
     try {
       const user = await this.discordClient.users.fetch(player.discordUserId);
       
@@ -672,7 +588,7 @@ export class OnDemandTurnService implements TurnTimeoutService {
 
       if (!game?.config) {
         console.error(`Game config not found for turn ${turn.id}`);
-        return false;
+        return;
       }
 
       // Calculate timeout in minutes
@@ -686,68 +602,57 @@ export class OnDemandTurnService implements TurnTimeoutService {
       let message = '';
       if (turn.type === 'WRITING') {
         if (previousTurn?.imageUrl) {
-          message = `It\'s your turn! Write a sentence or phrase describing this image:\n\nGo to the game channel and use the \`/ready\` command to see your turn details and submission options.\n[To flag this turn as inappropriate, type \"flag\"]\n\n⏰ You have **${timeoutMinutes} minutes** to submit before your turn is automatically skipped.`;
+          message = `It's your turn! Write a sentence or phrase describing this image:\n\n[Type your response directly in this DM]\n[To flag this turn as inappropriate, type "flag"]\n\n⏰ You have **${timeoutMinutes} minutes** to submit before your turn is automatically skipped.`;
+          // TODO: Send the image from previousTurn.imageUrl
         } else {
-          message = `You've started a new game! Please write a starting sentence or phrase.\n\nGo to the game channel and use the \`/ready\` command to see your turn details and submission options.\n⏰ You have **${timeoutMinutes} minutes** to submit before your turn is automatically skipped.`;
+          message = `You've started a new game! Please write a starting sentence or phrase.\n\n⏰ You have **${timeoutMinutes} minutes** to submit before your turn is automatically skipped.`;
         }
       } else if (turn.type === 'DRAWING') {
         if (previousTurn?.textContent) {
-          message = `It\'s your turn! Draw an illustration based on this sentence:\n\"${previousTurn.textContent}\"\n\nGo to the game channel and use the \`/ready\` command to see your turn details and submission options.\n[To flag this turn as inappropriate, type \"flag\"]\n\n⏰ You have **${timeoutMinutes} minutes** to submit before your turn is automatically skipped.`;
+          message = `It's your turn! Draw an illustration based on this sentence:\n"${previousTurn.textContent}"\n\n[Attach your drawing as an image file in this DM]\n[To flag this turn as inappropriate, type "flag"]\n\n⏰ You have **${timeoutMinutes} minutes** to submit before your turn is automatically skipped.`;
         }
       }
 
       await user.send(message);
-      console.log(`OnDemandTurnService: Successfully sent turn request DM to player ${player.id} (${player.discordUserId})`);
-      return true;
       
     } catch (error) {
       console.error(`Error sending turn request DM to player ${player.id}:`, error);
-      return false;
     }
   }
 
   /**
    * Sends a confirmation DM when a turn is completed
    */
-  private async sendTurnCompletionConfirmation(turn: Turn, player: Player): Promise<boolean> {
+  private async sendTurnCompletionConfirmation(turn: Turn, player: Player): Promise<void> {
     try {
       const user = await this.discordClient.users.fetch(player.discordUserId);
       await user.send(`Thanks! Your turn has been recorded. I'll notify you when the game is completed.`);
-      console.log(`OnDemandTurnService: Successfully sent completion confirmation to player ${player.id} (${player.discordUserId})`);
-      return true;
     } catch (error) {
       console.error(`Error sending completion confirmation to player ${player.id}:`, error);
-      return false;
     }
   }
 
   /**
    * Sends a notification when a turn is skipped
    */
-  private async sendTurnSkippedNotification(turn: Turn, player: Player): Promise<boolean> {
+  private async sendTurnSkippedNotification(turn: Turn, player: Player): Promise<void> {
     try {
       const user = await this.discordClient.users.fetch(player.discordUserId);
       await user.send(`Your turn has timed out. The game will now be available for another player.`);
-      console.log(`OnDemandTurnService: Successfully sent skip notification to player ${player.id} (${player.discordUserId})`);
-      return true;
     } catch (error) {
       console.error(`Error sending skip notification to player ${player.id}:`, error);
-      return false;
     }
   }
 
   /**
    * Sends a notification when a game is deleted due to initial turn timeout
    */
-  private async sendGameDeletedNotification(turn: Turn, player: Player): Promise<boolean> {
+  private async sendGameDeletedNotification(turn: Turn, player: Player): Promise<void> {
     try {
       const user = await this.discordClient.users.fetch(player.discordUserId);
       await user.send(`Your game has been automatically deleted because you didn't take your initial turn within the time limit. You can start a new game anytime with \`/game new\`.`);
-      console.log(`OnDemandTurnService: Successfully sent game deleted notification to player ${player.id} (${player.discordUserId})`);
-      return true;
     } catch (error) {
       console.error(`Error sending game deleted notification to player ${player.id}:`, error);
-      return false;
     }
   }
 

@@ -1,12 +1,14 @@
 import { PrismaClient } from '@prisma/client';
-import { ButtonInteraction, CommandInteraction, Client as DiscordClient, Message } from 'discord.js';
+import { Client as DiscordClient, Message } from 'discord.js';
 
 import { EventHandler } from './index.js';
 import { interpolate, strings } from '../lang/strings.js';  
 import { Logger, SeasonTurnService, TurnOfferingService } from '../services/index.js';
 import { PlayerService } from '../services/PlayerService.js';
 import { SchedulerService } from '../services/SchedulerService.js';
+import { FormatUtils } from '../utils/format-utils.js';
 import { ErrorHandler } from '../utils/index.js';
+import { getSeasonTimeouts } from '../utils/seasonConfig.js';
 import { ServerContextService } from '../utils/server-context.js';
 
 /**
@@ -22,7 +24,6 @@ export enum DMContextType {
 /**
  * Handler for direct messages sent to the bot.
  * Responsible for identifying the context of the DM and routing it to the appropriate handler.
- * Now supports ephemeral responses when interaction context is available (Task 71.2)
  */
 export class DirectMessageHandler implements EventHandler {
     private prisma: PrismaClient;
@@ -53,15 +54,14 @@ export class DirectMessageHandler implements EventHandler {
     /**
      * Process a direct message and route it to the appropriate handler based on its context.
      * @param msg The direct message to process
-     * @param interaction Optional interaction context for ephemeral responses (Task 71.2)
      */
-    public async process(msg: Message, interaction?: CommandInteraction | ButtonInteraction): Promise<void> {
+    public async process(msg: Message): Promise<void> {
         try {
             // Identify the context of the DM
             const contextType = await this.identifyDMContext(msg);
             
             // Route the DM to the appropriate handler based on context
-            await this.routeDM(msg, contextType, interaction);
+            await this.routeDM(msg, contextType);
         } catch (error) {
             // Use the new standardized error handler for DMs
             await ErrorHandler.handleDMError(
@@ -106,162 +106,183 @@ export class DirectMessageHandler implements EventHandler {
      * Route a direct message to the appropriate handler based on its context.
      * @param msg The direct message to route
      * @param contextType The identified context type of the message
-     * @param interaction Optional interaction context for ephemeral responses (Task 71.2)
      */
-    private async routeDM(msg: Message, contextType: DMContextType, interaction?: CommandInteraction | ButtonInteraction): Promise<void> {
+    private async routeDM(msg: Message, contextType: DMContextType): Promise<void> {
         // Log the routing decision for debugging
         Logger.info(`Routing DM from ${msg.author.tag} with context: ${contextType}`);
         
         switch (contextType) {
             case DMContextType.READY_COMMAND:
-                await this.handleReadyCommand(msg, interaction);
+                await this.handleReadyCommand(msg);
                 break;
             case DMContextType.SLASH_COMMAND:
-                await this.handleSlashCommandDM(msg, interaction);
+                await this.handleSlashCommandDM(msg);
                 break;
             case DMContextType.TURN_SUBMISSION:
-                await this.handleTurnSubmission(msg, interaction);
+                await this.handleTurnSubmission(msg);
                 break;
             case DMContextType.OTHER:
-                await this.handleOtherDM(msg, interaction);
+                await this.handleOtherDM(msg);
                 break;
         }
-    }
-
-    /**
-     * Send a message either as ephemeral response (if interaction available) or DM (fallback)
-     * @param message The message content to send
-     * @param msg The original DM message
-     * @param interaction Optional interaction for ephemeral response
-     */
-    private async sendResponse(message: string, msg: Message, interaction?: CommandInteraction | ButtonInteraction): Promise<void> {
-        if (interaction && interaction.guild) {
-            // Prefer ephemeral response when interaction context is available (Task 71.2)
-            try {
-                if (interaction.replied || interaction.deferred) {
-                    await interaction.followUp({
-                        content: message,
-                        ephemeral: true
-                    });
-                } else {
-                    await interaction.reply({
-                        content: message,
-                        ephemeral: true
-                    });
-                }
-                return;
-            } catch (error) {
-                Logger.warn('Failed to send ephemeral response, falling back to DM:', error);
-                // Fall through to DM sending
-            }
-        }
-        
-        // Fallback to DM
-        await msg.author.send(message);
     }
 
     /**
      * Handle a direct message that appears to be a /ready command.
-     * Now redirects users to the in-channel slash command and button-based system (Task 71 Phase 2).
      * @param msg The direct message to handle
-     * @param interaction Optional interaction context for ephemeral responses (Task 71.2)
      */
-    private async handleReadyCommand(msg: Message, interaction?: CommandInteraction | ButtonInteraction): Promise<void> {
+    private async handleReadyCommand(msg: Message): Promise<void> {
         const wrappedHandler = ErrorHandler.wrapDMHandler(
             async () => {
-                Logger.info(`Received DM /ready command from ${msg.author.tag} (${msg.author.id}) - redirecting to slash command system`);
+                Logger.info(`Processing /ready command from ${msg.author.tag} (${msg.author.id})`);
                 
-                // 1. Find the player by Discord user ID to provide context
+                // 1. Find the player by Discord user ID
                 const player = await this.playerService.getPlayerByDiscordId(msg.author.id);
                 if (!player) {
-                    await this.sendResponse(strings.messages.ready.playerNotFound, msg, interaction);
+                    await msg.author.send(strings.messages.ready.playerNotFound);
                     return;
                 }
 
-                // 2. Check if player has any offered or pending turns to provide specific guidance
-                const [offeredTurns, pendingTurns] = await Promise.all([
-                    this.turnService.getTurnsForPlayer(player.id, 'OFFERED'),
-                    this.turnService.getTurnsForPlayer(player.id, 'PENDING')
-                ]);
+                // 2. Find turns currently OFFERED to this player
+                const offeredTurns = await this.turnService.getTurnsForPlayer(player.id, 'OFFERED');
                 
-                // 3. Create appropriate guidance message based on player's turn status
-                let readyGuidance: string;
-                
-                if (pendingTurns.length > 0) {
-                    // Player has a pending turn - guide them to submit it
-                    const pendingTurn = pendingTurns[0];
-                    const serverContext = await this.serverContextService.getTurnServerContext(pendingTurn.id);
-                    
-                    if (serverContext.channelId && serverContext.guildId) {
-                        readyGuidance = `🎨 **You already have a turn to complete!**
-
-👉 **Go to <#${serverContext.channelId}> in ${serverContext.serverName}** and click the **"Submit Turn"** button to complete your turn.
-
-**Your Turn:** #${pendingTurn.turnNumber} (${pendingTurn.type})
-
-_DM-based commands have moved to slash commands and buttons for better privacy and user experience._`;
-                    } else if (serverContext.guildId) {
-                        readyGuidance = `🎨 **You already have a turn to complete!**
-
-👉 **Go to ${serverContext.serverName}** and click the **"Submit Turn"** button to complete your turn.
-
-**Your Turn:** #${pendingTurn.turnNumber} (${pendingTurn.type})
-
-_DM-based commands have moved to slash commands and buttons for better privacy and user experience._`;
-                    } else {
-                        readyGuidance = `🎨 **You already have a turn to complete!**
-
-👉 **Go to the game server** and click the **"Submit Turn"** button to complete your turn.
-
-**Your Turn:** #${pendingTurn.turnNumber} (${pendingTurn.type})
-
-_DM-based commands have moved to slash commands and buttons for better privacy and user experience._`;
-                    }
-                } else if (offeredTurns.length > 0) {
-                    // Player has offered turns - guide them to claim via slash command
-                    const offeredTurn = offeredTurns[0];
-                    const serverContext = await this.serverContextService.getTurnServerContext(offeredTurn.id);
-                    
-                    if (serverContext.channelId && serverContext.guildId) {
-                        readyGuidance = `🎨 **Ready commands have moved to a better system!**
-
-👉 **Go to <#${serverContext.channelId}> in ${serverContext.serverName}** and use \`/ready\` to claim your turn.
-
-**Available Turn:** #${offeredTurn.turnNumber} (${offeredTurn.type})
-
-_DM-based commands have moved to slash commands and buttons for better privacy and user experience._`;
-                    } else if (serverContext.guildId) {
-                        readyGuidance = `🎨 **Ready commands have moved to a better system!**
-
-👉 **Go to ${serverContext.serverName}** and use \`/ready\` to claim your turn.
-
-**Available Turn:** #${offeredTurn.turnNumber} (${offeredTurn.type})
-
-_DM-based commands have moved to slash commands and buttons for better privacy and user experience._`;
-                    } else {
-                        readyGuidance = `🎨 **Ready commands have moved to a better system!**
-
-👉 **Go to the game server** and use \`/ready\` to claim your turn.
-
-**Available Turn:** #${offeredTurn.turnNumber} (${offeredTurn.type})
-
-_DM-based commands have moved to slash commands and buttons for better privacy and user experience._`;
-                    }
-                } else {
-                    // No turns available - general guidance
-                    readyGuidance = `🎨 **Ready commands have moved to a better system!**
-
-👉 **Use \`/ready\` in a server channel** where the bot is available to check for and claim available turns.
-
-**Current Status:** No turns waiting for you right now.
-
-_DM-based commands have moved to slash commands and buttons for better privacy and user experience._`;
+                if (offeredTurns.length === 0) {
+                    await msg.author.send(strings.messages.ready.noOfferedTurns);
+                    return;
                 }
-                
-                // 4. Send the guidance message
-                await this.sendResponse(readyGuidance, msg, interaction);
 
-                Logger.info(`Redirected DM /ready command from player ${player.id} (${msg.author.tag}) to slash command system`);
+                // 3. Check if player already has a PENDING turn (can't claim multiple)
+                const pendingTurns = await this.turnService.getTurnsForPlayer(player.id, 'PENDING');
+                if (pendingTurns.length > 0) {
+                    // Send the standard message
+                    await msg.author.send(strings.messages.ready.alreadyHasPendingTurn);
+                    
+                    // Re-DM the pending turn prompt
+                    const pendingTurn = pendingTurns[0];
+                    const timeouts = await getSeasonTimeouts(this.prisma, pendingTurn.id);
+                    const submissionTimeoutMinutes = pendingTurn.type === 'WRITING' 
+                        ? timeouts.writingTimeoutMinutes 
+                        : timeouts.drawingTimeoutMinutes;
+                    
+                    // Get the previous turn content for context
+                    const previousTurn = await this.prisma.turn.findFirst({
+                        where: {
+                            gameId: pendingTurn.gameId,
+                            turnNumber: pendingTurn.turnNumber - 1,
+                            status: 'COMPLETED'
+                        }
+                    });
+                    
+                    // Calculate submission timeout expiration time
+                    const submissionTimeoutDate = new Date(pendingTurn.updatedAt.getTime() + submissionTimeoutMinutes * 60 * 1000);
+                    
+                    // Send appropriate claim success message based on turn type
+                    if (pendingTurn.type === 'WRITING') {
+                        const message = interpolate(strings.messages.ready.claimSuccessWriting, {
+                            previousTurnImage: previousTurn?.imageUrl || '[Previous image not found]',
+                            submissionTimeoutFormatted: FormatUtils.formatRemainingTime(submissionTimeoutDate)
+                        });
+                        await msg.author.send(message);
+                    } else {
+                        const message = interpolate(strings.messages.ready.claimSuccessDrawing, {
+                            previousTurnWriting: previousTurn?.textContent || '[Previous text not found]',
+                            submissionTimeoutFormatted: FormatUtils.formatRemainingTime(submissionTimeoutDate)
+                        });
+                        await msg.author.send(message);
+                    }
+                    
+                    return;
+                }
+
+                // 4. If multiple turns are offered, claim the first one (oldest)
+                const turnToClaim = offeredTurns[0];
+                
+                // 5. Claim the turn using SeasonTurnService
+                const claimResult = await this.turnService.claimTurn(turnToClaim.id, player.id);
+                
+                if (!claimResult.success) {
+                    await msg.author.send(strings.messages.ready.claimFailed);
+                    return;
+                }
+
+                // 6. Cancel the claim timeout timer for this turn
+                const claimTimeoutJobId = `turn-claim-timeout-${turnToClaim.id}`;
+                const timeoutCancelled = await this.schedulerService.cancelJob(claimTimeoutJobId);
+                if (timeoutCancelled) {
+                    Logger.info(`Cancelled claim timeout job ${claimTimeoutJobId} for turn ${turnToClaim.id}`);
+                } else {
+                    Logger.warn(`No claim timeout job found to cancel for turn ${turnToClaim.id}`);
+                }
+
+                // 7. Schedule submission timeout timer based on turn type
+                // Get season-specific timeout values
+                const timeouts = await getSeasonTimeouts(this.prisma, turnToClaim.id);
+                const submissionTimeoutMinutes = turnToClaim.type === 'WRITING' 
+                    ? timeouts.writingTimeoutMinutes 
+                    : timeouts.drawingTimeoutMinutes;
+                const submissionTimeoutDate = new Date(Date.now() + submissionTimeoutMinutes * 60 * 1000);
+                
+                const submissionTimeoutJobId = `turn-submission-timeout-${turnToClaim.id}`;
+                const submissionJobScheduled = await this.schedulerService.scheduleJob(
+                    submissionTimeoutJobId,
+                    submissionTimeoutDate,
+                    async (_jobData) => {
+                        Logger.info(`Submission timeout triggered for turn ${turnToClaim.id}`);
+                        
+                        // Import and create the SubmissionTimeoutHandler
+                        const { SubmissionTimeoutHandler } = await import('../handlers/SubmissionTimeoutHandler.js');
+                        const submissionTimeoutHandler = new SubmissionTimeoutHandler(
+                            this.prisma,
+                            this.discordClient,
+                            this.turnService,
+                            this.turnOfferingService
+                        );
+
+                        // Execute the submission timeout handling
+                        const result = await submissionTimeoutHandler.handleSubmissionTimeout(turnToClaim.id, player.id);
+
+                        if (!result.success) {
+                            throw new Error(`Submission timeout handling failed: ${result.error}`);
+                        }
+
+                        Logger.info(`Submission timeout handling completed successfully for turn ${turnToClaim.id}`);
+                    },
+                    { turnId: turnToClaim.id, playerId: player.id },
+                    'turn-submission-timeout'
+                );
+
+                if (submissionJobScheduled) {
+                    Logger.info(`Scheduled submission timeout for turn ${turnToClaim.id} at ${submissionTimeoutDate.toISOString()}`);
+                } else {
+                    Logger.warn(`Failed to schedule submission timeout for turn ${turnToClaim.id}`);
+                }
+
+                // 8. Send confirmation DM to the player
+                // Get the previous turn content for context
+                const previousTurn = await this.prisma.turn.findFirst({
+                    where: {
+                        gameId: turnToClaim.gameId,
+                        turnNumber: turnToClaim.turnNumber - 1,
+                        status: 'COMPLETED'
+                    }
+                });
+                
+                // Send appropriate claim success message based on turn type
+                if (turnToClaim.type === 'WRITING') {
+                    const message = interpolate(strings.messages.ready.claimSuccessWriting, {
+                        previousTurnImage: previousTurn?.imageUrl || '[Previous image not found]',
+                        submissionTimeoutFormatted: FormatUtils.formatRemainingTime(submissionTimeoutDate)
+                    });
+                    await msg.author.send(message);
+                } else {
+                    const message = interpolate(strings.messages.ready.claimSuccessDrawing, {
+                        previousTurnWriting: previousTurn?.textContent || '[Previous text not found]',
+                        submissionTimeoutFormatted: FormatUtils.formatRemainingTime(submissionTimeoutDate)
+                    });
+                    await msg.author.send(message);
+                }
+
+                Logger.info(`Successfully processed /ready command for player ${player.id} (${msg.author.tag}), claimed turn ${turnToClaim.id}`);
             },
             msg,
             { dmContextType: DMContextType.READY_COMMAND }
@@ -273,13 +294,12 @@ _DM-based commands have moved to slash commands and buttons for better privacy a
     /**
      * Handle a direct message that appears to be a slash command (other than /ready).
      * @param msg The direct message to handle
-     * @param interaction Optional interaction context for ephemeral responses (Task 71.2)
      */
-    private async handleSlashCommandDM(msg: Message, interaction?: CommandInteraction | ButtonInteraction): Promise<void> {
+    private async handleSlashCommandDM(msg: Message): Promise<void> {
         const wrappedHandler = ErrorHandler.wrapDMHandler(
             async () => {
                 Logger.info(`Received slash command in DM from ${msg.author.tag}: ${msg.content}`);
-                await this.sendResponse('I only do commands on servers! Please use slash commands in a server channel where I\'m available. Most game interactions now use buttons and ephemeral messages for a better experience.', msg, interaction);
+                await msg.author.send('I only do commands on servers! Please use slash commands in a server channel where I\'m available.');
             },
             msg,
             { dmContextType: DMContextType.SLASH_COMMAND }
@@ -290,19 +310,17 @@ _DM-based commands have moved to slash commands and buttons for better privacy a
 
     /**
      * Handle a direct message that appears to be a turn submission.
-     * Now redirects users to the in-channel modal-based system (Task 71 Phase 2).
      * @param msg The direct message to handle
-     * @param interaction Optional interaction context for ephemeral responses (Task 71.2)
      */
-    private async handleTurnSubmission(msg: Message, interaction?: CommandInteraction | ButtonInteraction): Promise<void> {
+    private async handleTurnSubmission(msg: Message): Promise<void> {
         const wrappedHandler = ErrorHandler.wrapDMHandler(
             async () => {
-                Logger.info(`Received DM turn submission from ${msg.author.tag} (${msg.author.id}) - redirecting to modal system`);
+                Logger.info(`Processing turn submission from ${msg.author.tag} (${msg.author.id})`);
                 
                 // 1. Find the player by Discord user ID
                 const player = await this.playerService.getPlayerByDiscordId(msg.author.id);
                 if (!player) {
-                    await this.sendResponse(interpolate(strings.messages.submission.playerNotFound, { discordUserId: msg.author.id }), msg, interaction);
+                    await msg.author.send(interpolate(strings.messages.submission.playerNotFound, { discordUserId: msg.author.id }));
                     return;
                 }
 
@@ -310,119 +328,132 @@ _DM-based commands have moved to slash commands and buttons for better privacy a
                 const pendingTurns = await this.turnService.getTurnsForPlayer(player.id, 'PENDING');
                 
                 if (pendingTurns.length === 0) {
-                    await this.sendResponse(interpolate(strings.messages.submission.noPendingTurns, { playerName: player.name }), msg, interaction);
+                    await msg.author.send(interpolate(strings.messages.submission.noPendingTurns, { playerName: player.name }));
                     return;
                 }
 
                 // 3. Get the first pending turn (should only be one)
                 const turnToSubmit = pendingTurns[0];
                 
-                // 4. Get server context to direct user to the correct channel
-                const serverContext = await this.serverContextService.getTurnServerContext(turnToSubmit.id);
-                
-                // 5. Determine submission type and create appropriate guidance message
-                let submissionGuidance: string;
+                // 4. Determine content type and extract content
+                let content: string;
+                let contentType: 'text' | 'image';
                 
                 if (msg.attachments.size > 0) {
-                    // Image submission attempt - guide to slash command with file attachment
-                    if (serverContext.channelId && serverContext.guildId) {
-                        submissionGuidance = `🖼️ **Image submissions have moved to a better system!**
-
-👉 **Go to <#${serverContext.channelId}> in ${serverContext.serverName}** and:
-1. Use \`/ready\` to claim your turn (if not already claimed)
-2. Click the **"Submit Turn"** button
-3. Use the modal form for your submission
-
-For **image submissions**, you can also use slash commands with file attachments in the channel for a smoother experience.
-
-_DM-based submissions are being phased out for better privacy and user experience._`;
-                    } else if (serverContext.guildId) {
-                        submissionGuidance = `🖼️ **Image submissions have moved to a better system!**
-
-👉 **Go to ${serverContext.serverName}** and:
-1. Use \`/ready\` to claim your turn (if not already claimed)
-2. Click the **"Submit Turn"** button
-3. Use the modal form for your submission
-
-For **image submissions**, you can also use slash commands with file attachments in the channel for a smoother experience.
-
-_DM-based submissions are being phased out for better privacy and user experience._`;
-                    } else {
-                        submissionGuidance = `🖼️ **Image submissions have moved to a better system!**
-
-👉 **Go to the game server** and:
-1. Use \`/ready\` to claim your turn (if not already claimed)
-2. Click the **"Submit Turn"** button
-3. Use the modal form for your submission
-
-For **image submissions**, you can also use slash commands with file attachments in the channel for a smoother experience.
-
-_DM-based submissions are being phased out for better privacy and user experience._`;
+                    // Handle image submission
+                    const attachment = msg.attachments.first();
+                    if (!attachment) {
+                        await msg.author.send(strings.messages.submission.noAttachmentFound);
+                        return;
                     }
+                    
+                    // Validate that it's an image
+                    if (!attachment.contentType?.startsWith('image/')) {
+                        await msg.author.send(interpolate(strings.messages.submission.invalidFileType, { fileType: attachment.contentType || 'unknown' }));
+                        return;
+                    }
+                    
+                    content = attachment.url;
+                    contentType = 'image';
                 } else if (msg.content.trim().length > 0) {
-                    // Text submission attempt - guide to modal system
-                    if (serverContext.channelId && serverContext.guildId) {
-                        submissionGuidance = `✍️ **Text submissions have moved to a better system!**
-
-👉 **Go to <#${serverContext.channelId}> in ${serverContext.serverName}** and:
-1. Use \`/ready\` to claim your turn (if not already claimed)
-2. Click the **"Submit Turn"** button
-3. Use the modal form to enter your text
-
-**Your Turn:** #${turnToSubmit.turnNumber} (${turnToSubmit.type})
-
-_DM-based submissions are being phased out for better privacy and user experience._`;
-                    } else if (serverContext.guildId) {
-                        submissionGuidance = `✍️ **Text submissions have moved to a better system!**
-
-👉 **Go to ${serverContext.serverName}** and:
-1. Use \`/ready\` to claim your turn (if not already claimed)
-2. Click the **"Submit Turn"** button
-3. Use the modal form to enter your text
-
-**Your Turn:** #${turnToSubmit.turnNumber} (${turnToSubmit.type})
-
-_DM-based submissions are being phased out for better privacy and user experience._`;
-                    } else {
-                        submissionGuidance = `✍️ **Text submissions have moved to a better system!**
-
-👉 **Go to the game server** and:
-1. Use \`/ready\` to claim your turn (if not already claimed)
-2. Click the **"Submit Turn"** button
-3. Use the modal form to enter your text
-
-**Your Turn:** #${turnToSubmit.turnNumber} (${turnToSubmit.type})
-
-_DM-based submissions are being phased out for better privacy and user experience._`;
-                    }
+                    // Handle text submission
+                    content = msg.content.trim();
+                    contentType = 'text';
                 } else {
-                    // No valid content found - general guidance
-                    if (serverContext.channelId && serverContext.guildId) {
-                        submissionGuidance = `🎨 **Turn submissions have moved to a better system!**
+                    // No valid content found
+                    await msg.author.send(strings.messages.submission.noContentFound);
+                    return;
+                }
 
-👉 **Go to <#${serverContext.channelId}> in ${serverContext.serverName}** and:
-1. Use \`/ready\` to claim your turn (if not already claimed)
-2. Click the **"Submit Turn"** button
-3. Use the modal form for your submission
+                // 5. Validate content type matches turn type
+                if ((turnToSubmit.type === 'WRITING' && contentType !== 'text') ||
+                    (turnToSubmit.type === 'DRAWING' && contentType !== 'image')) {
+                    await msg.author.send(interpolate(strings.messages.submission.wrongContentType, { 
+                        expectedType: turnToSubmit.type === 'WRITING' ? 'text' : 'image',
+                        receivedType: contentType,
+                        turnType: turnToSubmit.type
+                    }));
+                    return;
+                }
 
-**Your Turn:** #${turnToSubmit.turnNumber} (${turnToSubmit.type})
+                // 6. Submit the turn using SeasonTurnService
+                const submitResult = await this.turnService.submitTurn(
+                    turnToSubmit.id,
+                    player.id,
+                    content,
+                    contentType
+                );
+                
+                if (!submitResult.success) {
+                    await msg.author.send(interpolate(strings.messages.submission.submitFailed, { 
+                        error: submitResult.error,
+                        turnId: turnToSubmit.id
+                    }));
+                    return;
+                }
 
-_DM-based submissions are being phased out for better privacy and user experience._`;
+                // 7. Cancel the submission timeout timer for this turn
+                const submissionTimeoutJobId = `turn-submission-timeout-${turnToSubmit.id}`;
+                const timeoutCancelled = await this.schedulerService.cancelJob(submissionTimeoutJobId);
+                if (timeoutCancelled) {
+                    Logger.info(`Cancelled submission timeout job ${submissionTimeoutJobId} for turn ${turnToSubmit.id}`);
+                } else {
+                    Logger.warn(`No submission timeout job found to cancel for turn ${turnToSubmit.id}`);
+                }
+
+                // 8. Trigger the turn offering mechanism to find and offer the next turn
+                try {
+                    const offeringResult = await this.turnOfferingService.offerNextTurn(
+                        turnToSubmit.gameId,
+                        'turn_completed'
+                    );
+                    
+                    if (offeringResult.success) {
+                        Logger.info(`Successfully offered next turn ${offeringResult.turn?.id} to player ${offeringResult.player?.id} after turn ${turnToSubmit.id} completion`);
                     } else {
-                        submissionGuidance = `🎨 **Turn submissions have moved to a better system!**
-
-👉 **Go to the game server** and use \`/ready\` to claim your turn, then click the **"Submit Turn"** button.
-
-**Your Turn:** #${turnToSubmit.turnNumber} (${turnToSubmit.type})
-
-_DM-based submissions are being phased out for better privacy and user experience._`;
+                        Logger.warn(`Failed to offer next turn after turn ${turnToSubmit.id} completion: ${offeringResult.error}`);
+                        // Don't fail the entire submission process if turn offering fails
                     }
+                } catch (offeringError) {
+                    Logger.error(`Error in turn offering after turn ${turnToSubmit.id} completion:`, offeringError);
+                    // Don't fail the entire submission process if turn offering fails
+                }
+
+                // 9. Send confirmation DM to the player
+                // Get the game with season information
+                const gameWithSeason = await this.prisma.game.findUnique({
+                    where: { id: turnToSubmit.gameId },
+                    include: { season: true }
+                });
+                
+                const seasonId = gameWithSeason?.season?.id || 'Unknown';
+                
+                // Get the completed games channel ID for the link
+                let finishedGamesLink = 'the completed games channel';
+                try {
+                    const { ChannelConfigService } = await import('../services/ChannelConfigService.js');
+                    const channelConfigService = new ChannelConfigService(this.prisma);
+                    
+                    // Get the guild ID - for season games use season.guildId, for on-demand games use game.guildId
+                    const guildId = gameWithSeason?.season?.guildId || gameWithSeason?.guildId;
+                    
+                    if (guildId) {
+                        const completedChannelId = await channelConfigService.getCompletedChannelId(guildId);
+                        if (completedChannelId) {
+                            finishedGamesLink = `<#${completedChannelId}>`;
+                        }
+                    }
+                } catch (channelError) {
+                    Logger.warn(`Failed to get completed channel ID for game ${turnToSubmit.gameId}:`, channelError);
+                    // Use generic fallback if channel lookup fails
                 }
                 
-                // 6. Send the guidance message
-                await this.sendResponse(submissionGuidance, msg, interaction);
+                await msg.author.send(interpolate(strings.messages.submission.submitSuccess, {
+                    seasonId: seasonId,
+                    finishedGamesLink: finishedGamesLink
+                }));
 
-                Logger.info(`Redirected DM turn submission from player ${player.id} (${msg.author.tag}) to modal system for turn ${turnToSubmit.id}`);
+                Logger.info(`Successfully processed turn submission for player ${player.id} (${msg.author.tag}), completed turn ${turnToSubmit.id}`);
             },
             msg,
             { dmContextType: DMContextType.TURN_SUBMISSION }
@@ -434,14 +465,13 @@ _DM-based submissions are being phased out for better privacy and user experienc
     /**
      * Handle a direct message that doesn't match any known context.
      * @param msg The direct message to handle
-     * @param interaction Optional interaction context for ephemeral responses (Task 71.2)
      */
-    private async handleOtherDM(msg: Message, interaction?: CommandInteraction | ButtonInteraction): Promise<void> {
+    private async handleOtherDM(msg: Message): Promise<void> {
         const wrappedHandler = ErrorHandler.wrapDMHandler(
             async () => {
                 // This is a placeholder implementation
                 Logger.info(`Received unrecognized DM from ${msg.author.tag}`);
-                await this.sendResponse('I\'m not sure what you\'re trying to do. If you\'re trying to join a game or check your status, please use the slash commands in a server channel where I\'m available. Most interactions now use buttons and ephemeral messages for better privacy and user experience.', msg, interaction);
+                await msg.reply('I\'m not sure what you\'re trying to do. If you\'re trying to join a game, please use the appropriate commands in a server channel.');
             },
             msg,
             { dmContextType: DMContextType.OTHER }

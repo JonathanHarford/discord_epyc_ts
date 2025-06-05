@@ -2,14 +2,12 @@ import express, { Express } from 'express';
 import { createRequire } from 'node:module';
 import util from 'node:util';
 
-// Load environment variables from .env file
-import 'dotenv/config';
-
 import { Controller } from '../controllers/index.js';
 import { checkAuth, handleError } from '../middleware/index.js';
 import { Logger } from '../services/index.js';
 
 const require = createRequire(import.meta.url);
+let Config = require('../../config/config.json');
 let Logs = require('../../lang/logs.json');
 
 export class Api {
@@ -24,10 +22,8 @@ export class Api {
 
     public async start(): Promise<void> {
         let listen = util.promisify(this.app.listen.bind(this.app));
-        // Use environment variable for API port, default to 3001 if not set
-        const apiPort = process.env.API_PORT ? parseInt(process.env.API_PORT, 10) : 3001;
-        await listen(apiPort);
-        Logger.info(Logs.info.apiStarted.replaceAll('{PORT}', apiPort.toString()));
+        await listen(Config.api.port);
+        Logger.info(Logs.info.apiStarted.replaceAll('{PORT}', Config.api.port));
     }
 
     private setupControllers(): void {

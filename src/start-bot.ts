@@ -1,14 +1,9 @@
-import { GatewayIntentBits, Options, Partials } from 'discord.js';
+import { Options, Partials } from 'discord.js';
 import schedule from 'node-schedule';
 import { createRequire } from 'node:module';
 
-// Load environment variables from .env file
-import 'dotenv/config';
-
 import { Button } from './buttons/index.js';
-import { ReadyButton } from './buttons/ready-button.js';
-import { StatusButton } from './buttons/status-button.js';
-import { AdminCommand, DevCommand, GameCommand, HelpCommand, InfoCommand, ReadyCommand, SubmitTurnCommand } from './commands/chat/index.js';
+import { AdminCommand, DevCommand, GameCommand, HelpCommand, InfoCommand } from './commands/chat/index.js';
 import { SeasonCommand } from './commands/chat/season-command.js';
 import { Command } from './commands/index.js';
 import { ViewDateSent } from './commands/message/index.js';
@@ -28,7 +23,7 @@ import { AdminGameConfigButtonHandler } from './handlers/adminGameConfigButtonHa
 import { AdminGameConfigModalHandler } from './handlers/adminGameConfigModalHandler.js';
 import { AdminSeasonConfigButtonHandler } from './handlers/adminSeasonConfigButtonHandler.js';
 import { AdminSeasonConfigModalHandler } from './handlers/adminSeasonConfigModalHandler.js';
-import { AdminButtonHandler, ExampleButtonHandler, SeasonCreateModalHandler, SeasonDashboardButtonHandler, SeasonJoinButtonHandler, SeasonListPaginationButtonHandler, SeasonSelectMenuHandler, SeasonShowButtonHandler, TurnClaimButtonHandler, TurnDismissButtonHandler, TurnStatusButtonHandler, TurnSubmitButtonHandler, TurnSubmitHelpButtonHandler, TurnSubmitUrlButtonHandler } from './handlers/index.js';
+import { AdminButtonHandler, ExampleButtonHandler, SeasonCreateModalHandler, SeasonDashboardButtonHandler, SeasonJoinButtonHandler, SeasonListPaginationButtonHandler, SeasonSelectMenuHandler, SeasonShowButtonHandler, TurnClaimButtonHandler } from './handlers/index.js';
 import { Job, StaleGameCleanupJob } from './jobs/index.js';
 import prisma from './lib/prisma.js';
 import { Bot } from './models/bot.js';
@@ -51,6 +46,7 @@ import { OnDemandTurnService } from './services/OnDemandTurnService.js';
 import { Trigger } from './triggers/index.js';
 
 const require = createRequire(import.meta.url);
+let Config = require('../config/config.json');
 let Logs = require('../lang/logs.json');
 
 async function start(): Promise<void> {
@@ -59,20 +55,16 @@ async function start(): Promise<void> {
     
     // Client
     let client = new CustomClient({
-        // Use environment variables for client configuration
-        intents: process.env.CLIENT_INTENTS?.split(',').map(intent => intent.trim() as keyof typeof GatewayIntentBits) || [], // Assuming intents are comma-separated in env and are valid GatewayIntentBits keys
-        partials: process.env.CLIENT_PARTIALS?.split(',').map(partial => partial.trim() as keyof typeof Partials).map(partial => Partials[partial]) || [], // Assuming partials are comma-separated and are valid Partials keys
+        intents: Config.client.intents,
+        partials: (Config.client.partials as string[]).map(partial => Partials[partial]),
         makeCache: Options.cacheWithLimits({
             // Keep default caching behavior
             ...Options.DefaultMakeCacheSettings,
-            // You might need to configure caching based on env vars if necessary
-            // ...Config.client.caches,
+            // Override specific options from config
+            ...Config.client.caches,
         }),
     });
     
-    // Database connection (Prisma uses DATABASE_URL env var by default)
-    // No explicit code change needed here as Prisma automatically uses DATABASE_URL
-
     // Service instances with proper dependency injection
     const schedulerService = new SchedulerService(prisma);
     const gameService = new GameService(prisma, client);
@@ -104,8 +96,6 @@ async function start(): Promise<void> {
         new SeasonCommand(prisma, seasonService, playerTurnService),
         new AdminCommand(),
         new GameCommand(prisma, onDemandGameService, onDemandTurnService, playerTurnService),
-        new ReadyCommand(),
-        new SubmitTurnCommand(),
 
         // Message Context Commands
         new ViewDateSent(),
@@ -152,8 +142,7 @@ async function start(): Promise<void> {
 
     // Bot
     let bot = new Bot(
-        // Use environment variable for client token
-        process.env.CLIENT_TOKEN || '', // Provide a default empty string or handle missing token appropriately
+        Config.client.token,
         client,
         guildJoinHandler,
         guildLeaveHandler,
@@ -187,17 +176,6 @@ async function start(): Promise<void> {
     bot.addButtonHandler(new SeasonListPaginationButtonHandler());
     // Register turn claim button handler
     bot.addButtonHandler(new TurnClaimButtonHandler());
-    // Register ready button handler
-    bot.addButtonHandler(new ReadyButton(prisma, turnService, playerService, schedulerService, turnOfferingService));
-    // Register status button handler
-    bot.addButtonHandler(new StatusButton(playerService, playerTurnService));
-    // Register additional turn button handlers
-    bot.addButtonHandler(new TurnDismissButtonHandler());
-    bot.addButtonHandler(new TurnSubmitButtonHandler());
-    bot.addButtonHandler(new TurnStatusButtonHandler());
-    // Register new image submission flow button handlers (Task 71.5)
-    bot.addButtonHandler(new TurnSubmitUrlButtonHandler());
-    bot.addButtonHandler(new TurnSubmitHelpButtonHandler());
     // Register admin config button handlers
     bot.addButtonHandler(new AdminGameConfigButtonHandler());
     bot.addButtonHandler(new AdminSeasonConfigButtonHandler());
