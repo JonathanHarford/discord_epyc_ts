@@ -52,8 +52,19 @@ export class ReadyCommand implements Command {
             const offeredTurns = await this.turnService.getTurnsForPlayer(player.id, 'OFFERED');
             
             if (offeredTurns.length === 0) {
+                // Add status check button when no turns are offered
+                const actionRow = new ActionRowBuilder<ButtonBuilder>()
+                    .addComponents(
+                        new ButtonBuilder()
+                            .setCustomId('status_check')
+                            .setLabel('Check My Status')
+                            .setStyle(ButtonStyle.Secondary)
+                            .setEmoji('📊')
+                    );
+
                 await intr.editReply({
-                    content: strings.messages.ready.noOfferedTurns
+                    content: strings.messages.ready.noOfferedTurns,
+                    components: [actionRow]
                 });
                 return;
             }
@@ -128,7 +139,12 @@ export class ReadyCommand implements Command {
                         new ButtonBuilder()
                             .setCustomId(`turn_dismiss_${turnToClaim.id}`)
                             .setLabel('Dismiss')
+                            .setStyle(ButtonStyle.Secondary),
+                        new ButtonBuilder()
+                            .setCustomId('status_check')
+                            .setLabel('Check Status')
                             .setStyle(ButtonStyle.Secondary)
+                            .setEmoji('📊')
                     );
 
                 await intr.editReply({
@@ -159,6 +175,17 @@ export class ReadyCommand implements Command {
                 if (currentRow.components.length > 0) {
                     actionRows.push(currentRow);
                 }
+
+                // Add status check button as a separate row
+                const statusRow = new ActionRowBuilder<ButtonBuilder>()
+                    .addComponents(
+                        new ButtonBuilder()
+                            .setCustomId('status_check')
+                            .setLabel('Check My Status')
+                            .setStyle(ButtonStyle.Secondary)
+                            .setEmoji('📊')
+                    );
+                actionRows.push(statusRow);
 
                 await intr.editReply({
                     content: `🎨 You have ${offeredTurns.length} turns waiting! Choose which one to claim:`,

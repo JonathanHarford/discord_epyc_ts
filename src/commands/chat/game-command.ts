@@ -1,5 +1,5 @@
 import { PrismaClient } from '@prisma/client';
-import { ChatInputCommandInteraction, PermissionsString } from 'discord.js';
+import { ActionRowBuilder, ButtonBuilder, ButtonStyle, ChatInputCommandInteraction, EmbedBuilder, PermissionsString, resolveColor } from 'discord.js';
 
 import { gameCommandData } from './game-command-data.js';
 import { strings } from '../../lang/strings.js';
@@ -31,6 +31,39 @@ export class GameCommand implements Command {
         this.onDemandGameService = onDemandGameService;
         this.onDemandTurnService = onDemandTurnService;
         this.playerTurnService = playerTurnService;
+    }
+
+    /**
+     * Send an error message with status check button for pending turn scenarios
+     * @param interaction The Discord interaction
+     * @param message The error message to display
+     */
+    private async sendPendingTurnError(interaction: ChatInputCommandInteraction, message: string): Promise<void> {
+        const embed = new EmbedBuilder()
+            .setDescription(message)
+            .setColor(resolveColor(strings.colors.error))
+            .setTimestamp();
+
+        const actionRow = new ActionRowBuilder<ButtonBuilder>()
+            .addComponents(
+                new ButtonBuilder()
+                    .setCustomId('status_check')
+                    .setLabel('Check My Status')
+                    .setStyle(ButtonStyle.Secondary)
+                    .setEmoji('📊')
+            );
+
+        try {
+            if (interaction.replied || interaction.deferred) {
+                await interaction.editReply({ embeds: [embed], components: [actionRow] });
+            } else {
+                await interaction.reply({ embeds: [embed], components: [actionRow], ephemeral: true });
+            }
+        } catch (error) {
+            console.error('[GameCommand] Failed to send pending turn error with button:', error);
+            // Fallback to simple error message
+            await SimpleMessage.sendError(interaction, message, {}, true);
+        }
     }
 
     public async execute(interaction: ChatInputCommandInteraction, data: EventData): Promise<void> {
@@ -78,11 +111,9 @@ export class GameCommand implements Command {
                     ? ` by @${turn.game.creator.name}` 
                     : '';
 
-                await SimpleMessage.sendError(
+                await this.sendPendingTurnError(
                     interaction,
-                    `You have a pending turn waiting for you in ${gameType} game (${gameIdentifier}${creatorInfo}). Please complete your current turn before starting a new game.`,
-                    {},
-                    true
+                    `You have a pending turn waiting for you in ${gameType} game (${gameIdentifier}${creatorInfo}). Please complete your current turn before starting a new game.`
                 );
                 return;
             }
@@ -137,11 +168,9 @@ export class GameCommand implements Command {
                     ? ` by @${turn.game.creator.name}` 
                     : '';
 
-                await SimpleMessage.sendError(
+                await this.sendPendingTurnError(
                     interaction,
-                    `You have a pending turn waiting for you in ${gameType} game (${gameIdentifier}${creatorInfo}). Please complete your current turn before joining another game.`,
-                    {},
-                    true
+                    `You have a pending turn waiting for you in ${gameType} game (${gameIdentifier}${creatorInfo}). Please complete your current turn before joining another game.`
                 );
                 return;
             }

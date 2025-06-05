@@ -3,7 +3,7 @@
 # Status: in-progress
 # Dependencies: 2, 10, 14, 47
 # Priority: high
-# Description: Replace the current DM-based game interaction system with ephemeral messages and modals for improved user experience and reliability.
+# Description: Replace the current DM-based game interaction system with ephemeral messages and modals for improved user experience and reliability. Phase 1 (Simple Interactions), including converting ready commands, status checks, and error messages to use ephemeral responses and integrating status check buttons, is now fully complete. Proceeding with Phase 2 (Complex Interactions) focusing on modal-based turn submissions and converting DirectMessageHandler logic.
 # Details:
 Update the MessageAdapter to prioritize ephemeral messages for game interactions. Refactor DirectMessageHandler logic to use the interaction handling framework (Task 47) for processing button clicks and modal submissions. Implement interaction handlers for turn notifications (ephemeral with buttons), ready command (ephemeral response), turn submissions (modal forms triggered by ephemeral prompts), and game communication (ephemeral error/status messages). Update TurnOfferingService to send ephemeral notifications. Ensure backward compatibility during the transition. Address benefits like eliminating 'Cannot send messages' errors, improving server context integration, enhancing UI/UX, and using a more reliable delivery mechanism.
 
@@ -18,10 +18,10 @@ Update the MessageAdapter to prioritize ephemeral messages for game interactions
 
 **Specific Implementation Plan**:
 
-**Phase 1: Simple Interactions**
-- Convert ready commands → Ephemeral responses with action buttons
-- Convert status checks → Ephemeral responses  
-- Convert error messages → Ephemeral responses
+**Phase 1: Simple Interactions** (Completed)
+- Convert ready commands → Ephemeral responses with action buttons (Completed)
+- Convert status checks → Ephemeral responses (Completed)
+- Convert error messages → Ephemeral responses (Completed)
 - Update MessageAdapter.processInstruction to prefer ephemeral over DM (Completed in 71.1)
 
 **Phase 2: Complex Interactions**
@@ -34,27 +34,45 @@ Update the MessageAdapter to prioritize ephemeral messages for game interactions
 - All actual interaction happens via ephemeral/modals
 - Update TurnOfferingService to use ephemeral notifications
 
-**Technical Implementation Details**:
+**Completed Work Details (Phase 1)**:
+- **DirectMessageHandler Enhancement**: Updated `src/events/direct-message-handler.ts` to support ephemeral responses via a new `sendResponse()` method that prefers ephemeral messages when interaction context is available. All DM-based error messages now use this method, maintaining DM fallback when no interaction context is available.
+- **Status Check Button Integration**: Enhanced `src/commands/chat/ready-command.ts` to include status check buttons in all scenarios (no turns, single turn claim, multiple turns interface). Enhanced `src/commands/chat/game-command.ts` with a `sendPendingTurnError()` helper method used by `/game new` and `/game play` commands to include status check buttons in pending turn errors. All buttons use consistent styling (Secondary, 📊 emoji) and the existing `status_check` custom ID.
+- **Error Message Migration**: All error messages previously sent via DM from `DirectMessageHandler` are now routed through the new `sendResponse()` method, enabling ephemeral delivery when possible.
+
+**Technical Implementation Details (Phase 1)**:
+- All new implementations use `ephemeral: true` for user-specific responses.
+- Error handling includes fallbacks to ensure reliability.
+- Consistent button styling and labeling across components.
+- Integration leverages existing StatusButton and TurnStatusButtonHandler infrastructure.
+
+**Technical Implementation Details (Remaining Phases)**:
 - Leverage existing ephemeral message infrastructure (already extensive)
 - Utilize existing modal system for admin/season creation (good foundation)
-- Adapt existing button/interaction handlers
+- Adapt existing button/interaction handlers (e.g., StatusButton, TurnStatusButtonHandler)
 - Update MessageInstruction system for ephemeral preference (Completed in 71.1)
 - Handle image submission complexity with ephemeral prompts directing to slash commands with file attachments
 - Address modal character limits (encourages better UX)
 - Implement notification system to guide users to correct server/channel
+- Use direct `interaction.reply()` and `interaction.followUp()` with `ephemeral: true` for simple ephemeral responses where appropriate (e.g., button interactions like the ready button, status checks, error messages).
+- Implementations include fallbacks for reliability.
 
 # Test Strategy:
-Unit tests for individual interaction handlers and MessageAdapter logic. Integration tests to verify end-to-end flows for turn offering (ephemeral + buttons), ready command (ephemeral), and turn submissions (ephemeral prompt + modal). Test that error and status messages are sent ephemerally in the correct channel context. Manual testing by playing through games using the new flow, testing all interaction types and edge cases. Verify backward compatibility if applicable.
+Unit tests for individual interaction handlers and MessageAdapter logic. Integration tests to verify end-to-end flows for turn offering (ephemeral + buttons), ready command (ephemeral), and turn submissions (ephemeral prompt + modal). Test that error and status messages are sent ephemerally in the correct channel context and include the appropriate buttons. Manual testing by playing through games using the new flow, testing all interaction types and edge cases. Verify backward compatibility if applicable.
 
 **Specific Test Cases**:
 1. Test MessageAdapter's preference for ephemeral messages over DMs (Completed in 71.1)
-2. Verify ready command interaction handlers produce correct ephemeral responses with action buttons
-3. Test turn submission flow with modal forms and ephemeral prompts for images
-4. Validate hybrid notification system (minimal DM pings + ephemeral interactions)
-5. Test error handling and status updates via ephemeral messages
-6. Verify image submission flow with ephemeral prompts → slash commands
-7. Test character limit handling in modals
-8. Verify notification system guides users to correct server/channel
+2. Verify ready command interaction handlers produce correct ephemeral responses with action buttons (Completed)
+3. Verify error messages previously sent via DM are now sent ephemerally when interaction context is available, using the new `sendResponse()` method. (Completed)
+4. Verify status check buttons are included in ephemeral responses for ready command scenarios (no turns, single turn, multiple turns). (Completed)
+5. Verify status check buttons are included in ephemeral responses for pending turn errors from `/game new` and `/game play`. (Completed)
+6. Test that clicking the status check button triggers the correct handler and provides the user's status ephemerally. (Completed)
+7. Test turn submission flow with modal forms and ephemeral prompts for images
+8. Validate hybrid notification system (minimal DM pings + ephemeral interactions)
+9. Test error handling and status updates via ephemeral messages (beyond the basic migration covered in 71.2)
+10. Verify image submission flow with ephemeral prompts → slash commands
+11. Test character limit handling in modals
+12. Verify notification system guides users to correct server/channel
+13. Test UI components correctly trigger the Ready Button interaction instead of sending a DM command. (Completed)
 
 **Files to Test**:
 - src/messaging/MessageAdapter.ts (Core logic tested in 71.1)
@@ -62,6 +80,11 @@ Unit tests for individual interaction handlers and MessageAdapter logic. Integra
 - src/services/TurnOfferingService.ts
 - src/services/OnDemandTurnService.ts
 - src/utils/modalBuilders.ts
+- src/buttons/ready-button.ts
+- src/commands/chat/ready-command.ts
+- src/commands/chat/game-command.ts
+- src/buttons/status-button.ts (and associated handler)
+- UI components that previously sent ready commands via DM
 
 # Subtasks:
 ## 71.1. Update MessageAdapter for Ephemeral Preference [completed]
@@ -70,9 +93,9 @@ Unit tests for individual interaction handlers and MessageAdapter logic. Integra
 ### Details:
 
 
-## 71.2. Implement Phase 1: Simple Interactions [pending]
+## 71.2. Complete Phase 1: Simple Interactions [completed]
 ### Dependencies: None
-### Description: Convert ready commands, status checks, and error messages to use ephemeral responses.
+### Description: Convert status checks and error messages to use ephemeral responses. (Ready command conversion is complete, including creating `src/buttons/ready-button.ts` and integrating it). This subtask is now completed, including: updating DirectMessageHandler to support ephemeral responses for errors/status, integrating status check buttons into ready command and game command pending turn errors, and ensuring ephemeral delivery for these simple interactions.
 ### Details:
 
 
@@ -109,6 +132,12 @@ Unit tests for individual interaction handlers and MessageAdapter logic. Integra
 ## 71.8. Comprehensive Testing [pending]
 ### Dependencies: None
 ### Description: Perform unit, integration, and manual testing of all interaction flows and edge cases.
+### Details:
+
+
+## 71.9. Update UI components for Ready Button [pending]
+### Dependencies: None
+### Description: Modify existing UI components that previously triggered the ready command via DM to now trigger the new Ready Button interaction.
 ### Details:
 
 

@@ -3,6 +3,8 @@ import schedule from 'node-schedule';
 import { createRequire } from 'node:module';
 
 import { Button } from './buttons/index.js';
+import { ReadyButton } from './buttons/ready-button.js';
+import { StatusButton } from './buttons/status-button.js';
 import { AdminCommand, DevCommand, GameCommand, HelpCommand, InfoCommand, ReadyCommand } from './commands/chat/index.js';
 import { SeasonCommand } from './commands/chat/season-command.js';
 import { Command } from './commands/index.js';
@@ -177,6 +179,10 @@ async function start(): Promise<void> {
     bot.addButtonHandler(new SeasonListPaginationButtonHandler());
     // Register turn claim button handler
     bot.addButtonHandler(new TurnClaimButtonHandler());
+    // Register ready button handler
+    bot.addButtonHandler(new ReadyButton(prisma, turnService, playerService, schedulerService, turnOfferingService));
+    // Register status button handler
+    bot.addButtonHandler(new StatusButton(playerService, playerTurnService));
     // Register additional turn button handlers
     bot.addButtonHandler(new TurnDismissButtonHandler());
     bot.addButtonHandler(new TurnSubmitButtonHandler());

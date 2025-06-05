@@ -1,5 +1,5 @@
 import { PrismaClient } from '@prisma/client';
-import { Client as DiscordClient, Message } from 'discord.js';
+import { ButtonInteraction, Client as DiscordClient, CommandInteraction, Message } from 'discord.js';
 
 import { EventHandler } from './index.js';
 import { interpolate, strings } from '../lang/strings.js';  
@@ -24,6 +24,7 @@ export enum DMContextType {
 /**
  * Handler for direct messages sent to the bot.
  * Responsible for identifying the context of the DM and routing it to the appropriate handler.
+ * Now supports ephemeral responses when interaction context is available (Task 71.2)
  */
 export class DirectMessageHandler implements EventHandler {
     private prisma: PrismaClient;
@@ -54,14 +55,15 @@ export class DirectMessageHandler implements EventHandler {
     /**
      * Process a direct message and route it to the appropriate handler based on its context.
      * @param msg The direct message to process
+     * @param interaction Optional interaction context for ephemeral responses (Task 71.2)
      */
-    public async process(msg: Message): Promise<void> {
+    public async process(msg: Message, interaction?: CommandInteraction | ButtonInteraction): Promise<void> {
         try {
             // Identify the context of the DM
             const contextType = await this.identifyDMContext(msg);
             
             // Route the DM to the appropriate handler based on context
-            await this.routeDM(msg, contextType);
+            await this.routeDM(msg, contextType, interaction);
         } catch (error) {
             // Use the new standardized error handler for DMs
             await ErrorHandler.handleDMError(
@@ -106,32 +108,66 @@ export class DirectMessageHandler implements EventHandler {
      * Route a direct message to the appropriate handler based on its context.
      * @param msg The direct message to route
      * @param contextType The identified context type of the message
+     * @param interaction Optional interaction context for ephemeral responses (Task 71.2)
      */
-    private async routeDM(msg: Message, contextType: DMContextType): Promise<void> {
+    private async routeDM(msg: Message, contextType: DMContextType, interaction?: CommandInteraction | ButtonInteraction): Promise<void> {
         // Log the routing decision for debugging
         Logger.info(`Routing DM from ${msg.author.tag} with context: ${contextType}`);
         
         switch (contextType) {
             case DMContextType.READY_COMMAND:
-                await this.handleReadyCommand(msg);
+                await this.handleReadyCommand(msg, interaction);
                 break;
             case DMContextType.SLASH_COMMAND:
-                await this.handleSlashCommandDM(msg);
+                await this.handleSlashCommandDM(msg, interaction);
                 break;
             case DMContextType.TURN_SUBMISSION:
-                await this.handleTurnSubmission(msg);
+                await this.handleTurnSubmission(msg, interaction);
                 break;
             case DMContextType.OTHER:
-                await this.handleOtherDM(msg);
+                await this.handleOtherDM(msg, interaction);
                 break;
         }
     }
 
     /**
+     * Send a message either as ephemeral response (if interaction available) or DM (fallback)
+     * @param message The message content to send
+     * @param msg The original DM message
+     * @param interaction Optional interaction for ephemeral response
+     */
+    private async sendResponse(message: string, msg: Message, interaction?: CommandInteraction | ButtonInteraction): Promise<void> {
+        if (interaction && interaction.guild) {
+            // Prefer ephemeral response when interaction context is available (Task 71.2)
+            try {
+                if (interaction.replied || interaction.deferred) {
+                    await interaction.followUp({
+                        content: message,
+                        ephemeral: true
+                    });
+                } else {
+                    await interaction.reply({
+                        content: message,
+                        ephemeral: true
+                    });
+                }
+                return;
+            } catch (error) {
+                Logger.warn('Failed to send ephemeral response, falling back to DM:', error);
+                // Fall through to DM sending
+            }
+        }
+        
+        // Fallback to DM
+        await msg.author.send(message);
+    }
+
+    /**
      * Handle a direct message that appears to be a /ready command.
      * @param msg The direct message to handle
+     * @param interaction Optional interaction context for ephemeral responses (Task 71.2)
      */
-    private async handleReadyCommand(msg: Message): Promise<void> {
+    private async handleReadyCommand(msg: Message, interaction?: CommandInteraction | ButtonInteraction): Promise<void> {
         const wrappedHandler = ErrorHandler.wrapDMHandler(
             async () => {
                 Logger.info(`Processing /ready command from ${msg.author.tag} (${msg.author.id})`);
@@ -139,7 +175,7 @@ export class DirectMessageHandler implements EventHandler {
                 // 1. Find the player by Discord user ID
                 const player = await this.playerService.getPlayerByDiscordId(msg.author.id);
                 if (!player) {
-                    await msg.author.send(strings.messages.ready.playerNotFound);
+                    await this.sendResponse(strings.messages.ready.playerNotFound, msg, interaction);
                     return;
                 }
 
@@ -147,7 +183,7 @@ export class DirectMessageHandler implements EventHandler {
                 const offeredTurns = await this.turnService.getTurnsForPlayer(player.id, 'OFFERED');
                 
                 if (offeredTurns.length === 0) {
-                    await msg.author.send(strings.messages.ready.noOfferedTurns);
+                    await this.sendResponse(strings.messages.ready.noOfferedTurns, msg, interaction);
                     return;
                 }
 
@@ -155,9 +191,9 @@ export class DirectMessageHandler implements EventHandler {
                 const pendingTurns = await this.turnService.getTurnsForPlayer(player.id, 'PENDING');
                 if (pendingTurns.length > 0) {
                     // Send the standard message
-                    await msg.author.send(strings.messages.ready.alreadyHasPendingTurn);
+                    await this.sendResponse(strings.messages.ready.alreadyHasPendingTurn, msg, interaction);
                     
-                    // Re-DM the pending turn prompt
+                    // Re-send the pending turn prompt
                     const pendingTurn = pendingTurns[0];
                     const timeouts = await getSeasonTimeouts(this.prisma, pendingTurn.id);
                     const submissionTimeoutMinutes = pendingTurn.type === 'WRITING' 
@@ -182,13 +218,13 @@ export class DirectMessageHandler implements EventHandler {
                             previousTurnImage: previousTurn?.imageUrl || '[Previous image not found]',
                             submissionTimeoutFormatted: FormatUtils.formatRemainingTime(submissionTimeoutDate)
                         });
-                        await msg.author.send(message);
+                        await this.sendResponse(message, msg, interaction);
                     } else {
                         const message = interpolate(strings.messages.ready.claimSuccessDrawing, {
                             previousTurnWriting: previousTurn?.textContent || '[Previous text not found]',
                             submissionTimeoutFormatted: FormatUtils.formatRemainingTime(submissionTimeoutDate)
                         });
-                        await msg.author.send(message);
+                        await this.sendResponse(message, msg, interaction);
                     }
                     
                     return;
@@ -201,7 +237,7 @@ export class DirectMessageHandler implements EventHandler {
                 const claimResult = await this.turnService.claimTurn(turnToClaim.id, player.id);
                 
                 if (!claimResult.success) {
-                    await msg.author.send(strings.messages.ready.claimFailed);
+                    await this.sendResponse(strings.messages.ready.claimFailed, msg, interaction);
                     return;
                 }
 
@@ -257,7 +293,7 @@ export class DirectMessageHandler implements EventHandler {
                     Logger.warn(`Failed to schedule submission timeout for turn ${turnToClaim.id}`);
                 }
 
-                // 8. Send confirmation DM to the player
+                // 8. Send confirmation message to the player
                 // Get the previous turn content for context
                 const previousTurn = await this.prisma.turn.findFirst({
                     where: {
@@ -273,13 +309,13 @@ export class DirectMessageHandler implements EventHandler {
                         previousTurnImage: previousTurn?.imageUrl || '[Previous image not found]',
                         submissionTimeoutFormatted: FormatUtils.formatRemainingTime(submissionTimeoutDate)
                     });
-                    await msg.author.send(message);
+                    await this.sendResponse(message, msg, interaction);
                 } else {
                     const message = interpolate(strings.messages.ready.claimSuccessDrawing, {
                         previousTurnWriting: previousTurn?.textContent || '[Previous text not found]',
                         submissionTimeoutFormatted: FormatUtils.formatRemainingTime(submissionTimeoutDate)
                     });
-                    await msg.author.send(message);
+                    await this.sendResponse(message, msg, interaction);
                 }
 
                 Logger.info(`Successfully processed /ready command for player ${player.id} (${msg.author.tag}), claimed turn ${turnToClaim.id}`);
@@ -294,12 +330,13 @@ export class DirectMessageHandler implements EventHandler {
     /**
      * Handle a direct message that appears to be a slash command (other than /ready).
      * @param msg The direct message to handle
+     * @param interaction Optional interaction context for ephemeral responses (Task 71.2)
      */
-    private async handleSlashCommandDM(msg: Message): Promise<void> {
+    private async handleSlashCommandDM(msg: Message, interaction?: CommandInteraction | ButtonInteraction): Promise<void> {
         const wrappedHandler = ErrorHandler.wrapDMHandler(
             async () => {
                 Logger.info(`Received slash command in DM from ${msg.author.tag}: ${msg.content}`);
-                await msg.author.send('I only do commands on servers! Please use slash commands in a server channel where I\'m available.');
+                await this.sendResponse('I only do commands on servers! Please use slash commands in a server channel where I\'m available. Most game interactions now use buttons and ephemeral messages for a better experience.', msg, interaction);
             },
             msg,
             { dmContextType: DMContextType.SLASH_COMMAND }
@@ -311,8 +348,9 @@ export class DirectMessageHandler implements EventHandler {
     /**
      * Handle a direct message that appears to be a turn submission.
      * @param msg The direct message to handle
+     * @param interaction Optional interaction context for ephemeral responses (Task 71.2)
      */
-    private async handleTurnSubmission(msg: Message): Promise<void> {
+    private async handleTurnSubmission(msg: Message, interaction?: CommandInteraction | ButtonInteraction): Promise<void> {
         const wrappedHandler = ErrorHandler.wrapDMHandler(
             async () => {
                 Logger.info(`Processing turn submission from ${msg.author.tag} (${msg.author.id})`);
@@ -320,7 +358,7 @@ export class DirectMessageHandler implements EventHandler {
                 // 1. Find the player by Discord user ID
                 const player = await this.playerService.getPlayerByDiscordId(msg.author.id);
                 if (!player) {
-                    await msg.author.send(interpolate(strings.messages.submission.playerNotFound, { discordUserId: msg.author.id }));
+                    await this.sendResponse(interpolate(strings.messages.submission.playerNotFound, { discordUserId: msg.author.id }), msg, interaction);
                     return;
                 }
 
@@ -328,7 +366,7 @@ export class DirectMessageHandler implements EventHandler {
                 const pendingTurns = await this.turnService.getTurnsForPlayer(player.id, 'PENDING');
                 
                 if (pendingTurns.length === 0) {
-                    await msg.author.send(interpolate(strings.messages.submission.noPendingTurns, { playerName: player.name }));
+                    await this.sendResponse(interpolate(strings.messages.submission.noPendingTurns, { playerName: player.name }), msg, interaction);
                     return;
                 }
 
@@ -343,13 +381,13 @@ export class DirectMessageHandler implements EventHandler {
                     // Handle image submission
                     const attachment = msg.attachments.first();
                     if (!attachment) {
-                        await msg.author.send(strings.messages.submission.noAttachmentFound);
+                        await this.sendResponse(strings.messages.submission.noAttachmentFound, msg, interaction);
                         return;
                     }
                     
                     // Validate that it's an image
                     if (!attachment.contentType?.startsWith('image/')) {
-                        await msg.author.send(interpolate(strings.messages.submission.invalidFileType, { fileType: attachment.contentType || 'unknown' }));
+                        await this.sendResponse(interpolate(strings.messages.submission.invalidFileType, { fileType: attachment.contentType || 'unknown' }), msg, interaction);
                         return;
                     }
                     
@@ -361,18 +399,18 @@ export class DirectMessageHandler implements EventHandler {
                     contentType = 'text';
                 } else {
                     // No valid content found
-                    await msg.author.send(strings.messages.submission.noContentFound);
+                    await this.sendResponse(strings.messages.submission.noContentFound, msg, interaction);
                     return;
                 }
 
                 // 5. Validate content type matches turn type
                 if ((turnToSubmit.type === 'WRITING' && contentType !== 'text') ||
                     (turnToSubmit.type === 'DRAWING' && contentType !== 'image')) {
-                    await msg.author.send(interpolate(strings.messages.submission.wrongContentType, { 
+                    await this.sendResponse(interpolate(strings.messages.submission.wrongContentType, { 
                         expectedType: turnToSubmit.type === 'WRITING' ? 'text' : 'image',
                         receivedType: contentType,
                         turnType: turnToSubmit.type
-                    }));
+                    }), msg, interaction);
                     return;
                 }
 
@@ -385,10 +423,10 @@ export class DirectMessageHandler implements EventHandler {
                 );
                 
                 if (!submitResult.success) {
-                    await msg.author.send(interpolate(strings.messages.submission.submitFailed, { 
+                    await this.sendResponse(interpolate(strings.messages.submission.submitFailed, { 
                         error: submitResult.error,
                         turnId: turnToSubmit.id
-                    }));
+                    }), msg, interaction);
                     return;
                 }
 
@@ -419,7 +457,7 @@ export class DirectMessageHandler implements EventHandler {
                     // Don't fail the entire submission process if turn offering fails
                 }
 
-                // 9. Send confirmation DM to the player
+                // 9. Send confirmation message to the player
                 // Get the game with season information
                 const gameWithSeason = await this.prisma.game.findUnique({
                     where: { id: turnToSubmit.gameId },
@@ -448,10 +486,10 @@ export class DirectMessageHandler implements EventHandler {
                     // Use generic fallback if channel lookup fails
                 }
                 
-                await msg.author.send(interpolate(strings.messages.submission.submitSuccess, {
+                await this.sendResponse(interpolate(strings.messages.submission.submitSuccess, {
                     seasonId: seasonId,
                     finishedGamesLink: finishedGamesLink
-                }));
+                }), msg, interaction);
 
                 Logger.info(`Successfully processed turn submission for player ${player.id} (${msg.author.tag}), completed turn ${turnToSubmit.id}`);
             },
@@ -465,13 +503,14 @@ export class DirectMessageHandler implements EventHandler {
     /**
      * Handle a direct message that doesn't match any known context.
      * @param msg The direct message to handle
+     * @param interaction Optional interaction context for ephemeral responses (Task 71.2)
      */
-    private async handleOtherDM(msg: Message): Promise<void> {
+    private async handleOtherDM(msg: Message, interaction?: CommandInteraction | ButtonInteraction): Promise<void> {
         const wrappedHandler = ErrorHandler.wrapDMHandler(
             async () => {
                 // This is a placeholder implementation
                 Logger.info(`Received unrecognized DM from ${msg.author.tag}`);
-                await msg.reply('I\'m not sure what you\'re trying to do. If you\'re trying to join a game, please use the appropriate commands in a server channel.');
+                await this.sendResponse('I\'m not sure what you\'re trying to do. If you\'re trying to join a game or check your status, please use the slash commands in a server channel where I\'m available. Most interactions now use buttons and ephemeral messages for better privacy and user experience.', msg, interaction);
             },
             msg,
             { dmContextType: DMContextType.OTHER }
