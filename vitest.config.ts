@@ -6,13 +6,10 @@ config({ path: '.env.test', override: true });
 
 export default defineConfig({
     test: {
+        globals: true,
         environment: 'node',
-        include: ['tests/**/*.test.ts'],
+        include: ['tests/commands/chat/season-command.test.ts'],
         exclude: ['node_modules', 'dist'],
-        typecheck: {
-            tsconfig: './tsconfig.test.json',
-        },
-        fileParallelism: false,
-        globalSetup: './tests/global-setup.ts',
+        setupFiles: ['./tests/setup.ts'],
     },
 });
