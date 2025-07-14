@@ -23,11 +23,6 @@ vi.mock('../../../src/services/command-registration-service.ts', () => ({
 vi.mock('../../../src/services/master-api-service.ts', () => ({
     MasterApiService: vi.fn(),
 }));
-vi.mock('../../../src/services/ConfigService.ts', () => ({
-    ConfigService: vi.fn(() => ({
-        getGuildDefaultConfig: vi.fn().mockResolvedValue({}),
-    })),
-}));
 vi.mock('@prisma/client', () => ({
     PrismaClient: vi.fn(() => ({
         player: {
@@ -37,6 +32,11 @@ vi.mock('@prisma/client', () => ({
         season: {
             findMany: vi.fn(),
         },
+    })),
+}));
+vi.mock('../../../src/services/ConfigService.ts', () => ({
+    ConfigService: vi.fn(() => ({
+        getGuildDefaultConfig: vi.fn().mockResolvedValue({}),
     })),
 }));
 

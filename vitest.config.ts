@@ -8,8 +8,8 @@ export default defineConfig({
     test: {
         globals: true,
         environment: 'node',
-        include: ['tests/commands/chat/season-command.test.ts'],
-        exclude: ['node_modules', 'dist'],
+        include: ['tests/**/*.test.ts'],
+        exclude: ['node_modules', 'dist', 'tests/**/*.integration.test.ts'],
         setupFiles: ['./tests/setup.ts'],
     },
 });

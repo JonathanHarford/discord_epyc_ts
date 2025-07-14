@@ -1,3 +1,30 @@
+import { vi } from 'vitest';
+vi.mock('@prisma/client', () => ({
+    PrismaClient: vi.fn(() => ({
+        $transaction: vi.fn(),
+        turn: {
+            findUnique: vi.fn(),
+            deleteMany: vi.fn(),
+        },
+        game: {
+            create: vi.fn(),
+            deleteMany: vi.fn(),
+        },
+        season: {
+            create: vi.fn(),
+            deleteMany: vi.fn(),
+        },
+        player: {
+            create: vi.fn(),
+            deleteMany: vi.fn(),
+        },
+        seasonConfig: {
+            create: vi.fn(),
+            deleteMany: vi.fn(),
+            update: vi.fn(),
+        },
+    })),
+}));
 import { PrismaClient } from '@prisma/client';
 import { nanoid } from 'nanoid';
 import { afterAll, beforeEach, describe, expect, it, vi } from 'vitest';
@@ -9,6 +36,32 @@ import { DEFAULT_TIMEOUTS, getSeasonTimeouts } from '../../src/utils/seasonConfi
 
 // Use a separate Prisma client for tests
 const prisma = new PrismaClient();
+vi.mock('prisma/client', () => ({
+    PrismaClient: vi.fn(() => ({
+        $transaction: vi.fn(),
+        turn: {
+            findUnique: vi.fn(),
+            deleteMany: vi.fn(),
+        },
+        game: {
+            create: vi.fn(),
+            deleteMany: vi.fn(),
+        },
+        season: {
+            create: vi.fn(),
+            deleteMany: vi.fn(),
+        },
+        player: {
+            create: vi.fn(),
+            deleteMany: vi.fn(),
+        },
+        seasonConfig: {
+            create: vi.fn(),
+            deleteMany: vi.fn(),
+            update: vi.fn(),
+        },
+    })),
+}));
 
 // Mock the Logger to avoid console output during tests
 vi.mock('../../src/services/index.js', () => ({

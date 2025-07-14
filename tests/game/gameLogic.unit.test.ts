@@ -1,3 +1,39 @@
+import { vi } from 'vitest';
+vi.mock('@prisma/client', () => ({
+    PrismaClient: vi.fn(() => ({
+        $transaction: vi.fn(),
+        player: {
+            create: vi.fn(),
+            deleteMany: vi.fn(),
+        },
+        season: {
+            create: vi.fn(),
+            deleteMany: vi.fn(),
+            findUnique: vi.fn(),
+            update: vi.fn(),
+        },
+        game: {
+            create: vi.fn(),
+            createMany: vi.fn(),
+            deleteMany: vi.fn(),
+            findMany: vi.fn(),
+            findUnique: vi.fn(),
+            update: vi.fn(),
+        },
+        turn: {
+            create: vi.fn(),
+            deleteMany: vi.fn(),
+        },
+        playersOnSeasons: {
+            create: vi.fn(),
+            deleteMany: vi.fn(),
+        },
+        seasonConfig: {
+            create: vi.fn(),
+            deleteMany: vi.fn(),
+        },
+    })),
+}));
 import { Game, Player, PrismaClient, Season, SeasonConfig, Turn } from '@prisma/client';
 import { nanoid } from 'nanoid';
 import { afterAll, beforeEach, describe, expect, it, vi } from 'vitest';
@@ -24,6 +60,41 @@ vi.mock('../../src/services/logger', () => ({
 
 // Use a separate Prisma client for tests
 const prisma = new PrismaClient();
+vi.mock('prisma/client', () => ({
+    PrismaClient: vi.fn(() => ({
+        $transaction: vi.fn(),
+        player: {
+            create: vi.fn(),
+            deleteMany: vi.fn(),
+        },
+        season: {
+            create: vi.fn(),
+            deleteMany: vi.fn(),
+            findUnique: vi.fn(),
+            update: vi.fn(),
+        },
+        game: {
+            create: vi.fn(),
+            createMany: vi.fn(),
+            deleteMany: vi.fn(),
+            findMany: vi.fn(),
+            findUnique: vi.fn(),
+            update: vi.fn(),
+        },
+        turn: {
+            create: vi.fn(),
+            deleteMany: vi.fn(),
+        },
+        playersOnSeasons: {
+            create: vi.fn(),
+            deleteMany: vi.fn(),
+        },
+        seasonConfig: {
+            create: vi.fn(),
+            deleteMany: vi.fn(),
+        },
+    })),
+}));
 
 // Wrapper functions to maintain the old interface for tests
 async function activateSeason(seasonId: string, prismaClient: PrismaClient): Promise<Season | null> {

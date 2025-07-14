@@ -1,3 +1,26 @@
+import { vi } from 'vitest';
+vi.mock('@prisma/client', () => ({
+    PrismaClient: vi.fn(() => ({
+        $transaction: vi.fn(),
+        turn: {
+            create: vi.fn(),
+            deleteMany: vi.fn(),
+            update: vi.fn(),
+        },
+        game: {
+            create: vi.fn(),
+            deleteMany: vi.fn(),
+        },
+        gameConfig: {
+            create: vi.fn(),
+            deleteMany: vi.fn(),
+        },
+        player: {
+            create: vi.fn(),
+            deleteMany: vi.fn(),
+        },
+    })),
+}));
 import { PrismaClient } from '@prisma/client';
 import { nanoid } from 'nanoid';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';

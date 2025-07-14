@@ -20,7 +20,6 @@ import { createAdminGameConfigModal, createAdminSeasonConfigModal, createAdminSe
 import { Command, CommandDeferType } from '../index.js';
 
 const require = createRequire(import.meta.url);
-let Config = require('../../../config/config.json');
 
 export class AdminCommand implements Command {
     public names = [strings.chatCommands.admin];
@@ -47,9 +46,9 @@ export class AdminCommand implements Command {
         this.onDemandGameService = null as any; // Temporary, will be initialized in execute
     }
 
-    public async execute(intr: ChatInputCommandInteraction, data: EventData): Promise<void> {
+    public async execute(intr: ChatInputCommandInteraction, data: EventData, developers: string[]): Promise<void> {
         // Check if user has admin permissions (using developers array for now)
-        if (!Config.developers.includes(intr.user.id)) {
+        if (!developers.includes(intr.user.id)) {
             await SimpleMessage.sendWarning(intr, strings.messages.admin.notAdmin, {}, true);
             return;
         }

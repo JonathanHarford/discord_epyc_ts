@@ -1,3 +1,35 @@
+import { vi } from 'vitest';
+vi.mock('@prisma/client', () => ({
+    PrismaClient: vi.fn(() => ({
+        $transaction: vi.fn(),
+        turn: {
+            findMany: vi.fn(),
+            deleteMany: vi.fn(),
+            create: vi.fn(),
+        },
+        game: {
+            create: vi.fn(),
+            deleteMany: vi.fn(),
+        },
+        season: {
+            create: vi.fn(),
+            deleteMany: vi.fn(),
+        },
+        player: {
+            create: vi.fn(),
+            deleteMany: vi.fn(),
+            findUnique: vi.fn(),
+        },
+        gameConfig: {
+            deleteMany: vi.fn(),
+            create: vi.fn(),
+        },
+        seasonConfig: {
+            deleteMany: vi.fn(),
+            create: vi.fn(),
+        },
+    })),
+}));
 import { Game, Player, PrismaClient, Season } from '@prisma/client';
 import { nanoid } from 'nanoid';
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';

@@ -8,3 +8,9 @@ vi.mock('discord.js', async () => {
         ...mock,
     };
 });
+
+vi.mock('config/config.json', () => ({
+    default: {
+        developers: ['123'],
+    },
+}));
